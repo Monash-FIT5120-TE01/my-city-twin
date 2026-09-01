@@ -1,0 +1,1029 @@
+/*
+ * The interface over the model.
+ *
+ * Everything is a floating panel on top of the 3D view, as in the Figma —
+ * the city is never covered by a full-width page, because the thing being
+ * explained is behind the glass.
+ */
+
+.app {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+/*
+ * The explicit z-index matters: it makes this element a stacking context, so
+ * the labels drei renders over the canvas stay inside it however high their
+ * own z-index climbs. Without it a street name at z-index 10 competes with
+ * the panels in the root stacking context and wins, and the names sit on top
+ * of the interface instead of sliding under it.
+ */
+.app__scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* ── panels ─────────────────────────────────────────────── */
+
+.panel {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.panel--left {
+  top: 96px;
+  left: 24px;
+  /* Wide enough for four season names side by side at the bold weight, plus
+     a date field on one line. At 306 the row was touching its own edges. */
+  width: 348px;
+}
+
+.panel--right {
+  top: 96px;
+  right: 24px;
+  width: 396px;
+  max-height: calc(100% - 200px);
+  overflow-y: auto;
+}
+
+.panel__eyebrow {
+  margin: 0;
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--green-500);
+}
+
+.panel__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.panel__body {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/* ── navigation ─────────────────────────────────────────── */
+
+.nav {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 16px 26px;
+  border-radius: 14px;
+  background: var(--ink-green-900);
+  color: var(--paper);
+}
+
+.nav__mark {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 0.9375rem;
+}
+
+.nav__links {
+  display: flex;
+  gap: 18px;
+}
+
+.nav__link {
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.nav__link[aria-disabled='true'] {
+  color: rgba(255, 255, 255, 0.38);
+  cursor: not-allowed;
+}
+
+.nav__link[aria-current='page'] {
+  border-bottom-color: var(--amber-300);
+  color: var(--paper);
+}
+
+/* ── breadcrumb ─────────────────────────────────────────── */
+
+.crumbs {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 20px;
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  font-size: var(--text-body);
+}
+
+.crumbs button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.crumbs span {
+  color: var(--ink-3);
+}
+
+/* ── controls ───────────────────────────────────────────── */
+
+.button {
+  padding: 11px 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--green-700);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.button:hover {
+  background: var(--green-600);
+}
+
+.button--ghost {
+  background: var(--paper);
+  border-color: var(--hairline);
+  color: var(--ink);
+}
+
+.button--ghost:hover {
+  background: var(--green-050);
+}
+
+.button--block {
+  width: 100%;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--green-050);
+}
+
+.segmented--four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.segmented button {
+  position: relative;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/*
+ * Every segment reserves the width its own label needs AT THE BOLD WEIGHT,
+ * whether or not it is the selected one.
+ *
+ * The four season names are all six letters, so equal columns looked like
+ * enough — but the selected segment is set in 600, and bold "Spring" is wider
+ * than regular "Spring". Only the selected one overflowed, and only for some
+ * words, which is why it read as a font-size problem.
+ *
+ * The hidden copy is laid out at the heavier weight and collapsed to zero
+ * height, so it contributes width and nothing else. The segment therefore
+ * measures the same in both states and nothing shifts on selection.
+ */
+.segmented button::before {
+  content: attr(data-label);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--green-700);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.layers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.layers__item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.layers__item input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green-700);
+  cursor: pointer;
+}
+
+.layers__item[data-locked='true'] {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.layers__item[data-locked='true'] input {
+  cursor: not-allowed;
+}
+
+.layers__lock {
+  flex: none;
+  color: #b4bac0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.chosen {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+
+.field input {
+  flex: 1;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.field input:focus {
+  outline: none;
+}
+
+/* ── project cards ──────────────────────────────────────── */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+
+.card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.card__meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.card__stamp {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--violet-600);
+}
+
+.badge {
+  display: inline-block;
+  padding: 5px 13px;
+  border-radius: var(--radius-pill);
+  background: var(--green-700);
+  color: var(--paper);
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.badge--construction {
+  background: var(--amber-ink);
+}
+
+/* ── tabs ───────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 22px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.tabs button {
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  font: inherit;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.tabs button[aria-selected='true'] {
+  border-bottom-color: var(--green-700);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tabs button:disabled {
+  color: #c2c7cc;
+  cursor: not-allowed;
+}
+
+/* ── notes ──────────────────────────────────────────────── */
+
+.note {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--green-050);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.note--caution {
+  background: var(--amber-050);
+  color: var(--amber-ink);
+}
+
+.note__heading {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.note ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.note li + li {
+  margin-top: 5px;
+}
+
+.disclaimer {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 3;
+  padding: 7px 15px;
+  border-radius: var(--radius-pill);
+  background: var(--amber-050);
+  color: var(--amber-ink);
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── the time bar ───────────────────────────────────────── */
+
+.timebar {
+  position: absolute;
+  /* Anchored to the gap between the left panel (24 + 306) and the narrative
+     card (24 + 328), rather than centred on the viewport — centring ran the
+     bar under the left panel on anything narrower than about 1380 px. */
+  left: 396px;
+  right: 376px;
+  bottom: 28px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 24px;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.timebar__slider {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Without this a flex item refuses to shrink below its content width, and
+     the slider jumps every time the caption beside it gets longer. */
+  min-width: 0;
+}
+
+.timebar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.timebar__head span {
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.timebar__head b {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The track is painted by hand rather than left to `accent-color`, which
+ * gives a different shape in every browser and cannot fill only the part of
+ * the track behind the knob.
+ */
+.timebar__slider input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.timebar__slider input::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--amber-400) 0 var(--fill, 0%),
+    #e6e5e0 var(--fill, 0%) 100%
+  );
+}
+
+.timebar__slider input::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: #e6e5e0;
+}
+
+.timebar__slider input::-moz-range-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--amber-400);
+}
+
+.timebar__slider input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--amber-500);
+  box-shadow: 0 0 0 3px var(--paper), 0 2px 7px rgba(20, 30, 26, 0.28);
+}
+
+.timebar__slider input::-moz-range-thumb {
+  width: 17px;
+  height: 17px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--amber-500);
+  box-shadow: 0 0 0 3px var(--paper), 0 2px 7px rgba(20, 30, 26, 0.28);
+}
+
+.timebar__slider input:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--green-600);
+}
+
+.timebar__readout {
+  flex: none;
+  /* Fixed, so a longer caption can never squeeze the slider. */
+  width: 178px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: var(--radius-card);
+  background: var(--green-050);
+}
+
+.timebar__readout b {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--green-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.timebar__readout span {
+  font-size: var(--text-sm);
+  line-height: 1.3;
+  color: var(--ink-2);
+  /* Two lines always, so the bar's height never changes with the wording. */
+  min-height: 2.6em;
+}
+
+/* ── the sun direction chip ─────────────────────────────── */
+
+.sunchip {
+  position: absolute;
+  top: 104px;
+  /* Same reasoning as the time bar: centred on the free space, not on the
+     viewport, so it never crosses the panel beside it. */
+  left: 396px;
+  right: 376px;
+  z-index: 3;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--amber-500);
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.sunchip svg {
+  flex: none;
+}
+
+/* ── the landing card ───────────────────────────────────── */
+
+.landing {
+  position: absolute;
+  top: 50%;
+  left: 72px;
+  z-index: 3;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(560px, calc(100% - 144px));
+  padding: 42px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.landing__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.4vw, var(--text-h1));
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.landing__body {
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--text-lg);
+  color: var(--ink-2);
+}
+
+.landing__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.landing__fine {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.landing__soon {
+  display: flex;
+  gap: 26px;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ── results dropdown ───────────────────────────────────── */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  max-height: 232px;
+  overflow-y: auto;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+
+.results button {
+  padding: 11px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.results button:last-child {
+  border-bottom: 0;
+}
+
+.results button:hover {
+  background: var(--green-050);
+}
+
+.results small {
+  display: block;
+  color: var(--ink-3);
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-chip);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: var(--text-sm);
+}
+
+.stat-row dt {
+  color: var(--ink-3);
+}
+
+.stat-row dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── the simulation date box ────────────────────────────── */
+
+.datebox {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+}
+
+.datebox__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  /* Holds the row to one line however long the date is, so the panel does
+     not grow a line when the season changes from June to September. */
+  min-height: 1.5rem;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+
+.datebox__head input {
+  padding: 4px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.datebox__head input:focus-visible {
+  outline: 2px solid var(--green-600);
+  outline-offset: 1px;
+}
+
+/* ── what is happening at this time ─────────────────────── */
+
+.narrative {
+  position: absolute;
+  right: 24px;
+  /* Clear of the time bar, which owns the bottom of the screen. */
+  bottom: 176px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 328px;
+  padding: 24px;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.narrative__stamp {
+  margin: 0;
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amber-500);
+}
+
+.narrative__sentence {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.narrative__provenance {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ── the label chip over the proposal ───────────────────── */
+
+.site-pin {
+  filter: drop-shadow(0 4px 10px rgba(20, 30, 26, 0.28));
+}
+
+.site-label {
+  display: block;
+  padding: 5px 12px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--green-700);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+
+
+/* ── narrow viewports ───────────────────────────────────── */
+
+/*
+ * Two 300-400 px panels plus a time bar do not fit side by side much below a
+ * laptop. Rather than let them overlap, the panels shrink first and then the
+ * bar gives up its anchoring and spans the width.
+ */
+@media (max-width: 1180px) {
+  .panel--left {
+    width: 310px;
+  }
+
+  .panel--right {
+    width: 336px;
+  }
+
+  .narrative {
+    width: 288px;
+  }
+
+  .timebar {
+    left: 358px;
+    right: 336px;
+  }
+}
+
+@media (max-width: 900px) {
+  .panel--left,
+  .panel--right {
+    width: calc(100% - 48px);
+    max-height: 42%;
+  }
+
+  .panel--right {
+    top: auto;
+    bottom: 24px;
+  }
+
+  .narrative,
+  .timebar,
+  .sunchip,
+  .hint {
+    display: none;
+  }
+}
+
+/* ── what the proposal costs one spot ───────────────────── */
+
+.measure {
+  position: absolute;
+  right: 24px;
+  top: 96px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 328px;
+  padding: 22px 24px;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.measure__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.measure__close {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--green-050);
+  color: var(--ink-2);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.measure__headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--amber-ink);
+}
+
+.measure__headline--none {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--green-700);
+}
+
+.measure__caption {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.measure__note {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* ── focus mode ─────────────────────────────────────────── */
+
+.focus-toggle {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.focus-toggle:hover {
+  background: var(--green-050);
+}
+
+.focus-toggle--exit {
+  left: auto;
+  right: 24px;
+  top: 24px;
+  bottom: auto;
+  background: var(--ink-green-900);
+  border-color: transparent;
+  color: var(--paper);
+}
+
+.focus-toggle--exit:hover {
+  background: var(--green-700);
+}
+
+.focus-toggle kbd {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  font: inherit;
+  font-size: var(--text-eyebrow);
+}

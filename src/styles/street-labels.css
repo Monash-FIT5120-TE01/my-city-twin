@@ -1,0 +1,23 @@
+/*
+ * Street names on the road surface.
+ *
+ * Set in the interface typeface at a weight that stays readable when the
+ * plane is seen at a grazing angle, which is most of the time in a high
+ * oblique view.
+ */
+.street-label {
+  display: block;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  /* Large enough to read at the grazing angle a high oblique gives them. */
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #4a5158;
+  /* The road is light; a soft halo keeps the name legible where a building
+     shadow crosses it. */
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, 0.95),
+    0 0 11px rgba(255, 255, 255, 0.8);
+  user-select: none;
+}

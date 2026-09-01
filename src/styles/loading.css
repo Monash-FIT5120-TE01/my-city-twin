@@ -1,0 +1,108 @@
+.loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 24px;
+  background: var(--page);
+}
+
+.loading__card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(440px, 100%);
+  padding: 32px;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.loading__eyebrow {
+  margin: 0;
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--green-500);
+}
+
+.loading__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.loading__track {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--green-050);
+}
+
+.loading__fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--amber-400);
+  transition: width 160ms linear;
+}
+
+.loading__track.is-indeterminate .loading__fill {
+  width: 38%;
+  animation: loading-sweep 1.15s ease-in-out infinite;
+}
+
+@keyframes loading-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(365%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading__track.is-indeterminate .loading__fill {
+    width: 100%;
+    animation: none;
+    opacity: 0.4;
+  }
+  .loading__fill {
+    transition: none;
+  }
+}
+
+.loading__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.loading__figure {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.loading__error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  background: var(--amber-050);
+  color: var(--amber-ink);
+  font-size: var(--text-sm);
+}
+
+.loading__note {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--ink-3);
+}

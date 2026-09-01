@@ -1,0 +1,64 @@
+/*
+ * MY CITY TWIN — design tokens
+ * Lifted from the Figma exports in MainProjectDoc/Figma.
+ *
+ * The typeface in the Figma is a licensed geometric sans. Figtree is the
+ * closest free stand-in (single-storey g, tall x-height, same weight range).
+ * When the real name is confirmed, change --font-display / --font-body only.
+ */
+
+:root {
+  /* ── brand ─────────────────────────────────────────────── */
+  --ink-green-900: #123a2c; /* nav pill */
+  --green-700: #14624a; /* primary button */
+  --green-600: #176b50; /* primary button, hover */
+  --green-500: #1b7a5c; /* eyebrow labels */
+  --green-050: #edf5f1; /* soft panel tint */
+
+  /* ── the proposal ──────────────────────────────────────── */
+  --mint-400: #a9e6d6; /* approved / proposed massing */
+  --mint-300: #c4efe4;
+  --mint-glow: #5fe0c8; /* rim light on the proposal */
+
+  /* ── sun and time ──────────────────────────────────────── */
+  --amber-500: #e89a21; /* sun direction indicator */
+  --amber-400: #e9a93f; /* time slider track */
+  --amber-300: #e8b94a; /* active nav underline */
+  --amber-050: #fcefcc; /* caution panel background */
+  --amber-ink: #a8730f; /* caution panel text */
+
+  /* ── version and dates ─────────────────────────────────── */
+  --violet-600: #6c3fb5; /* "Updated 12 Aug 2026" */
+
+  /* ── neutrals ──────────────────────────────────────────── */
+  --paper: #ffffff;
+  --page: #ededea;
+  --ink: #16181a;
+  --ink-2: #5a6169;
+  --ink-3: #8b929a;
+  --hairline: #e2e4e1;
+
+  /* ── the model ─────────────────────────────────────────── */
+  --city-existing: #e9e9ec; /* built form we have geometry for */
+  --city-unknown: #d6d3ce; /* ready_for_3d = false — shown, never dropped */
+  --ground: #f2f1ec;
+  --shadow-cast: #3a3560; /* the violet cast shadow in 05 */
+
+  /* ── type ──────────────────────────────────────────────── */
+  --font-display: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+
+  --text-eyebrow: 0.6875rem; /* 11px, uppercase, tracked */
+  --text-sm: 0.8125rem;
+  --text-body: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-h2: 1.5rem;
+  --text-h1: 3rem;
+
+  /* ── shape ─────────────────────────────────────────────── */
+  --radius-panel: 16px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --shadow-panel: 0 12px 32px rgba(20, 30, 26, 0.12);
+  --shadow-chip: 0 4px 14px rgba(20, 30, 26, 0.14);
+}

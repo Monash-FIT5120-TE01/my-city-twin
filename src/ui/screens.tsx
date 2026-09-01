@@ -1,0 +1,514 @@
+import { useMemo, useState } from 'react';
+import type { CityModel, Development } from '../data/model';
+import {
+  SEASONS,
+  fromDateInput,
+  matchingSeason,
+  toDateInput,
+  type SimulationDate,
+} from '../scene/solar';
+import type { ShadowNarrative } from '../scene/narrative';
+import type { SunlightAtPoint } from '../scene/sunlightAt';
+import { StatusBadge, developmentSummary } from './chrome';
+
+/** Marks a layer that is named in the design but has no data behind it. */
+function Padlock() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" className="layers__lock">
+      <rect x="3.5" y="7.8" width="11" height="7.7" rx="1.8" fill="currentColor" />
+      <path
+        d="M6.2 7.8V5.9a2.8 2.8 0 0 1 5.6 0v1.9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
+/* ── 01 Landing ─────────────────────────────────────────── */
+
+export function Landing({
+  model,
+  onExplore,
+  onPick,
+}: {
+  model: CityModel;
+  onExplore: () => void;
+  onPick: (development: Development) => void;
+}) {
+  const [query, setQuery] = useState('');
+
+  const matches = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (needle.length < 2) return [];
+    return model.developments
+      .filter((d) => d.streetAddress.toLowerCase().includes(needle))
+      .slice(0, 6);
+  }, [query, model.developments]);
+
+  return (
+    <section className="landing">
+      <p className="panel__eyebrow">Melbourne Twin · Demo data</p>
+      <h1 className="landing__title">See tomorrow&rsquo;s CBD before it&rsquo;s built.</h1>
+      <p className="landing__body">
+        Explore approved developments in a living 3D model of Melbourne CBD.
+        Follow sunlight and project history in plain English.
+      </p>
+
+      <label className="field">
+        <svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true">
+          <circle cx="7" cy="7" r="5.4" fill="none" stroke="#8b929a" strokeWidth="1.7" />
+          <line x1="11" y1="11" x2="15.4" y2="15.4" stroke="#8b929a" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search street, place or landmark…"
+          aria-label="Search for a street or address"
+        />
+      </label>
+
+      {matches.length > 0 && (
+        <div className="results">
+          {matches.map((development) => (
+            <button key={development.devId} type="button" onClick={() => onPick(development)}>
+              {development.streetAddress}
+              <small>{developmentSummary(development)}</small>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="landing__actions">
+        <button type="button" className="button" onClick={onExplore}>
+          Explore the CBD
+        </button>
+        <button type="button" className="button button--ghost" disabled>
+          How it works
+        </button>
+      </div>
+
+      <p className="landing__fine">
+        Illustrative demo only. Not a legal compliance conclusion.
+      </p>
+      <p className="landing__soon">
+        <span>Construction · Coming soon</span>
+        <span>Environment · Coming soon</span>
+      </p>
+    </section>
+  );
+}
+
+/* ── 02 Discovery Map ───────────────────────────────────── */
+
+export interface Layers {
+  developments: boolean;
+  shadows: boolean;
+}
+
+export function LayerPanel({
+  layers,
+  onChange,
+  eyebrow,
+  children,
+}: {
+  layers: Layers;
+  onChange: (next: Layers) => void;
+  eyebrow: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <aside className="panel panel--left">
+      <p className="panel__eyebrow">{eyebrow}</p>
+      {children}
+
+      <div className="layers">
+        <label className="layers__item">
+          <input
+            type="checkbox"
+            checked={layers.developments}
+            onChange={(e) => onChange({ ...layers, developments: e.target.checked })}
+          />
+          Approved developments
+        </label>
+        <label className="layers__item">
+          <input
+            type="checkbox"
+            checked={layers.shadows}
+            onChange={(e) => onChange({ ...layers, shadows: e.target.checked })}
+          />
+          Sunlight &amp; shadows
+        </label>
+        {/*
+          The remaining three layers are named because the Figma names them,
+          and disabled because nothing behind them exists yet: protected space
+          is user story 1.3, and construction and environment are Epics 2 and
+          3. Showing an empty layer would be worse than showing a locked one.
+        */}
+        {(['Protected public space', 'Construction', 'Environment'] as const).map((name) => (
+          <span className="layers__item" data-locked="true" key={name} aria-disabled="true">
+            <Padlock />
+            {name}
+            <span className="visually-hidden"> — not available in this iteration</span>
+          </span>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+export function ExistingApprovedToggle({
+  showProposed,
+  onChange,
+}: {
+  showProposed: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div className="segmented" role="group" aria-label="City model">
+      <button
+        type="button"
+        aria-pressed={!showProposed}
+        onClick={() => onChange(false)}
+        data-label="Existing City"
+      >
+        Existing City
+      </button>
+      <button
+        type="button"
+        aria-pressed={showProposed}
+        onClick={() => onChange(true)}
+        data-label="Approved Plan"
+      >
+        Approved Plan
+      </button>
+    </div>
+  );
+}
+
+export function NearbyProjects({
+  around,
+  developments,
+  onOpen,
+}: {
+  around: Development;
+  developments: Development[];
+  onOpen: (development: Development) => void;
+}) {
+  const nearby = useMemo(() => {
+    return developments
+      .filter((d) => d.devId !== around.devId)
+      .map((d) => ({
+        development: d,
+        distance: Math.hypot(
+          d.anchorEN[0] - around.anchorEN[0],
+          d.anchorEN[1] - around.anchorEN[1],
+        ),
+      }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 3);
+  }, [developments, around]);
+
+  return (
+    <aside className="panel panel--right">
+      <p className="panel__eyebrow">{nearby.length} nearby projects</p>
+      <h2 className="panel__title">Around {around.streetAddress.split(',')[0]}</h2>
+
+      <div className="cards">
+        {nearby.map(({ development, distance }) => (
+          <article key={development.devId} className="card">
+            <StatusBadge status={development.status} />
+            <h3 className="card__title">{development.streetAddress.split(',')[0]}</h3>
+            <p className="card__meta">{developmentSummary(development)}</p>
+            <p className="card__stamp">
+              {Math.round(distance)} m away · Demo data
+            </p>
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => onOpen(development)}
+            >
+              View project
+            </button>
+          </article>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+/* ── 03 Development Overview ────────────────────────────── */
+
+export function DevelopmentPanel({
+  development,
+  storeys,
+  onSunlight,
+}: {
+  development: Development;
+  storeys?: number;
+  onSunlight: () => void;
+}) {
+  const tallest = development.parts.reduce((a, b) => (a.heightM > b.heightM ? a : b));
+  const others = development.parts.filter((p) => p !== tallest);
+
+  return (
+    <aside className="panel panel--right">
+      <StatusBadge status={development.status} />
+      <h2 className="panel__title">{development.streetAddress.split(',')[0]}</h2>
+      <p className="card__meta">{developmentSummary(development, storeys)}</p>
+
+      <div className="tabs" role="tablist">
+        <button type="button" role="tab" aria-selected="true">
+          Overview
+        </button>
+        <button type="button" role="tab" aria-selected="false" onClick={onSunlight}>
+          Sunlight
+        </button>
+        <button type="button" role="tab" aria-selected="false" disabled>
+          Protection
+        </button>
+        <button type="button" role="tab" aria-selected="false" disabled>
+          History
+        </button>
+      </div>
+
+      <div className="note">
+        <span className="note__heading">What changes here</span>
+        <ul>
+          <li>
+            {tallest.shapeType === 'tower' ? 'A tower' : 'A structure'} of{' '}
+            {tallest.heightM.toFixed(0)} m, topping out at{' '}
+            {tallest.topAhdM.toFixed(0)} m above the datum.
+          </li>
+          {others.length > 0 && (
+            <li>
+              With {others.length} further component{others.length > 1 ? 's' : ''}:{' '}
+              {others.map((p) => `${p.shapeType} ${p.heightM.toFixed(0)} m`).join(', ')}.
+            </li>
+          )}
+          {development.landUses.length > 0 && (
+            <li>
+              {development.landUses
+                .slice(0, 3)
+                .map((use) => `${use.quantity.toLocaleString()} ${use.useType.toLowerCase()}`)
+                .join(', ')}
+              .
+            </li>
+          )}
+          <li>Shadow available for four seasonal dates · Demo data.</li>
+        </ul>
+      </div>
+
+      <button type="button" className="button button--block" onClick={onSunlight}>
+        Explore sunlight impact
+      </button>
+    </aside>
+  );
+}
+
+/* ── Sunlight simulation ────────────────────────────────── */
+
+export function SunlightPanel({
+  date,
+  onDate,
+  showProposed,
+  onShowProposed,
+}: {
+  date: SimulationDate;
+  onDate: (next: SimulationDate) => void;
+  showProposed: boolean;
+  onShowProposed: (next: boolean) => void;
+}) {
+  // The four presets are shortcuts onto the same date, so a preset reads as
+  // selected only while the date actually is that date.
+  const preset = matchingSeason(date);
+  return (
+    <aside className="panel panel--left">
+      <p className="panel__eyebrow">Sunlight simulation</p>
+      <h2 className="panel__title">Follow the shadow</h2>
+      <p className="panel__body">
+        Choose a date and time to see how the approved building changes
+        sunlight across nearby streets and public space.
+      </p>
+
+      <div className="datebox">
+        <label className="datebox__head">
+          <span>Simulation date</span>
+          {/*
+            The input is the control and the readout at once. Showing the date
+            twice — once as a heading, once in the field — would leave two
+            things to keep in step and one of them looking authoritative.
+          */}
+          <input
+            type="date"
+            value={toDateInput(date)}
+            onChange={(event) => {
+              const next = fromDateInput(event.target.value);
+              if (next) onDate(next);
+            }}
+            aria-label="Simulation date"
+          />
+        </label>
+        <div className="segmented segmented--four" role="group" aria-label="Season">
+          {SEASONS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              aria-pressed={option.key === preset?.key}
+              onClick={() => onDate({ year: date.year, month: option.month, day: option.day })}
+              data-label={option.label}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ExistingApprovedToggle showProposed={showProposed} onChange={onShowProposed} />
+
+      <p className="note">
+        <span className="note__heading">Measure a spot</span>
+        Click anywhere on the ground to see how much direct sun this
+        development takes from that point across the day.
+      </p>
+
+      <p className="note note--caution">
+        <span className="note__heading">Illustrative shadow model</span>
+        This prototype explains modelled change. It does not determine planning
+        or legal compliance.
+      </p>
+    </aside>
+  );
+}
+
+export function TimeBar({
+  minutes,
+  onChange,
+  min,
+  max,
+  label,
+  caption,
+}: {
+  minutes: number;
+  onChange: (next: number) => void;
+  min: number;
+  max: number;
+  label: string;
+  caption: string;
+}) {
+  return (
+    <div className="timebar">
+      <div className="timebar__slider">
+        <div className="timebar__head">
+          <span>Sunlight time</span>
+          <b>{label}</b>
+        </div>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={10}
+          value={minutes}
+          onChange={(e) => onChange(Number(e.target.value))}
+          aria-label="Time of day"
+          // Without this a screen reader reads "900", not "15:00".
+          aria-valuetext={label}
+          // Feeds the amber fill on the track; CSS cannot read a range value.
+          style={
+            {
+              '--fill': `${((minutes - min) / (max - min)) * 100}%`,
+            } as React.CSSProperties
+          }
+        />
+      </div>
+      <div className="timebar__readout">
+        <b>{label}</b>
+        <span>{caption}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "What is happening at this time", bottom right.
+ *
+ * The Figma's own wording names a protected public space. That data does not
+ * exist yet (user story 1.3), so the sentence is generated from the shadow
+ * geometry instead — see scene/narrative.ts for why an invented forecourt was
+ * not an option.
+ */
+export function NarrativeCard({ narrative }: { narrative: ShadowNarrative }) {
+  return (
+    <aside className="narrative" aria-live="polite">
+      <p className="narrative__stamp">{narrative.stamp}</p>
+      <p className="narrative__sentence">{narrative.sentence}</p>
+      <p className="narrative__provenance">{narrative.provenance}</p>
+    </aside>
+  );
+}
+
+/**
+ * What the proposal costs one spot on the footpath.
+ *
+ * The figure is the DIFFERENCE the development makes, not the sun that place
+ * gets — see scene/sunlightAt.ts. Stating it as a difference is also the only
+ * honest framing: the surrounding city and the terrain are modelled well
+ * enough to answer "what does this tower change", and not well enough to
+ * answer "how sunny is this spot".
+ */
+export function SunlightAtCard({
+  result,
+  dateLabel,
+  onClear,
+}: {
+  result: SunlightAtPoint;
+  dateLabel: string;
+  onClear: () => void;
+}) {
+  const hours = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m} min`;
+    return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  };
+
+  return (
+    <aside className="measure" aria-live="polite">
+      <div className="measure__head">
+        <p className="panel__eyebrow">At this spot · {dateLabel}</p>
+        <button type="button" className="measure__close" onClick={onClear} aria-label="Clear the measured point">
+          ×
+        </button>
+      </div>
+
+      {result.lostMin === 0 ? (
+        <p className="measure__headline measure__headline--none">
+          This development takes no direct sun from here.
+        </p>
+      ) : (
+        <>
+          <p className="measure__headline">{hours(result.lostMin)}</p>
+          <p className="measure__caption">
+            less direct sun, out of {hours(result.withoutProposalMin)} the sun is up
+          </p>
+          {result.firstShadowLabel && (
+            <dl className="stat-row">
+              <dt>In shadow around</dt>
+              <dd>
+                {result.firstShadowLabel} – {result.lastShadowLabel}
+              </dd>
+            </dl>
+          )}
+        </>
+      )}
+
+      <p className="measure__note">
+        How much of an otherwise clear sky this development blocks — sampled
+        every {result.stepMinutes} minutes. Existing buildings and the slope of
+        the ground are not counted, so a spot already in someone else&rsquo;s
+        shadow will still be shown losing sun here.
+      </p>
+    </aside>
+  );
+}

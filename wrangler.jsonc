@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-city-twin",
+  "compatibility_date": "2026-09-01",
+
+  // A static site with no server-side code: every sunlight calculation runs
+  // in the browser, so there is nothing for a Worker script to do. Assets
+  // alone is the whole deployment.
+  "assets": {
+    "directory": "./dist",
+    // One page, navigated by state rather than by URL. Any path that is not
+    // a file should still return the app rather than a 404.
+    "not_found_handling": "single-page-application"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}
