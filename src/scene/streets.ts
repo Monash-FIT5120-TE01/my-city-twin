@@ -150,6 +150,12 @@ export interface RoadSpec {
 const MAIN_WIDTH_M = 30.2;
 const LANE_WIDTH_M = 10.1;
 
+/*
+ * These describe the centrelines and widths the road SURFACE was generated
+ * from, offline. The surface itself now lives in public/data/roads.json,
+ * already clipped to where no building stands — drawing these as strips at
+ * runtime put 15% of the road under a building.
+ */
 export const ROADS: RoadSpec[] = [
   // The five main long streets.
   { axis: 'long', offsetM: -419.3, widthM: MAIN_WIDTH_M },

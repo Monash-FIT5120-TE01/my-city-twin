@@ -91,7 +91,12 @@ export function OpenSpace({ groundAhdM }: { groundAhdM: number }) {
       position={[0, 0, groundAhdM + 0.12]}
       receiveShadow
     >
-      <meshStandardMaterial color="#d8e3cd" roughness={1} metalness={0} />
+      {/*
+        Deep enough to read as planting rather than as a slightly different
+        pavement. The city is near-white and the roads paler still, so green
+        is the only hue on the ground and it can afford to be a real one.
+      */}
+      <meshStandardMaterial color="#a9c795" roughness={1} metalness={0} />
     </mesh>
   );
 }

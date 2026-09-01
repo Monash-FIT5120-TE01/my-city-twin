@@ -62,7 +62,7 @@ export function CityMassing({
 
       <OpenSpace groundAhdM={groundAhdM} />
 
-      <Roads model={model} groundAhdM={groundAhdM} />
+      <Roads groundAhdM={groundAhdM} />
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
 
