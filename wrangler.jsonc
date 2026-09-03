@@ -3,6 +3,20 @@
   "name": "my-city-twin",
   "compatibility_date": "2026-09-01",
 
+  // The team's Cloudflare account, which owns mycitytwin.com. Stated
+  // explicitly because this login can also see a personal account, and
+  // wrangler refuses to guess between two.
+  "account_id": "78b8f2d4c05c15737956ef91105ed310",
+
+  // Cloudflare issues the certificate and writes the DNS record itself.
+  // Both the apex and www, because people type www whether or not anyone
+  // advertises it, and a domain that only answers on one of the two looks
+  // broken to the person who guessed wrong.
+  "routes": [
+    { "pattern": "mycitytwin.com", "custom_domain": true },
+    { "pattern": "www.mycitytwin.com", "custom_domain": true }
+  ],
+
   // A static site with no server-side code: every sunlight calculation runs
   // in the browser, so there is nothing for a Worker script to do. Assets
   // alone is the whole deployment.
