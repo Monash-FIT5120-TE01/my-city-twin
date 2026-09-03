@@ -1,9 +1,26 @@
 /*
- * What the rest of the application sees.
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHAT THE APP WORKS WITH
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * Coordinates are already projected into the local east/north/up metric frame
- * (see scene/frame.ts) and every number is a number. Components below this
- * layer never touch latitude, longitude, or a numeric string.
+ * WHAT THIS FILE IS
+ *   The vocabulary for everything above the data layer. A `Massing` is a
+ *   solid the scene can extrude; a `Development` is one approved project
+ *   with all its parts; a `CityModel` is the whole thing plus its bounds.
+ *
+ * HOW IT DIFFERS FROM api-types.ts
+ *   Two things, and they are the whole reason both files exist:
+ *
+ *     coordinates   already metres east and north, never longitude
+ *     numbers       already numbers, never strings
+ *
+ *   So a component that draws a building never converts anything. It reads
+ *   `baseAhdM` and `topAhdM` and extrudes between them.
+ *
+ * WHAT "AHD" MEANS
+ *   Australian Height Datum — heights above mean sea level, the same
+ *   reference a surveyor uses. Buildings carry their real feet, which is why
+ *   the model knows that one standing on higher ground is higher.
  */
 
 /** A ring of [east, north] pairs, metres from the local origin. */

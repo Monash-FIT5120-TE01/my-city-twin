@@ -1,3 +1,36 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * GETTING THE CITY ONTO THE SCREEN
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   The React hook the app calls once, at the top, to obtain the city. It
+ *   returns the model, a progress figure while that is happening, and an
+ *   error if it never does.
+ *
+ * THE ORDER IT DOES THINGS, AND WHY
+ *
+ *   1. Read the two files bundled with the app (public/data/*.json).
+ *      These are a copy of the API taken at build time. They are on the
+ *      same server as the page, so they arrive in under a second.
+ *
+ *   2. Build the model from them and hand it back. The city is now on
+ *      screen and the user can start.
+ *
+ *   3. THEN call the real API in the background. If it answers, rebuild
+ *      and swap. If it does not, nothing happens and nobody notices.
+ *
+ *   The staging API runs on a free Render instance, which goes to sleep.
+ *   Waking it takes the better part of a minute. Step 1 exists so that a
+ *   sleeping backend costs a slightly stale model instead of a blank page
+ *   in the middle of a demonstration.
+ *
+ * THE STRICTMODE TRAP
+ *   React runs effects twice in development — mount, unmount, mount. The
+ *   guard below handles it, and the comment inside explains why the obvious
+ *   fix (a `cancelled` flag) is the wrong one here. It cost an afternoon.
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { buildCityModel, type AdapterReport } from './adapter';
 import type { CityModel } from './model';

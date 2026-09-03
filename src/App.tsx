@@ -1,3 +1,38 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE WHOLE APPLICATION, IN ONE COMPONENT
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   Every piece of state the app has, and the decision about which panels
+ *   appear over the 3D view. Nothing is drawn here — the scene is one
+ *   component and the panels are others. This file only decides what is
+ *   true and who gets told.
+ *
+ * THE STATE, ALL OF IT
+ *
+ *   view          which of the four screens is showing
+ *   selectedKey   which development, by its planning reference
+ *   layers        the tick boxes: proposals on, shadows on
+ *   date          the day being simulated
+ *   minutes       the time of day, as minutes since midnight
+ *   receptor      the spot someone clicked to measure, if any
+ *   focusMode     whether the interface is hidden
+ *
+ * WHY THE HOOKS ALL SIT ABOVE `if (!model)`
+ *   React requires the same hooks, in the same order, on every render. The
+ *   early return below happens while the city is still loading, so any hook
+ *   written after it would not run on those first renders — and the moment
+ *   the data arrived, the count would change and React would tear the whole
+ *   tree down. That bug was written once here. Neither the tests nor the
+ *   type checker can see it, because neither of them renders anything.
+ *
+ * WHAT FLOWS DOWNWARD
+ *   The scene is told what to draw and what may be clicked. The panels are
+ *   told what to show and are handed functions to call. Nothing reads state
+ *   back out; there is exactly one copy of every fact.
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { SceneCanvas } from './scene/SceneCanvas';
 import { compassLabel } from './scene/sun';

@@ -1,22 +1,57 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * "HOW MUCH SUN DOES THIS TOWER TAKE FROM HERE?"
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   The measurement behind the number on the Sunlight screen. Click a spot
+ *   on the ground and this walks the whole day in ten-minute steps, asking
+ *   at each one whether the proposal is standing between that spot and the
+ *   sun, and adds up the minutes where it is.
+ *
+ * WHY THE NUMBER IS A DIFFERENCE, NOT A TOTAL
+ *   It answers "what does this development change", not "how sunny is this
+ *   spot". The second question needs every surrounding building and the real
+ *   slope of the ground to be right, and neither is. The first only needs
+ *   the proposal itself, which is modelled exactly. It is also the question
+ *   the planning argument is actually about.
+ *
+ *   The consequence, stated on the card too: a spot already sitting in some
+ *   existing building's shadow will still be reported as losing sun here.
+ *
+ * THE GEOMETRY, IN PLAIN TERMS
+ *   Stand at the spot and look towards the sun. Walk up that line of sight.
+ *   Every metre you rise, you also move a fixed distance horizontally
+ *   towards the sun — 1/tan(altitude) of it. So the line of sight, seen
+ *   from above, is just a straight line running towards the sun.
+ *
+ *   A building is a footprint with a bottom and a top. The line of sight
+ *   passes through it exactly when the piece of that straight line between
+ *   the building's bottom height and its top height crosses the footprint.
+ *
+ *   That makes the test a flat one: does this segment cross this polygon?
+ *   No stepping along the ray, no approximation — it is exact, and it is
+ *   why the whole day costs almost nothing to compute.
+ *
+ *              sun
+ *               ╲
+ *                ╲          ← line of sight, rising towards the sun
+ *         ┌────┐  ╲
+ *         │    │   ╲
+ *         │    │    ╲
+ *      ───┴────┴─────●───    ← the spot being measured
+ *          building
+ *
+ * THE TEST THAT MATTERS MOST
+ *   In sunlightAt.test.ts: a spot NORTH of the tower loses nothing, in any
+ *   season. In Melbourne the sun never passes south of overhead, so it can
+ *   never throw a shadow northwards. If that test ever passes minutes, the
+ *   hemisphere has been flipped somewhere.
+ */
+
 import type { Development, PolygonEN, Ring } from '../data/model';
 import { civilToInstant, solarPosition, type SimulationDate } from './solar';
 import { SITE } from './frame';
-
-/*
- * How much direct sun a proposal takes from one spot on the ground.
- *
- * This is the number story 1.2 is really asking for — "its real everyday
- * impact rather than just its height and dimensions". A shadow that sweeps
- * across a footpath for twenty minutes and one that sits on it all afternoon
- * look identical in a 3D view.
- *
- * Only the proposal is tested, not the whole city. That is deliberate: the
- * answer is the DIFFERENCE the development makes, which is what a resident
- * is entitled to know and what the planning argument is about. An absolute
- * "hours of sun here" would need every surrounding building and the real
- * terrain to be right, and would be quoting a precision the model does not
- * have.
- */
 
 const DEG = Math.PI / 180;
 

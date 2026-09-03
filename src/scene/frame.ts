@@ -1,23 +1,40 @@
 /*
- * The one place where coordinate conventions are decided.
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHICH WAY IS UP  (read this before touching anything in scene/)
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * ── The frame everything else uses ──────────────────────────────
- * Local metric frame, metres:   +x EAST   +y NORTH   +z UP
- * Origin: LOCAL_ORIGIN below, in EPSG:7855 (GDA2020 / MGA zone 55).
+ * TWO CONVENTIONS, AND THE ONE PLACE THEY MEET
  *
- * This matches the convention in sunlight-twin/contracts/01-buildings.md §5.
- * Geometry is never computed in latitude/longitude: at 37.8 °S one degree of
- * longitude and one of latitude differ by a factor of about 1.27, which tilts
- * every shadow by a consistent, invisible amount.
+ *   This app        +x EAST   +y NORTH   +z UP      metres
+ *   three.js        +x right  +y UP      +z toward the viewer
  *
- * ── three.js is Y-up ────────────────────────────────────────────
- * Rather than convert at every call site, the whole world lives inside a
- * single <WorldFrame> group rotated -90° about X. Inside that group, x/y/z
- * mean east/north/up. Nothing below it needs to know three.js is Y-up.
+ *   Surveying puts up on Z. 3D graphics puts up on Y. Both are correct and
+ *   they disagree, so somewhere the two have to be reconciled.
  *
- * There is exactly one conversion in this codebase, and it is that rotation.
- * If shadows point the wrong way, the bug is in the sun vector, not here —
- * which is the entire reason the conversion is kept to one place.
+ * WHERE IT HAPPENS: EXACTLY ONCE
+ *   <WorldFrame> is a group rotated -90° about X, and the entire city lives
+ *   inside it. Within that group, x/y/z mean east/north/up and no file needs
+ *   to know three.js thinks otherwise. Buildings, roads, parks, the sun and
+ *   its arrow are all inside.
+ *
+ *   A few things cannot be: the camera, and the labels that are really HTML.
+ *   Those call `enuToWorld` to state a position in the outer frame.
+ *
+ * THE RULE, AND WHY IT IS TESTED
+ *   Inside the frame, never convert. Outside the frame, always convert.
+ *
+ *   Breaking it does not cause a crash or a type error — both sides are
+ *   three numbers — it just puts something in the wrong place, or on its
+ *   side. It has happened twice: the street names ended up face-down under
+ *   the road, and the measurement ring stood on its edge in mid-air. Both
+ *   times the cause was copying a component from the other side of the
+ *   boundary. frame-boundary.test.ts now checks it mechanically.
+ *
+ * WHY NOT JUST WORK IN THREE.JS'S FRAME
+ *   Because every input is surveyed data — eastings, northings and heights
+ *   above sea level — and every output is a claim about a real place. Doing
+ *   the arithmetic in the frame the data arrives in means the numbers in the
+ *   code can be checked against the numbers on a map.
  */
 
 /** Rotation that maps the east/north/up frame onto three.js's Y-up world. */

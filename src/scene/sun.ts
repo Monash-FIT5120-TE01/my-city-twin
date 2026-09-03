@@ -1,17 +1,35 @@
 /*
- * Sun geometry.
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHERE THE SUN IS, AS A DIRECTION
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * Angle conventions follow sunlight-twin/contracts/golden/solar_positions.json
- * so the implementation can be checked against those 36 pvlib-generated
- * samples rather than by eye:
+ * WHAT THIS FILE IS
+ *   Small conversions between how astronomers describe the sun's position
+ *   and what a 3D scene needs. solar.ts works out the angles; this turns
+ *   them into arrows and distances.
  *
- *   altitude  degrees above the horizon, geometric (no atmospheric refraction)
- *   azimuth   degrees CLOCKWISE FROM NORTH — 0 = N, 90 = E, 180 = S, 270 = W
+ * THE TWO ANGLES
  *
- * Southern-hemisphere note: at this latitude the sun transits to the NORTH,
- * so azimuth passes through 0/360 near solar noon and shadows point SOUTH.
- * A northern-hemisphere assumption here produces shadows that look plausible
- * and are reversed — the failure this file exists to prevent.
+ *   ALTITUDE   how high, in degrees. 0 is the horizon, 90 is overhead.
+ *              In Melbourne it never quite reaches 76.
+ *
+ *   AZIMUTH    which way, in degrees clockwise from north.
+ *              0 = north, 90 = east, 180 = south, 270 = west.
+ *
+ * THE SOUTHERN HEMISPHERE
+ *   Melbourne is at latitude −37.8, so the sun crosses the sky to the NORTH
+ *   and shadows point SOUTH. Northern-hemisphere intuition is exactly
+ *   backwards here, and code written on that intuition produces shadows
+ *   that look completely convincing and are reversed. Every function below
+ *   is tested against reference data for this reason.
+ *
+ * WHY SHADOW LENGTH IS height / tan(altitude)
+ *   The sun, the top of the building and the tip of its shadow make a right
+ *   triangle. The height is the opposite side, the shadow is the adjacent
+ *   side, and the angle between the ground and the sunlight is the altitude.
+ *   tan = opposite / adjacent, so adjacent = opposite / tan. As the sun
+ *   drops, tan shrinks and the shadow runs away: at 45° it equals the
+ *   height, at 5° it is eleven times it.
  */
 
 export interface SunAngles {

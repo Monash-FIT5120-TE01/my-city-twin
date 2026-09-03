@@ -1,15 +1,40 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * FLAT OUTLINES  →  SOLID BUILDINGS
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   The step that gives the city height. It takes the outlines the adapter
+ *   produced and turns each into a three-dimensional solid the renderer can
+ *   draw and the sun can be blocked by.
+ *
+ * HOW EXTRUSION WORKS
+ *   A footprint is a flat shape. Extruding it means sweeping it upwards and
+ *   putting walls down the sides — the same motion as a biscuit cutter,
+ *   except the result is filled. three.js does the work; this file decides
+ *   what shape goes in and how far up it sweeps.
+ *
+ * THE PART THAT IS NOT OBVIOUS: WHY MERGE
+ *   Drawing 4,443 separate solids means telling the graphics card 4,443
+ *   times per frame to draw something, and the shadow pass doubles it. Each
+ *   of those instructions costs more than the triangles inside it. Welded
+ *   into one object, the whole city is a single instruction.
+ *
+ *   The trade is that a merged object cannot be clicked or coloured
+ *   individually — which is why the 49 developments are NOT merged together
+ *   (see DevelopmentMassings.tsx) while the 1,548 background buildings are.
+ *
+ * "LOD1"
+ *   The standard term for this kind of model: flat-topped blocks at the
+ *   right footprint and the right height, with no roof shape, no windows and
+ *   no detail. It is what shadow work uses, because an outline and a height
+ *   are what decide where a shadow falls; a pitched roof changes the picture
+ *   and barely changes the shadow.
+ */
+
 import { BufferGeometry, ExtrudeGeometry, Shape } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Massing, PolygonEN } from '../data/model';
-
-/*
- * Footprint polygons become LOD1 solids.
- *
- * ExtrudeGeometry builds along +z, which inside <WorldFrame> is up — so the
- * extrusion needs no rotation. Holes are carried through as Shape holes;
- * a courtyard that closes over would add mass the building does not have,
- * and mass casts shadow.
- */
 
 /** Smallest ring we will trust. Below this it is noise in the source. */
 const MIN_RING_VERTICES = 3;

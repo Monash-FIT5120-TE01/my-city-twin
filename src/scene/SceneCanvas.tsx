@@ -1,3 +1,45 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE 3D VIEW
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   The canvas and everything in it: the camera, the lights, the city, the
+ *   labels and the controls. Above it is App, which decides what is true;
+ *   below it are the pieces that each draw one thing.
+ *
+ * THE THREE LIGHTS, AND WHAT EACH IS FOR
+ *
+ *   directional   the sun. The only one that casts a shadow, and the only
+ *                 one whose direction is computed rather than chosen.
+ *   hemisphere    the sky above and the pavement below, cool and warm. This
+ *                 is what stops a white city collapsing into flat grey once
+ *                 the sun is low and most surfaces see only sky.
+ *   ambient       a small even fill so nothing is pure black.
+ *
+ * THE CAMERA
+ *   A high oblique from the south-east, about 38° above the horizon, at a
+ *   distance scaled to the height of whatever is being examined so it fills
+ *   roughly two-thirds of the frame. The field of view is 30° rather than
+ *   the usual 50, which flattens the perspective — the Figma views look
+ *   like that, and it keeps tall buildings from leaning outwards.
+ *
+ * WHAT THE SHADOW CAMERA HAS TO COVER
+ *   Shadows are drawn by rendering the scene once from the sun's point of
+ *   view, into a square box. Anything outside that box casts nothing. The
+ *   box therefore has to hold the WHOLE city, centred on the city, and be
+ *   sized to half its three-dimensional diagonal — not the flat one, because
+ *   a low sun swings the city's 270 m of height sideways into the box. Sized
+ *   from the flat diagonal, winter afternoon shadows were cut off mid-street,
+ *   which is precisely the case this product exists to show.
+ *
+ * THE ONE ODDITY
+ *   Street names and the site pin are rendered OUTSIDE <WorldFrame>, unlike
+ *   everything else. They are HTML rather than 3D objects, and the browser's
+ *   own 3D transform does not survive being nested inside the frame's
+ *   rotation. Each converts its own position instead; see StreetLabels.
+ */
+
 import { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';

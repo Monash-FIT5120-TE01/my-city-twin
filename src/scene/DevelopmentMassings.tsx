@@ -1,3 +1,40 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE 49 APPROVED PROJECTS
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   Draws the proposals standing in the city, and makes them clickable.
+ *
+ * WHY EACH ONE IS A SEPARATE OBJECT
+ *   The 1,548 existing buildings are welded into one object because nobody
+ *   ever needs to click one. A proposal is different: it has to be
+ *   selectable and it has to be able to change colour on its own, and
+ *   neither is possible once geometry has been merged. Forty-nine objects
+ *   is a cost worth paying; four and a half thousand would not be.
+ *
+ * WHY THE GEOMETRY IS BUILT WITHOUT KNOWING WHICH IS SELECTED
+ *   Selection only changes a material. Rebuilding the shapes when it
+ *   changes meant re-extruding and re-welding all 49 on every click, which
+ *   was a visible pause. The shapes are built once; the colour is decided
+ *   at draw time.
+ *
+ * COLOUR SAYS WHAT CAN BE DONE
+ *
+ *   selected     full mint — this is the one being read about
+ *   clickable    strong green — plainly not an existing building, and
+ *                plainly something to press
+ *   not clickable  pale — in focus mode nothing responds, so nothing
+ *                  should look like it will
+ *
+ *   Colour that invites a click the click will not answer is worse than no
+ *   invitation at all.
+ *
+ * WHY ONLY ONE APPEARS ON THE SUNLIGHT SCREEN
+ *   Forty-nine towers casting at once buries the single shadow that screen
+ *   exists to explain.
+ */
+
 import { useEffect, useMemo } from 'react';
 import type { BufferGeometry } from 'three';
 import type { Development } from '../data/model';
@@ -14,18 +51,6 @@ interface DevelopmentMassingsProps {
   onSelect: (development: Development) => void;
 }
 
-/**
- * The approved proposals, standing in the city.
- *
- * Story 1.1 asks what is changing around a resident — not what is changing on
- * one site. Drawing all 49 at once is the only view that answers it, and it
- * makes them selectable: until now a development could only be reached
- * through a list, which is the opposite of "I want to know what is happening
- * to the street I am standing on".
- *
- * On the sunlight screen only the focused proposal is drawn. Forty-nine towers
- * all casting at once would bury the one shadow the screen is about.
- */
 export function DevelopmentMassings({
   developments,
   focus,

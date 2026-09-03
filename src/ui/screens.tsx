@@ -1,3 +1,37 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE PANELS
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   Every panel that floats over the 3D view, in the order a person meets
+ *   them: Landing, the layer list, the nearby-projects list, the project
+ *   detail, the sunlight controls, the time bar, and the two cards that
+ *   report what the shadow is doing.
+ *
+ * WHY THEY FLOAT
+ *   The thing being explained is behind the glass. A full-width page would
+ *   cover the city, and the city is the argument — so every panel is a card
+ *   on top of a view that never goes away.
+ *
+ * WHAT THESE COMPONENTS DO NOT DO
+ *   They hold no state of their own beyond the landing search box. Each is
+ *   given what to show and a function to call. That is what lets the same
+ *   layer list appear on two different screens without either screen
+ *   knowing about the other.
+ *
+ * WHERE THE WORDS CAME FROM
+ *   Mostly the Figma. Two deliberate departures, both because the design
+ *   promises something the data cannot support yet:
+ *
+ *     - the shadow sentences do not name a protected public space, because
+ *       there is no protected-space data (user story 1.3);
+ *     - the layer list shows "Protected public space", "Construction" and
+ *       "Environment" locked rather than working, because nothing is behind
+ *       them. A named padlock is more honest than a tick box that does
+ *       nothing.
+ */
+
 import { useMemo, useState } from 'react';
 import type { CityModel, Development } from '../data/model';
 import {

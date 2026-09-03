@@ -1,3 +1,40 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * TURNING THE API RESPONSE INTO A CITY
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   The single translation step between the backend and everything else.
+ *   One function, `buildCityModel`, takes the two API responses and returns
+ *   a `CityModel` — projected, parsed, grouped and checked.
+ *
+ * WHAT IT DOES, IN ORDER
+ *
+ *   1. Work out the scene origin in metres, once.
+ *   2. For each building row: parse the numbers, project the outline, decide
+ *      how tall the solid is, and check the source against itself.
+ *   3. Mark the lowest part of each building, so only that one is allowed to
+ *      reach down to the ground plane.
+ *   4. Do the same for development rows, then group them by project.
+ *   5. Measure the bounds of everything, for the camera and the shadows.
+ *
+ * THE TWO DECISIONS WORTH UNDERSTANDING
+ *
+ *   HEIGHTS. Each source row is one roof plane, not one building — a tower
+ *   with a podium arrives as several rows sharing a `buildingId`. Of the
+ *   4,443 rows, 2,651 start ABOVE ground, because they are upper storeys.
+ *   Extruding every one of them from street level would guarantee nothing
+ *   floats, but measured against the data it invents solid mass under 201
+ *   of them, and invented mass casts invented shadow. So each plane keeps
+ *   its own base, and step 3 handles the floating.
+ *
+ *   BAD ROWS ARE KEPT. 45 rows disagree with themselves about their own
+ *   height by up to 11.7 m. They are flagged, not dropped. Deleting a
+ *   building deletes its shadow, and a missing shadow reads to a resident
+ *   as sunlight — so an error in the data has to come out on the pessimistic
+ *   side, not the flattering one.
+ */
+
 import type {
   ApiBuildingPart,
   ApiDevelopmentPart,

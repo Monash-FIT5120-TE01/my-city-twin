@@ -1,23 +1,41 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE ROAD SURFACE
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   Draws the pale grey of the carriageways. It reads a prepared file rather
+ *   than working the shapes out, and the reason is the whole story here.
+ *
+ * THE FIRST ATTEMPT, AND WHY IT FAILED
+ *   Each street was drawn as a long rectangle: take the centreline, give it
+ *   a width, done. Measured against the buildings afterwards, 15% of the
+ *   painted road was underneath one — and 40% of the narrow lanes.
+ *
+ *   The reason is simple once seen. A centreline is infinitely thin and can
+ *   thread a gap that a 30-metre-wide band cannot. Nudging the lines
+ *   sideways did not help: there was nowhere for the band to go.
+ *
+ * WHAT IS DONE INSTEAD
+ *   Offline, once: take the union of all the street bands, then SUBTRACT the
+ *   union of all 4,443 building footprints. What is left is road exactly
+ *   where no building stands. Not an approximation of the truth — the truth.
+ *   Residual overlap measures 0.03%.
+ *
+ *   A pleasant side effect: where an arcade genuinely bridges a lane, the
+ *   road correctly stops and the building covers it.
+ *
+ * WHY IT IS A FILE AND NOT COMPUTED HERE
+ *   Subtracting thousands of polygons is heavy geometry, and the answer
+ *   never changes. Doing it once and shipping 40 KB is better than doing it
+ *   in every visitor's browser. road-surface.test.ts checks the file still
+ *   describes a street network.
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { BufferGeometry, Shape, ShapeGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PolygonEN } from '../data/model';
-
-/*
- * The carriageways, painted a shade lighter than the ground.
- *
- * In the Figma the roads are not blank gaps: they carry their own pale tone,
- * which is what makes the grid legible from above. Without it the city reads
- * as scattered blocks rather than as streets with buildings along them.
- *
- * The shapes are not straight strips. Strips were the first attempt, drawn
- * from a centreline and a width, and 15% of the resulting surface lay under a
- * building — a centreline can thread a gap that a 30 m strip cannot. The
- * fixture is instead the union of those strips MINUS the union of all 4,443
- * footprints, computed once offline, which leaves road exactly where no
- * building stands. That is not an approximation of the truth; it is the
- * truth, and the residual overlap measures 0.03%.
- */
 
 interface RoadsDoc {
   /** Outer ring first, then holes, in metres east/north. */

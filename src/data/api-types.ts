@@ -1,13 +1,23 @@
 /*
- * The shapes the staging API actually returns.
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHAT THE BACKEND ACTUALLY SENDS
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * Source: https://hackmd.io/@pcthanh0802/B1mhvcfufx, verified against live
- * responses on 2026-09-01. Where the document and the server disagreed, the
- * server wins and the difference is noted.
+ * WHAT THIS FILE IS
+ *   A written-down copy of the staging API's response shapes. Nothing more.
+ *   No conversion, no cleaning, no opinions — just what arrives.
  *
- * Nothing outside src/data should import from this file. The rest of the app
- * uses the parsed types in ./model, so that a change on the backend is
- * absorbed in one place.
+ * WHO USES IT
+ *   adapter.ts, and nothing else. The rule is that these types stop at the
+ *   edge of the data layer. If the backend renames a column or changes a
+ *   type, this file changes and one function in adapter.ts changes, and the
+ *   3D scene and the interface never find out.
+ *
+ * THE THING TO NOTICE
+ *   Every number arrives as a STRING — "162.4", not 162.4. That is normal
+ *   for a Postgres numeric column serialised to JSON, and it is why
+ *   `NumericString` appears everywhere below. Parsing happens once, in the
+ *   adapter, so no other file ever has to wonder.
  */
 
 /** Every numeric field arrives as a string. Parsed once, in the adapter. */

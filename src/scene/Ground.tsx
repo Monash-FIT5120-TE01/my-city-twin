@@ -1,3 +1,34 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE GROUND, AND WHERE IT STOPS
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   The flat surface the city stands on, and the surface a click lands on
+ *   when someone measures a spot.
+ *
+ * WHY IT FADES AT THE EDGES
+ *   The building data covers the Hoddle Grid and stops. Beyond it there is
+ *   genuinely nothing — no suburbs, no river, no data of any kind. Drawn as
+ *   a plain square, that boundary reads as the edge of the world. Faded, it
+ *   reads as the edge of what is known, which is what it is.
+ *
+ * HOW THE FADE IS MADE
+ *   The plane is divided into a grid of small squares, and each corner is
+ *   given a colour: solid near the middle, blending to the background colour
+ *   further out. The graphics card blends smoothly between them.
+ *
+ *   The alternative — making the ground transparent — was tried and is
+ *   worse. A transparent ground still catches shadows, so the city ends up
+ *   casting shadows onto empty space.
+ *
+ * WHY THE GROUND IS FLAT
+ *   The real CBD slopes about 20 m from Latrobe Street down to the river,
+ *   and that surface exists in the source data. It is not used yet, so
+ *   buildings carry their true heights above sea level while the ground
+ *   beneath them is a single level. Terrain is Iteration 2 work.
+ */
+
 import { useMemo } from 'react';
 import { BufferAttribute, Color, PlaneGeometry } from 'three';
 import type { CityModel } from '../data/model';
@@ -5,17 +36,6 @@ import type { CityModel } from '../data/model';
 /** Background the ground dissolves into — the same colour the canvas clears to. */
 const HORIZON = '#ededea';
 
-/**
- * The ground the city stands on, fading out at its edges.
- *
- * The building data stops at the Hoddle Grid, so there is genuinely nothing
- * to draw beyond it. Drawn as a plain square that reads as the edge of the
- * world; faded, it reads as the extent of what we know, which is the truth.
- *
- * The fade is baked into vertex colours rather than into alpha. A transparent
- * ground still receives shadows, and shadows landing on nothing at the edges
- * look worse than the hard edge did.
- */
 export function Ground({
   model,
   groundAhdM,

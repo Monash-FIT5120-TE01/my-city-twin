@@ -1,20 +1,36 @@
-import { DEFAULT_DATE, fromDateInput, toDateInput, type SimulationDate } from '../scene/solar';
-
 /*
- * The whole of the view, in the address bar.
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE VIEW, WRITTEN INTO THE ADDRESS BAR
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * Story C.1 asks that an area a resident cares about be "held without login,
- * as a shareable link or local state, so that returning costs one click
- * rather than one search". A URL is the cheapest possible version of that,
- * and it needs no backend: no account, nothing stored, nothing to leak.
+ * WHAT THIS FILE IS
+ *   Two functions. `readUrlState` turns the query string into the state the
+ *   app should start in; `writeUrlState` does the reverse whenever
+ *   something changes.
  *
- * It also makes the thing demonstrable. Without it there is no way to send
- * someone the view you are looking at.
+ *   A finished URL looks like this:
  *
- * The development is keyed by devKey, not devId. devKey is the planning
- * reference the council uses — short, meaningful, and stable across a
- * database reload in a way a generated UUID is not.
+ *     ?view=sunlight&dev=X0015700&d=2026-06-21&t=900&at=-532.4,-198.1
+ *      │            │            │            │      └ the measured spot
+ *      │            │            │            └ minutes since midnight
+ *      │            │            └ the simulated date
+ *      │            └ which development
+ *      └ which screen
+ *
+ * WHY IT MATTERS
+ *   User story C.1 asks that somebody be able to come back to a place they
+ *   care about "without repeating the same search", and specifically without
+ *   an account. A URL does that for nothing: no login, no database, no
+ *   personal data to store or lose. Send the link and the other person sees
+ *   what you saw.
+ *
+ * WHY replaceState AND NOT pushState
+ *   Dragging the time slider changes the state a hundred times. With
+ *   pushState each drag would become a history entry and the browser's back
+ *   button would take a hundred presses to leave the page.
  */
+
+import { DEFAULT_DATE, fromDateInput, toDateInput, type SimulationDate } from '../scene/solar';
 
 export type ViewName = 'landing' | 'explore' | 'development' | 'sunlight';
 

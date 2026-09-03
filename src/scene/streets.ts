@@ -1,21 +1,46 @@
 /*
- * Street names for the Hoddle Grid.
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE STREET GRID, MEASURED RATHER THAN TYPED IN
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * There is no street dataset in the backend ERD — it carries buildings,
- * developments and CLUE areas, nothing linear. But the grid does not need
- * one: the streets are the gaps between the massing, so once the buildings
- * are standing the layout is already there. Only the names are missing.
+ * WHAT THIS FILE IS
+ *   Where the twelve street names sit, which way they run, and where the
+ *   carriageways are. The names are drawn from here; the road surface was
+ *   generated from here, offline (see Roads.tsx).
  *
- * Rather than type in coordinates, the geometry below was measured from the
- * 133 development records, whose addresses name their street and whose
- * points are real. Fitting a principal axis to each street with enough
- * points gives a grid bearing of 70° for the long streets — Flinders through
- * La Trobe — and 160° for the cross streets. Each street is then one number:
- * its perpendicular distance from the scene origin.
+ * THE PROBLEM
+ *   The backend has no street data at all — it holds buildings, developments
+ *   and administrative areas, nothing linear. But the streets do not need to
+ *   be supplied, because they are the GAPS between the buildings: stand the
+ *   massing up and the Hoddle Grid is already there. Only the names were
+ *   missing.
  *
- * The measured offsets fall out as a regular grid with roughly 200 m blocks,
- * which is the check that the fit is right. Bourke Street lands at +2 m,
- * because the scene origin was placed on it.
+ * HOW THE GEOMETRY WAS OBTAINED, IN TWO STEPS
+ *
+ *   1. DIRECTION, from the data. Each of the 133 developments has an address
+ *      naming its street and a real coordinate. Fit a line through the points
+ *      sharing a street name and you get that street's bearing. Every long
+ *      street came out near 70°, every cross street near 160° — which is the
+ *      Hoddle Grid, recovered from addresses.
+ *
+ *   2. POSITION, corrected. Step 1 gives the right angle but the wrong line:
+ *      those points are BUILDINGS FRONTING the street, so the fit lands on
+ *      the shopfronts, half a block from the road. That is how "Queen Street"
+ *      ended up written across a rooftop. The fix was to slide each line
+ *      sideways and keep the offset that passes through the fewest buildings
+ *      — the road is the gap, so the emptiest line is the road.
+ *
+ * THE NUMBERS AS EVIDENCE
+ *   Both `offsetM` (the carriageway) and `addressFitM` (where the addresses
+ *   alone put it) are kept, so the size of the correction stays visible.
+ *   Bourke Street lands within 2 m of the scene origin, which was placed on
+ *   Bourke Street independently — that agreement is the check that the whole
+ *   fit is sound.
+ *
+ * WIDTHS
+ *   Robert Hoddle laid the grid in chains in 1837: main streets a chain and
+ *   a half, the service lanes between them half a chain. That is 30.2 m and
+ *   10.1 m, and it is still what they measure.
  */
 
 /** Bearing of Flinders–Collins–Bourke–Lonsdale–La Trobe, degrees from north. */
