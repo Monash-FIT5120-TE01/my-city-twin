@@ -46,6 +46,7 @@ import { useDevelopmentDetail } from './data/useDevelopmentDetail';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { Crumbs, Nav, SunChip } from './ui/chrome';
 import {
+  BackToSearch,
   DevelopmentPanel,
   ExistingApprovedToggle,
   Landing,
@@ -312,6 +313,7 @@ export default function App() {
             layers={layers}
             onChange={setLayers}
           >
+            <BackToSearch onBack={() => setView('landing')} />
             <h2 className="panel__title">
               {place ? 'Your chosen place' : 'The whole CBD'}
             </h2>

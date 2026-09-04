@@ -46,6 +46,33 @@ import type { SunlightAtPoint } from '../scene/sunlightAt';
 import { StatusBadge, developmentSummary } from './chrome';
 import { searchCity, type SearchHit } from '../data/search';
 
+/**
+ * Back to the search box.
+ *
+ * The explore screen is the one screen with no breadcrumb — the design does
+ * not show one there — so until now the only way back to the search was the
+ * brand mark in the corner, which nobody reads as a button. Somebody who has
+ * looked up one address and wants to look up another needs a way out that is
+ * where they are already looking.
+ */
+export function BackToSearch({ onBack }: { onBack: () => void }) {
+  return (
+    <button type="button" className="panel__back" onClick={onBack}>
+      <svg width="15" height="12" viewBox="0 0 15 12" aria-hidden="true">
+        <path
+          d="M6 1 L1 6 L6 11 M1 6 H14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      Search another address
+    </button>
+  );
+}
+
 /** Marks a layer that is named in the design but has no data behind it. */
 function Padlock() {
   return (

@@ -64,6 +64,31 @@
   color: var(--green-500);
 }
 
+/*
+ * Sits above the panel heading, pulled up tight against the eyebrow so it
+ * reads as a way out of this panel rather than as one of its controls.
+ */
+.panel__back {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 -4px -6px;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+.panel__back:hover {
+  background: var(--green-050);
+}
+
 .panel__title {
   margin: 0;
   font-family: var(--font-display);
