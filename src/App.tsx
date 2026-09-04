@@ -58,7 +58,8 @@ import {
   type Layers,
 } from './ui/screens';
 import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
-import type { Development } from './data/model';
+import type { Development, SearchableBuilding } from './data/model';
+import { shortAddress, type SearchHit } from './data/search';
 import './styles/ui.css';
 
 /**
@@ -89,6 +90,12 @@ export default function App() {
   const [minutes, setMinutes] = useState(initial.minutes);
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
   const [focusMode, setFocusMode] = useState(false);
+  /*
+   * A building somebody searched for. It is a question the person asked, not
+   * a property of the building, so it clears as soon as the question changes
+   * — a new search, a proposal opened, or the dismiss button.
+   */
+  const [foundBuilding, setFoundBuilding] = useState<SearchableBuilding | null>(null);
 
   // Escape leaves focus mode, because there is nothing else on screen to
   // click and a viewer who cannot find the way out is stuck.
@@ -172,7 +179,18 @@ export default function App() {
 
   const open = (development: Development, next: ViewName) => {
     setSelectedKey(development.devKey);
+    setFoundBuilding(null);
     setView(next);
+  };
+
+  /** A search result: a proposal opens its page, a building lights up pink. */
+  const openHit = (hit: SearchHit) => {
+    if (hit.kind === 'development') {
+      open(hit.development, 'development');
+      return;
+    }
+    setFoundBuilding(hit.building);
+    setView('explore');
   };
 
   if (!model) {
@@ -186,7 +204,7 @@ export default function App() {
     dateLabel(date),
   );
 
-  const shortAddress = focus?.streetAddress.split(',')[0] ?? '';
+  const focusAddress = focus?.streetAddress.split(',')[0] ?? '';
   const storeys = detail ? Number.parseFloat(detail.floorsAbove) : undefined;
 
   return (
@@ -206,6 +224,16 @@ export default function App() {
           receptor={receptor}
           // Measuring only makes sense where the shadow is the subject.
           onPickReceptor={view === 'sunlight' && !focusMode ? setReceptor : undefined}
+          highlightedBuildingId={foundBuilding?.buildingId ?? null}
+          lookAt={
+            foundBuilding
+              ? {
+                  east: foundBuilding.anchorEN[0],
+                  north: foundBuilding.anchorEN[1],
+                  heightM: foundBuilding.heightM,
+                }
+              : null
+          }
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
           // to show that it had.
@@ -219,7 +247,7 @@ export default function App() {
         <Landing
           model={model}
           onExplore={() => setView('explore')}
-          onPick={(development) => open(development, 'development')}
+          onPick={openHit}
         />
       )}
 
@@ -231,7 +259,7 @@ export default function App() {
             onChange={setLayers}
           >
             <h2 className="panel__title">Your chosen place</h2>
-            <p className="chosen">{shortAddress}</p>
+            <p className="chosen">{focusAddress}</p>
             <ExistingApprovedToggle
               showProposed={layers.developments}
               onChange={(next) => setLayers({ ...layers, developments: next })}
@@ -242,6 +270,25 @@ export default function App() {
             developments={model.developments}
             onOpen={(development) => open(development, 'development')}
           />
+          {foundBuilding && (
+            <aside className="found" aria-live="polite">
+              <div className="found__head">
+                <p className="panel__eyebrow">Search result</p>
+                <button
+                  type="button"
+                  className="measure__close"
+                  onClick={() => setFoundBuilding(null)}
+                  aria-label="Clear the highlighted building"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="found__address">{shortAddress(foundBuilding.streetAddress)}</p>
+              <p className="found__meta">
+                Existing building · {foundBuilding.heightM.toFixed(0)} m tall
+              </p>
+            </aside>
+          )}
           <p className="hint">Left drag to pan · Right drag to orbit · Scroll to zoom</p>
         </>
       )}
@@ -249,7 +296,7 @@ export default function App() {
       {!focusMode && view === 'development' && focus && (
         <>
           <Crumbs
-            trail={[{ label: 'Map', to: 'explore' }, { label: shortAddress }]}
+            trail={[{ label: 'Map', to: 'explore' }, { label: focusAddress }]}
             onNavigate={() => setView('explore')}
           />
           <LayerPanel eyebrow="Visible in this view" layers={layers} onChange={setLayers} />
@@ -272,7 +319,7 @@ export default function App() {
             />
           )}
           <Crumbs
-            trail={[{ label: shortAddress, to: 'development' }, { label: 'Sunlight' }]}
+            trail={[{ label: focusAddress, to: 'development' }, { label: 'Sunlight' }]}
             onNavigate={() => setView('development')}
           />
           <SunlightPanel

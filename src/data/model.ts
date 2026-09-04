@@ -55,6 +55,12 @@ export interface BuildingMassing extends Massing {
   structureId: string;
   roofType: string;
   /**
+   * Where the property register could be matched to this outline. Null for
+   * 220 of the 1,548 buildings, which is why the interface says how many
+   * are searchable rather than implying every building is.
+   */
+  streetAddress: string | null;
+  /**
    * False when the source row could not be trusted for 3D. Rendered in a
    * muted colour rather than dropped: a building removed from the scene
    * casts no shadow, and a missing shadow reads as "sunlit".
@@ -95,8 +101,24 @@ export interface Development {
   landUses: LandUse[];
 }
 
+/** A building the search can return, collapsed from its parts. */
+export interface SearchableBuilding {
+  buildingId: string;
+  streetAddress: string;
+  /** Centre of the whole building, east/north metres. */
+  anchorEN: [number, number];
+  /** Tallest point above the datum. */
+  topAhdM: number;
+  heightM: number;
+}
+
 export interface CityModel {
   buildings: BuildingMassing[];
+  /**
+   * One entry per building that has an address, ready to search. Built once
+   * in the adapter rather than derived on every keystroke.
+   */
+  searchable: SearchableBuilding[];
   developments: Development[];
   /** Bounds of everything, metres east/north. Used to frame the scene. */
   extent: { minE: number; minN: number; maxE: number; maxN: number };

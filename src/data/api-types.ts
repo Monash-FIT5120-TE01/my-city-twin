@@ -66,6 +66,13 @@ export interface ApiBuildingPart {
   relativeBaseHeightM: NumericString;
   relativeTopHeightM: NumericString;
   footprintAreaM2: NumericString;
+  /**
+   * Added by the backend so the whole city can be searched, not just the
+   * proposals. It comes from the spatial match between the property register
+   * and the building outlines, so it is absent where that match found
+   * nothing: 1,328 of 1,548 buildings have one. May include a building name.
+   */
+  streetAddress?: string | null;
 }
 
 export type DevelopmentStatus = 'APPLIED' | 'APPROVED' | 'UNDER CONSTRUCTION';

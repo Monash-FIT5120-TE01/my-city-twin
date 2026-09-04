@@ -46,6 +46,7 @@ import type {
   Development,
   DevelopmentMassing,
   LandUse,
+  SearchableBuilding,
 } from './model';
 import { centroidOf, projectLonLat, projectMultiPolygon, ringArea } from './project';
 import { LOCAL_ORIGIN_WGS84 } from '../scene/frame';
@@ -63,6 +64,10 @@ export interface AdapterReport {
   buildings: number;
   developmentParts: number;
   developments: number;
+  /** Buildings carrying an address, and therefore findable by search. */
+  searchableBuildings: number;
+  /** Buildings with no address the property register could match. */
+  unaddressedBuildings: number;
   /** Rows where absolute AHD and relative heights disagree. Reported, not dropped. */
   heightDisagreements: number;
   worstDisagreementM: number;
@@ -131,6 +136,9 @@ export function buildCityModel(
       parentId: p.buildingId,
       structureId: p.structureId,
       roofType: p.roofType,
+      // Absent for 220 of the 1,548 buildings; the search says so rather
+      // than letting those look like a broken query.
+      streetAddress: p.streetAddress?.trim() || null,
       footprint,
       baseAhdM,
       topAhdM,
@@ -184,18 +192,62 @@ export function buildCityModel(
 
   const developments = groupDevelopments(developmentParts);
   const extent = extentOf(buildings, developmentParts);
+  const searchable = collectSearchable(buildings);
 
   return {
-    model: { buildings, developments, extent, source },
+    model: { buildings, searchable, developments, extent, source },
     report: {
       buildingParts: buildings.length,
       buildings: new Set(buildings.map((b) => b.parentId)).size,
       developmentParts: developmentParts.length,
       developments: developments.length,
+      searchableBuildings: searchable.length,
+      unaddressedBuildings:
+        new Set(buildings.map((b) => b.parentId)).size - searchable.length,
       heightDisagreements,
       worstDisagreementM,
     },
   };
+}
+
+/**
+ * Collapses the building parts into one searchable entry per building.
+ *
+ * The API sends one row per roof plane, so a tower arrives several times over
+ * with the same address. Searching that list directly would return the same
+ * building three times. Grouping first also gives the whole building's centre
+ * and its true top, which is what the camera needs when a result is chosen.
+ */
+function collectSearchable(buildings: BuildingMassing[]): SearchableBuilding[] {
+  const byBuilding = new Map<
+    string,
+    { address: string; parts: BuildingMassing[] }
+  >();
+
+  for (const part of buildings) {
+    if (!part.streetAddress) continue;
+    const existing = byBuilding.get(part.parentId);
+    if (existing) existing.parts.push(part);
+    else byBuilding.set(part.parentId, { address: part.streetAddress, parts: [part] });
+  }
+
+  const out: SearchableBuilding[] = [];
+  for (const [buildingId, { address, parts }] of byBuilding) {
+    const footprints = parts.flatMap((part) => part.footprint);
+    const topAhdM = Math.max(...parts.map((part) => part.topAhdM));
+    const baseAhdM = Math.min(...parts.map((part) => part.baseAhdM));
+    out.push({
+      buildingId,
+      streetAddress: address,
+      anchorEN: centroidOf(footprints),
+      topAhdM,
+      heightM: topAhdM - baseAhdM,
+    });
+  }
+
+  // Tallest first, so a search that matches a street returns its landmarks
+  // before its sheds.
+  return out.sort((a, b) => b.heightM - a.heightM);
 }
 
 /**

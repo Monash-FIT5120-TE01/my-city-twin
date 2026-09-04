@@ -71,6 +71,13 @@ interface SceneCanvasProps {
   onPickReceptor?: (point: [number, number]) => void;
   /** False in focus mode. */
   interactive: boolean;
+  /** A building found by searching, drawn in pink. */
+  highlightedBuildingId: string | null;
+  /**
+   * Where to point the camera, if not at the focused development — used when
+   * a search result is an existing building rather than a proposal.
+   */
+  lookAt: { east: number; north: number; heightM: number } | null;
 }
 
 export function SceneCanvas({
@@ -85,16 +92,24 @@ export function SceneCanvas({
   receptor,
   onPickReceptor,
   interactive,
+  highlightedBuildingId,
+  lookAt,
 }: SceneCanvasProps) {
   const ground = useMemo(() => groundElevationOf(model.buildings), [model.buildings]);
 
-  // Frame on the development under examination, or on the middle of the grid.
-  const [targetE, targetN] = focus
-    ? focus.anchorEN
-    : [
-        (model.extent.minE + model.extent.maxE) / 2,
-        (model.extent.minN + model.extent.maxN) / 2,
-      ];
+  /*
+   * Frame on whatever was last asked for: a searched building if there is
+   * one, otherwise the development under examination, otherwise the middle
+   * of the grid.
+   */
+  const [targetE, targetN] = lookAt
+    ? [lookAt.east, lookAt.north]
+    : focus
+      ? focus.anchorEN
+      : [
+          (model.extent.minE + model.extent.maxE) / 2,
+          (model.extent.minN + model.extent.maxN) / 2,
+        ];
 
   /*
    * The camera and the orbit target live outside <WorldFrame>, so they are
@@ -104,7 +119,7 @@ export function SceneCanvas({
    * above the horizon, far enough back that the tallest thing on screen fills
    * roughly two-thirds of the frame at a 30° field of view.
    */
-  const subjectHeight = focus ? focus.maxHeightM : 120;
+  const subjectHeight = lookAt ? Math.max(40, lookAt.heightM) : focus ? focus.maxHeightM : 120;
   const eye = Math.max(430, subjectHeight * 3.1);
   const ELEVATION = 38 * (Math.PI / 180);
   const BEARING = 150 * (Math.PI / 180);
@@ -199,6 +214,7 @@ export function SceneCanvas({
           receptor={receptor}
           onPickReceptor={onPickReceptor}
           interactive={interactive}
+          highlightedBuildingId={highlightedBuildingId}
         />
 
         {/* In the world frame, so it points at the city rather than the screen. */}

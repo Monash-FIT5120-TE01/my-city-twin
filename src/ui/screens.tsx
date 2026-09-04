@@ -44,6 +44,7 @@ import {
 import type { ShadowNarrative } from '../scene/narrative';
 import type { SunlightAtPoint } from '../scene/sunlightAt';
 import { StatusBadge, developmentSummary } from './chrome';
+import { searchCity, type SearchHit } from '../data/search';
 
 /** Marks a layer that is named in the design but has no data behind it. */
 function Padlock() {
@@ -69,17 +70,11 @@ export function Landing({
 }: {
   model: CityModel;
   onExplore: () => void;
-  onPick: (development: Development) => void;
+  onPick: (hit: SearchHit) => void;
 }) {
   const [query, setQuery] = useState('');
-
-  const matches = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (needle.length < 2) return [];
-    return model.developments
-      .filter((d) => d.streetAddress.toLowerCase().includes(needle))
-      .slice(0, 6);
-  }, [query, model.developments]);
+  const matches = useMemo(() => searchCity(model, query), [query, model]);
+  const searching = query.trim().length >= 2;
 
   return (
     <section className="landing">
@@ -98,20 +93,35 @@ export function Landing({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search street, place or landmark…"
+          placeholder="Search any address in the CBD…"
           aria-label="Search for a street or address"
         />
       </label>
 
-      {matches.length > 0 && (
-        <div className="results">
-          {matches.map((development) => (
-            <button key={development.devId} type="button" onClick={() => onPick(development)}>
-              {development.streetAddress}
-              <small>{developmentSummary(development)}</small>
+      {searching && matches.length > 0 && (
+        <div className="results" role="listbox" aria-label="Search results">
+          {matches.map((hit) => (
+            <button
+              key={hit.kind === 'building' ? hit.building.buildingId : hit.development.devId}
+              type="button"
+              role="option"
+              aria-selected="false"
+              onClick={() => onPick(hit)}
+            >
+              <span className={`results__kind results__kind--${hit.kind}`} />
+              {hit.label}
+              <small>{hit.detail}</small>
             </button>
           ))}
         </div>
+      )}
+
+      {searching && matches.length === 0 && (
+        <p className="results__none">
+          Nothing matches that. {model.searchable.length.toLocaleString()} buildings
+          and {model.developments.length} approved projects can be searched by
+          address; some older buildings have no address on record.
+        </p>
       )}
 
       <div className="landing__actions">

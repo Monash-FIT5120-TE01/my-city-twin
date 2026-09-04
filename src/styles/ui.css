@@ -1027,3 +1027,89 @@
   font: inherit;
   font-size: var(--text-eyebrow);
 }
+
+/* ── search results ─────────────────────────────────────── */
+
+.results button {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+/*
+ * A dot before each result, in the colour that thing will be in the city.
+ * A person who searches, sees a pink dot, and then sees a pink building has
+ * been told how the list and the model relate without a word of explanation.
+ */
+.results__kind {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  align-self: center;
+}
+
+.results__kind--development {
+  background: #6fbfa6;
+}
+
+.results__kind--building {
+  background: #e87ba8;
+}
+
+.results button small {
+  flex-basis: 100%;
+  padding-left: 18px;
+}
+
+.results__none {
+  margin: 0;
+  padding: 13px 16px;
+  border-radius: 10px;
+  background: var(--green-050);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+/* ── the highlighted building ───────────────────────────── */
+
+.found {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 328px;
+  padding: 20px 22px;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+  /* The only pink in the interface, matching the only pink in the city. */
+  border-left: 4px solid #e87ba8;
+}
+
+.found__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.found__address {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.found__meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}

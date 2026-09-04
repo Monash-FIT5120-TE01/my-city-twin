@@ -6,6 +6,7 @@ import { Ground } from './Ground';
 import { DevelopmentMassings } from './DevelopmentMassings';
 import { ReceptorMarker } from './ReceptorMarker';
 import { OpenSpace } from './OpenSpace';
+import { HighlightedBuilding } from './HighlightedBuilding';
 
 interface CityMassingProps {
   model: CityModel;
@@ -19,6 +20,8 @@ interface CityMassingProps {
   /** The spot being measured, if one has been picked. */
   receptor: [number, number] | null;
   onPickReceptor?: (point: [number, number]) => void;
+  /** A building found by searching, drawn in pink. */
+  highlightedBuildingId: string | null;
   /** False in focus mode: nothing in the scene changes state. */
   interactive: boolean;
 }
@@ -40,6 +43,7 @@ export function CityMassing({
   receptor,
   onPickReceptor,
   interactive,
+  highlightedBuildingId,
 }: CityMassingProps) {
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
@@ -47,13 +51,21 @@ export function CityMassing({
   );
 
   const { built, unresolved } = useMemo(() => {
-    const ok = model.buildings.filter((b) => b.readyFor3d);
-    const bad = model.buildings.filter((b) => !b.readyFor3d);
+    /*
+     * The highlighted building is left out of the welded city and drawn
+     * separately below. Without this it would be inside the single merged
+     * object and would show through the pink one, because they occupy the
+     * same space.
+     */
+    const inCity = (b: (typeof model.buildings)[number]) =>
+      b.parentId !== highlightedBuildingId;
+    const ok = model.buildings.filter((b) => b.readyFor3d && inCity(b));
+    const bad = model.buildings.filter((b) => !b.readyFor3d && inCity(b));
     return {
       built: mergeMassings(ok, groundAhdM),
       unresolved: mergeMassings(bad, groundAhdM),
     };
-  }, [model.buildings, groundAhdM]);
+  }, [model.buildings, groundAhdM, highlightedBuildingId]);
 
   return (
     <group>
@@ -63,6 +75,12 @@ export function CityMassing({
       <OpenSpace groundAhdM={groundAhdM} />
 
       <Roads groundAhdM={groundAhdM} />
+
+      <HighlightedBuilding
+        buildings={model.buildings}
+        buildingId={highlightedBuildingId}
+        groundAhdM={groundAhdM}
+      />
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
 

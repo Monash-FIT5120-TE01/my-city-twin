@@ -1,7 +1,7 @@
 {
-  "retrieved_at": "2026-09-01T04:58:00+10:00",
+  "retrieved_at": "2026-09-04T13:20:00+10:00",
   "base_url": "https://fit5120-te01-be.onrender.com",
-  "note": "Offline snapshot of the staging API. The app renders from this immediately, then refreshes from the live API in the background, so a sleeping Render instance never blocks first paint.",
+  "note": "Offline snapshot of the staging API. The app renders from this immediately, then refreshes from the live API in the background, so a sleeping Render instance never blocks first paint. Building footprints re-taken after the backend added streetAddress.",
   "endpoints": {
     "building-footprints.json": "/api/building/footprints",
     "development-footprints.json": "/api/development/footprints"
