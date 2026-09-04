@@ -635,35 +635,15 @@ export function SunlightAtCard({
 export function BuildingPanel({
   label,
   heightM,
-  anchorEN,
   detail,
-  developments,
-  onOpenDevelopment,
   onSunlight,
 }: {
   label: string;
   /** From the massing, so a height shows even before the record arrives. */
   heightM: number;
-  anchorEN: [number, number];
   detail: BuildingDetail | null;
-  developments: Development[];
-  onOpenDevelopment: (development: Development) => void;
   onSunlight: () => void;
 }) {
-  // Same rule as NearbyProjects: the three closest proposals. User Story 1.1
-  // is still served from this panel, just no longer instead of the building.
-  const nearest = useMemo(
-    () =>
-      developments
-        .map((d) => ({
-          development: d,
-          distance: Math.hypot(d.anchorEN[0] - anchorEN[0], d.anchorEN[1] - anchorEN[1]),
-        }))
-        .sort((a, b) => a.distance - b.distance)
-        .slice(0, 3),
-    [developments, anchorEN],
-  );
-
   const facts: { label: string; value: string }[] = [];
 
   if (detail?.floorsAboveGround) {
@@ -722,29 +702,6 @@ export function BuildingPanel({
       <button type="button" className="button button--block" onClick={onSunlight}>
         Explore this building&rsquo;s shadow
       </button>
-
-      {nearest.length > 0 && (
-        <>
-          <p className="panel__eyebrow">Approved projects nearby</p>
-          <div className="cards">
-            {nearest.map(({ development, distance }) => (
-              <article key={development.devId} className="card">
-                <StatusBadge status={development.status} />
-                <h3 className="card__title">{development.streetAddress.split(',')[0]}</h3>
-                <p className="card__meta">{developmentSummary(development)}</p>
-                <p className="card__stamp">{Math.round(distance)} m away</p>
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  onClick={() => onOpenDevelopment(development)}
-                >
-                  View project
-                </button>
-              </article>
-            ))}
-          </div>
-        </>
-      )}
 
       {detail?.censusYear && (
         <p className="measure__note">

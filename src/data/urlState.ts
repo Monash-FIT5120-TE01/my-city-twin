@@ -17,6 +17,11 @@
  *      │            └ which development
  *      └ which screen
  *
+ *   An existing building takes `bldg=<id>` in place of `dev=`. Until it did,
+ *   half of what the search can find was not linkable at all: sending
+ *   somebody a proposal worked, sending them a building silently reopened
+ *   on the landing screen.
+ *
  * WHY IT MATTERS
  *   User story C.1 asks that somebody be able to come back to a place they
  *   care about "without repeating the same search", and specifically without
@@ -32,13 +37,15 @@
 
 import { DEFAULT_DATE, fromDateInput, toDateInput, type SimulationDate } from '../scene/solar';
 
-export type ViewName = 'landing' | 'explore' | 'development' | 'sunlight';
+export type ViewName = 'landing' | 'explore' | 'development' | 'building' | 'sunlight';
 
-const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'sunlight'];
+const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight'];
 
 export interface UrlState {
   view: ViewName;
   devKey: string | null;
+  /** An existing building, when that is what was chosen instead. */
+  buildingId: string | null;
   date: SimulationDate;
   minutes: number;
   /** The measured spot, east/north metres, to one decimal place. */
@@ -63,6 +70,7 @@ export function readUrlState(): UrlState {
   return {
     view: view && VIEWS.includes(view) ? view : 'landing',
     devKey: params.get('dev'),
+    buildingId: params.get('bldg'),
     date: fromDateInput(params.get('d') ?? '') ?? DEFAULT_DATE,
     // has() before Number(): a missing parameter converts to 0, which is
     // finite, so it survived the guard in clampMinutes and pinned the clock
@@ -94,6 +102,7 @@ export function writeUrlState(state: UrlState): void {
 
   if (state.view !== 'landing') params.set('view', state.view);
   if (state.devKey) params.set('dev', state.devKey);
+  if (state.buildingId) params.set('bldg', state.buildingId);
   if (state.view === 'sunlight') {
     params.set('d', toDateInput(state.date));
     params.set('t', String(state.minutes));

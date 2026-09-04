@@ -89,8 +89,15 @@ export default function App() {
    * A building somebody searched for. It is a question the person asked, not
    * a property of the building, so it clears as soon as the question changes
    * — a new search, a proposal opened, or the dismiss button.
+   *
+   * Held as an id and resolved against the model, the same way the focused
+   * development is. Kept as the object it could not survive a reload, so a
+   * link to a building reopened on the landing screen while a link to a
+   * proposal worked.
    */
-  const [foundBuilding, setFoundBuilding] = useState<SearchableBuilding | null>(null);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(
+    initial.buildingId,
+  );
   /*
    * Where the camera was last sent. Held apart from `foundBuilding` so that
    * clearing a search result removes the highlight without also yanking the
@@ -110,7 +117,9 @@ export default function App() {
    * must not also hide every proposal in the city.
    */
   const [showSubject, setShowSubject] = useState(true);
-  const [hasChosen, setHasChosen] = useState(Boolean(initial.devKey));
+  const [hasChosen, setHasChosen] = useState(
+    Boolean(initial.devKey || initial.buildingId),
+  );
 
   // Escape leaves focus mode, because there is nothing else on screen to
   // click and a viewer who cannot find the way out is stuck.
@@ -153,6 +162,30 @@ export default function App() {
     return model.developments.find((d) => d.devKey === selectedKey) ?? null;
   }, [model, selectedKey]);
 
+  const foundBuilding = useMemo<SearchableBuilding | null>(() => {
+    if (!model || !selectedBuildingId) return null;
+    return model.searchable.find((b) => b.buildingId === selectedBuildingId) ?? null;
+  }, [model, selectedBuildingId]);
+
+  /*
+   * Send the camera to a building that arrived from the address bar.
+   *
+   * Searching does this in openHit, but a cold load has no search to do it,
+   * and without it a shared link showed the right panel over the whole-city
+   * shot. Only fills a gap — it never overrides a camera already placed.
+   */
+  useEffect(() => {
+    if (!foundBuilding) return;
+    setLookAt(
+      (current) =>
+        current ?? {
+          east: foundBuilding.anchorEN[0],
+          north: foundBuilding.anchorEN[1],
+          heightM: foundBuilding.heightM,
+        },
+    );
+  }, [foundBuilding]);
+
   // A link to a screen that needs a development, with no development in it,
   // has nothing to show. Fall back rather than render nothing at all.
   useEffect(() => {
@@ -160,6 +193,7 @@ export default function App() {
     // The project page needs a project. The sunlight screen only needs a
     // subject, and a searched building is one.
     if (view === 'development' && !focus) setView('explore');
+    if (view === 'building' && !foundBuilding) setView('explore');
     if (view === 'sunlight' && !focus && !foundBuilding) setView('explore');
   }, [model, view, focus, foundBuilding]);
 
@@ -169,11 +203,12 @@ export default function App() {
     writeUrlState({
       view,
       devKey: view === 'landing' ? null : (focus?.devKey ?? null),
+      buildingId: view === 'landing' ? null : (foundBuilding?.buildingId ?? null),
       date,
       minutes,
       receptor,
     });
-  }, [view, focus, date, minutes, receptor]);
+  }, [view, focus, foundBuilding, date, minutes, receptor]);
 
   // Only requested once a project is actually open, so the landing screen
   // never waits on a sleeping API.
@@ -188,7 +223,9 @@ export default function App() {
    *
    * Above the loading guard with every other hook; see the note below.
    */
-  const buildingDetail = useBuildingDetail(foundBuilding?.buildingId ?? null);
+  const buildingDetail = useBuildingDetail(
+    view === 'building' || view === 'sunlight' ? (foundBuilding?.buildingId ?? null) : null,
+  );
 
   const groundAhdM = useMemo(
     () => (model ? groundElevationOf(model.buildings) : 0),
@@ -233,7 +270,7 @@ export default function App() {
 
   const open = (development: Development, next: ViewName) => {
     setSelectedKey(development.devKey);
-    setFoundBuilding(null);
+    setSelectedBuildingId(null);
     setLookAt(null);
     setHasChosen(true);
     setShowSubject(true);
@@ -249,7 +286,7 @@ export default function App() {
     // Drop the previously selected proposal. Leaving it set kept its pin and
     // its name floating over a building the person had moved on from.
     setSelectedKey(null);
-    setFoundBuilding(hit.building);
+    setSelectedBuildingId(hit.building.buildingId);
     setLookAt({
       east: hit.building.anchorEN[0],
       north: hit.building.anchorEN[1],
@@ -257,7 +294,9 @@ export default function App() {
     });
     setHasChosen(true);
     setShowSubject(true);
-    setView('explore');
+    // Straight to its own page, the way a searched proposal opens on its
+    // project page rather than on the map behind it.
+    setView('building');
   };
 
   if (!model) {
@@ -400,6 +439,20 @@ export default function App() {
                 </span>
               </p>
             )}
+            {/*
+              The map page would otherwise be a dead end: a proposal could be
+              reopened by clicking its massing, but a building's own page had
+              no route back to it at all except searching again.
+            */}
+            {place && (
+              <button
+                type="button"
+                className="button button--block"
+                onClick={() => setView(place.kind === 'building' ? 'building' : 'development')}
+              >
+                {place.kind === 'building' ? 'View this building' : 'View this project'}
+              </button>
+            )}
             {place?.kind === 'building' && (
               <button
                 type="button"
@@ -407,7 +460,7 @@ export default function App() {
                 onClick={() => {
                   // Clears the highlight only. The camera stays where it is,
                   // and nothing takes this building's place.
-                  setFoundBuilding(null);
+                  setSelectedBuildingId(null);
                   setHasChosen(false);
                 }}
               >
@@ -420,30 +473,18 @@ export default function App() {
             />
           </LayerPanel>
           {/*
-            A searched building now gets a panel about ITSELF, with the nearby
-            proposals folded into it. Before this it got the nearby list and
-            nothing else, so the one address somebody had actually typed was
-            the one thing the screen would not tell them anything about.
+            The map page answers "what is around here" for either kind of
+            place. What the place itself IS belongs on its own page — the
+            project page for a proposal, the building page for a building —
+            which is the split a proposal already had.
           */}
-          {place?.kind === 'building' && foundBuilding ? (
-            <BuildingPanel
-              label={place.label}
-              heightM={foundBuilding.heightM}
-              anchorEN={place.anchorEN}
-              detail={buildingDetail}
-              developments={model.developments}
-              onOpenDevelopment={(development) => open(development, 'development')}
-              onSunlight={() => setView('sunlight')}
-            />
-          ) : (
-            <NearbyProjects
-              anchorEN={place?.anchorEN ?? cityCentreEN}
-              label={place?.label ?? 'the city centre'}
-              excludeDevId={place?.devId}
-              developments={model.developments}
-              onOpen={(development) => open(development, 'development')}
-            />
-          )}
+          <NearbyProjects
+            anchorEN={place?.anchorEN ?? cityCentreEN}
+            label={place?.label ?? 'the city centre'}
+            excludeDevId={place?.devId}
+            developments={model.developments}
+            onOpen={(development) => open(development, 'development')}
+          />
           <p className="hint">Left drag to pan · Right drag to orbit · Scroll to zoom</p>
         </>
       )}
@@ -464,6 +505,23 @@ export default function App() {
         </>
       )}
 
+      {!focusMode && view === 'building' && foundBuilding && place && (
+        <>
+          <Crumbs
+            trail={[{ label: 'Map', to: 'explore' }, { label: place.label }]}
+            onNavigate={() => setView('explore')}
+          />
+          <LayerPanel eyebrow="Visible in this view" layers={layers} onChange={setLayers} />
+          <BuildingPanel
+            label={place.label}
+            heightM={foundBuilding.heightM}
+            detail={buildingDetail}
+            onSunlight={() => setView('sunlight')}
+          />
+          <p className="disclaimer">Demo data · not a legal conclusion</p>
+        </>
+      )}
+
       {!focusMode && view === 'sunlight' && place && (
         <>
           {measured && (
@@ -478,12 +536,12 @@ export default function App() {
             trail={[
               {
                 label: place.label,
-                to: place.kind === 'building' ? 'explore' : 'development',
+                to: place.kind === 'building' ? 'building' : 'development',
               },
               { label: 'Sunlight' },
             ]}
             onNavigate={() =>
-              setView(place.kind === 'building' ? 'explore' : 'development')
+              setView(place.kind === 'building' ? 'building' : 'development')
             }
           />
           <SunlightPanel
