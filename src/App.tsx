@@ -96,6 +96,19 @@ export default function App() {
    * — a new search, a proposal opened, or the dismiss button.
    */
   const [foundBuilding, setFoundBuilding] = useState<SearchableBuilding | null>(null);
+  /*
+   * Where the camera was last sent. Held apart from `foundBuilding` so that
+   * clearing a search result removes the highlight without also yanking the
+   * view somewhere else — the person is still looking at the street they
+   * asked about, they have just finished with the highlight.
+   */
+  const [lookAt, setLookAt] = useState<{
+    east: number;
+    north: number;
+    heightM: number;
+  } | null>(null);
+  /** True once a place has actually been chosen, rather than defaulted to. */
+  const [hasChosen, setHasChosen] = useState(false);
 
   // Escape leaves focus mode, because there is nothing else on screen to
   // click and a viewer who cannot find the way out is stuck.
@@ -180,6 +193,8 @@ export default function App() {
   const open = (development: Development, next: ViewName) => {
     setSelectedKey(development.devKey);
     setFoundBuilding(null);
+    setLookAt(null);
+    setHasChosen(true);
     setView(next);
   };
 
@@ -190,6 +205,12 @@ export default function App() {
       return;
     }
     setFoundBuilding(hit.building);
+    setLookAt({
+      east: hit.building.anchorEN[0],
+      north: hit.building.anchorEN[1],
+      heightM: hit.building.heightM,
+    });
+    setHasChosen(true);
     setView('explore');
   };
 
@@ -228,7 +249,7 @@ export default function App() {
         kind: 'building',
         detail: `Existing building · ${foundBuilding.heightM.toFixed(0)} m tall`,
       }
-    : focus
+    : hasChosen && focus
       ? {
           label: focusAddress,
           anchorEN: focus.anchorEN,
@@ -236,7 +257,16 @@ export default function App() {
           detail: `Approved development · ${focus.maxHeightM.toFixed(0)} m`,
           devId: focus.devId,
         }
-      : null;
+      : // Nothing chosen — either nobody has picked anything yet, or a search
+        // result was just cleared. Saying so is the honest answer; quietly
+        // substituting the default development is what made "Clear" look
+        // like it had selected a different building.
+        null;
+
+  const cityCentreEN: [number, number] = [
+    (model.extent.minE + model.extent.maxE) / 2,
+    (model.extent.minN + model.extent.maxN) / 2,
+  ];
   const storeys = detail ? Number.parseFloat(detail.floorsAbove) : undefined;
 
   return (
@@ -257,15 +287,7 @@ export default function App() {
           // Measuring only makes sense where the shadow is the subject.
           onPickReceptor={view === 'sunlight' && !focusMode ? setReceptor : undefined}
           highlightedBuildingId={foundBuilding?.buildingId ?? null}
-          lookAt={
-            foundBuilding
-              ? {
-                  east: foundBuilding.anchorEN[0],
-                  north: foundBuilding.anchorEN[1],
-                  heightM: foundBuilding.heightM,
-                }
-              : null
-          }
+          lookAt={lookAt}
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
           // to show that it had.
@@ -283,26 +305,43 @@ export default function App() {
         />
       )}
 
-      {!focusMode && view === 'explore' && place && (
+      {!focusMode && view === 'explore' && (
         <>
           <LayerPanel
             eyebrow="Explore the CBD"
             layers={layers}
             onChange={setLayers}
           >
-            <h2 className="panel__title">Your chosen place</h2>
-            <p
-              className={`chosen${place.kind === 'building' ? ' chosen--found' : ''}`}
-              aria-live="polite"
-            >
-              {place.label}
-              <span>{place.detail}</span>
-            </p>
-            {place.kind === 'building' && (
+            <h2 className="panel__title">
+              {place ? 'Your chosen place' : 'The whole CBD'}
+            </h2>
+            {place ? (
+              <p
+                className={`chosen${place.kind === 'building' ? ' chosen--found' : ''}`}
+                aria-live="polite"
+              >
+                {place.label}
+                <span>{place.detail}</span>
+              </p>
+            ) : (
+              <p className="chosen chosen--empty" aria-live="polite">
+                No place chosen
+                <span>
+                  Search an address, or click any green building to open its
+                  project.
+                </span>
+              </p>
+            )}
+            {place?.kind === 'building' && (
               <button
                 type="button"
                 className="button button--ghost button--block"
-                onClick={() => setFoundBuilding(null)}
+                onClick={() => {
+                  // Clears the highlight only. The camera stays where it is,
+                  // and nothing takes this building's place.
+                  setFoundBuilding(null);
+                  setHasChosen(false);
+                }}
               >
                 Clear this search result
               </button>
@@ -313,9 +352,9 @@ export default function App() {
             />
           </LayerPanel>
           <NearbyProjects
-            anchorEN={place.anchorEN}
-            label={place.label}
-            excludeDevId={place.devId}
+            anchorEN={place?.anchorEN ?? cityCentreEN}
+            label={place?.label ?? 'the city centre'}
+            excludeDevId={place?.devId}
             developments={model.developments}
             onOpen={(development) => open(development, 'development')}
           />

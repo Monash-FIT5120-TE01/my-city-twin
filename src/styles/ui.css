@@ -325,6 +325,13 @@
   border-left-width: 4px;
 }
 
+/* Nothing chosen. Stated plainly rather than filled with a default. */
+.chosen--empty {
+  border-style: dashed;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
 .field {
   display: flex;
   align-items: center;
