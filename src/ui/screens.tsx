@@ -231,33 +231,44 @@ export function ExistingApprovedToggle({
   );
 }
 
+/**
+ * The approved projects nearest wherever the person currently is.
+ *
+ * It takes a plain point and a label rather than a Development, because the
+ * chosen place can now be an existing building found by searching. Passing a
+ * Development meant this list stayed anchored to a proposal while the camera
+ * and the highlight had moved somewhere else — two different "here" on one
+ * screen.
+ */
 export function NearbyProjects({
-  around,
+  anchorEN,
+  label,
+  excludeDevId,
   developments,
   onOpen,
 }: {
-  around: Development;
+  anchorEN: [number, number];
+  label: string;
+  /** Omit the project itself when the chosen place IS a project. */
+  excludeDevId?: string;
   developments: Development[];
   onOpen: (development: Development) => void;
 }) {
   const nearby = useMemo(() => {
     return developments
-      .filter((d) => d.devId !== around.devId)
+      .filter((d) => d.devId !== excludeDevId)
       .map((d) => ({
         development: d,
-        distance: Math.hypot(
-          d.anchorEN[0] - around.anchorEN[0],
-          d.anchorEN[1] - around.anchorEN[1],
-        ),
+        distance: Math.hypot(d.anchorEN[0] - anchorEN[0], d.anchorEN[1] - anchorEN[1]),
       }))
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 3);
-  }, [developments, around]);
+  }, [developments, anchorEN, excludeDevId]);
 
   return (
     <aside className="panel panel--right">
       <p className="panel__eyebrow">{nearby.length} nearby projects</p>
-      <h2 className="panel__title">Around {around.streetAddress.split(',')[0]}</h2>
+      <h2 className="panel__title">Around {label}</h2>
 
       <div className="cards">
         {nearby.map(({ development, distance }) => (

@@ -205,6 +205,38 @@ export default function App() {
   );
 
   const focusAddress = focus?.streetAddress.split(',')[0] ?? '';
+
+  /*
+   * There is exactly one "here" on screen at a time.
+   *
+   * Searching an existing building used to move the camera and the pink
+   * highlight to it while "Your chosen place" and the nearby list stayed on
+   * whatever development was focused — two different answers to the same
+   * question, a metre apart on the same panel. The chosen place is now
+   * derived once, and everything on the screen reads from it.
+   */
+  const place: {
+    label: string;
+    anchorEN: [number, number];
+    kind: 'development' | 'building';
+    detail: string;
+    devId?: string;
+  } | null = foundBuilding
+    ? {
+        label: shortAddress(foundBuilding.streetAddress),
+        anchorEN: foundBuilding.anchorEN,
+        kind: 'building',
+        detail: `Existing building · ${foundBuilding.heightM.toFixed(0)} m tall`,
+      }
+    : focus
+      ? {
+          label: focusAddress,
+          anchorEN: focus.anchorEN,
+          kind: 'development',
+          detail: `Approved development · ${focus.maxHeightM.toFixed(0)} m`,
+          devId: focus.devId,
+        }
+      : null;
   const storeys = detail ? Number.parseFloat(detail.floorsAbove) : undefined;
 
   return (
@@ -251,7 +283,7 @@ export default function App() {
         />
       )}
 
-      {!focusMode && view === 'explore' && focus && (
+      {!focusMode && view === 'explore' && place && (
         <>
           <LayerPanel
             eyebrow="Explore the CBD"
@@ -259,36 +291,34 @@ export default function App() {
             onChange={setLayers}
           >
             <h2 className="panel__title">Your chosen place</h2>
-            <p className="chosen">{focusAddress}</p>
+            <p
+              className={`chosen${place.kind === 'building' ? ' chosen--found' : ''}`}
+              aria-live="polite"
+            >
+              {place.label}
+              <span>{place.detail}</span>
+            </p>
+            {place.kind === 'building' && (
+              <button
+                type="button"
+                className="button button--ghost button--block"
+                onClick={() => setFoundBuilding(null)}
+              >
+                Clear this search result
+              </button>
+            )}
             <ExistingApprovedToggle
               showProposed={layers.developments}
               onChange={(next) => setLayers({ ...layers, developments: next })}
             />
           </LayerPanel>
           <NearbyProjects
-            around={focus}
+            anchorEN={place.anchorEN}
+            label={place.label}
+            excludeDevId={place.devId}
             developments={model.developments}
             onOpen={(development) => open(development, 'development')}
           />
-          {foundBuilding && (
-            <aside className="found" aria-live="polite">
-              <div className="found__head">
-                <p className="panel__eyebrow">Search result</p>
-                <button
-                  type="button"
-                  className="measure__close"
-                  onClick={() => setFoundBuilding(null)}
-                  aria-label="Clear the highlighted building"
-                >
-                  ×
-                </button>
-              </div>
-              <p className="found__address">{shortAddress(foundBuilding.streetAddress)}</p>
-              <p className="found__meta">
-                Existing building · {foundBuilding.heightM.toFixed(0)} m tall
-              </p>
-            </aside>
-          )}
           <p className="hint">Left drag to pan · Right drag to orbit · Scroll to zoom</p>
         </>
       )}

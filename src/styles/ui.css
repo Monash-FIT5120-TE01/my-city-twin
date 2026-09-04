@@ -297,12 +297,32 @@
 }
 
 .chosen {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   margin: 0;
   padding: 12px 16px;
   border: 1px solid var(--hairline);
   border-radius: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+.chosen span {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+
+/*
+ * A search result is pink here for the same reason it is pink in the model:
+ * so the panel and the building are visibly the same answer.
+ */
+.chosen--found {
+  border-color: #e87ba8;
+  border-left-width: 4px;
 }
 
 .field {
@@ -1073,43 +1093,3 @@
   color: var(--ink-2);
 }
 
-/* ── the highlighted building ───────────────────────────── */
-
-.found {
-  position: absolute;
-  right: 24px;
-  bottom: 24px;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 328px;
-  padding: 20px 22px;
-  border-radius: var(--radius-panel);
-  background: var(--paper);
-  box-shadow: var(--shadow-panel);
-  /* The only pink in the interface, matching the only pink in the city. */
-  border-left: 4px solid #e87ba8;
-}
-
-.found__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.found__address {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-
-.found__meta {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
