@@ -34,7 +34,7 @@ const INSIDE = [
 ];
 
 /** Rendered as siblings of <WorldFrame>: these must convert. */
-const OUTSIDE = ['SiteLabel.tsx', 'SitePin.tsx', 'StreetLabels.tsx'];
+const OUTSIDE = ['SiteMarker.tsx', 'StreetLabels.tsx'];
 
 describe('the world-frame boundary', () => {
   it.each(INSIDE)('%s stays in east/north/up and does not convert', (file) => {

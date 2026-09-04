@@ -48,8 +48,7 @@ import { WorldFrame } from './WorldFrame';
 import { SunLight } from './SunLight';
 import { CityMassing } from './CityMassing';
 import { StreetLabels } from './StreetLabels';
-import { SiteLabel } from './SiteLabel';
-import { SitePin } from './SitePin';
+import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
 import { SunArrow } from './SunArrow';
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
@@ -73,6 +72,8 @@ interface SceneCanvasProps {
   interactive: boolean;
   /** A building found by searching, drawn in pink. */
   highlightedBuildingId: string | null;
+  /** The one place that carries a pin and a name, or none. */
+  marker: SiteMarkerSubject | null;
   /**
    * Where to point the camera, if not at the focused development — used when
    * a search result is an existing building rather than a proposal.
@@ -93,6 +94,7 @@ export function SceneCanvas({
   onPickReceptor,
   interactive,
   highlightedBuildingId,
+  marker,
   lookAt,
 }: SceneCanvasProps) {
   const ground = useMemo(() => groundElevationOf(model.buildings), [model.buildings]);
@@ -257,11 +259,13 @@ export function SceneCanvas({
       */}
       <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
 
-      {focus && showProposed && (
-        <>
-          <SitePin development={focus} />
-          <SiteLabel development={focus} groundAhdM={ground} />
-        </>
+      {/*
+        One marker, on whatever is chosen. A proposal only carries one while
+        the approved massing is actually being shown; a searched building
+        always does, because it is there either way.
+      */}
+      {marker && (marker.kind === 'building' || showProposed) && (
+        <SiteMarker subject={marker} groundAhdM={ground} />
       )}
 
       <OrbitControls

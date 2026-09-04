@@ -1125,3 +1125,8 @@
   color: var(--ink-2);
 }
 
+
+/* A search result's name, matching the pink of the building it names. */
+.site-label--found {
+  color: #c9457f;
+}

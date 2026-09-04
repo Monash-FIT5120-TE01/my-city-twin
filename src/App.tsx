@@ -205,6 +205,9 @@ export default function App() {
       open(hit.development, 'development');
       return;
     }
+    // Drop the previously selected proposal. Leaving it set kept its pin and
+    // its name floating over a building the person had moved on from.
+    setSelectedKey(null);
     setFoundBuilding(hit.building);
     setLookAt({
       east: hit.building.anchorEN[0],
@@ -242,6 +245,7 @@ export default function App() {
     anchorEN: [number, number];
     kind: 'development' | 'building';
     detail: string;
+    topAhdM: number;
     devId?: string;
   } | null = foundBuilding
     ? {
@@ -249,6 +253,7 @@ export default function App() {
         anchorEN: foundBuilding.anchorEN,
         kind: 'building',
         detail: `Existing building · ${foundBuilding.heightM.toFixed(0)} m tall`,
+        topAhdM: foundBuilding.topAhdM,
       }
     : hasChosen && focus
       ? {
@@ -256,6 +261,7 @@ export default function App() {
           anchorEN: focus.anchorEN,
           kind: 'development',
           detail: `Approved development · ${focus.maxHeightM.toFixed(0)} m`,
+          topAhdM: focus.topAhdM,
           devId: focus.devId,
         }
       : // Nothing chosen — either nobody has picked anything yet, or a search
@@ -288,6 +294,17 @@ export default function App() {
           // Measuring only makes sense where the shadow is the subject.
           onPickReceptor={view === 'sunlight' && !focusMode ? setReceptor : undefined}
           highlightedBuildingId={foundBuilding?.buildingId ?? null}
+          // The pin and the name follow the chosen place, whatever kind it is.
+          marker={
+            place
+              ? {
+                  anchorEN: place.anchorEN,
+                  topAhdM: place.topAhdM,
+                  label: place.label,
+                  kind: place.kind,
+                }
+              : null
+          }
           lookAt={lookAt}
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
