@@ -61,13 +61,22 @@ const asNumber = (value: number | null | undefined): number | null =>
 const asText = (value: string | null | undefined): string | null =>
   value && value.trim() ? value.trim() : null;
 
+/**
+ * `settled` is separate from `detail` because null is not one answer but
+ * three: not asked yet, still asking, and asked and got nothing. Reporting
+ * only the value, the panel read every failure as "still loading" and said
+ * so for as long as the page stayed open — the endpoint timing out, a 500,
+ * a record with no details, all of them a spinner that never stopped.
+ */
 export function useBuildingDetail(buildingId: string | null) {
   const [detail, setDetail] = useState<BuildingDetail | null>(null);
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     // Clear immediately, so a previous building's facts never sit under a
     // new building's address while the request is in flight.
     setDetail(null);
+    setSettled(false);
     if (!buildingId) return;
 
     const controller = new AbortController();
@@ -89,7 +98,12 @@ export function useBuildingDetail(buildingId: string | null) {
         });
       })
       .catch(() => undefined)
-      .finally(() => clearTimeout(timer));
+      .finally(() => {
+        clearTimeout(timer);
+        // Not in the abort path: a superseded request must not mark the
+        // request that replaced it as finished.
+        if (!controller.signal.aborted) setSettled(true);
+      });
 
     return () => {
       clearTimeout(timer);
@@ -97,5 +111,5 @@ export function useBuildingDetail(buildingId: string | null) {
     };
   }, [buildingId]);
 
-  return detail;
+  return { detail, settled };
 }

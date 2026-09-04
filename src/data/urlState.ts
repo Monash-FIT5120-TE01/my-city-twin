@@ -62,15 +62,43 @@ function clampMinutes(value: number, fallback: number): number {
   return Math.min(20 * 60, Math.max(6 * 60, snapped));
 }
 
+/**
+ * A URL names ONE place.
+ *
+ * Both parameters at once is not a state the app can hold. The panels, the
+ * camera, the marker and the measurement all prefer the building, while the
+ * 3D view went on drawing the development — so a hand-edited or stale link
+ * produced a screen titled after one building and showing the other one's
+ * shadow, on a page whose whole purpose is to isolate a single shadow.
+ *
+ * A page that is about a particular kind of subject settles it. Anywhere
+ * else the building wins, because that is the precedence everything
+ * downstream already applies.
+ *
+ * Pure and exported so the rule can be tested without a document.
+ */
+export function chooseSubject(
+  view: ViewName,
+  devKey: string | null,
+  buildingId: string | null,
+): { devKey: string | null; buildingId: string | null } {
+  if (!devKey || !buildingId) return { devKey, buildingId };
+  if (view === 'development') return { devKey, buildingId: null };
+  return { devKey: null, buildingId };
+}
+
 export function readUrlState(): UrlState {
   const params = new URLSearchParams(window.location.search);
 
   const view = params.get('view') as ViewName | null;
+  const resolved: ViewName = view && VIEWS.includes(view) ? view : 'landing';
+
+  const subject = chooseSubject(resolved, params.get('dev'), params.get('bldg'));
 
   return {
-    view: view && VIEWS.includes(view) ? view : 'landing',
-    devKey: params.get('dev'),
-    buildingId: params.get('bldg'),
+    view: resolved,
+    devKey: subject.devKey,
+    buildingId: subject.buildingId,
     date: fromDateInput(params.get('d') ?? '') ?? DEFAULT_DATE,
     // has() before Number(): a missing parameter converts to 0, which is
     // finite, so it survived the guard in clampMinutes and pinned the clock

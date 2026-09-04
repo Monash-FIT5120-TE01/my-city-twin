@@ -58,6 +58,7 @@
 import type { Massing, PolygonEN, Ring } from '../data/model';
 import { civilToInstant, solarPosition, type SimulationDate } from './solar';
 import { SITE } from './frame';
+import { effectiveBaseAhdM } from './massing';
 
 const DEG = Math.PI / 180;
 
@@ -160,6 +161,8 @@ function segmentCrossesPolygon(
 export function blockedBySubject(
   receptorEN: [number, number],
   receptorAhdM: number,
+  /** The single flat ground the city is drawn on. */
+  groundAhdM: number,
   sun: { altitudeDeg: number; azimuthDeg: number },
   subject: Massing[],
 ): boolean {
@@ -171,7 +174,10 @@ export function blockedBySubject(
   const towardsN = Math.cos(sun.azimuthDeg * DEG);
 
   for (const part of subject) {
-    const low = Math.max(part.baseAhdM, receptorAhdM);
+    // The base the screen draws, not the one the record states — see
+    // effectiveBaseAhdM. Reading part.baseAhdM here left the sunk portion of
+    // an elevated building casting a visible shadow that went uncounted.
+    const low = Math.max(effectiveBaseAhdM(part, groundAhdM), receptorAhdM);
     const high = part.topAhdM;
     if (high <= low) continue;
 
@@ -197,6 +203,8 @@ const clock = (minutes: number) =>
 export function sunlightAtPoint(
   receptorEN: [number, number],
   receptorAhdM: number,
+  /** The flat ground plane, which is also what the massing is sunk to. */
+  groundAhdM: number,
   subject: Massing[],
   date: SimulationDate,
 ): SunlightAtPoint {
@@ -226,7 +234,7 @@ export function sunlightAtPoint(
     if (sun.altitudeDeg <= 0) continue;
     withoutSubjectMin += STEP_MINUTES;
 
-    if (blockedBySubject(receptorEN, receptorAhdM, sun, subject)) {
+    if (blockedBySubject(receptorEN, receptorAhdM, groundAhdM, sun, subject)) {
       if (firstShadow === null) firstShadow = minutes;
       lastShadow = minutes;
     } else {

@@ -75,14 +75,30 @@ function toShapes(footprint: PolygonEN[]): Shape[] {
  * down to street level; measured against the source, 201 parts have nothing
  * beneath them, and an invented column casts an invented shadow.
  */
+/**
+ * Where a part's underside actually sits.
+ *
+ * The lowest part of every building is sunk to the ground plane so it does
+ * not hover: the model has one flat ground, and 112 of the 1,548 buildings
+ * record a base above it — by 2.2 m typically and 28 m at the worst. The
+ * ground under those really is higher; the flat plane is the approximation,
+ * not the building.
+ *
+ * Exported because the shadow measurement has to agree with it. It used to
+ * carry its own copy of this rule — or rather, it did not, and measured from
+ * the recorded base while the screen drew the sunk one, so a shadow you could
+ * see on the ground was not in the number underneath it.
+ */
+export function effectiveBaseAhdM(massing: Massing, floorAhdM: number): number {
+  return massing.sinksToGround ? Math.min(floorAhdM, massing.baseAhdM) : massing.baseAhdM;
+}
+
 export function buildMassingGeometry(
   massing: Massing,
   floorAhdM: number,
 ): BufferGeometry | null {
   const top = massing.topAhdM;
-  const floor = massing.sinksToGround
-    ? Math.min(floorAhdM, massing.baseAhdM)
-    : massing.baseAhdM;
+  const floor = effectiveBaseAhdM(massing, floorAhdM);
   const depth = top - floor;
   if (depth < MIN_HEIGHT_M) return null;
 

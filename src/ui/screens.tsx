@@ -612,7 +612,8 @@ export function SunlightAtCard({
       )}
 
       <p className="measure__note">
-        How much of an otherwise clear sky this development blocks — sampled
+        How much of an otherwise clear sky this{' '}
+        {subjectKind === 'building' ? 'building' : 'development'} blocks — sampled
         every {result.stepMinutes} minutes. Existing buildings and the slope of
         the ground are not counted, so a spot already in someone else&rsquo;s
         shadow will still be shown losing sun here.
@@ -628,20 +629,24 @@ export function SunlightAtCard({
  * nearby-projects list and nothing about itself, so the one thing a resident
  * had actually asked about was the one thing the screen would not describe.
  *
- * It deliberately has no "explore sunlight impact". That screen answers what
- * a PROPOSAL changes, and it works by comparing the city with and without
- * one. An existing building has no before and after — it is the before.
+ * The sunlight screen is reachable from here. It was not at first, on the
+ * reasoning that a building has no "before" to compare against — but the
+ * searched building is already lifted out of the merged city so it can be
+ * drawn pink, so the city without it costs nothing to show.
  */
 export function BuildingPanel({
   label,
   heightM,
   detail,
+  settled,
   onSunlight,
 }: {
   label: string;
   /** From the massing, so a height shows even before the record arrives. */
   heightM: number;
   detail: BuildingDetail | null;
+  /** False while the record is still in flight; true once it will not come. */
+  settled: boolean;
   onSunlight: () => void;
 }) {
   const facts: { label: string; value: string }[] = [];
@@ -686,9 +691,16 @@ export function BuildingPanel({
         ))}
       </dl>
 
-      {!detail && (
+      {!detail && !settled && (
         <p className="card__meta">
           Loading what the property record says about this building…
+        </p>
+      )}
+      {!detail && settled && (
+        <p className="card__meta">
+          The property record for this building could not be reached. Its
+          address, height and outline above come from the city model and are
+          unaffected.
         </p>
       )}
 

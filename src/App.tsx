@@ -202,13 +202,20 @@ export default function App() {
   useEffect(() => {
     writeUrlState({
       view,
-      devKey: view === 'landing' ? null : (focus?.devKey ?? null),
+      /*
+       * The chosen subject, and only it. Writing whatever `focus` happened
+       * to hold put a development in the URL alongside a searched building,
+       * and kept one there after "Clear" had unchosen it — so reloading
+       * restored a place the person had already dismissed.
+       */
+      devKey:
+        view !== 'landing' && !foundBuilding && hasChosen ? (focus?.devKey ?? null) : null,
       buildingId: view === 'landing' ? null : (foundBuilding?.buildingId ?? null),
       date,
       minutes,
       receptor,
     });
-  }, [view, focus, foundBuilding, date, minutes, receptor]);
+  }, [view, focus, foundBuilding, hasChosen, date, minutes, receptor]);
 
   // Only requested once a project is actually open, so the landing screen
   // never waits on a sleeping API.
@@ -223,7 +230,7 @@ export default function App() {
    *
    * Above the loading guard with every other hook; see the note below.
    */
-  const buildingDetail = useBuildingDetail(
+  const { detail: buildingDetail, settled: buildingSettled } = useBuildingDetail(
     view === 'building' || view === 'sunlight' ? (foundBuilding?.buildingId ?? null) : null,
   );
 
@@ -263,7 +270,7 @@ export default function App() {
   const measured = useMemo(
     () =>
       receptor && subjectParts.length > 0
-        ? sunlightAtPoint(receptor, groundAhdM, subjectParts, date)
+        ? sunlightAtPoint(receptor, groundAhdM, groundAhdM, subjectParts, date)
         : null,
     [receptor, subjectParts, date, groundAhdM],
   );
@@ -303,13 +310,6 @@ export default function App() {
     return <LoadingScreen progress={progress} error={error} />;
   }
 
-  const narrative = describeShadow(
-    sun,
-    focus?.maxHeightM ?? 0,
-    clockLabel(minutes),
-    dateLabel(date),
-  );
-
   const focusAddress = focus?.streetAddress.split(',')[0] ?? '';
 
   /*
@@ -327,6 +327,8 @@ export default function App() {
     kind: 'development' | 'building';
     detail: string;
     topAhdM: number;
+    /** Drives the shadow narrative, which cannot describe a 0 m subject. */
+    heightM: number;
     devId?: string;
   } | null = foundBuilding
     ? {
@@ -335,6 +337,7 @@ export default function App() {
         kind: 'building',
         detail: `Existing building · ${foundBuilding.heightM.toFixed(0)} m tall`,
         topAhdM: foundBuilding.topAhdM,
+        heightM: foundBuilding.heightM,
       }
     : hasChosen && focus
       ? {
@@ -343,6 +346,7 @@ export default function App() {
           kind: 'development',
           detail: `Approved development · ${focus.maxHeightM.toFixed(0)} m`,
           topAhdM: focus.topAhdM,
+          heightM: focus.maxHeightM,
           devId: focus.devId,
         }
       : // Nothing chosen — either nobody has picked anything yet, or a search
@@ -350,6 +354,21 @@ export default function App() {
         // substituting the default development is what made "Clear" look
         // like it had selected a different building.
         null;
+
+  /*
+   * Moved below `place` so it can be told how tall the subject is.
+   *
+   * It read focus?.maxHeightM ?? 0, and an existing building never sets
+   * focus — so the whole sunlight screen for a building described a 0 m
+   * tower, dividing the shadow's reach by zero and reporting every hour of
+   * every season as the longest shadow of the day.
+   */
+  const narrative = describeShadow(
+    sun,
+    place?.heightM ?? 0,
+    clockLabel(minutes),
+    dateLabel(date),
+  );
 
   const cityCentreEN: [number, number] = [
     (model.extent.minE + model.extent.maxE) / 2,
@@ -516,6 +535,7 @@ export default function App() {
             label={place.label}
             heightM={foundBuilding.heightM}
             detail={buildingDetail}
+            settled={buildingSettled}
             onSunlight={() => setView('sunlight')}
           />
           <p className="disclaimer">Demo data · not a legal conclusion</p>
