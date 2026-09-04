@@ -99,9 +99,14 @@ export function SceneCanvas({
 
   /*
    * Frame on whatever was last asked for: a searched building if there is
-   * one, otherwise the development under examination, otherwise the middle
-   * of the grid.
+   * one, otherwise the development under examination — and if neither, the
+   * whole grid.
+   *
+   * That last case is the opening shot. Pointing at a particular tower
+   * instead would single out a building nobody asked about, which is a claim
+   * the page has no business making before anyone has chosen anything.
    */
+  const wholeCity = !lookAt && !focus;
   const [targetE, targetN] = lookAt
     ? [lookAt.east, lookAt.north]
     : focus
@@ -120,7 +125,23 @@ export function SceneCanvas({
    * roughly two-thirds of the frame at a 30° field of view.
    */
   const subjectHeight = lookAt ? Math.max(40, lookAt.heightM) : focus ? focus.maxHeightM : 120;
-  const eye = Math.max(430, subjectHeight * 3.1);
+
+  /*
+   * How far back to stand.
+   *
+   * For a single building, a little over three times its height fills about
+   * two thirds of the frame. For the whole city the subject is the grid
+   * itself, so the distance comes from its width and the lens: at a 30°
+   * vertical field of view on a typical wide window, standing back by about
+   * 1.2 times the widest span brings the far corners inside the frame.
+   */
+  const citySpan = Math.max(
+    model.extent.maxE - model.extent.minE,
+    model.extent.maxN - model.extent.minN,
+  );
+  const eye = wholeCity
+    ? citySpan * 1.2
+    : Math.max(430, subjectHeight * 3.1);
   const ELEVATION = 38 * (Math.PI / 180);
   const BEARING = 150 * (Math.PI / 180);
   const horizontal = Math.cos(ELEVATION);
@@ -128,7 +149,9 @@ export function SceneCanvas({
   // so ELEVATION really is the angle between them. Placing the camera above
   // `ground` while aiming a third of the way up the tower would flatten the
   // view by several degrees, and by a different amount for every subject.
-  const targetUp = ground + subjectHeight * 0.35;
+  // Looking at the whole grid, aim at the ground rather than a third of the
+  // way up something — there is no something.
+  const targetUp = wholeCity ? ground : ground + subjectHeight * 0.35;
   const cameraPosition = enuToWorld([
     targetE + eye * horizontal * Math.sin(BEARING),
     targetN + eye * horizontal * Math.cos(BEARING),
@@ -246,7 +269,7 @@ export function SceneCanvas({
         target={orbitTarget}
         enablePan
         minDistance={120}
-        maxDistance={4000}
+        maxDistance={Math.max(4000, citySpan * 1.6)}
         // Never let the camera drop below the ground plane.
         maxPolarAngle={Math.PI / 2.15}
         // Swapped from the three.js default: left drag pans, right drag

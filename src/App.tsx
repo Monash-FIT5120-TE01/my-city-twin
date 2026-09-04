@@ -62,14 +62,6 @@ import type { Development, SearchableBuilding } from './data/model';
 import { shortAddress, type SearchHit } from './data/search';
 import './styles/ui.css';
 
-/**
- * The development the demonstration opens on: 640–652 Bourke Street.
- * Real, approved, and a podium-plus-tower massing — which is what the Figma
- * shows. The Figma's own address, 435 Bourke Street, does not exist in the
- * Development Activity Monitor.
- */
-const DEMO_DEV_KEY = 'X0015700';
-
 /** Minutes since midnight, local Melbourne time. */
 const DAY_START = 6 * 60;
 const DAY_END = 20 * 60;
@@ -108,7 +100,7 @@ export default function App() {
     heightM: number;
   } | null>(null);
   /** True once a place has actually been chosen, rather than defaulted to. */
-  const [hasChosen, setHasChosen] = useState(false);
+  const [hasChosen, setHasChosen] = useState(Boolean(initial.devKey));
 
   // Escape leaves focus mode, because there is nothing else on screen to
   // click and a viewer who cannot find the way out is stuck.
@@ -137,18 +129,26 @@ export default function App() {
     [date, minutes],
   );
 
+  /*
+   * The development being examined, or nothing.
+   *
+   * There is deliberately no default. Opening on a particular tower put a pin
+   * and a name on a building nobody had asked about, and called it "your
+   * chosen place" — which made the first thing a visitor saw a claim that was
+   * not true. With none chosen the camera takes in the whole grid instead,
+   * which is the honest opening shot and also the more useful one.
+   */
   const focus = useMemo<Development | null>(() => {
-    if (!model) return null;
-    if (selectedKey) {
-      const chosen = model.developments.find((d) => d.devKey === selectedKey);
-      if (chosen) return chosen;
-    }
-    return (
-      model.developments.find((d) => d.devKey === DEMO_DEV_KEY) ??
-      model.developments[0] ??
-      null
-    );
+    if (!model || !selectedKey) return null;
+    return model.developments.find((d) => d.devKey === selectedKey) ?? null;
   }, [model, selectedKey]);
+
+  // A link to a screen that needs a development, with no development in it,
+  // has nothing to show. Fall back rather than render nothing at all.
+  useEffect(() => {
+    if (!model) return;
+    if ((view === 'development' || view === 'sunlight') && !focus) setView('explore');
+  }, [model, view, focus]);
 
   // Keep the address bar in step, so the view on screen is always the view a
   // shared link reopens.
