@@ -1,20 +1,26 @@
 /*
  * ─────────────────────────────────────────────────────────────────────────
- * "HOW MUCH SUN DOES THIS TOWER TAKE FROM HERE?"
+ * "HOW MUCH SUN DOES THIS BUILDING TAKE FROM HERE?"
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT THIS FILE IS
  *   The measurement behind the number on the Sunlight screen. Click a spot
  *   on the ground and this walks the whole day in ten-minute steps, asking
- *   at each one whether the proposal is standing between that spot and the
+ *   at each one whether the subject is standing between that spot and the
  *   sun, and adds up the minutes where it is.
  *
+ * THE SUBJECT IS JUST A LIST OF PARTS
+ *   It used to take a whole proposal, though it only ever read the parts out
+ *   of one. Taking the parts themselves means an existing building — also a
+ *   list of parts — is measured by identical arithmetic. Nothing in the
+ *   geometry ever cared whether the thing was already built or merely
+ *   approved.
+ *
  * WHY THE NUMBER IS A DIFFERENCE, NOT A TOTAL
- *   It answers "what does this development change", not "how sunny is this
- *   spot". The second question needs every surrounding building and the real
- *   slope of the ground to be right, and neither is. The first only needs
- *   the proposal itself, which is modelled exactly. It is also the question
- *   the planning argument is actually about.
+ *   It answers "what does THIS ONE building cost this spot", not "how sunny
+ *   is this spot". The second question needs every surrounding building and
+ *   the real slope of the ground to be right, and neither is. The first only
+ *   needs the subject itself, which is modelled exactly.
  *
  *   The consequence, stated on the card too: a spot already sitting in some
  *   existing building's shadow will still be reported as losing sun here.
@@ -49,7 +55,7 @@
  *   hemisphere has been flipped somewhere.
  */
 
-import type { Development, PolygonEN, Ring } from '../data/model';
+import type { Massing, PolygonEN, Ring } from '../data/model';
 import { civilToInstant, solarPosition, type SimulationDate } from './solar';
 import { SITE } from './frame';
 
@@ -69,11 +75,11 @@ const DAY_START_MIN = 3 * 60;
 const DAY_END_MIN = 22 * 60;
 
 export interface SunlightAtPoint {
-  /** Minutes of direct sun with the proposal absent. */
-  withoutProposalMin: number;
-  /** Minutes of direct sun once it is built. */
-  withProposalMin: number;
-  /** The difference — what the development takes away. */
+  /** Minutes of direct sun with the subject absent. */
+  withoutSubjectMin: number;
+  /** Minutes of direct sun with the subject there. */
+  withSubjectMin: number;
+  /** The difference — what the subject takes away. */
   lostMin: number;
   /**
    * First SAMPLE at which the shadow was found, or null if it never was.
@@ -151,11 +157,11 @@ function segmentCrossesPolygon(
  * traces between that part's underside and its roof crosses the footprint —
  * an exact test, and cheaper than marching along the ray.
  */
-export function blockedByDevelopment(
+export function blockedBySubject(
   receptorEN: [number, number],
   receptorAhdM: number,
   sun: { altitudeDeg: number; azimuthDeg: number },
-  development: Development,
+  subject: Massing[],
 ): boolean {
   if (sun.altitudeDeg <= 0) return false;
 
@@ -164,7 +170,7 @@ export function blockedByDevelopment(
   const towardsE = Math.sin(sun.azimuthDeg * DEG);
   const towardsN = Math.cos(sun.azimuthDeg * DEG);
 
-  for (const part of development.parts) {
+  for (const part of subject) {
     const low = Math.max(part.baseAhdM, receptorAhdM);
     const high = part.topAhdM;
     if (high <= low) continue;
@@ -187,15 +193,15 @@ export function blockedByDevelopment(
 const clock = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
-/** Walks the day in ten-minute steps and counts what the proposal costs. */
+/** Walks the day in ten-minute steps and counts what the subject costs. */
 export function sunlightAtPoint(
   receptorEN: [number, number],
   receptorAhdM: number,
-  development: Development,
+  subject: Massing[],
   date: SimulationDate,
 ): SunlightAtPoint {
-  let withoutProposalMin = 0;
-  let withProposalMin = 0;
+  let withoutSubjectMin = 0;
+  let withSubjectMin = 0;
   let firstShadow: number | null = null;
   let lastShadow: number | null = null;
 
@@ -218,20 +224,20 @@ export function sunlightAtPoint(
     );
 
     if (sun.altitudeDeg <= 0) continue;
-    withoutProposalMin += STEP_MINUTES;
+    withoutSubjectMin += STEP_MINUTES;
 
-    if (blockedByDevelopment(receptorEN, receptorAhdM, sun, development)) {
+    if (blockedBySubject(receptorEN, receptorAhdM, sun, subject)) {
       if (firstShadow === null) firstShadow = minutes;
       lastShadow = minutes;
     } else {
-      withProposalMin += STEP_MINUTES;
+      withSubjectMin += STEP_MINUTES;
     }
   }
 
   return {
-    withoutProposalMin,
-    withProposalMin,
-    lostMin: withoutProposalMin - withProposalMin,
+    withoutSubjectMin,
+    withSubjectMin,
+    lostMin: withoutSubjectMin - withSubjectMin,
     firstShadowLabel: firstShadow === null ? null : clock(firstShadow),
     lastShadowLabel: lastShadow === null ? null : clock(lastShadow),
     stepMinutes: STEP_MINUTES,

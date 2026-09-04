@@ -22,6 +22,16 @@ interface CityMassingProps {
   onPickReceptor?: (point: [number, number]) => void;
   /** A building found by searching, drawn in pink. */
   highlightedBuildingId: string | null;
+  /**
+   * Whether that building is standing.
+   *
+   * It is already lifted out of the welded city (see below), so switching
+   * this off simply does not draw it — and the city is then genuinely
+   * without it, shadow included. That is the before/after for an existing
+   * building, and it costs nothing extra because the removal was already
+   * happening for the highlight.
+   */
+  showHighlighted: boolean;
   /** False in focus mode: nothing in the scene changes state. */
   interactive: boolean;
 }
@@ -44,6 +54,7 @@ export function CityMassing({
   onPickReceptor,
   interactive,
   highlightedBuildingId,
+  showHighlighted,
 }: CityMassingProps) {
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
@@ -76,11 +87,13 @@ export function CityMassing({
 
       <Roads groundAhdM={groundAhdM} />
 
-      <HighlightedBuilding
-        buildings={model.buildings}
-        buildingId={highlightedBuildingId}
-        groundAhdM={groundAhdM}
-      />
+      {showHighlighted && (
+        <HighlightedBuilding
+          buildings={model.buildings}
+          buildingId={highlightedBuildingId}
+          groundAhdM={groundAhdM}
+        />
+      )}
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
 

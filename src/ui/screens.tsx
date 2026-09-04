@@ -233,9 +233,17 @@ export function LayerPanel({
 export function ExistingApprovedToggle({
   showProposed,
   onChange,
+  /*
+   * The same before/after control, named for whatever is being taken away.
+   * For a proposal that is "the approved plan"; for a building that is the
+   * building itself, which the city can be drawn without because it is
+   * already lifted out of the merged geometry to be highlighted.
+   */
+  labels = { off: 'Existing City', on: 'Approved Plan' },
 }: {
   showProposed: boolean;
   onChange: (next: boolean) => void;
+  labels?: { off: string; on: string };
 }) {
   return (
     <div className="segmented" role="group" aria-label="City model">
@@ -243,17 +251,17 @@ export function ExistingApprovedToggle({
         type="button"
         aria-pressed={!showProposed}
         onClick={() => onChange(false)}
-        data-label="Existing City"
+        data-label={labels.off}
       >
-        Existing City
+        {labels.off}
       </button>
       <button
         type="button"
         aria-pressed={showProposed}
         onClick={() => onChange(true)}
-        data-label="Approved Plan"
+        data-label={labels.on}
       >
-        Approved Plan
+        {labels.on}
       </button>
     </div>
   );
@@ -397,12 +405,16 @@ export function SunlightPanel({
   onDate,
   showProposed,
   onShowProposed,
+  /** Decides the wording: a proposal changes things, a building already did. */
+  subjectKind = 'development',
 }: {
   date: SimulationDate;
   onDate: (next: SimulationDate) => void;
   showProposed: boolean;
   onShowProposed: (next: boolean) => void;
+  subjectKind?: 'development' | 'building';
 }) {
+  const isBuilding = subjectKind === 'building';
   // The four presets are shortcuts onto the same date, so a preset reads as
   // selected only while the date actually is that date.
   const preset = matchingSeason(date);
@@ -411,8 +423,9 @@ export function SunlightPanel({
       <p className="panel__eyebrow">Sunlight simulation</p>
       <h2 className="panel__title">Follow the shadow</h2>
       <p className="panel__body">
-        Choose a date and time to see how the approved building changes
-        sunlight across nearby streets and public space.
+        {isBuilding
+          ? 'Choose a date and time to follow the shadow this building casts across nearby streets and public space.'
+          : 'Choose a date and time to see how the approved building changes sunlight across nearby streets and public space.'}
       </p>
 
       <div className="datebox">
@@ -448,12 +461,21 @@ export function SunlightPanel({
         </div>
       </div>
 
-      <ExistingApprovedToggle showProposed={showProposed} onChange={onShowProposed} />
+      <ExistingApprovedToggle
+        showProposed={showProposed}
+        onChange={onShowProposed}
+        labels={
+          isBuilding
+            ? { off: 'Without It', on: 'With This Building' }
+            : { off: 'Existing City', on: 'Approved Plan' }
+        }
+      />
 
       <p className="note">
         <span className="note__heading">Measure a spot</span>
-        Click anywhere on the ground to see how much direct sun this
-        development takes from that point across the day.
+        Click anywhere on the ground to see how much direct sun this{' '}
+        {isBuilding ? 'building' : 'development'} takes from that point across
+        the day.
       </p>
 
       <p className="note note--caution">
@@ -544,10 +566,12 @@ export function SunlightAtCard({
   result,
   dateLabel,
   onClear,
+  subjectKind = 'development',
 }: {
   result: SunlightAtPoint;
   dateLabel: string;
   onClear: () => void;
+  subjectKind?: 'development' | 'building';
 }) {
   const hours = (minutes: number) => {
     const h = Math.floor(minutes / 60);
@@ -567,13 +591,14 @@ export function SunlightAtCard({
 
       {result.lostMin === 0 ? (
         <p className="measure__headline measure__headline--none">
-          This development takes no direct sun from here.
+          This {subjectKind === 'building' ? 'building' : 'development'} takes
+          no direct sun from here.
         </p>
       ) : (
         <>
           <p className="measure__headline">{hours(result.lostMin)}</p>
           <p className="measure__caption">
-            less direct sun, out of {hours(result.withoutProposalMin)} the sun is up
+            less direct sun, out of {hours(result.withoutSubjectMin)} the sun is up
           </p>
           {result.firstShadowLabel && (
             <dl className="stat-row">
@@ -614,6 +639,7 @@ export function BuildingPanel({
   detail,
   developments,
   onOpenDevelopment,
+  onSunlight,
 }: {
   label: string;
   /** From the massing, so a height shows even before the record arrives. */
@@ -622,6 +648,7 @@ export function BuildingPanel({
   detail: BuildingDetail | null;
   developments: Development[];
   onOpenDevelopment: (development: Development) => void;
+  onSunlight: () => void;
 }) {
   // Same rule as NearbyProjects: the three closest proposals. User Story 1.1
   // is still served from this panel, just no longer instead of the building.
@@ -687,10 +714,14 @@ export function BuildingPanel({
 
       <div className="note">
         <span className="note__heading">This is an existing building</span>
-        It is standing today, and it casts a shadow in this model like every
-        other building. It is not a proposal, so there is nothing to compare
-        it against.
+        It is standing today, and it casts a shadow like every other building.
+        You can follow that shadow through the day, and see the city with and
+        without it.
       </div>
+
+      <button type="button" className="button button--block" onClick={onSunlight}>
+        Explore this building&rsquo;s shadow
+      </button>
 
       {nearest.length > 0 && (
         <>

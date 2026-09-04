@@ -103,6 +103,13 @@ export default function App() {
     heightM: number;
   } | null>(null);
   /** True once a place has actually been chosen, rather than defaulted to. */
+  /*
+   * The before/after switch on the sunlight screen when the subject is an
+   * existing building. Developments keep using the developments layer, so
+   * that path is untouched; a building needs its own flag because hiding it
+   * must not also hide every proposal in the city.
+   */
+  const [showSubject, setShowSubject] = useState(true);
   const [hasChosen, setHasChosen] = useState(Boolean(initial.devKey));
 
   // Escape leaves focus mode, because there is nothing else on screen to
@@ -150,8 +157,11 @@ export default function App() {
   // has nothing to show. Fall back rather than render nothing at all.
   useEffect(() => {
     if (!model) return;
-    if ((view === 'development' || view === 'sunlight') && !focus) setView('explore');
-  }, [model, view, focus]);
+    // The project page needs a project. The sunlight screen only needs a
+    // subject, and a searched building is one.
+    if (view === 'development' && !focus) setView('explore');
+    if (view === 'sunlight' && !focus && !foundBuilding) setView('explore');
+  }, [model, view, focus, foundBuilding]);
 
   // Keep the address bar in step, so the view on screen is always the view a
   // shared link reopens.
@@ -197,9 +207,28 @@ export default function App() {
    * worth of ray tests is cheap, but not cheap enough to redo on every drag
    * of the time slider.
    */
+  /*
+   * The thing whose shadow is being measured, as a plain list of parts.
+   *
+   * A development carries its parts already. A building's parts are the rows
+   * of the city that share its id — one scan of 4,443, only when a building
+   * is actually open.
+   */
+  const subjectParts = useMemo(() => {
+    if (foundBuilding) {
+      return model
+        ? model.buildings.filter((b) => b.parentId === foundBuilding.buildingId)
+        : [];
+    }
+    return focus?.parts ?? [];
+  }, [model, foundBuilding, focus]);
+
   const measured = useMemo(
-    () => (receptor && focus ? sunlightAtPoint(receptor, groundAhdM, focus, date) : null),
-    [receptor, focus, date, groundAhdM],
+    () =>
+      receptor && subjectParts.length > 0
+        ? sunlightAtPoint(receptor, groundAhdM, subjectParts, date)
+        : null,
+    [receptor, subjectParts, date, groundAhdM],
   );
 
   const open = (development: Development, next: ViewName) => {
@@ -207,6 +236,7 @@ export default function App() {
     setFoundBuilding(null);
     setLookAt(null);
     setHasChosen(true);
+    setShowSubject(true);
     setView(next);
   };
 
@@ -226,6 +256,7 @@ export default function App() {
       heightM: hit.building.heightM,
     });
     setHasChosen(true);
+    setShowSubject(true);
     setView('explore');
   };
 
@@ -305,9 +336,16 @@ export default function App() {
           // Measuring only makes sense where the shadow is the subject.
           onPickReceptor={view === 'sunlight' && !focusMode ? setReceptor : undefined}
           highlightedBuildingId={foundBuilding?.buildingId ?? null}
+          // Only the sunlight screen ever takes it away, and only when it is
+          // the subject. Everywhere else a searched building is simply there.
+          showHighlighted={
+            view === 'sunlight' && place?.kind === 'building' ? showSubject : true
+          }
           // The pin and the name follow the chosen place, whatever kind it is.
           marker={
-            place
+            // Nothing to point at while the building is switched off: the pin
+            // would otherwise hang in the air above the gap where it stood.
+            place && !(view === 'sunlight' && place.kind === 'building' && !showSubject)
               ? {
                   anchorEN: place.anchorEN,
                   topAhdM: place.topAhdM,
@@ -395,6 +433,7 @@ export default function App() {
               detail={buildingDetail}
               developments={model.developments}
               onOpenDevelopment={(development) => open(development, 'development')}
+              onSunlight={() => setView('sunlight')}
             />
           ) : (
             <NearbyProjects
@@ -425,24 +464,38 @@ export default function App() {
         </>
       )}
 
-      {!focusMode && view === 'sunlight' && focus && (
+      {!focusMode && view === 'sunlight' && place && (
         <>
           {measured && (
             <SunlightAtCard
               result={measured}
               dateLabel={dateLabel(date)}
               onClear={() => setReceptor(null)}
+              subjectKind={place.kind}
             />
           )}
           <Crumbs
-            trail={[{ label: focusAddress, to: 'development' }, { label: 'Sunlight' }]}
-            onNavigate={() => setView('development')}
+            trail={[
+              {
+                label: place.label,
+                to: place.kind === 'building' ? 'explore' : 'development',
+              },
+              { label: 'Sunlight' },
+            ]}
+            onNavigate={() =>
+              setView(place.kind === 'building' ? 'explore' : 'development')
+            }
           />
           <SunlightPanel
             date={date}
             onDate={setDate}
-            showProposed={layers.developments}
-            onShowProposed={(next) => setLayers({ ...layers, developments: next })}
+            subjectKind={place.kind}
+            showProposed={place.kind === 'building' ? showSubject : layers.developments}
+            onShowProposed={(next) =>
+              place.kind === 'building'
+                ? setShowSubject(next)
+                : setLayers({ ...layers, developments: next })
+            }
           />
           <SunChip
             timeLabel={clockLabel(minutes)}

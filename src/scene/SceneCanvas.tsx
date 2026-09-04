@@ -72,6 +72,8 @@ interface SceneCanvasProps {
   interactive: boolean;
   /** A building found by searching, drawn in pink. */
   highlightedBuildingId: string | null;
+  /** False to take that building out of the city — the "before" of a search. */
+  showHighlighted: boolean;
   /** The one place that carries a pin and a name, or none. */
   marker: SiteMarkerSubject | null;
   /**
@@ -94,6 +96,7 @@ export function SceneCanvas({
   onPickReceptor,
   interactive,
   highlightedBuildingId,
+  showHighlighted,
   marker,
   lookAt,
 }: SceneCanvasProps) {
@@ -240,15 +243,22 @@ export function SceneCanvas({
           onPickReceptor={onPickReceptor}
           interactive={interactive}
           highlightedBuildingId={highlightedBuildingId}
+          showHighlighted={showHighlighted}
         />
 
         {/* In the world frame, so it points at the city rather than the screen. */}
-        {showSunArrow && focus && (
+        {/*
+          On whatever the camera is framing — the focused proposal, or a
+          searched building. Reading `focus` alone put the arrow back on a
+          proposal while the screen was about a building; targetE/targetN are
+          already "the subject", whichever kind it is.
+        */}
+        {showSunArrow && !wholeCity && (
           <SunArrow
             sun={sun}
-            anchorEN={focus.anchorEN}
+            anchorEN={[targetE, targetN]}
             groundAhdM={ground}
-            heightM={focus.maxHeightM}
+            heightM={subjectHeight}
           />
         )}
       </WorldFrame>

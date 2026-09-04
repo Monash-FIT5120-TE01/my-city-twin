@@ -38,12 +38,43 @@ describe('segmented controls', () => {
   });
 
   it('gives every segment the attribute the reservation reads', () => {
+    /*
+     * The reservation only works if the hidden copy says the same thing as
+     * the visible label — a data-label that has drifted from the text
+     * reserves the wrong width, which is the original bug wearing a
+     * disguise. So rather than naming the labels, this checks that every
+     * segment mirrors itself.
+     *
+     * Named labels would have to be rewritten whenever a control is
+     * reworded, which is what happened when the city toggle learned to say
+     * "With This Building" for an existing building instead of only
+     * "Approved Plan".
+     */
+    const declared = [...screens.matchAll(/data-label=/g)].length;
     // Four seasons plus the two-way city toggle.
-    const labels = [...screens.matchAll(/data-label=(?:"([^"]+)"|\{([^}]+)\})/g)];
-    expect(labels.length).toBeGreaterThanOrEqual(3);
-    expect(screens).toMatch(/data-label="Existing City"/);
-    expect(screens).toMatch(/data-label="Approved Plan"/);
-    expect(screens).toMatch(/data-label=\{option\.label\}/);
+    expect(declared).toBeGreaterThanOrEqual(3);
+
+    /*
+     * Anchored at data-label and run to the closing tag, so each button is
+     * checked against ITS OWN text. Searching the file for the pair as a
+     * substring is not enough: with two segments in a control, a label
+     * copied onto the wrong button still finds its match on the right one.
+     *
+     * data-label is the last attribute on these buttons, which is what lets
+     * this start there and avoid tripping over the `>` in `() =>`.
+     */
+    const pairs = [
+      ...screens.matchAll(
+        /data-label=(?:"([^"]+)"|\{([^}]+)\})\s*>\s*(?:\{([^}]+)\}|([^<]*?))\s*<\/button>/g,
+      ),
+    ];
+    // Every declared segment matched the shape; none slipped past unchecked.
+    expect(pairs.length).toBe(declared);
+
+    for (const [, literal, expression, childExpression, childText] of pairs) {
+      if (literal) expect(childText?.trim()).toBe(literal);
+      else expect(childExpression?.trim()).toBe(expression.trim());
+    }
   });
 
   it('keeps the season names on one line', () => {
