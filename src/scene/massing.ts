@@ -68,14 +68,6 @@ function toShapes(footprint: PolygonEN[]): Shape[] {
 }
 
 /**
- * One solid, from the massing's own base up to its roof.
- *
- * Only the lowest part of a building is allowed to reach down to the ground
- * plane. Sinking every part would give each upper storey a column of mass
- * down to street level; measured against the source, 201 parts have nothing
- * beneath them, and an invented column casts an invented shadow.
- */
-/**
  * Where a part's underside actually sits.
  *
  * The lowest part of every building is sunk to the ground plane so it does
@@ -93,6 +85,14 @@ export function effectiveBaseAhdM(massing: Massing, floorAhdM: number): number {
   return massing.sinksToGround ? Math.min(floorAhdM, massing.baseAhdM) : massing.baseAhdM;
 }
 
+/**
+ * One solid, from the massing's own base up to its roof.
+ *
+ * Only the lowest part of a building is allowed to reach down to the ground
+ * plane. Sinking every part would give each upper storey a column of mass
+ * down to street level; measured against the source, 201 parts have nothing
+ * beneath them, and an invented column casts an invented shadow.
+ */
 export function buildMassingGeometry(
   massing: Massing,
   floorAhdM: number,
