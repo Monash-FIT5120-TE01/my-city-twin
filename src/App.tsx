@@ -43,6 +43,7 @@ import { civilToInstant, dateLabel, solarPosition, type SimulationDate } from '.
 import { SITE } from './scene/frame';
 import { useCityModel } from './data/useCityModel';
 import { useDevelopmentDetail } from './data/useDevelopmentDetail';
+import { useBuildingDetail } from './data/useBuildingDetail';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { Crumbs, Nav, SunChip } from './ui/chrome';
 import {
@@ -53,6 +54,7 @@ import {
   LayerPanel,
   NarrativeCard,
   NearbyProjects,
+  BuildingPanel,
   SunlightAtCard,
   SunlightPanel,
   TimeBar,
@@ -168,6 +170,15 @@ export default function App() {
   const detail = useDevelopmentDetail(
     view === 'development' || view === 'sunlight' ? (focus?.devId ?? null) : null,
   );
+
+  /*
+   * The property record for a searched building. Like the development one it
+   * is requested only when there is something to describe, and like it, the
+   * panel renders without it — address and height come from the model.
+   *
+   * Above the loading guard with every other hook; see the note below.
+   */
+  const buildingDetail = useBuildingDetail(foundBuilding?.buildingId ?? null);
 
   const groundAhdM = useMemo(
     () => (model ? groundElevationOf(model.buildings) : 0),
@@ -370,13 +381,30 @@ export default function App() {
               onChange={(next) => setLayers({ ...layers, developments: next })}
             />
           </LayerPanel>
-          <NearbyProjects
-            anchorEN={place?.anchorEN ?? cityCentreEN}
-            label={place?.label ?? 'the city centre'}
-            excludeDevId={place?.devId}
-            developments={model.developments}
-            onOpen={(development) => open(development, 'development')}
-          />
+          {/*
+            A searched building now gets a panel about ITSELF, with the nearby
+            proposals folded into it. Before this it got the nearby list and
+            nothing else, so the one address somebody had actually typed was
+            the one thing the screen would not tell them anything about.
+          */}
+          {place?.kind === 'building' && foundBuilding ? (
+            <BuildingPanel
+              label={place.label}
+              heightM={foundBuilding.heightM}
+              anchorEN={place.anchorEN}
+              detail={buildingDetail}
+              developments={model.developments}
+              onOpenDevelopment={(development) => open(development, 'development')}
+            />
+          ) : (
+            <NearbyProjects
+              anchorEN={place?.anchorEN ?? cityCentreEN}
+              label={place?.label ?? 'the city centre'}
+              excludeDevId={place?.devId}
+              developments={model.developments}
+              onOpen={(development) => open(development, 'development')}
+            />
+          )}
           <p className="hint">Left drag to pan · Right drag to orbit · Scroll to zoom</p>
         </>
       )}

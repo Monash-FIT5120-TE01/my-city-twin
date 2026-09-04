@@ -45,6 +45,7 @@ import type { ShadowNarrative } from '../scene/narrative';
 import type { SunlightAtPoint } from '../scene/sunlightAt';
 import { StatusBadge, developmentSummary } from './chrome';
 import { searchCity, type SearchHit } from '../data/search';
+import type { BuildingDetail } from '../data/useBuildingDetail';
 
 /**
  * Back to the search box.
@@ -591,6 +592,135 @@ export function SunlightAtCard({
         the ground are not counted, so a spot already in someone else&rsquo;s
         shadow will still be shown losing sun here.
       </p>
+    </aside>
+  );
+}
+
+/**
+ * What is known about one existing building.
+ *
+ * The counterpart to DevelopmentPanel. Until now a searched building got the
+ * nearby-projects list and nothing about itself, so the one thing a resident
+ * had actually asked about was the one thing the screen would not describe.
+ *
+ * It deliberately has no "explore sunlight impact". That screen answers what
+ * a PROPOSAL changes, and it works by comparing the city with and without
+ * one. An existing building has no before and after — it is the before.
+ */
+export function BuildingPanel({
+  label,
+  heightM,
+  anchorEN,
+  detail,
+  developments,
+  onOpenDevelopment,
+}: {
+  label: string;
+  /** From the massing, so a height shows even before the record arrives. */
+  heightM: number;
+  anchorEN: [number, number];
+  detail: BuildingDetail | null;
+  developments: Development[];
+  onOpenDevelopment: (development: Development) => void;
+}) {
+  // Same rule as NearbyProjects: the three closest proposals. User Story 1.1
+  // is still served from this panel, just no longer instead of the building.
+  const nearest = useMemo(
+    () =>
+      developments
+        .map((d) => ({
+          development: d,
+          distance: Math.hypot(d.anchorEN[0] - anchorEN[0], d.anchorEN[1] - anchorEN[1]),
+        }))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 3),
+    [developments, anchorEN],
+  );
+
+  const facts: { label: string; value: string }[] = [];
+
+  if (detail?.floorsAboveGround) {
+    facts.push({ label: 'Storeys', value: String(detail.floorsAboveGround) });
+  }
+  facts.push({ label: 'Height', value: `${heightM.toFixed(0)} m` });
+  if (detail?.constructionYear) {
+    facts.push({ label: 'Built', value: String(detail.constructionYear) });
+  }
+  if (detail?.refurbishedYear) {
+    facts.push({ label: 'Refurbished', value: String(detail.refurbishedYear) });
+  }
+  // Zero is worth showing — "no bicycle parking" is a fact about a building.
+  if (detail?.bicycleSpaces !== null && detail?.bicycleSpaces !== undefined) {
+    facts.push({ label: 'Bicycle spaces', value: String(detail.bicycleSpaces) });
+  }
+
+  return (
+    <aside className="panel panel--right">
+      <span className="badge badge--existing">Existing</span>
+      <h2 className="panel__title">{detail?.buildingName ?? label}</h2>
+      {/*
+        The address often already contains the name — the footprint data has
+        "Pegasus Apartment Hotel 206-216 A'Beckett Street" as the address —
+        so the address is only worth repeating when it adds something.
+      */}
+      {detail?.buildingName && !label.includes(detail.buildingName) && (
+        <p className="card__meta">{label}</p>
+      )}
+      {detail?.predominantUse && (
+        <p className="card__meta">Mainly {detail.predominantUse.toLowerCase()}</p>
+      )}
+
+      <dl className="facts">
+        {facts.map((fact) => (
+          <div key={fact.label}>
+            <dt>{fact.label}</dt>
+            <dd>{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {!detail && (
+        <p className="card__meta">
+          Loading what the property record says about this building…
+        </p>
+      )}
+
+      <div className="note">
+        <span className="note__heading">This is an existing building</span>
+        It is standing today, and it casts a shadow in this model like every
+        other building. It is not a proposal, so there is nothing to compare
+        it against.
+      </div>
+
+      {nearest.length > 0 && (
+        <>
+          <p className="panel__eyebrow">Approved projects nearby</p>
+          <div className="cards">
+            {nearest.map(({ development, distance }) => (
+              <article key={development.devId} className="card">
+                <StatusBadge status={development.status} />
+                <h3 className="card__title">{development.streetAddress.split(',')[0]}</h3>
+                <p className="card__meta">{developmentSummary(development)}</p>
+                <p className="card__stamp">{Math.round(distance)} m away</p>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => onOpenDevelopment(development)}
+                >
+                  View project
+                </button>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+
+      {detail?.censusYear && (
+        <p className="measure__note">
+          Property record from the {detail.censusYear} City of Melbourne census.
+          Building outline from Building Footprints 2023.
+        </p>
+      )}
     </aside>
   );
 }
