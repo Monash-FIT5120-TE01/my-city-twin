@@ -199,11 +199,36 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease;
+  /*
+   * Everything that changes on hover or press is listed, not just the
+   * background. A control that recolours instantly but moves abruptly reads
+   * as two different components reacting at different speeds.
+   */
+  transition:
+    background 130ms ease,
+    border-color 130ms ease,
+    color 130ms ease,
+    box-shadow 130ms ease,
+    transform 90ms ease;
 }
 
 .button:hover {
   background: var(--green-600);
+}
+
+/*
+ * One pixel, not four. The press has to be felt rather than watched — this
+ * is a planning tool, and a button that bounces undercuts the numbers next
+ * to it. The shorter transform duration above makes the press feel like a
+ * response to the finger rather than an animation that follows it.
+ */
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
 }
 
 .button--ghost {
@@ -214,6 +239,7 @@
 
 .button--ghost:hover {
   background: var(--green-050);
+  border-color: var(--green-600);
 }
 
 .button--block {
@@ -244,6 +270,9 @@
   font-size: var(--text-sm);
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background 130ms ease,
+    color 130ms ease;
 }
 
 /*
@@ -396,6 +425,20 @@
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   background: var(--paper);
+  transition: border-color 130ms ease;
+}
+
+/*
+ * A card is an <article>, and only the button inside it does anything. It
+ * therefore gets no hover state of its own: lifting it on hover would
+ * promise a click target that is not there, and the whole surface would
+ * become a thing people try to press and nothing happens.
+ *
+ * focus-within is different — that is the keyboard genuinely being inside
+ * this card, and showing which one is a statement of fact.
+ */
+.card:focus-within {
+  border-color: var(--green-600);
 }
 
 .card__title {
@@ -495,6 +538,20 @@
   font: inherit;
   color: var(--ink-3);
   cursor: pointer;
+  transition:
+    color 130ms ease,
+    border-color 130ms ease;
+}
+
+.tabs button:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.tabs button:focus-visible,
+.segmented button:focus-visible,
+.results button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -2px;
 }
 
 .tabs button[aria-selected='true'] {
@@ -803,6 +860,17 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background 120ms ease;
+}
+
+/*
+ * Held while the click is being made. A search result starts a camera flight
+ * and a panel change, so the row has to confirm which one was chosen before
+ * the screen begins to change — otherwise the first thing that moves is the
+ * whole city, and it is not obvious that it was this row that did it.
+ */
+.results button:active {
+  background: var(--green-100, var(--green-050));
 }
 
 .results button:last-child {
@@ -1173,4 +1241,32 @@
 /* A search result's name, matching the pink of the building it names. */
 .site-label--found {
   color: #c9457f;
+}
+
+
+/* ── reduced motion ─────────────────────────────────────────────────────
+ *
+ * The counterpart to useReducedMotion, which tells the camera the same
+ * thing. Both are driven by this one preference, so the panels and the 3D
+ * view can never disagree about whether this person wanted movement.
+ *
+ * Transitions collapse to a duration nothing can perceive rather than to
+ * `none`, because a real 0s can skip transitionend handlers that some
+ * browsers still fire. Transforms are removed outright: a press that moves
+ * is exactly what the preference is asking us not to do.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Colour, outline and border feedback all survive — only movement goes. */
+  .button:active {
+    transform: none;
+  }
 }

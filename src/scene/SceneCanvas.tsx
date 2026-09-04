@@ -40,7 +40,7 @@
  *   rotation. Each converts its own position instead; see StreetLabels.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, MOUSE } from 'three';
@@ -50,6 +50,8 @@ import { CityMassing } from './CityMassing';
 import { StreetLabels } from './StreetLabels';
 import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
 import { SunArrow } from './SunArrow';
+import { CameraRig } from './CameraRig';
+import { useReducedMotion } from '../ui/useReducedMotion';
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
 import type { SunAngles } from './sun';
@@ -165,6 +167,18 @@ export function SceneCanvas({
   const orbitTarget = enuToWorld([targetE, targetN, targetUp]);
 
   /*
+   * The Canvas is told where the camera starts and then never again.
+   *
+   * Its `camera` prop is re-applied whenever it changes, which would snap the
+   * camera to each new destination the instant it was chosen — the teleport
+   * CameraRig exists to replace. Captured once, it sets the opening shot and
+   * then stays out of the way while the rig does the moving.
+   */
+  const [openingShot] = useState(() => cameraPosition);
+
+  const reducedMotion = useReducedMotion();
+
+  /*
    * The shadow camera covers the WHOLE city, centred on the city — not on
    * whatever is being examined.
    *
@@ -212,7 +226,7 @@ export function SceneCanvas({
       dpr={[1, 2]}
       // The Figma views are high obliques with little perspective distortion,
       // so a long lens rather than the 50° default.
-      camera={{ position: cameraPosition, fov: 30, near: 5, far: 20000 }}
+      camera={{ position: openingShot, fov: 30, near: 5, far: 20000 }}
       gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}
     >
       <color attach="background" args={['#ededea']} />
@@ -278,9 +292,25 @@ export function SceneCanvas({
         <SiteMarker subject={marker} groundAhdM={ground} />
       )}
 
+      <CameraRig
+        position={cameraPosition}
+        target={orbitTarget}
+        animate={!reducedMotion}
+      />
+
+      {/*
+        No `target` prop on purpose. It is applied on every render, so it
+        would drag the orbit centre back to the destination while a flight
+        was still under way. CameraRig sets it instead.
+
+        Damping is drei's own default, so the glide after a drag was always
+        there; what was missing was a say in how much, and a way to turn it
+        off for someone who asked for less movement.
+      */}
       <OrbitControls
         makeDefault
-        target={orbitTarget}
+        enableDamping={!reducedMotion}
+        dampingFactor={0.09}
         enablePan
         minDistance={120}
         maxDistance={Math.max(4000, citySpan * 1.6)}
