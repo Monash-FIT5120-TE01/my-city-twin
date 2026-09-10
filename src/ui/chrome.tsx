@@ -1,4 +1,53 @@
+import { bundled } from '../data/bundled';
 import type { Development } from '../data/model';
+
+/**
+ * The credit Mapbox is owed for the map under the city.
+ *
+ * WHY IT IS HERE RATHER THAN ON THE IMAGE
+ *   The Static Images API will draw its own logo and credit into the picture,
+ *   and the request turns both off — because the picture is laid flat on the
+ *   ground, where the words would be metres long, upside down half the time,
+ *   and lit by whatever the sun is doing. Mapbox permits turning them off on
+ *   exactly that condition: that the credit appears somewhere legible
+ *   instead. This is that somewhere.
+ *
+ *   So this is not decoration and not a nicety. Removing it while the request
+ *   still says logo=false puts the deployment in breach of the terms it is
+ *   served under. If it has to go, the parameters in basemap.ts go with it.
+ *
+ * WHAT THE LINKS ARE
+ *   OpenStreetMap is credited alongside Mapbox because the streets, the
+ *   river and the parks in that image are OSM's data. "Improve this map" is
+ *   required too, and is a real thing: it opens the editor at the place the
+ *   reader is looking at.
+ */
+export function MapAttribution() {
+  return (
+    <div className="attribution">
+      <a
+        className="attribution__mark"
+        href="https://www.mapbox.com/"
+        target="_blank"
+        rel="noreferrer"
+      >
+        {/* The wordmark as Mapbox ships it, not a redrawing of it. */}
+        <img src={bundled('mapbox-logo.svg')} alt="Mapbox" width="62" height="16" />
+      </a>
+      <p className="attribution__text">
+        <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">
+          © Mapbox
+        </a>{' '}
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+          © OpenStreetMap
+        </a>{' '}
+        <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noreferrer">
+          Improve this map
+        </a>
+      </p>
+    </div>
+  );
+}
 
 /**
  * Persistent navigation. "My Area" and "About" are Iteration 2 work.

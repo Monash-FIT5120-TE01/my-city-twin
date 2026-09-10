@@ -27,11 +27,25 @@
  *   and that surface exists in the source data. It is not used yet, so
  *   buildings carry their true heights above sea level while the ground
  *   beneath them is a single level. Terrain is Iteration 2 work.
+ *
+ * THE MAP ON TOP OF IT
+ *   When a Mapbox image is available it is laid on this same plane, and the
+ *   fade above becomes the fade of the map. Two things make that work:
+ *
+ *   The texture coordinates are computed per vertex by converting each one
+ *   back through the projection, because the scene's north and the image's
+ *   north are 1.25° apart — see basemap.ts, which is where that is explained
+ *   and measured.
+ *
+ *   The vertex colours stop tinting and start masking. They are multiplied
+ *   into whatever the material draws, so the solid inner colour has to become
+ *   white when there is a map, or the whole city would be washed with beige.
  */
 
 import { useMemo } from 'react';
-import { BufferAttribute, Color, PlaneGeometry } from 'three';
+import { BufferAttribute, Color, PlaneGeometry, type Texture } from 'three';
 import type { CityModel } from '../data/model';
+import { groundPlacement, textureCoordinate } from './basemap';
 
 /** Background the ground dissolves into — the same colour the canvas clears to. */
 const HORIZON = '#ededea';
@@ -39,24 +53,32 @@ const HORIZON = '#ededea';
 export function Ground({
   model,
   groundAhdM,
+  basemap,
   onPick,
 }: {
   model: CityModel;
   groundAhdM: number;
+  /**
+   * The map image, once it has arrived. Loaded by whoever owns this rather
+   * than here, because the same answer decides whether the inferred road
+   * surface is drawn — and the two must not disagree about it.
+   */
+  basemap: Texture | null;
   /** Called with an east/north point when the ground is clicked. */
   onPick?: (point: [number, number]) => void;
 }) {
-  const { minE, minN, maxE, maxN } = model.extent;
-  const centreE = (minE + maxE) / 2;
-  const centreN = (minN + maxN) / 2;
+  const { centreE, centreN, span, size, placement } = useMemo(
+    () => groundPlacement(model.extent),
+    [model.extent],
+  );
 
   const geometry = useMemo(() => {
-    const span = Math.max(maxE - minE, maxN - minN);
-    // Room for the fade itself, beyond the last building.
-    const size = span * 2.4;
     const plane = new PlaneGeometry(size, size, 64, 64);
 
-    const solid = new Color('#e6e3da');
+    // White under a map, so the fade masks it instead of tinting it; the
+    // beige is the ground's own colour and is only wanted when it is the only
+    // thing there.
+    const solid = new Color(basemap ? '#ffffff' : '#e6e3da');
     const horizon = new Color(HORIZON);
     const scratch = new Color();
 
@@ -65,6 +87,7 @@ export function Ground({
     const outer = size * 0.5;
 
     const position = plane.getAttribute('position');
+    const uv = plane.getAttribute('uv');
     const colours = new Float32Array(position.count * 3);
 
     for (let i = 0; i < position.count; i++) {
@@ -76,11 +99,25 @@ export function Ground({
       colours[i * 3] = scratch.r;
       colours[i * 3 + 1] = scratch.g;
       colours[i * 3 + 2] = scratch.b;
+
+      /*
+       * The plane's own coordinates are offsets from its centre, so the scene
+       * position is that plus where the centre is. Converting every vertex
+       * rather than the plane as a whole is what keeps the map square with
+       * the buildings — 65 by 65 of them, once.
+       */
+      const [u, v] = textureCoordinate(
+        centreE + position.getX(i),
+        centreN + position.getY(i),
+        placement,
+      );
+      uv.setXY(i, u, v);
     }
 
+    uv.needsUpdate = true;
     plane.setAttribute('color', new BufferAttribute(colours, 3));
     return plane;
-  }, [minE, minN, maxE, maxN]);
+  }, [centreE, centreN, span, size, placement, basemap]);
 
   return (
     <mesh
@@ -97,7 +134,29 @@ export function Ground({
         })
       }
     >
-      <meshStandardMaterial vertexColors roughness={1} metalness={0} />
+      {/*
+        The key is load-bearing, not decoration.
+
+        Whether a material samples a texture is decided when its shader is
+        COMPILED, by the USE_MAP define. Assigning `map` afterwards changes
+        the property and nothing else: three.js only rebuilds the program when
+        `material.needsUpdate` is set, and react-three-fiber never sets it —
+        it sets shadowMap.needsUpdate and no other.
+
+        So the texture arrived, was assigned, and was never once sampled. The
+        only symptom was a ground that stayed plain, which reads as the image
+        having failed to download.
+
+        Changing the key makes React discard the material and build a new one,
+        which compiles with the map present.
+      */}
+      <meshStandardMaterial
+        key={basemap ? 'with-basemap' : 'plain'}
+        map={basemap}
+        vertexColors
+        roughness={1}
+        metalness={0}
+      />
     </mesh>
   );
 }

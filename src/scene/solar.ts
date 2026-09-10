@@ -43,7 +43,8 @@ export function solarPosition(instant: Date, site: SiteLocation): SunAngles {
  * and hard-coding either one silently moves every shadow by an hour for half
  * the year.
  */
-function zoneOffsetMs(timeZone: string, instant: Date): number {
+/** What a wall clock in `timeZone` reads at `instant`. */
+function zonedParts(timeZone: string, instant: Date) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
     hour12: false,
@@ -56,17 +57,20 @@ function zoneOffsetMs(timeZone: string, instant: Date): number {
   }).formatToParts(instant);
 
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  // Intl renders midnight as hour 24 in some engines.
-  const hour = get('hour') % 24;
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    // Intl renders midnight as hour 24 in some engines.
+    hour: get('hour') % 24,
+    minute: get('minute'),
+    second: get('second'),
+  };
+}
 
-  const asUtc = Date.UTC(
-    get('year'),
-    get('month') - 1,
-    get('day'),
-    hour,
-    get('minute'),
-    get('second'),
-  );
+function zoneOffsetMs(timeZone: string, instant: Date): number {
+  const { year, month, day, hour, minute, second } = zonedParts(timeZone, instant);
+  const asUtc = Date.UTC(year, month - 1, day, hour, minute, second);
   return asUtc - instant.getTime();
 }
 
@@ -89,6 +93,34 @@ export function civilToInstant(
   const first = guess - zoneOffsetMs(timeZone, new Date(guess));
   const second = guess - zoneOffsetMs(timeZone, new Date(first));
   return new Date(second);
+}
+
+/**
+ * What the clock in `timeZone` reads at an instant, as the simulation states
+ * time: a civil date plus minutes since its midnight.
+ *
+ * WHOSE CLOCK, AND WHY IT IS NOT THE READER'S
+ *   "Now" is a single instant, and the sun is doing one thing over Melbourne
+ *   at it. That instant comes from the reader's device — every device knows
+ *   the instant correctly, wherever it is — but it is then read off a
+ *   MELBOURNE clock, not theirs.
+ *
+ *   Taking the reader's civil reading instead would put the sun at 3 p.m.
+ *   Melbourne because it happened to be 3 p.m. in Tokyo, which is a different
+ *   moment and a different sun. For a reader in Melbourne the two agree and
+ *   the distinction costs nothing; for anyone else, including whoever marks
+ *   this, only one of them is true.
+ *
+ * The instant is a parameter rather than read from the clock inside, so the
+ * daylight-saving cases can be tested at fixed moments instead of whenever
+ * the suite happens to run.
+ */
+export function civilInZone(
+  timeZone: string,
+  instant: Date,
+): { date: SimulationDate; minutes: number } {
+  const { year, month, day, hour, minute } = zonedParts(timeZone, instant);
+  return { date: { year, month, day }, minutes: hour * 60 + minute };
 }
 
 /** Any date the simulation can be run for. */

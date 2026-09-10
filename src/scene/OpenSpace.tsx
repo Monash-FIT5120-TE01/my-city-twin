@@ -97,7 +97,19 @@ export function OpenSpace({ groundAhdM }: { groundAhdM: number }) {
         pavement. The city is near-white and the roads paler still, so green
         is the only hue on the ground and it can afford to be a real one.
       */}
-      <meshStandardMaterial color="#a9c795" roughness={1} metalness={0} />
+      {/*
+        polygonOffset for the same reason as the roads, one step deeper so
+        the order between the two is still decided by their heights and not
+        by which happened to win the rounding.
+      */}
+      <meshStandardMaterial
+        color="#a9c795"
+        roughness={1}
+        metalness={0}
+        polygonOffset
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-8}
+      />
     </mesh>
   );
 }

@@ -25,3 +25,9 @@ dist-ssr
 
 # Cloudflare
 .wrangler/
+
+# Written from .env.local at build and deploy time, never committed — see
+# scripts/mapbox-config.mjs. Keeping the Mapbox token out of the bundle keeps
+# it out of the frozen releases, which are committed and never rebuilt.
+public/mapbox.json
+releases/**/mapbox.json

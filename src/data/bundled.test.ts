@@ -62,4 +62,23 @@ describe('bundled', () => {
 
     expect(offenders).toEqual([]);
   });
+
+  it('never reads the Mapbox token from the build environment', () => {
+    /*
+     * Vite substitutes import.meta.env at build time, so one reference here
+     * puts the token inside the bundle — and therefore inside every frozen
+     * release, which is committed and never rebuilt. Two things follow, and
+     * neither announces itself: GitHub's secret scanning refuses the push,
+     * and rotating the token kills the map on versions already submitted.
+     *
+     * It is fetched at run time instead. This is the guard on that decision,
+     * because putting it back is a one-line convenience that looks like a
+     * simplification.
+     */
+    const offenders = shippedSources(SRC)
+      .filter((file) => /VITE_MAPBOX/.test(readFileSync(file, 'utf-8')))
+      .map((file) => relative(SRC, file));
+
+    expect(offenders).toEqual([]);
+  });
 });

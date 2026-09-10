@@ -403,6 +403,8 @@ export function DevelopmentPanel({
 export function SunlightPanel({
   date,
   onDate,
+  onNow,
+  nowNote,
   showProposed,
   onShowProposed,
   /** Decides the wording: a proposal changes things, a building already did. */
@@ -410,6 +412,10 @@ export function SunlightPanel({
 }: {
   date: SimulationDate;
   onDate: (next: SimulationDate) => void;
+  /** Sets the date and time to the present moment in Melbourne. */
+  onNow: () => void;
+  /** Said only when the present moment could not be shown as it is. */
+  nowNote: string | null;
   showProposed: boolean;
   onShowProposed: (next: boolean) => void;
   subjectKind?: 'development' | 'building';
@@ -459,6 +465,27 @@ export function SunlightPanel({
             </button>
           ))}
         </div>
+
+        {/*
+          "in Melbourne" is not padding. The moment shown is the one over the
+          city, read off a Melbourne clock — so for a reader anywhere else the
+          button does not say what their own clock says, and the label is
+          where that is admitted. See data/now.ts.
+        */}
+        <button type="button" className="datebox__now" onClick={onNow}>
+          Now in Melbourne
+        </button>
+
+        {/*
+          aria-live because the note appears in response to the press and
+          replaces nothing: without it, a reader using a screen reader gets a
+          date and time that changed for reasons never announced.
+        */}
+        {nowNote && (
+          <p className="datebox__note" aria-live="polite">
+            {nowNote}
+          </p>
+        )}
       </div>
 
       <ExistingApprovedToggle

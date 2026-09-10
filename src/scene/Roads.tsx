@@ -96,7 +96,29 @@ export function Roads({ groundAhdM }: { groundAhdM: number }) {
 
   return (
     <mesh geometry={geometry} position={[0, 0, groundAhdM + 0.06]} receiveShadow>
-      <meshStandardMaterial color="#f7f5ef" roughness={1} metalness={0} />
+      {/*
+        The 6 cm above is not enough on its own, and never was.
+
+        Depth precision falls off with the square of the distance: with this
+        camera's near of 5 m, one step of the depth buffer is about 5 cm at
+        two kilometres and 11 cm at three. Past that the road and the ground
+        round to the same depth and flicker between them, which stayed
+        invisible only while the two were near enough in colour to hide it. A
+        map underneath made it obvious at once.
+
+        polygonOffset is the fix rather than a larger lift, because its units
+        are steps of the depth buffer rather than metres — it stays exactly
+        one step in front wherever the camera is, instead of being too little
+        far away and a visible kerb close up.
+      */}
+      <meshStandardMaterial
+        color="#f7f5ef"
+        roughness={1}
+        metalness={0}
+        polygonOffset
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-4}
+      />
     </mesh>
   );
 }

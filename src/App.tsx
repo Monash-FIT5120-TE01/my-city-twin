@@ -45,7 +45,7 @@ import { useCityModel } from './data/useCityModel';
 import { useDevelopmentDetail } from './data/useDevelopmentDetail';
 import { useBuildingDetail } from './data/useBuildingDetail';
 import { LoadingScreen } from './ui/LoadingScreen';
-import { Crumbs, Nav, SunChip } from './ui/chrome';
+import { Crumbs, MapAttribution, Nav, SunChip } from './ui/chrome';
 import {
   BackToSearch,
   DevelopmentPanel,
@@ -60,17 +60,18 @@ import {
   TimeBar,
   type Layers,
 } from './ui/screens';
-import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
+import {
+  EARLIEST_MINUTES,
+  LATEST_MINUTES,
+  readUrlState,
+  writeUrlState,
+  type ViewName,
+} from './data/urlState';
+import { clockLabel, outsideWindowNote, presentMoment } from './data/now';
+import { useMapboxConfig } from './data/mapboxConfig';
 import type { Development, SearchableBuilding } from './data/model';
 import { shortAddress, type SearchHit } from './data/search';
 import './styles/ui.css';
-
-/** Minutes since midnight, local Melbourne time. */
-const DAY_START = 6 * 60;
-const DAY_END = 20 * 60;
-
-const clockLabel = (minutes: number) =>
-  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
 export default function App() {
   const { model, error, progress } = useCityModel();
@@ -85,6 +86,19 @@ export default function App() {
   const [minutes, setMinutes] = useState(initial.minutes);
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
   const [focusMode, setFocusMode] = useState(false);
+  /*
+   * Said once, after "Now in Melbourne" is pressed at an hour the time
+   * control cannot reach — and cleared the moment the reader moves either
+   * control, because from then on the time on screen is theirs and the note
+   * would be describing a state that no longer exists.
+   */
+  const [nowNote, setNowNote] = useState<string | null>(null);
+
+  /*
+   * Only to decide whether the map credit belongs on screen. The scene loads
+   * the same configuration for itself; both share one request.
+   */
+  const mapbox = useMapboxConfig();
   /*
    * A building somebody searched for. It is a question the person asked, not
    * a property of the building, so it clears as soon as the question changes
@@ -131,6 +145,34 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [focusMode]);
+
+  /*
+   * The date and time controls, wrapped so that touching either retires the
+   * note left by "Now in Melbourne". Handing the raw setters to the panel
+   * instead left "It is 23:31 in Melbourne" sitting under a slider the reader
+   * had since dragged to noon.
+   */
+  const chooseDate = (next: SimulationDate) => {
+    setDate(next);
+    setNowNote(null);
+  };
+
+  const chooseMinutes = (next: number) => {
+    setMinutes(next);
+    setNowNote(null);
+  };
+
+  /*
+   * Read at the press, not held in state. A moment captured on mount would be
+   * stale by the time anyone pressed the button, and the whole point of the
+   * control is that it is not stale.
+   */
+  const goToNow = () => {
+    const moment = presentMoment(new Date());
+    setDate(moment.date);
+    setMinutes(moment.minutes);
+    setNowNote(outsideWindowNote(moment));
+  };
 
   const sun = useMemo(
     () =>
@@ -420,6 +462,12 @@ export default function App() {
         />
       </div>
 
+      {/*
+        Outside every focusMode guard on purpose. The map is still on screen in
+        focus mode, so the credit for it has to be too — see MapAttribution.
+      */}
+      {mapbox && <MapAttribution />}
+
       {!focusMode && <Nav onHome={() => setView('landing')} />}
 
       {!focusMode && view === 'landing' && (
@@ -566,7 +614,9 @@ export default function App() {
           />
           <SunlightPanel
             date={date}
-            onDate={setDate}
+            onDate={chooseDate}
+            onNow={goToNow}
+            nowNote={nowNote}
             subjectKind={place.kind}
             showProposed={place.kind === 'building' ? showSubject : layers.developments}
             onShowProposed={(next) =>
@@ -583,9 +633,9 @@ export default function App() {
           <NarrativeCard narrative={narrative} />
           <TimeBar
             minutes={minutes}
-            onChange={setMinutes}
-            min={DAY_START}
-            max={DAY_END}
+            onChange={chooseMinutes}
+            min={EARLIEST_MINUTES}
+            max={LATEST_MINUTES}
             label={clockLabel(minutes)}
             caption={narrative.caption}
           />

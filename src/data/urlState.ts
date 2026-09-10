@@ -54,12 +54,22 @@ export interface UrlState {
 
 export const DEFAULT_MINUTES = 15 * 60;
 
-function clampMinutes(value: number, fallback: number): number {
+/**
+ * The window the time control can express, in minutes since midnight.
+ *
+ * Exported because "now" has to know it: Melbourne spends a good part of the
+ * year outside it, and a control that silently showed 20:00 for 23:30 would
+ * be claiming something about the sun that is not so.
+ */
+export const EARLIEST_MINUTES = 6 * 60;
+export const LATEST_MINUTES = 20 * 60;
+
+export function clampMinutes(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   // Snap to the slider's own step so a hand-edited URL cannot land between
   // two positions and make the control look broken.
   const snapped = Math.round(value / 10) * 10;
-  return Math.min(20 * 60, Math.max(6 * 60, snapped));
+  return Math.min(LATEST_MINUTES, Math.max(EARLIEST_MINUTES, snapped));
 }
 
 /**

@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import type { CityModel, Development } from '../data/model';
 import { groundElevationOf, mergeMassings } from './massing';
+import { groundPlacement } from './basemap';
+import { useBasemapTexture } from './useBasemap';
+import { useMapboxConfig } from '../data/mapboxConfig';
 import { Roads } from './Roads';
 import { Ground } from './Ground';
 import { DevelopmentMassings } from './DevelopmentMassings';
@@ -61,6 +64,10 @@ export function CityMassing({
     [model.buildings],
   );
 
+  const { placement } = useMemo(() => groundPlacement(model.extent), [model.extent]);
+  const mapbox = useMapboxConfig();
+  const basemap = useBasemapTexture(placement, mapbox);
+
   const { built, unresolved } = useMemo(() => {
     /*
      * The highlighted building is left out of the welded city and drawn
@@ -81,11 +88,29 @@ export function CityMassing({
   return (
     <group>
       {/* The blocks between the streets, dissolving where the data ends. */}
-      <Ground model={model} groundAhdM={groundAhdM} onPick={onPickReceptor} />
+      <Ground
+        model={model}
+        groundAhdM={groundAhdM}
+        basemap={basemap}
+        onPick={onPickReceptor}
+      />
 
       <OpenSpace groundAhdM={groundAhdM} />
 
-      <Roads groundAhdM={groundAhdM} />
+      {/*
+        The inferred carriageways stand down once a real map is under the
+        city, because the map draws the same streets from surveyed data and
+        these were reasoned out from 133 addresses. Measured against the map
+        they are visibly out of place, worst beyond the building data, where
+        there was nothing to subtract and the whole 30-metre band survives as
+        guesswork.
+
+        Not deleted, because they are still the right answer when there is no
+        map: a token that has expired, a browser with no network, or a frozen
+        release long after this term. The fallback and the layer it falls back
+        to are the same decision, which is why the texture is loaded up here.
+      */}
+      {!basemap && <Roads groundAhdM={groundAhdM} />}
 
       {showHighlighted && (
         <HighlightedBuilding

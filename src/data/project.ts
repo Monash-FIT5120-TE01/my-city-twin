@@ -10,8 +10,11 @@
  *   conversion, plus two small pieces of polygon arithmetic that need it.
  *
  * WHO USES IT
- *   Only adapter.ts, while it is turning an API response into the model the
- *   rest of the app sees. Nothing downstream ever touches longitude again.
+ *   adapter.ts, while it is turning an API response into the model the rest
+ *   of the app sees. Nothing downstream ever touches longitude again — with
+ *   one deliberate exception: scene/basemap.ts, which has to go back the
+ *   other way, because a map image is drawn in a projection of its own and
+ *   fitting one to the other is a question about the globe.
  *
  * WHY NOT JUST USE LONGITUDE AND LATITUDE
  *   Because they are angles, not distances, and the two axes are not the
@@ -47,6 +50,19 @@ const toMetric = proj4(SOURCE_CRS, 'EPSG:7855');
 export function projectLonLat(lon: number, lat: number): [number, number] {
   const [x, y] = toMetric.forward([lon, lat]);
   return [x, y];
+}
+
+/**
+ * One point, back from metres to degrees.
+ *
+ * Takes a full easting and northing, not a scene-local one — callers that
+ * hold local coordinates have to add the origin back first, which is the same
+ * asymmetry projectLonLat has and is deliberate: the two functions are then
+ * exact inverses of each other, and can be tested as such.
+ */
+export function unprojectMetric(x: number, y: number): [number, number] {
+  const [lon, lat] = toMetric.inverse([x, y]);
+  return [lon, lat];
 }
 
 /**
