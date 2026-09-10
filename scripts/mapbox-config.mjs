@@ -10,11 +10,21 @@
  *   submitted. Written here, deployment rewrites it and the old versions pick
  *   the new one up untouched. See src/data/mapboxConfig.ts.
  *
- * WHERE IT WRITES
- *   `public`   for the dev server and for the next release build, which
- *              copies public/ into its output.
- *   `releases` for every version directory that is about to be uploaded,
- *              including the frozen ones that are not being rebuilt.
+ * WHERE IT WRITES, AND WHY NOT INSIDE THE VERSIONS
+ *   `public`   for the dev server, and for the dev subdomain, whose build
+ *              output is served from the root.
+ *   `releases` at the ROOT of the releases directory — one file shared by
+ *              every version, served at /mapbox.json.
+ *
+ *   It was written into each version directory first, and that was wrong. A
+ *   frozen release is frozen: the promise is that ver-1 in week 12 is the
+ *   ver-1 that was submitted, and a deploy that reaches inside it to drop a
+ *   file breaks that promise even when the file changes nothing. The version
+ *   directories are therefore swept of it, including the copy the release
+ *   build inherits from public/.
+ *
+ *   Out here it is also the more honest place for it: which token this
+ *   deployment uses is a fact about the deployment, not about any version.
  *
  * NO TOKEN IS NOT AN ERROR
  *   Anyone who clones this has no .env.local and gets no file, which the app
@@ -40,10 +50,8 @@ function readEnv(name) {
   return line?.slice(name.length + 1).trim() || undefined;
 }
 
-function targets(mode) {
-  if (mode === 'public') return [join(root, 'public')];
-  if (mode !== 'releases') throw new Error(`unknown target "${mode}" — expected public or releases`);
-
+/** Version directories, which must never end up holding this file. */
+function versionDirectories() {
   const releases = join(root, 'releases');
   if (!existsSync(releases)) return [];
   return readdirSync(releases, { withFileTypes: true })
@@ -51,17 +59,41 @@ function targets(mode) {
     .map((entry) => join(releases, entry.name));
 }
 
+const mode = process.argv[2];
+if (mode !== 'public' && mode !== 'releases') {
+  throw new Error(`unknown target "${mode}" — expected public or releases`);
+}
+
+const directory = mode === 'public' ? join(root, 'public') : join(root, 'releases');
+const file = join(directory, 'mapbox.json');
+
 const token = readEnv('VITE_MAPBOX_TOKEN');
 const style = readEnv('VITE_MAPBOX_STYLE');
 
-for (const directory of targets(process.argv[2])) {
-  const file = join(directory, 'mapbox.json');
-  if (!token) {
-    if (existsSync(file)) rmSync(file);
-    continue;
-  }
+if (token) {
   mkdirSync(directory, { recursive: true });
   writeFileSync(file, `${JSON.stringify(style ? { token, style } : { token }, null, 2)}\n`);
+} else if (existsSync(file)) {
+  // A token taken out of .env.local really does disappear, rather than
+  // leaving the last one lying in the build.
+  rmSync(file);
 }
 
-console.log(token ? 'mapbox.json written' : 'no VITE_MAPBOX_TOKEN — the app will run without a map');
+let swept = 0;
+if (mode === 'releases') {
+  for (const version of versionDirectories()) {
+    const stray = join(version, 'mapbox.json');
+    if (!existsSync(stray)) continue;
+    rmSync(stray);
+    swept++;
+  }
+}
+
+console.log(
+  [
+    token ? `${mode}/mapbox.json written` : `no VITE_MAPBOX_TOKEN — the app will run without a map`,
+    swept ? `swept ${swept} copy(s) out of the frozen versions` : '',
+  ]
+    .filter(Boolean)
+    .join('; '),
+);

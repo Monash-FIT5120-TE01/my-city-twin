@@ -38,7 +38,21 @@
  */
 
 import { useEffect, useState } from 'react';
-import { bundled } from './bundled';
+
+/**
+ * The one absolute path in the app, and the one place bundled() is wrong.
+ *
+ * Everything else a version ships lives inside that version and is addressed
+ * through its base — see bundled.ts. This does not: which token the
+ * deployment uses is a fact about the DEPLOYMENT, and writing it inside
+ * /ver-1/ would mean a deploy reaching into a frozen release to change it.
+ * A frozen release is the one thing that must not move.
+ *
+ * So it sits at the root, above every version, and all of them read the same
+ * one. bundled.test.ts knows about this exception by name and holds it to
+ * this single path.
+ */
+const CONFIG_URL = '/mapbox.json';
 
 export interface MapboxConfig {
   readonly token: string;
@@ -57,7 +71,7 @@ const DEFAULT_STYLE = 'mapbox/light-v11';
 let inFlight: Promise<MapboxConfig | null> | null = null;
 
 function loadConfig(): Promise<MapboxConfig | null> {
-  inFlight ??= fetch(bundled('mapbox.json'))
+  inFlight ??= fetch(CONFIG_URL)
     .then((response) => (response.ok ? response.json() : null))
     .then((doc: { token?: unknown; style?: unknown } | null) => {
       if (!doc || typeof doc.token !== 'string' || !doc.token) return null;

@@ -55,6 +55,18 @@ describe('the releases about to be deployed', () => {
     }
   });
 
+  it.each(frozenVersions)('keeps deployment configuration out of %s', (version) => {
+    /*
+     * The Mapbox token is written at deploy time, and it was written into
+     * each version directory first. That is wrong however harmless the file
+     * is: a frozen release is the promise that ver-1 in week 12 is the ver-1
+     * that was submitted, and a deploy that reaches inside one to add a file
+     * has already broken it. The configuration lives at the root instead,
+     * above every version — see data/mapboxConfig.ts.
+     */
+    expect(existsSync(resolve(RELEASES, version, 'mapbox.json'))).toBe(false);
+  });
+
   it.each(frozenVersions)('ships the data %s draws the city from', (version) => {
     // The snapshot is what puts the city on screen before the sleeping
     // staging API answers, so a version missing it is a version that opens

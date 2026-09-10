@@ -53,14 +53,33 @@ describe('bundled', () => {
       /url\(\s*['"]?\//, // CSS url(/…)
     ];
 
-    const offenders = shippedSources(SRC).flatMap((file) => {
-      const text = readFileSync(file, 'utf-8');
-      return absolute
-        .filter((pattern) => pattern.test(text))
-        .map((pattern) => `${relative(SRC, file)} matches ${pattern.source}`);
-    });
+    const offenders = shippedSources(SRC)
+      // The one deliberate exception, checked on its own terms below.
+      .filter((file) => relative(SRC, file) !== join('data', 'mapboxConfig.ts'))
+      .flatMap((file) => {
+        const text = readFileSync(file, 'utf-8');
+        return absolute
+          .filter((pattern) => pattern.test(text))
+          .map((pattern) => `${relative(SRC, file)} matches ${pattern.source}`);
+      });
 
     expect(offenders).toEqual([]);
+  });
+
+  it('allows the map configuration exactly one absolute path, and no more', () => {
+    /*
+     * The Mapbox configuration is the one thing that is NOT part of a
+     * version: writing it inside /ver-1/ would mean a deploy reaching into a
+     * frozen release to change a file in it, which is the one thing freezing
+     * is for. So it lives at the root and is addressed absolutely.
+     *
+     * That exemption is worth exactly one path. This pins it, so the file
+     * cannot quietly become the place where other absolute paths go to avoid
+     * the rule above.
+     */
+    const text = readFileSync(resolve(SRC, 'data/mapboxConfig.ts'), 'utf-8');
+    const absolutePaths = [...text.matchAll(/'(\/[^']*)'/g)].map((match) => match[1]);
+    expect(absolutePaths).toEqual(['/mapbox.json']);
   });
 
   it('never reads the Mapbox token from the build environment', () => {
