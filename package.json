@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:release": "tsc -b && vite build --base=/ver-1/ --outDir releases/ver-1 --emptyOutDir",
+    "build:release": "tsc -b && vite build --base=/ver-2/ --outDir releases/ver-2 --emptyOutDir",
     "deploy": "npm run build:release && wrangler deploy",
     "deploy:dev": "npm run build && wrangler deploy -c wrangler.dev.jsonc",
     "lint": "oxlint",
