@@ -34,6 +34,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { buildCityModel, type AdapterReport } from './adapter';
 import type { CityModel } from './model';
+import { bundled } from './bundled';
 import { fetchJsonWithProgress, yieldToPaint } from './fetchWithProgress';
 import type {
   ApiBuildingPart,
@@ -45,8 +46,8 @@ export const API_BASE =
   import.meta.env.VITE_API_BASE ?? 'https://fit5120-te01-be.onrender.com';
 
 const SNAPSHOT = {
-  buildings: '/data/building-footprints.json',
-  developments: '/data/development-footprints.json',
+  buildings: bundled('data/building-footprints.json'),
+  developments: bundled('data/development-footprints.json'),
 };
 
 const LIVE = {

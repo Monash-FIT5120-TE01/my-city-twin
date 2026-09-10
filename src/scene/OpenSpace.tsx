@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BufferGeometry, Shape, ShapeGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { bundled } from '../data/bundled';
 import type { PolygonEN } from '../data/model';
 
 /*
@@ -36,7 +37,7 @@ export function OpenSpace({ groundAhdM }: { groundAhdM: number }) {
 
   useEffect(() => {
     let live = true;
-    fetch('/data/open-space.json')
+    fetch(bundled('data/open-space.json'))
       .then((response) => (response.ok ? response.json() : null))
       .then((data: OpenSpaceDoc | null) => {
         if (live) setDoc(data);

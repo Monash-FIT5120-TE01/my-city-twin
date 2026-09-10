@@ -35,6 +35,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BufferGeometry, Shape, ShapeGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { bundled } from '../data/bundled';
 import type { PolygonEN } from '../data/model';
 
 interface RoadsDoc {
@@ -47,7 +48,7 @@ export function Roads({ groundAhdM }: { groundAhdM: number }) {
 
   useEffect(() => {
     let live = true;
-    fetch('/data/roads.json')
+    fetch(bundled('data/roads.json'))
       .then((response) => (response.ok ? response.json() : null))
       .then((data: RoadsDoc | null) => {
         if (live) setDoc(data);

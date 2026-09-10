@@ -15,7 +15,7 @@ Front end for **FIT5120 · Monash-FIT5120-TE01**, Iteration 1 — user stories
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # type-checks with `tsc -b`, then bundles to dist/
-npx vitest run   # 85 tests
+npm test         # 156 tests
 ```
 
 `npm run build` is the real type check. `tsc --noEmit` on the root config
@@ -24,12 +24,51 @@ checks nothing, because that file only holds project references.
 ## Deploying
 
 ```bash
-npm run build
-npx wrangler deploy
+npm run deploy:dev    # → dev.mycitytwin.com      work in progress
+npm run deploy        # → mycitytwin.com/ver-N/   a finished iteration
 ```
 
 Static assets on Cloudflare Workers. There is no server-side code — see
 "Why there is no API" below.
+
+## Versions
+
+Each submitted iteration keeps working at its own path, because a marker may
+open Iteration 1 in week 12, long after Iteration 3 has rewritten the screens
+it was marked on.
+
+| URL | What it is |
+|---|---|
+| `mycitytwin.com/ver-1/` | Iteration 1 as submitted — frozen |
+| `mycitytwin.com/ver-2/` | Iteration 2 as submitted — frozen |
+| `mycitytwin.com/` | Redirects to the newest frozen version |
+| `dev.mycitytwin.com` | Whatever is on `main` right now |
+
+A version is a built directory committed under `releases/`. It is built once
+and never rebuilt, so upgrading a dependency in Iteration 3 cannot change what
+Iteration 1 shows. `npm run deploy` re-uploads them all, unchanged.
+
+**Day to day this costs one rule:** address anything in `public/` through
+`bundled()`, never with a leading slash. An absolute path is correct in
+development, where the base is `/`, and wrong in every release build.
+`src/data/bundled.test.ts` fails the build rather than letting that reach a URL
+somebody has been given.
+
+### Freezing an iteration
+
+1. `npm run build:release` — check the `--base` and `--outDir` in
+   `package.json` name the version being frozen.
+2. Bump `LATEST` in `worker/index.ts` to that version, so the bare domain
+   follows.
+3. Commit `releases/ver-N` with the source it was built from, and tag it
+   `iteration-N`. One commit then holds both, and the tag answers "which code
+   is this URL?".
+4. `npm run deploy`.
+5. Point `build:release` at the *next* version straight away. Left alone, the
+   first deploy of the following iteration overwrites the release just frozen.
+
+`npm test` covers steps 1 and 2: `worker/deployment.test.ts` checks that every
+release was built against its own path and that `LATEST` names one that exists.
 
 ---
 

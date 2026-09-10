@@ -1,6 +1,10 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
+  // The frozen iteration builds are committed rather than ignored by git, so
+  // unlike dist/ they are not excluded for free — and minified output has an
+  // opinion about everything.
+  "ignorePatterns": ["releases"],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]

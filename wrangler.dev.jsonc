@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Work in progress, deployed with `npm run deploy:dev`.
+  //
+  // A separate Worker rather than another path on the production one, so
+  // that pushing an unfinished screen cannot disturb a submitted iteration.
+  // There is nothing shared between the two: different name, different
+  // domain, different assets.
+  "name": "my-city-twin-dev",
+  "compatibility_date": "2026-09-01",
+  "account_id": "78b8f2d4c05c15737956ef91105ed310",
+
+  "routes": [{ "pattern": "dev.mycitytwin.com", "custom_domain": true }],
+
+  // The ordinary `npm run build` output, served from the root of the
+  // subdomain — so this is the one deployment where the base is '/', and the
+  // one that will not catch a hand-written absolute asset path. That is what
+  // src/data/bundled.test.ts is for.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

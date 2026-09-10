@@ -1,0 +1,11 @@
+# The frozen iteration builds. Minified output that nobody reviews and that
+# must not change again, so it is folded out of diffs and out of the language
+# statistics rather than drowning the one pull request that adds it.
+releases/** linguist-generated=true
+releases/** -diff
+
+# -text so a release is the same bytes on every machine. Left to the usual
+# line-ending conversion, a build committed on Windows and checked out on
+# macOS is a different file from the one that was tested, which is the one
+# thing a frozen version may not be.
+releases/** -text

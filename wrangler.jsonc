@@ -17,15 +17,24 @@
     { "pattern": "www.mycitytwin.com", "custom_domain": true }
   ],
 
-  // A static site with no server-side code: every sunlight calculation runs
-  // in the browser, so there is nothing for a Worker script to do. Assets
-  // alone is the whole deployment.
+  // Not the app's build directory but the collection of them: one frozen
+  // build per submitted iteration, each addressed at its own path.
+  //
+  //   releases/ver-1/  →  mycitytwin.com/ver-1/
+  //   releases/ver-2/  →  mycitytwin.com/ver-2/
+  //
+  // A version is built once, committed, and never rebuilt, so that a marker
+  // returning to it sees what was submitted. `npm run deploy` re-uploads
+  // them all, unchanged.
   "assets": {
-    "directory": "./dist",
-    // One page, navigated by state rather than by URL. Any path that is not
-    // a file should still return the app rather than a 404.
-    "not_found_handling": "single-page-application"
+    "directory": "./releases",
+    // Every sunlight calculation runs in the browser, so the script below is
+    // not an application server — it only answers the requests a directory
+    // of files cannot: the bare domain, and a deep link inside a version.
+    // Anything that matches a file is served without invoking it.
+    "binding": "ASSETS"
   },
+  "main": "./worker/index.ts",
 
   "observability": {
     "enabled": true
