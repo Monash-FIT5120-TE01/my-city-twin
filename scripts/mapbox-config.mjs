@@ -47,7 +47,15 @@ function readEnv(name) {
   const line = readFileSync(file, 'utf-8')
     .split('\n')
     .find((entry) => entry.startsWith(`${name}=`));
-  return line?.slice(name.length + 1).trim() || undefined;
+  /*
+   * Quotes stripped. Vite removes them when it reads .env.local, so a token
+   * written as VITE_MAPBOX_TOKEN="pk…" worked for as long as Vite was the
+   * only reader. Now this script reads the same file, and without this it
+   * hands Mapbox a credential with quotation marks inside it — a 401 that
+   * looks exactly like a revoked token.
+   */
+  const value = line?.slice(name.length + 1).trim();
+  return value?.replace(/^(['"])(.*)\1$/, '$2') || undefined;
 }
 
 /** Version directories, which must never end up holding this file. */

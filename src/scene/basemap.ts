@@ -100,7 +100,23 @@ export function mercatorMetresPerPixel(zoom: number): number {
  */
 export function zoomForGroundSpan(groundM: number, widthPx: number, latitude: number): number {
   const mercatorSpan = groundM / Math.cos(latitude * DEG);
-  return Math.log2((MERCATOR_CIRCUMFERENCE_M * widthPx) / (TILE_PX * mercatorSpan));
+  const exact = Math.log2((MERCATOR_CIRCUMFERENCE_M * widthPx) / (TILE_PX * mercatorSpan));
+  /*
+   * Rounded to the precision Mapbox itself keeps.
+   *
+   * A fractional zoom in the request is honoured to two decimal places and no
+   * further. Asking for 13.933842 and then computing texture coordinates from
+   * 13.933842 means the image is drawn at 13.93 and read as though it were
+   * not — a scale disagreement of about 0.27%, which is 2.7 m a kilometre out
+   * from the centre. Quantising here makes the request and the arithmetic
+   * refer to the same map.
+   *
+   * DOWN rather than to the nearest. A lower zoom covers more ground, so the
+   * image is guaranteed to reach past the plane it is laid on; rounding up
+   * would leave a rim the texture does not reach, and the ground would smear
+   * its edge pixel outwards there.
+   */
+  return Math.floor(exact * 100) / 100;
 }
 
 /**
@@ -201,7 +217,7 @@ export function staticImageUrl(
   token: string,
 ): string {
   const { lon, lat } = placement.centre;
-  const position = `${lon},${lat},${placement.zoom.toFixed(4)},0`;
+  const position = `${lon},${lat},${placement.zoom.toFixed(2)},0`;
   const size = `${Math.round(placement.widthPx)}x${Math.round(placement.heightPx)}@2x`;
   const query = new URLSearchParams({
     access_token: token,

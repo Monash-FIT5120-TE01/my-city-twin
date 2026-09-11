@@ -60,6 +60,23 @@ describe('when the clock is outside the hours on offer', () => {
     expect(outsideWindowNote(moment)).toBeNull();
   });
 
+  it('says nothing for a time that was merely rounded to the slider step', () => {
+    /*
+     * 15:03 snaps to 15:00 because the slider moves in ten-minute steps. That
+     * is not "outside the hours this simulation covers", and saying so was a
+     * lie told on most page loads once the app began opening on the present
+     * moment — nine minutes in ten are not multiples of ten.
+     *
+     * The earlier tests all used times already on the step, which is exactly
+     * how this survived them.
+     */
+    const moment = presentMoment(new Date('2026-01-15T04:03:00Z')); // 15:03 AEDT
+    expect(clockLabel(moment.clockMinutes)).toBe('15:03');
+    expect(moment.minutes).toBe(15 * 60);
+    expect(moment.clamped).toBe(false);
+    expect(outsideWindowNote(moment)).toBeNull();
+  });
+
   it('says so after dark rather than pretending it is 20:00', () => {
     const moment = presentMoment(new Date('2026-01-15T12:31:00Z')); // 23:31 AEDT
     expect(clockLabel(moment.clockMinutes)).toBe('23:31');

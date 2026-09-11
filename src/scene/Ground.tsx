@@ -42,7 +42,7 @@
  *   white when there is a map, or the whole city would be washed with beige.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { BufferAttribute, Color, PlaneGeometry, type Texture } from 'three';
 import type { CityModel } from '../data/model';
 import { groundPlacement, textureCoordinate } from './basemap';
@@ -67,9 +67,12 @@ export function Ground({
   /** Called with an east/north point when the ground is clicked. */
   onPick?: (point: [number, number]) => void;
 }) {
+  // The four numbers rather than the object holding them — see CityMassing,
+  // where the same identity change was tearing the map down on every refresh.
+  const { minE, minN, maxE, maxN } = model.extent;
   const { centreE, centreN, span, size, placement } = useMemo(
-    () => groundPlacement(model.extent),
-    [model.extent],
+    () => groundPlacement({ minE, minN, maxE, maxN }),
+    [minE, minN, maxE, maxN],
   );
 
   const geometry = useMemo(() => {
@@ -118,6 +121,14 @@ export function Ground({
     plane.setAttribute('color', new BufferAttribute(colours, 3));
     return plane;
   }, [centreE, centreN, span, size, placement, basemap]);
+
+  /*
+   * The plane is rebuilt when the map arrives, and react-three-fiber replaces
+   * the `geometry` property without disposing what was there. These buffers
+   * live on the GPU and nothing else is holding them, so each rebuild leaked
+   * one plane's worth until the tab closed.
+   */
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
     <mesh

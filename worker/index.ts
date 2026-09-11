@@ -60,8 +60,15 @@ export default {
        * assets directory — which here is not any version's page, and does
        * not exist. A deep link into ver-1 would have fallen through to a
        * bare 404, or worse, to another version's app.
+       *
+       * The DIRECTORY, not the index file. Asking for `/ver-2/index.html`
+       * meets Cloudflare's HTML handling, which canonicalises index URLs by
+       * REDIRECTING to the directory — and a redirect at this point sends the
+       * browser to the version root, dropping the query string that carries
+       * the whole shared state. `?view=sunlight&d=…&t=…` is the entire point
+       * of the link.
        */
-      return env.ASSETS.fetch(new Request(new URL(`/${version}/index.html`, url)));
+      return env.ASSETS.fetch(new Request(new URL(`/${version}/`, url)));
     }
 
     return new Response('Not found', { status: 404 });

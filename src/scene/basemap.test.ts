@@ -118,12 +118,23 @@ describe('fitting an image to the ground', () => {
   });
 
   it('asks for a zoom that covers the ground it was given', () => {
+    /*
+     * Covers, not equals. The zoom is quantised down to the two decimal
+     * places Mapbox keeps, so the image reaches slightly PAST the plane —
+     * which is the safe direction. Rounding the other way would leave a rim
+     * the texture never reaches, and the ground would smear its edge pixel
+     * across it.
+     */
     const SPAN_M = 4000;
     const covered =
       mercatorMetresPerPixel(placement(SPAN_M).zoom) *
       1280 *
       Math.cos(LOCAL_ORIGIN_WGS84.lat / RAD);
-    expect(covered).toBeCloseTo(SPAN_M, 3);
+
+    expect(covered).toBeGreaterThanOrEqual(SPAN_M);
+    // One step of the quantisation is 2^0.01, about 0.7%. More than that and
+    // something other than the rounding has gone wrong.
+    expect(covered).toBeLessThan(SPAN_M * 1.007);
   });
 
   it('reads the centre of the image at the centre of the texture', () => {
@@ -139,6 +150,42 @@ describe('fitting an image to the ground', () => {
     const [, south] = textureCoordinate(0, -1000, placement(4000));
     const [, north] = textureCoordinate(0, 1000, placement(4000));
     expect(north).toBeGreaterThan(south);
+  });
+
+  it('carries the convergence into the texture coordinates, not just the maths', () => {
+    /*
+     * THE TEST THAT WAS MISSING, AND WHY IT MATTERS MOST.
+     *
+     * Everything above checks sceneToMercator, which is where the 1.25° lives
+     * — and nothing checked that textureCoordinate actually goes through it.
+     * An axis-aligned mapping, the exact shortcut this file warns against,
+     * passed the entire suite. A reviewer substituted one and all fourteen
+     * tests stayed green.
+     *
+     * So: walk due east in the scene. Under an axis-aligned mapping v cannot
+     * change, because east is a pure u move. Through the real conversion the
+     * image is turned beneath the walk and v must drop. The expected size is
+     * the tangent of the convergence, and it is checked to a tenth of a
+     * percent so that a mapping which merely wobbles cannot pass either.
+     */
+    const SPAN_M = 4000;
+    const EAST_M = 1000;
+    const place = placement(SPAN_M);
+
+    const [uOrigin, vOrigin] = textureCoordinate(0, 0, place);
+    const [uEast, vEast] = textureCoordinate(EAST_M, 0, place);
+
+    expect(uEast).toBeGreaterThan(uOrigin);
+
+    // Back into ground metres: the texture spans SPAN_M across its width.
+    const acrossM = (uEast - uOrigin) * SPAN_M;
+    const dropM = (vEast - vOrigin) * SPAN_M;
+
+    expect(dropM).toBeLessThan(0);
+    expect(Math.abs(dropM)).toBeCloseTo(acrossM * Math.tan(CONVERGENCE_DEG / RAD), 1);
+    // Stated in metres as well, so the size of what is being protected is on
+    // the page: about 22 m of sideways error per kilometre walked.
+    expect(Math.abs(dropM)).toBeGreaterThan(20);
   });
 
   it('reaches the edge of the texture at the edge of the ground it covers', () => {
@@ -208,8 +255,21 @@ describe('the request', () => {
   it('asks for the placement it was given', () => {
     const url = staticImageUrl(placement, 'mapbox/light-v11', 'pk.test');
     expect(url).toContain('/styles/v1/mapbox/light-v11/static/');
-    expect(url).toContain('144.9605,-37.8145,14.2000,0');
+    expect(url).toContain('144.9605,-37.8145,14.20,0');
     expect(url).toContain('/1280x1280@2x?');
+  });
+
+  it('asks for a zoom Mapbox will honour exactly', () => {
+    /*
+     * Mapbox keeps two decimal places of a fractional zoom and drops the
+     * rest. Requesting 13.933842 gets an image drawn at 13.93 — while the
+     * texture coordinates, computed from the unrounded figure, address it as
+     * though it were not. That is a 0.27% scale disagreement, about 2.7 m a
+     * kilometre out, which looks like the map being slightly the wrong size
+     * rather than like a rounding rule.
+     */
+    const zoom = zoomForGroundSpan(4231.8, 1280, LOCAL_ORIGIN_WGS84.lat);
+    expect(zoom).toBe(Math.round(zoom * 100) / 100);
   });
 
   it('turns off the credit it cannot legibly show', () => {

@@ -60,14 +60,8 @@ import {
   TimeBar,
   type Layers,
 } from './ui/screens';
-import {
-  EARLIEST_MINUTES,
-  LATEST_MINUTES,
-  readUrlState,
-  writeUrlState,
-  type ViewName,
-} from './data/urlState';
-import { clockLabel, outsideWindowNote, presentMoment } from './data/now';
+import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
+import { EARLIEST_MINUTES, LATEST_MINUTES, clockLabel } from './data/now';
 import { useMapboxConfig } from './data/mapboxConfig';
 import type { Development, SearchableBuilding } from './data/model';
 import { shortAddress, type SearchHit } from './data/search';
@@ -87,12 +81,12 @@ export default function App() {
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
   const [focusMode, setFocusMode] = useState(false);
   /*
-   * Said once, after "Now in Melbourne" is pressed at an hour the time
+   * Said when the app opened on the present moment at an hour the time
    * control cannot reach — and cleared the moment the reader moves either
    * control, because from then on the time on screen is theirs and the note
    * would be describing a state that no longer exists.
    */
-  const [nowNote, setNowNote] = useState<string | null>(null);
+  const [nowNote, setNowNote] = useState(initial.nowNote);
 
   /*
    * Only to decide whether the map credit belongs on screen. The scene loads
@@ -160,18 +154,6 @@ export default function App() {
   const chooseMinutes = (next: number) => {
     setMinutes(next);
     setNowNote(null);
-  };
-
-  /*
-   * Read at the press, not held in state. A moment captured on mount would be
-   * stale by the time anyone pressed the button, and the whole point of the
-   * control is that it is not stale.
-   */
-  const goToNow = () => {
-    const moment = presentMoment(new Date());
-    setDate(moment.date);
-    setMinutes(moment.minutes);
-    setNowNote(outsideWindowNote(moment));
   };
 
   const sun = useMemo(
@@ -615,7 +597,6 @@ export default function App() {
           <SunlightPanel
             date={date}
             onDate={chooseDate}
-            onNow={goToNow}
             nowNote={nowNote}
             subjectKind={place.kind}
             showProposed={place.kind === 'building' ? showSubject : layers.developments}

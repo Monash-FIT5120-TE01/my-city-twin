@@ -959,27 +959,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.datebox__now {
-  align-self: flex-start;
-  padding: 6px 14px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-pill);
-  background: var(--paper);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--ink);
-  cursor: pointer;
-}
 
-.datebox__now:hover {
-  background: var(--green-050);
-}
 
-.datebox__now:focus-visible {
-  outline: 2px solid var(--green-600);
-  outline-offset: 1px;
-}
 
 .datebox__note {
   margin: 0;

@@ -43,6 +43,17 @@ export function useBasemapTexture(
   const [texture, setTexture] = useState<Texture | null>(null);
 
   useEffect(() => {
+    /*
+     * Cleared before each request, including the one that never starts.
+     *
+     * The model refreshes from the live API after the snapshot, which moves
+     * the placement and asks for a second image. The cleanup below disposes
+     * the first one — but the state still held it, so a failed second request
+     * left a DISPOSED texture on screen, sampled with coordinates computed
+     * for an image that never arrived. Wrong by metres, and impossible to
+     * tell from a map that had simply not loaded yet.
+     */
+    setTexture(null);
     if (!config || !placement) return;
 
     let live = true;

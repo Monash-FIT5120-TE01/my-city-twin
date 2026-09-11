@@ -35,7 +35,8 @@
  *   button would take a hundred presses to leave the page.
  */
 
-import { DEFAULT_DATE, fromDateInput, toDateInput, type SimulationDate } from '../scene/solar';
+import { fromDateInput, toDateInput, type SimulationDate } from '../scene/solar';
+import { clampMinutes, outsideWindowNote, presentMoment } from './now';
 
 export type ViewName = 'landing' | 'explore' | 'development' | 'building' | 'sunlight';
 
@@ -48,29 +49,17 @@ export interface UrlState {
   buildingId: string | null;
   date: SimulationDate;
   minutes: number;
+  /** Said when the app picked the time and had to clamp it. */
+  nowNote: string | null;
   /** The measured spot, east/north metres, to one decimal place. */
   receptor: [number, number] | null;
 }
 
-export const DEFAULT_MINUTES = 15 * 60;
-
 /**
- * The window the time control can express, in minutes since midnight.
- *
- * Exported because "now" has to know it: Melbourne spends a good part of the
- * year outside it, and a control that silently showed 20:00 for 23:30 would
- * be claiming something about the sun that is not so.
+ * The hour the simulation falls back to when the present moment cannot be
+ * shown — the middle of the afternoon, when there is a shadow to look at.
  */
-export const EARLIEST_MINUTES = 6 * 60;
-export const LATEST_MINUTES = 20 * 60;
-
-export function clampMinutes(value: number, fallback: number): number {
-  if (!Number.isFinite(value)) return fallback;
-  // Snap to the slider's own step so a hand-edited URL cannot land between
-  // two positions and make the control look broken.
-  const snapped = Math.round(value / 10) * 10;
-  return Math.min(LATEST_MINUTES, Math.max(EARLIEST_MINUTES, snapped));
-}
+export const DEFAULT_MINUTES = 15 * 60;
 
 /**
  * A URL names ONE place.
@@ -97,7 +86,29 @@ export function chooseSubject(
   return { devKey: null, buildingId };
 }
 
-export function readUrlState(): UrlState {
+/**
+ * The state to open in.
+ *
+ * THE DEFAULT IS NOW, NOT A SOLSTICE
+ *   It used to open on 21 December at three in the afternoon — the shortest
+ *   shadow of the year, which is the right frame for assessing a worst case
+ *   and the wrong one for somebody asking what is happening to their street.
+ *   A date the reader has to imagine their way into is a date they have to
+ *   translate before the picture means anything.
+ *
+ *   Opening on the present moment costs nothing: the four solstice and
+ *   equinox presets are still one press away, so the worst case has not gone
+ *   anywhere. It is simply no longer what a visitor is shown first.
+ *
+ * WHAT THE URL STILL WINS
+ *   Anything the address bar states. A shared link is somebody saying "look
+ *   at this, at this hour", and the present moment must not overrule it, or
+ *   the link stops meaning what its sender meant.
+ *
+ * The instant is a parameter so the tests can fix it. Read from the clock
+ * inside, every test of this function would depend on the hour it ran at.
+ */
+export function readUrlState(now: Date = new Date()): UrlState {
   const params = new URLSearchParams(window.location.search);
 
   const view = params.get('view') as ViewName | null;
@@ -105,17 +116,27 @@ export function readUrlState(): UrlState {
 
   const subject = chooseSubject(resolved, params.get('dev'), params.get('bldg'));
 
+  const moment = presentMoment(now);
+  const statedDate = fromDateInput(params.get('d') ?? '');
+  const statedTime = params.has('t');
+
   return {
     view: resolved,
     devKey: subject.devKey,
     buildingId: subject.buildingId,
-    date: fromDateInput(params.get('d') ?? '') ?? DEFAULT_DATE,
+    date: statedDate ?? moment.date,
     // has() before Number(): a missing parameter converts to 0, which is
     // finite, so it survived the guard in clampMinutes and pinned the clock
     // to 06:00 instead of falling back to the default.
-    minutes: params.has('t')
+    minutes: statedTime
       ? clampMinutes(Number(params.get('t')), DEFAULT_MINUTES)
-      : DEFAULT_MINUTES,
+      : moment.minutes,
+    /*
+     * Said only when the app chose the time AND could not show it as it is.
+     * A link that states an hour is not the reader's "now", so there is
+     * nothing to apologise for.
+     */
+    nowNote: statedTime ? null : outsideWindowNote(moment),
     receptor: readReceptor(params.get('at')),
   };
 }
@@ -134,8 +155,12 @@ function readReceptor(raw: string | null): [number, number] | null {
  * replaceState rather than pushState: dragging the time slider would
  * otherwise stack a hundred entries and make the browser's back button
  * useless for leaving the page.
+ *
+ * `nowNote` is excluded by the type rather than merely ignored. It is not
+ * state — it is a remark about how the state was arrived at, it means nothing
+ * to whoever opens the link, and it has no business in an address bar.
  */
-export function writeUrlState(state: UrlState): void {
+export function writeUrlState(state: Omit<UrlState, 'nowNote'>): void {
   const params = new URLSearchParams();
 
   if (state.view !== 'landing') params.set('view', state.view);

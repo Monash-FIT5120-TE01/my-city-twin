@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { CityModel, Development } from '../data/model';
 import { groundElevationOf, mergeMassings } from './massing';
+import { buildingCentres, buildingsUnder } from '../data/replaces';
 import { groundPlacement } from './basemap';
 import { useBasemapTexture } from './useBasemap';
 import { useMapboxConfig } from '../data/mapboxConfig';
@@ -64,26 +65,79 @@ export function CityMassing({
     [model.buildings],
   );
 
-  const { placement } = useMemo(() => groundPlacement(model.extent), [model.extent]);
+  /*
+    * Keyed on the numbers, not on the object. The model is rebuilt when the
+    * live API answers, and its extent is then a NEW object holding the SAME
+    * four values — which changed the placement by identity, restarted the
+    * image request, and took the map off the screen while an image it already
+    * had was fetched again.
+    */
+  const { minE, minN, maxE, maxN } = model.extent;
+  const { placement } = useMemo(
+    () => groundPlacement({ minE, minN, maxE, maxN }),
+    [minE, minN, maxE, maxN],
+  );
   const mapbox = useMapboxConfig();
   const basemap = useBasemapTexture(placement, mapbox);
 
+  /** Every building centre, once, so the sites can be looked up cheaply. */
+  const centres = useMemo(() => buildingCentres(model.buildings), [model.buildings]);
+
+  /*
+   * The buildings a visible proposal is built over.
+   *
+   * Only the proposals actually on screen: the sunlight screen draws one, and
+   * taking down the city under the other 48 would empty streets that nothing
+   * on screen explains. With proposals switched off entirely the set is
+   * empty, which is what makes the toggle a genuine before and after rather
+   * than "the city" against "the city plus a tower standing inside it".
+   */
+  const replaced = useMemo(() => {
+    if (!showProposed) return new Set<string>();
+    const shown = showAllProposals ? model.developments : focus ? [focus] : [];
+    return new Set(
+      shown.flatMap((development) =>
+        buildingsUnder(
+          development.parts.map((part) => part.footprint).flat(),
+          centres,
+        ),
+      ),
+    );
+  }, [showProposed, showAllProposals, model.developments, focus, centres]);
+
   const { built, unresolved } = useMemo(() => {
     /*
-     * The highlighted building is left out of the welded city and drawn
-     * separately below. Without this it would be inside the single merged
-     * object and would show through the pink one, because they occupy the
-     * same space.
+     * Two reasons a building is left out of the welded city, and they are the
+     * same reason: something else is standing in its place.
+     *
+     * The highlighted one is drawn separately below — inside the merged
+     * object it would show through the pink one. A replaced one is not drawn
+     * at all, because the proposal above it is what the plan puts there.
      */
     const inCity = (b: (typeof model.buildings)[number]) =>
-      b.parentId !== highlightedBuildingId;
+      b.parentId !== highlightedBuildingId && !replaced.has(b.parentId);
     const ok = model.buildings.filter((b) => b.readyFor3d && inCity(b));
     const bad = model.buildings.filter((b) => !b.readyFor3d && inCity(b));
     return {
       built: mergeMassings(ok, groundAhdM),
       unresolved: mergeMassings(bad, groundAhdM),
     };
-  }, [model.buildings, groundAhdM, highlightedBuildingId]);
+  }, [model.buildings, groundAhdM, highlightedBuildingId, replaced]);
+
+  /*
+   * The merged city is rebuilt whenever a proposal is shown or hidden, and
+   * react-three-fiber replaces the `geometry` property without disposing the
+   * previous one. This mesh is the whole ready-built city — about 23 MiB of
+   * vertex attributes — so toggling the layer a few times used to cost that
+   * much GPU memory each time, with nothing left holding it.
+   */
+  useEffect(
+    () => () => {
+      built?.dispose();
+      unresolved?.dispose();
+    },
+    [built, unresolved],
+  );
 
   return (
     <group>
@@ -112,7 +166,12 @@ export function CityMassing({
       */}
       {!basemap && <Roads groundAhdM={groundAhdM} />}
 
-      {showHighlighted && (
+      {/*
+        Not when the plan demolishes it. The merged city already drops a
+        replaced building; drawing it again here as the search highlight put
+        it straight back inside the proposal, both solids casting shadow.
+      */}
+      {showHighlighted && !(highlightedBuildingId && replaced.has(highlightedBuildingId)) && (
         <HighlightedBuilding
           buildings={model.buildings}
           buildingId={highlightedBuildingId}
