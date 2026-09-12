@@ -7,6 +7,7 @@ import { useBasemapTexture } from './useBasemap';
 import { useMapboxConfig } from '../data/mapboxConfig';
 import { Roads } from './Roads';
 import { Ground } from './Ground';
+import { HazeVeil } from './HazeVeil';
 import { DevelopmentMassings } from './DevelopmentMassings';
 import { ReceptorMarker } from './ReceptorMarker';
 import { OpenSpace } from './OpenSpace';
@@ -38,6 +39,8 @@ interface CityMassingProps {
   showHighlighted: boolean;
   /** False in focus mode: nothing in the scene changes state. */
   interactive: boolean;
+  /** What the ground dissolves into far away — see sky.ts. */
+  haze: string;
 }
 
 /**
@@ -59,6 +62,7 @@ export function CityMassing({
   interactive,
   highlightedBuildingId,
   showHighlighted,
+  haze,
 }: CityMassingProps) {
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
@@ -77,6 +81,15 @@ export function CityMassing({
     () => groundPlacement({ minE, minN, maxE, maxN }),
     [minE, minN, maxE, maxN],
   );
+  /*
+   * Where the distance haze runs. It has to finish at or beyond the ground's
+   * own rim, or a ring of un-hazed ground shows past it against the sky.
+   */
+  const hazeExtent = useMemo(() => {
+    const { centreE, centreN, span, size } = groundPlacement(model.extent);
+    return { centreE, centreN, innerM: span * 0.62, outerM: size * 0.5 };
+  }, [model.extent]);
+
   const mapbox = useMapboxConfig();
   const basemap = useBasemapTexture(placement, mapbox);
 
@@ -149,6 +162,11 @@ export function CityMassing({
         onPick={onPickReceptor}
       />
 
+      {/*
+        Everything above is the modelled city; the haze goes over all of it,
+        so a park or a road at the far edge dissolves with the ground rather
+        than staying sharp inside a fading surround.
+      */}
       <OpenSpace groundAhdM={groundAhdM} />
 
       {/*
@@ -197,6 +215,15 @@ export function CityMassing({
           <meshStandardMaterial color="#d9d5cf" roughness={0.95} metalness={0} />
         </mesh>
       )}
+
+      <HazeVeil
+        centreE={hazeExtent.centreE}
+        centreN={hazeExtent.centreN}
+        groundAhdM={groundAhdM}
+        innerM={hazeExtent.innerM}
+        outerM={hazeExtent.outerM}
+        colour={haze}
+      />
 
       {showProposed && (
         <DevelopmentMassings

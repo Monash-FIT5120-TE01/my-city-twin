@@ -13,10 +13,20 @@
  *   a plain square, that boundary reads as the edge of the world. Faded, it
  *   reads as the edge of what is known, which is what it is.
  *
+ * WHY IT IS A DISC
+ *   The fade has always been radial — distance from the centre — but the
+ *   geometry under it was a square, and its corners reached 1.7 times as far
+ *   as its edges. That was invisible while the ground faded into a flat
+ *   background of the same colour. With a sky behind it, the ground meets
+ *   something that is NOT that colour, and a square silhouette appears: a
+ *   straight horizon with corners on it, which no place has.
+ *
+ *   A disc whose rim is exactly where the fade finishes has no edge to see.
+ *
  * HOW THE FADE IS MADE
- *   The plane is divided into a grid of small squares, and each corner is
- *   given a colour: solid near the middle, blending to the background colour
- *   further out. The graphics card blends smoothly between them.
+ *   The disc is divided into rings and wedges, and each vertex is given a
+ *   colour: solid near the middle, blending to the horizon further out. The
+ *   graphics card blends smoothly between them.
  *
  *   The alternative — making the ground transparent — was tried and is
  *   worse. A transparent ground still catches shadows, so the city ends up
@@ -43,12 +53,10 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import { BufferAttribute, Color, PlaneGeometry, type Texture } from 'three';
+import { BufferAttribute, Color, RingGeometry, type Texture } from 'three';
 import type { CityModel } from '../data/model';
 import { groundPlacement, textureCoordinate } from './basemap';
 
-/** Background the ground dissolves into — the same colour the canvas clears to. */
-const HORIZON = '#ededea';
 
 export function Ground({
   model,
@@ -70,38 +78,37 @@ export function Ground({
   // The four numbers rather than the object holding them — see CityMassing,
   // where the same identity change was tearing the map down on every refresh.
   const { minE, minN, maxE, maxN } = model.extent;
-  const { centreE, centreN, span, size, placement } = useMemo(
+  const { centreE, centreN, size, placement } = useMemo(
     () => groundPlacement({ minE, minN, maxE, maxN }),
     [minE, minN, maxE, maxN],
   );
 
   const geometry = useMemo(() => {
-    const plane = new PlaneGeometry(size, size, 64, 64);
+    /*
+     * RingGeometry from zero rather than CircleGeometry: a circle is a fan
+     * of triangles meeting at one point, so it has vertices on its rim and
+     * nowhere else. Both things this surface does need interior vertices —
+     * the fade is written into vertex colours, and the map's texture
+     * coordinates are reprojected per vertex.
+     *
+     * 97 x 49 of them, against the 65 x 65 the square had. The rim is
+     * generous because it is the only silhouette in the scene against the
+     * sky, and a coarse one reads as a polygon.
+     */
+    const plane = new RingGeometry(0, size / 2, 96, 48);
 
-    // White under a map, so the fade masks it instead of tinting it; the
-    // beige is the ground's own colour and is only wanted when it is the only
-    // thing there.
+    // White under a map so the texture shows as itself; the beige is the
+    // ground's own colour and is only wanted when it is the only thing there.
     const solid = new Color(basemap ? '#ffffff' : '#e6e3da');
-    const horizon = new Color(HORIZON);
-    const scratch = new Color();
-
-    // Opaque out to the edge of the data, then gone by the edge of the plane.
-    const inner = span * 0.62;
-    const outer = size * 0.5;
 
     const position = plane.getAttribute('position');
     const uv = plane.getAttribute('uv');
     const colours = new Float32Array(position.count * 3);
 
     for (let i = 0; i < position.count; i++) {
-      const distance = Math.hypot(position.getX(i), position.getY(i));
-      const t = Math.min(1, Math.max(0, (distance - inner) / (outer - inner)));
-      // Smoothstep, so the fade has no visible band where it begins.
-      const eased = t * t * (3 - 2 * t);
-      scratch.copy(solid).lerp(horizon, eased);
-      colours[i * 3] = scratch.r;
-      colours[i * 3 + 1] = scratch.g;
-      colours[i * 3 + 2] = scratch.b;
+      colours[i * 3] = solid.r;
+      colours[i * 3 + 1] = solid.g;
+      colours[i * 3 + 2] = solid.b;
 
       /*
        * The plane's own coordinates are offsets from its centre, so the scene
@@ -120,7 +127,7 @@ export function Ground({
     uv.needsUpdate = true;
     plane.setAttribute('color', new BufferAttribute(colours, 3));
     return plane;
-  }, [centreE, centreN, span, size, placement, basemap]);
+  }, [centreE, centreN, size, placement, basemap]);
 
   /*
    * The plane is rebuilt when the map arrives, and react-three-fiber replaces

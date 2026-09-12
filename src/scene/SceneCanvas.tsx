@@ -46,6 +46,8 @@ import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, MOUSE } from 'three';
 import { WorldFrame } from './WorldFrame';
 import { SunLight } from './SunLight';
+import { SkyDome } from './SkyDome';
+import { skyAppearance } from './sky';
 import { CityMassing } from './CityMassing';
 import { StreetLabels } from './StreetLabels';
 import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
@@ -189,6 +191,8 @@ export function SceneCanvas({
    * axis — the extent therefore has to cover half the 3D diagonal, not half
    * the plan diagonal, or winter afternoon shadows are clipped mid-street.
    */
+  const sky = useMemo(() => skyAppearance(sun.altitudeDeg), [sun.altitudeDeg]);
+
   const shadow = useMemo(() => {
     const { minE, minN, maxE, maxN } = model.extent;
 
@@ -229,16 +233,27 @@ export function SceneCanvas({
       camera={{ position: openingShot, fov: 30, near: 5, far: 20000 }}
       gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}
     >
-      <color attach="background" args={['#ededea']} />
+      {/*
+        The clear colour is now the horizon, so the ground has something to
+        dissolve INTO that agrees with the sky above it. Fixed at beige, the
+        model sat on a pale card in front of a night sky.
+      */}
+      <color attach="background" args={[sky.haze]} />
+
+      <SkyDome angles={sun} />
 
       {/*
         Sky and bounce. Direction-free, so they sit outside the world frame.
         Cool from above, warm from the pavement — the pairing is what stops a
         white city reading as flat grey once the sun is low and most surfaces
         are lit by the sky alone.
+
+        Both now fall with the sun. Held at their daytime values the city
+        stayed brightly lit under a night sky, which read as a rendering
+        fault rather than as midnight.
       */}
-      <hemisphereLight args={['#dce7f0', '#d8cfc0', 1.35]} />
-      <ambientLight intensity={0.22} />
+      <hemisphereLight args={['#dce7f0', '#d8cfc0', sky.hemisphere]} />
+      <ambientLight intensity={sky.ambient} />
 
       <WorldFrame>
         <SunLight
@@ -248,6 +263,7 @@ export function SceneCanvas({
           castShadows={castShadows}
         />
         <CityMassing
+          haze={sky.haze}
           model={model}
           focus={focus}
           showProposed={showProposed}
