@@ -124,7 +124,18 @@ export function CameraRig({
   const [tx, ty, tz] = target;
 
   useEffect(() => {
-    if (!controls) return;
+    /*
+     * Nothing while somebody else has the camera, and nothing at all unless
+     * the default controls are the orbiting ones.
+     *
+     * `state.controls` is whatever last declared itself default, and the
+     * street view's PointerLockControls has no `target` — it does not orbit
+     * anything. Reading `controls.target.clone()` off it threw the moment
+     * walking began, which took the whole canvas down with it. Before this
+     * rig stayed mounted through walking it never met those controls; the
+     * fix that kept the reader's view is what introduced the crash.
+     */
+    if (paused || !controls?.target) return;
 
     const toPosition = new Vector3(px, py, pz);
     const toTarget = new Vector3(tx, ty, tz);
@@ -157,7 +168,18 @@ export function CameraRig({
 
   // The moment the person touches the controls, they are driving.
   useEffect(() => {
-    if (!controls) return;
+    /*
+     * Nothing while somebody else has the camera, and nothing at all unless
+     * the default controls are the orbiting ones.
+     *
+     * `state.controls` is whatever last declared itself default, and the
+     * street view's PointerLockControls has no `target` — it does not orbit
+     * anything. Reading `controls.target.clone()` off it threw the moment
+     * walking began, which took the whole canvas down with it. Before this
+     * rig stayed mounted through walking it never met those controls; the
+     * fix that kept the reader's view is what introduced the crash.
+     */
+    if (paused || !controls?.target) return;
     const abandon = () => {
       journey.current = null;
     };

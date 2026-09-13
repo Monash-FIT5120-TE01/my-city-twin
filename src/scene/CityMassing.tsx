@@ -220,6 +220,21 @@ export function CityMassing({
         </mesh>
       )}
 
+      {/*
+        Not while walking.
+
+        It is a horizontal sheet a metre above the ground, and the eye is
+        only 1.7 m up — so from a footpath the line of sight runs ALONG it
+        and out through its opaque outer region, washing everything below the
+        horizon to the haze colour. From above, where it hides the edge of
+        the modelled ground, it works; at eye height it is a fog bank lying
+        on the city.
+
+        Nothing is lost by dropping it here. The disc's rim is only visible
+        from height, and past it the sky dome's lower hemisphere is already
+        painted the same haze.
+      */}
+      {!walking && (
       <HazeVeil
         centreE={hazeExtent.centreE}
         centreN={hazeExtent.centreN}
@@ -228,6 +243,7 @@ export function CityMassing({
         outerM={hazeExtent.outerM}
         colour={haze}
       />
+      )}
 
       {showProposed && (
         <DevelopmentMassings
