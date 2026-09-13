@@ -41,6 +41,8 @@ interface CityMassingProps {
   interactive: boolean;
   /** What the ground dissolves into far away — see sky.ts. */
   haze: string;
+  /** Standing in the street rather than looking down at it. */
+  walking: boolean;
 }
 
 /**
@@ -63,6 +65,7 @@ export function CityMassing({
   highlightedBuildingId,
   showHighlighted,
   haze,
+  walking,
 }: CityMassingProps) {
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
@@ -159,6 +162,7 @@ export function CityMassing({
         model={model}
         groundAhdM={groundAhdM}
         basemap={basemap}
+        walking={walking}
         onPick={onPickReceptor}
       />
 

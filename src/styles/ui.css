@@ -1154,6 +1154,70 @@
   color: var(--ink-3);
 }
 
+/* ── standing in the street ─────────────────────────────── */
+
+.scale-figure__label {
+  display: block;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: rgba(29, 43, 36, 0.86);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+
+.measure__stand {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 8px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.measure__stand:hover {
+  background: var(--green-050);
+}
+
+.measure__stand:focus-visible {
+  outline: 2px solid var(--green-600);
+  outline-offset: 1px;
+}
+
+/*
+ * The only thing on screen while walking. The pointer is locked, so there is
+ * nothing to click and no cursor to find — the way out has to be written
+ * down or it does not exist.
+ */
+.walking-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 5;
+  margin: 0;
+  padding: 9px 20px;
+  border-radius: var(--radius-pill);
+  background: rgba(22, 24, 26, 0.72);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-size: var(--text-sm);
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.walking-hint strong {
+  font-weight: 700;
+}
+
 /* ── map credit ─────────────────────────────────────────── */
 
 /*

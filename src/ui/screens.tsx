@@ -581,11 +581,14 @@ export function SunlightAtCard({
   result,
   dateLabel,
   onClear,
+  onStand,
   subjectKind = 'development',
 }: {
   result: SunlightAtPoint;
   dateLabel: string;
   onClear: () => void;
+  /** Go and stand on the measured spot, at eye height. */
+  onStand: () => void;
   subjectKind?: 'development' | 'building';
 }) {
   const hours = (minutes: number) => {
@@ -633,6 +636,16 @@ export function SunlightAtCard({
         the ground are not counted, so a spot already in someone else&rsquo;s
         shadow will still be shown losing sun here.
       </p>
+      {/*
+        The measured spot is a place the reader chose and asked a question
+        about, which makes it the one place worth being put down in. From two
+        kilometres up a shadow is a grey shape on a diagram; from the footpath
+        it is the thing the question was about.
+      */}
+      <button type="button" className="measure__stand" onClick={onStand}>
+        Stand here
+      </button>
+
     </aside>
   );
 }

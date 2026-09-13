@@ -81,6 +81,15 @@ export default function App() {
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
   const [focusMode, setFocusMode] = useState(false);
   /*
+   * Standing in the street. It hides the interface for the same reason focus
+   * mode does — the pointer is locked and there is nothing to click — so the
+   * two are folded into one flag below rather than guarded separately in
+   * fourteen places.
+   */
+  const [walking, setWalking] = useState(false);
+  /** How far the viewpoint had to move to find ground with no building on it. */
+  const [standMoved, setStandMoved] = useState(0);
+  /*
    * Said when the app opened on the present moment at an hour the time
    * control cannot reach — and cleared the moment the reader moves either
    * control, because from then on the time on screen is theirs and the note
@@ -129,16 +138,22 @@ export default function App() {
     Boolean(initial.devKey || initial.buildingId),
   );
 
+  /** Either way of hiding the interface. */
+  const chromeHidden = focusMode || walking;
+
   // Escape leaves focus mode, because there is nothing else on screen to
   // click and a viewer who cannot find the way out is stuck.
   useEffect(() => {
-    if (!focusMode) return;
+    if (!chromeHidden) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setFocusMode(false);
+      if (event.key === 'Escape') {
+        setFocusMode(false);
+        setWalking(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [focusMode]);
+  }, [chromeHidden]);
 
   /*
    * The date and time controls, wrapped so that touching either retires the
@@ -440,7 +455,10 @@ export default function App() {
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
           // to show that it had.
-          interactive={!focusMode}
+          interactive={!chromeHidden}
+          walking={walking}
+          onLeaveStreet={() => setWalking(false)}
+          onStandMoved={setStandMoved}
         />
       </div>
 
@@ -450,9 +468,29 @@ export default function App() {
       */}
       {mapbox && <MapAttribution />}
 
-      {!focusMode && <Nav onHome={() => setView('landing')} />}
+      {walking && (
+        <p className="walking-hint">
+          <strong>W A S D</strong> to walk · <strong>Shift</strong> to hurry ·{' '}
+          <strong>Esc</strong> to come back up
+          {standMoved > 1 && (
+            /*
+             * The measured figures stay at the point that was clicked. If a
+             * building stands on it there is nowhere to put a person, and
+             * moving them without saying so implies the view and the numbers
+             * describe the same place.
+             */
+            <>
+              <br />
+              Standing {Math.round(standMoved)} m from the measured spot — the
+              nearest ground with no building modelled on it
+            </>
+          )}
+        </p>
+      )}
 
-      {!focusMode && view === 'landing' && (
+      {!chromeHidden && <Nav onHome={() => setView('landing')} />}
+
+      {!chromeHidden && view === 'landing' && (
         <Landing
           model={model}
           onExplore={() => setView('explore')}
@@ -460,7 +498,7 @@ export default function App() {
         />
       )}
 
-      {!focusMode && view === 'explore' && (
+      {!chromeHidden && view === 'explore' && (
         <>
           <LayerPanel
             eyebrow="Explore the CBD"
@@ -538,7 +576,7 @@ export default function App() {
         </>
       )}
 
-      {!focusMode && view === 'development' && focus && (
+      {!chromeHidden && view === 'development' && focus && (
         <>
           <Crumbs
             trail={[{ label: 'Map', to: 'explore' }, { label: focusAddress }]}
@@ -554,7 +592,7 @@ export default function App() {
         </>
       )}
 
-      {!focusMode && view === 'building' && foundBuilding && place && (
+      {!chromeHidden && view === 'building' && foundBuilding && place && (
         <>
           <Crumbs
             trail={[{ label: 'Map', to: 'explore' }, { label: place.label }]}
@@ -572,13 +610,14 @@ export default function App() {
         </>
       )}
 
-      {!focusMode && view === 'sunlight' && place && (
+      {!chromeHidden && view === 'sunlight' && place && (
         <>
           {measured && (
             <SunlightAtCard
               result={measured}
               dateLabel={dateLabel(date)}
               onClear={() => setReceptor(null)}
+              onStand={() => setWalking(true)}
               subjectKind={place.kind}
             />
           )}

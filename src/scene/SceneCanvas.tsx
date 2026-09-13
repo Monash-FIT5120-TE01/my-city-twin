@@ -40,13 +40,28 @@
  *   rotation. Each converts its own position instead; see StreetLabels.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, MOUSE } from 'three';
 import { WorldFrame } from './WorldFrame';
 import { SunLight } from './SunLight';
 import { SkyDome } from './SkyDome';
+import { EYE_HEIGHT_M, StreetView } from './StreetView';
+import { indexObstacles, nearestFree } from './obstacles';
+import { buildingCentres, buildingsUnder } from '../data/replaces';
+
+/** Tells the interface, once, how far the viewpoint had to move. */
+function useStandNotice(
+  walking: boolean,
+  metres: number,
+  report: (metres: number) => void,
+): void {
+  useEffect(() => {
+    if (walking) report(metres);
+  }, [walking, metres, report]);
+}
+import { ScaleFigure } from './ScaleFigure';
 import { skyAppearance } from './sky';
 import { CityMassing } from './CityMassing';
 import { StreetLabels } from './StreetLabels';
@@ -74,6 +89,18 @@ interface SceneCanvasProps {
   onPickReceptor?: (point: [number, number]) => void;
   /** False in focus mode. */
   interactive: boolean;
+  /** Standing in the street rather than orbiting above it. */
+  walking: boolean;
+  /** The pointer lock ended — Escape, or a click outside. */
+  onLeaveStreet: () => void;
+  /**
+   * The viewpoint had to be put down this far from the measured spot.
+   *
+   * Zero when it landed where it was asked to. Reported because the figures
+   * stay at the original point: a viewpoint quietly moved up to 120 m away
+   * implies a relationship to those numbers that it does not have.
+   */
+  onStandMoved: (metres: number) => void;
   /** A building found by searching, drawn in pink. */
   highlightedBuildingId: string | null;
   /** False to take that building out of the city — the "before" of a search. */
@@ -103,6 +130,9 @@ export function SceneCanvas({
   showHighlighted,
   marker,
   lookAt,
+  walking,
+  onLeaveStreet,
+  onStandMoved,
 }: SceneCanvasProps) {
   const ground = useMemo(() => groundElevationOf(model.buildings), [model.buildings]);
 
@@ -167,6 +197,92 @@ export function SceneCanvas({
     targetUp + eye * Math.sin(ELEVATION),
   ]);
   const orbitTarget = enuToWorld([targetE, targetN, targetUp]);
+
+  /*
+   * Where the walker is put down. The measured spot if there is one — that
+   * is a place the reader chose and asked a question about — and otherwise
+   * whatever the camera was already framing.
+   */
+  /*
+   * Memoised on the numbers. As a bare literal it was a new array on every
+   * render, so the spiral search below ran again each time looking for the
+   * same answer.
+   */
+  const standAt = useMemo<[number, number]>(
+    () => receptor ?? [targetE, targetN],
+    [receptor, targetE, targetN],
+  );
+
+  /*
+   * Built once for the model, not once per entry: it depends only on the
+   * buildings and the height a person stands at.
+   */
+  /*
+   * The city as DRAWN, not as stored.
+   *
+   * Indexing every building meant the walker met invisible walls where a
+   * proposal had demolished one, and walked through the proposal standing in
+   * its place. The same filters CityMassing applies have to be applied here,
+   * or collision describes a different city from the one on screen.
+   */
+  const obstacles = useMemo(() => {
+    const centres = buildingCentres(model.buildings);
+    const shown = showProposed
+      ? showAllProposals
+        ? model.developments
+        : focus
+          ? [focus]
+          : []
+      : [];
+    const replaced = new Set(
+      shown.flatMap((development) =>
+        buildingsUnder(development.parts.map((part) => part.footprint).flat(), centres),
+      ),
+    );
+    const hidden = !showHighlighted && highlightedBuildingId ? highlightedBuildingId : null;
+
+    const standing = model.buildings.filter(
+      (b) => !replaced.has(b.parentId) && b.parentId !== hidden,
+    );
+    // The proposal is solid too: it is what the plan puts there.
+    const proposals = shown.flatMap((development) => development.parts);
+
+    return indexObstacles([...standing, ...proposals], ground + EYE_HEIGHT_M);
+  }, [
+    model.buildings,
+    model.developments,
+    ground,
+    showProposed,
+    showAllProposals,
+    focus,
+    showHighlighted,
+    highlightedBuildingId,
+  ]);
+
+  /*
+   * Where the walker actually lands, resolved once here rather than twice.
+   * The asked-for point can be inside the building the screen is about, and
+   * with solid walls that is somewhere they could not get out of.
+   */
+  const standPoint = useMemo(
+    () => nearestFree(obstacles, standAt[0], standAt[1]) ?? standAt,
+    [obstacles, standAt],
+  );
+
+  /*
+   * How far the reader was moved from the place they asked about. The
+   * measurement stays where it was put; the viewpoint may not be able to.
+   * Saying so is the difference between a viewpoint near the spot and a
+   * silent substitution.
+   */
+  const standOffsetM = Math.hypot(standPoint[0] - standAt[0], standPoint[1] - standAt[1]);
+  useStandNotice(walking, standOffsetM, onStandMoved);
+
+  /* A few metres away, so it is in front of the reader rather than inside them. */
+  const scaleAt = useMemo(
+    () => nearestFree(obstacles, standPoint[0], standPoint[1] + 4) ?? standPoint,
+    [obstacles, standPoint],
+  );
 
   /*
    * The Canvas is told where the camera starts and then never again.
@@ -256,6 +372,9 @@ export function SceneCanvas({
       <ambientLight intensity={sky.ambient} />
 
       <WorldFrame>
+        {/* Only while walking: from above, the city's own extent is the scale. */}
+        {walking && <ScaleFigure atEN={scaleAt} groundAhdM={ground} />}
+
         <SunLight
           angles={sun}
           extentM={shadow.extentM}
@@ -264,6 +383,7 @@ export function SceneCanvas({
         />
         <CityMassing
           haze={sky.haze}
+          walking={walking}
           model={model}
           focus={focus}
           showProposed={showProposed}
@@ -297,7 +417,15 @@ export function SceneCanvas({
         Outside the world frame on purpose — see StreetLabels for why CSS3D
         cannot inherit that rotation and still land the right way up.
       */}
-      <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
+      {/*
+        Hidden while walking. They are HTML laid flat 0.4 m above the ground —
+        a second map on the floor, which is the same thing that made the
+        basemap read wrong from eye height — and their repositioning follows
+        the orbit target, which walking does not have.
+      */}
+      {!walking && (
+        <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
+      )}
 
       {/*
         One marker, on whatever is chosen. A proposal only carries one while
@@ -308,7 +436,26 @@ export function SceneCanvas({
         <SiteMarker subject={marker} groundAhdM={ground} />
       )}
 
+      {walking && (
+        <StreetView
+          startEN={standPoint}
+          groundAhdM={ground}
+          boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
+          boundsRadiusM={citySpan * 1.2}
+          obstacles={obstacles}
+          onExit={onLeaveStreet}
+        />
+      )}
+
+      {/*
+        Both stay mounted while walking, merely switched off.
+        Unmounting them threw away the reader's own view: a freshly mounted
+        CameraRig has never placed the camera, so on return it immediately
+        reframed the subject and discarded whatever pan, orbit or zoom they
+        had set up before going down to the street.
+      */}
       <CameraRig
+        paused={walking}
         position={cameraPosition}
         target={orbitTarget}
         animate={!reducedMotion}
@@ -324,7 +471,8 @@ export function SceneCanvas({
         off for someone who asked for less movement.
       */}
       <OrbitControls
-        makeDefault
+        makeDefault={!walking}
+        enabled={!walking}
         enableDamping={!reducedMotion}
         dampingFactor={0.09}
         enablePan

@@ -56,12 +56,14 @@ import { useEffect, useMemo } from 'react';
 import { BufferAttribute, Color, RingGeometry, type Texture } from 'three';
 import type { CityModel } from '../data/model';
 import { groundPlacement, textureCoordinate } from './basemap';
+import { groundSurfaceTexture, SURFACE_TILE_M } from './groundSurface';
 
 
 export function Ground({
   model,
   groundAhdM,
   basemap,
+  walking,
   onPick,
 }: {
   model: CityModel;
@@ -72,6 +74,14 @@ export function Ground({
    * surface is drawn — and the two must not disagree about it.
    */
   basemap: Texture | null;
+  /**
+   * Standing on it rather than looking down at it.
+   *
+   * Kept apart from whether a basemap exists, deliberately: that question
+   * still decides whether the inferred roads are drawn, and swapping the
+   * surface must not quietly bring them back.
+   */
+  walking: boolean;
   /** Called with an east/north point when the ground is clicked. */
   onPick?: (point: [number, number]) => void;
 }) {
@@ -97,9 +107,12 @@ export function Ground({
      */
     const plane = new RingGeometry(0, size / 2, 96, 48);
 
-    // White under a map so the texture shows as itself; the beige is the
-    // ground's own colour and is only wanted when it is the only thing there.
-    const solid = new Color(basemap ? '#ffffff' : '#e6e3da');
+    /*
+     * White under the map so the texture shows as itself. Under the walking
+     * surface a neutral tone, which the grain then varies — light enough
+     * that a shadow still reads on it, because the shadow is the product.
+     */
+    const solid = new Color(walking ? '#cfccc4' : basemap ? '#ffffff' : '#e6e3da');
 
     const position = plane.getAttribute('position');
     const uv = plane.getAttribute('uv');
@@ -127,7 +140,7 @@ export function Ground({
     uv.needsUpdate = true;
     plane.setAttribute('color', new BufferAttribute(colours, 3));
     return plane;
-  }, [centreE, centreN, size, placement, basemap]);
+  }, [centreE, centreN, size, placement, basemap, walking]);
 
   /*
    * The plane is rebuilt when the map arrives, and react-three-fiber replaces
@@ -136,6 +149,20 @@ export function Ground({
    * one plane's worth until the tab closed.
    */
   useEffect(() => () => geometry.dispose(), [geometry]);
+
+  /*
+   * The grain is tiled by metres, not by the map's coordinates. The vertex
+   * UVs run 0..1 across the whole plane, so the repeat is how many tiles fit
+   * across it — the reprojection is near enough linear at this scale for the
+   * tiles to come out square.
+   */
+  const surface = useMemo(() => {
+    if (!walking) return null;
+    const texture = groundSurfaceTexture();
+    texture.repeat.set(size / SURFACE_TILE_M, size / SURFACE_TILE_M);
+    texture.needsUpdate = true;
+    return texture;
+  }, [walking, size]);
 
   return (
     <mesh
@@ -169,8 +196,8 @@ export function Ground({
         which compiles with the map present.
       */}
       <meshStandardMaterial
-        key={basemap ? 'with-basemap' : 'plain'}
-        map={basemap}
+        key={surface ? 'walking' : basemap ? 'with-basemap' : 'plain'}
+        map={surface ?? basemap}
         vertexColors
         roughness={1}
         metalness={0}

@@ -91,6 +91,7 @@ export function CameraRig({
   position,
   target,
   animate,
+  paused = false,
 }: {
   /** Where the camera should end up, in three.js world coordinates. */
   position: [number, number, number];
@@ -98,6 +99,14 @@ export function CameraRig({
   target: [number, number, number];
   /** False under reduced motion: arrive immediately instead. */
   animate: boolean;
+  /**
+   * True while somebody else owns the camera — the street view.
+   *
+   * The rig stays mounted rather than being unmounted, because a fresh one
+   * has never placed the camera and would reframe the subject the moment
+   * walking ended, throwing away whatever view the reader had set up.
+   */
+  paused?: boolean;
 }) {
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls) as OrbitLike | null;
@@ -162,6 +171,7 @@ export function CameraRig({
    * rather than one damping has already pulled away from it.
    */
   useFrame((_, delta) => {
+    if (paused) return;
     const trip = journey.current;
     if (!trip || !controls) return;
 
