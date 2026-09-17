@@ -10,6 +10,7 @@ import { Ground } from './Ground';
 import { HazeVeil } from './HazeVeil';
 import { DevelopmentMassings } from './DevelopmentMassings';
 import { ReceptorMarker } from './ReceptorMarker';
+import { WindowMarker } from './WindowMarker';
 import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
 
@@ -24,6 +25,12 @@ interface CityMassingProps {
   onSelectDevelopment: (development: Development) => void;
   /** The spot being measured, if one has been picked. */
   receptor: [number, number] | null;
+  /**
+   * The window being measured, if the reader has chosen one. Drawn here
+   * because it belongs to the city rather than to the ground -- it stands on
+   * a facade, and CityMassing is what draws facades.
+   */
+  windowAt?: { en: [number, number]; ahdM: number; facingDeg: number } | null;
   onPickReceptor?: (point: [number, number]) => void;
   /** A building found by searching, drawn in pink. */
   highlightedBuildingId: string | null;
@@ -50,7 +57,7 @@ interface CityMassingProps {
  *
  * Three merged meshes, split by what the colour has to say: built form, form
  * we could not reconcile, and the proposal. The palette is the one from the
- * Figma — a near-white city so the mint proposal is the only thing that
+ * design — a near-white city so the mint proposal is the only thing that
  * carries colour, and the eye goes straight to what changed.
  */
 export function CityMassing({
@@ -60,6 +67,7 @@ export function CityMassing({
   showAllProposals,
   onSelectDevelopment,
   receptor,
+  windowAt,
   onPickReceptor,
   interactive,
   highlightedBuildingId,
@@ -202,6 +210,9 @@ export function CityMassing({
       )}
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
+      {windowAt && (
+        <WindowMarker en={windowAt.en} ahdM={windowAt.ahdM} facingDeg={windowAt.facingDeg} />
+      )}
 
       {built && (
         <mesh castShadow receiveShadow geometry={built}>

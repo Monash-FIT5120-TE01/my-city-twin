@@ -28,13 +28,22 @@ const INSIDE = [
   'Roads.tsx',
   'OpenSpace.tsx',
   'ReceptorMarker.tsx',
+  'WindowMarker.tsx',
   'DevelopmentMassings.tsx',
   'SunArrow.tsx',
   'SunLight.tsx',
 ];
 
-/** Rendered as siblings of <WorldFrame>: these must convert. */
-const OUTSIDE = ['SiteMarker.tsx', 'StreetLabels.tsx'];
+/**
+ * Rendered as siblings of <WorldFrame>: these must convert.
+ *
+ * VrWalk is the one where getting it wrong is hardest to notice. It places
+ * the XR origin — the floor under a person in a headset — and the two ways to
+ * break the rule put them underground or lying on their side, neither of
+ * which any test or type can see, and both of which require somebody to put
+ * the headset on before anybody finds out.
+ */
+const OUTSIDE = ['SiteMarker.tsx', 'StreetLabels.tsx', 'VrWalk.tsx'];
 
 describe('the world-frame boundary', () => {
   it.each(INSIDE)('%s stays in east/north/up and does not convert', (file) => {

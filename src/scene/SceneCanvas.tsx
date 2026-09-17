@@ -21,7 +21,7 @@
  *   A high oblique from the south-east, about 38° above the horizon, at a
  *   distance scaled to the height of whatever is being examined so it fills
  *   roughly two-thirds of the frame. The field of view is 30° rather than
- *   the usual 50, which flattens the perspective — the Figma views look
+ *   the usual 50, which flattens the perspective — the design views look
  *   like that, and it keeps tall buildings from leaning outwards.
  *
  * WHAT THE SHADOW CAMERA HAS TO COVER
@@ -42,6 +42,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { XR } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, MOUSE } from 'three';
 import { WorldFrame } from './WorldFrame';
@@ -68,6 +69,9 @@ import { StreetLabels } from './StreetLabels';
 import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
 import { SunArrow } from './SunArrow';
 import { CameraRig } from './CameraRig';
+import { VrWalk } from './VrWalk';
+import { ViewControlsBridge, type ViewControlsRef } from './ViewControls';
+import { exitVr, xrStore } from './xrStore';
 import { useReducedMotion } from '../ui/useReducedMotion';
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
@@ -86,6 +90,8 @@ interface SceneCanvasProps {
   showAllProposals: boolean;
   onSelectDevelopment: (development: Development) => void;
   receptor: [number, number] | null;
+  /** The window being measured, if one has been chosen. */
+  windowAt?: { en: [number, number]; ahdM: number; facingDeg: number } | null;
   onPickReceptor?: (point: [number, number]) => void;
   /** False in focus mode. */
   interactive: boolean;
@@ -112,6 +118,37 @@ interface SceneCanvasProps {
    * a search result is an existing building rather than a proposal.
    */
   lookAt: { east: number; north: number; heightM: number } | null;
+  /**
+   * True while the cover is still up — hold the camera back, high and far.
+   *
+   * The city is built and drawn behind the landing page, so the frame the
+   * reader first sees is decided before they have pressed anything. Holding
+   * it here and releasing it when they do turns the button into an arrival
+   * instead of a cut. See the descent below, and Overture.
+   */
+  approach?: boolean;
+  /**
+   * The hour and the day, for the wrist readout in VR.
+   *
+   * Passed as finished strings rather than as numbers. Formatting them a
+   * second time down here would be a second place for the app to decide what
+   * a time looks like, and the two would drift.
+   */
+  timeLabel: string;
+  dateLabel: string;
+  /**
+   * Move the clock, by whole minutes. The controller buttons in an immersive
+   * session are the only way to do it — no DOM is drawn there, so the time
+   * bar does not exist.
+   */
+  onNudgeMinutes: (minutes: number) => void;
+  /**
+   * Filled in with the camera commands the zoom buttons outside the canvas
+   * call. They are DOM and the camera is not; see ViewControls.
+   */
+  viewCommands?: ViewControlsRef;
+  /** Bumped by "Frame the whole city". See CameraRig. */
+  refit?: number;
 }
 
 export function SceneCanvas({
@@ -124,6 +161,7 @@ export function SceneCanvas({
   showAllProposals,
   onSelectDevelopment,
   receptor,
+  windowAt,
   onPickReceptor,
   interactive,
   highlightedBuildingId,
@@ -133,6 +171,12 @@ export function SceneCanvas({
   walking,
   onLeaveStreet,
   onStandMoved,
+  approach = false,
+  viewCommands,
+  refit,
+  timeLabel,
+  dateLabel,
+  onNudgeMinutes,
 }: SceneCanvasProps) {
   const ground = useMemo(() => groundElevationOf(model.buildings), [model.buildings]);
 
@@ -159,7 +203,7 @@ export function SceneCanvas({
    * The camera and the orbit target live outside <WorldFrame>, so they are
    * stated in east/north/up and converted once, here.
    *
-   * A high oblique looking from the south-east, matching the Figma: about 38°
+   * A high oblique looking from the south-east, matching the design: about 38°
    * above the horizon, far enough back that the tallest thing on screen fills
    * roughly two-thirds of the frame at a 30° field of view.
    */
@@ -178,10 +222,41 @@ export function SceneCanvas({
     model.extent.maxE - model.extent.minE,
     model.extent.maxN - model.extent.minN,
   );
-  const eye = wholeCity
+  const settled = wholeCity
     ? citySpan * 1.2
     : Math.max(430, subjectHeight * 3.1);
-  const ELEVATION = 38 * (Math.PI / 180);
+
+  /*
+   * ── THE DESCENT ─────────────────────────────────────────────────────────
+   *
+   * WHY IT EXISTS
+   *   Pressing the button used to cut. One frame a landing page, the next the
+   *   city — with nothing in between to say the two are the same place. It is
+   *   the same objection CameraRig was written to answer for search, and the
+   *   same answer: arrive somewhere rather than appear at it.
+   *
+   * HOW IT IS DONE
+   *   Not with a new animation. While the cover is up the camera is simply
+   *   asked for a DIFFERENT frame — half again as far out, and steeper. When
+   *   the cover goes that request changes back, and CameraRig, which exists
+   *   to notice exactly that, flies between the two on its own easing. No
+   *   extra state, no second clock, and interrupting it works because
+   *   interrupting a flight already works.
+   *
+   * WHY THESE TWO NUMBERS
+   *   Far enough to be a journey, near enough that the city is recognisable
+   *   the whole way. Under it the reader can see where they are going before
+   *   they get there, which is the point of moving at all rather than fading.
+   *
+   *   The steeper angle is what makes it read as coming DOWN. A dolly along
+   *   the same line reads as a zoom, and a zoom is a lens doing something,
+   *   not a person going somewhere.
+   */
+  const APPROACH_BACK = 1.5;
+  const APPROACH_ELEVATION_DEG = 52;
+
+  const eye = approach ? settled * APPROACH_BACK : settled;
+  const ELEVATION = (approach ? APPROACH_ELEVATION_DEG : 38) * (Math.PI / 180);
   const BEARING = 150 * (Math.PI / 180);
   const horizontal = Math.cos(ELEVATION);
   // Both the camera and what it looks at are measured from the same height,
@@ -297,6 +372,32 @@ export function SceneCanvas({
   const reducedMotion = useReducedMotion();
 
   /*
+   * ── WHO OWNS THE CAMERA ─────────────────────────────────────────────────
+   *
+   * Exactly one thing may drive it, and in an immersive session that thing is
+   * the headset. WebXR overwrites the camera from the device's own tracking
+   * before every frame is drawn, so anything else writing to it is not merely
+   * outvoted — it is invisible, and the code looks ignored rather than wrong.
+   *
+   * So both desktop drivers stand down: OrbitControls is disabled and gives
+   * up `makeDefault`, CameraRig pauses, and StreetView — which sets the near
+   * plane and the field of view, both of which belong to the device in VR —
+   * is replaced by VrWalk rather than run alongside it.
+   *
+   * WHY THE STORE IS READ DIRECTLY RATHER THAN THROUGH useXR
+   *   `useXR` has to be called under <XR>, which is inside this component's
+   *   own output. Subscribing to the store instead answers the same question
+   *   from out here, without splitting the scene into an inner component for
+   *   one boolean. The store is a singleton for exactly this reason — see
+   *   xrStore.ts.
+   *
+   *   No initial read: a session cannot already be running on the frame the
+   *   canvas mounts, because nothing has been able to ask for one yet.
+   */
+  const [inVr, setInVr] = useState(false);
+  useEffect(() => xrStore().subscribe((state) => setInVr(state.session != null)), []);
+
+  /*
    * The shadow camera covers the WHOLE city, centred on the city — not on
    * whatever is being examined.
    *
@@ -344,150 +445,204 @@ export function SceneCanvas({
       // in three 0.185 and silently falls back to this one anyway.
       shadows="percentage"
       dpr={[1, 2]}
-      // The Figma views are high obliques with little perspective distortion,
+      // The design views are high obliques with little perspective distortion,
       // so a long lens rather than the 50° default.
       camera={{ position: openingShot, fov: 30, near: 5, far: 20000 }}
       gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}
     >
       {/*
-        The clear colour is now the horizon, so the ground has something to
-        dissolve INTO that agrees with the sky above it. Fixed at beige, the
-        model sat on a pale card in front of a night sky.
+        ── EVERYTHING, WITH A HEADSET OPTIONALLY ATTACHED ───────────────────
+
+        <XR> does nothing at all until a session starts, so the scene inside
+        it is unchanged on a desktop: same tree, same cost, same behaviour.
+        When one does start it takes over the camera and the render loop, and
+        the SAME city is what gets drawn — this is why the VR work is a
+        wrapper and four small files rather than a second application.
+
+        It is the outermost thing in the canvas because the sky, the lights
+        and the world frame all have to be inside the session's render loop
+        to appear in it.
       */}
-      <color attach="background" args={[sky.haze]} />
-
-      <SkyDome angles={sun} />
-
-      {/*
-        Sky and bounce. Direction-free, so they sit outside the world frame.
-        Cool from above, warm from the pavement — the pairing is what stops a
-        white city reading as flat grey once the sun is low and most surfaces
-        are lit by the sky alone.
-
-        Both now fall with the sun. Held at their daytime values the city
-        stayed brightly lit under a night sky, which read as a rendering
-        fault rather than as midnight.
-      */}
-      <hemisphereLight args={['#dce7f0', '#d8cfc0', sky.hemisphere]} />
-      <ambientLight intensity={sky.ambient} />
-
-      <WorldFrame>
-        {/* Only while walking: from above, the city's own extent is the scale. */}
-        {walking && <ScaleFigure atEN={scaleAt} groundAhdM={ground} />}
-
-        <SunLight
-          angles={sun}
-          extentM={shadow.extentM}
-          centre={shadow.centre}
-          castShadows={castShadows}
-        />
-        <CityMassing
-          haze={sky.haze}
-          walking={walking}
-          model={model}
-          focus={focus}
-          showProposed={showProposed}
-          showAllProposals={showAllProposals}
-          onSelectDevelopment={onSelectDevelopment}
-          receptor={receptor}
-          onPickReceptor={onPickReceptor}
-          interactive={interactive}
-          highlightedBuildingId={highlightedBuildingId}
-          showHighlighted={showHighlighted}
-        />
-
-        {/* In the world frame, so it points at the city rather than the screen. */}
+      <XR store={xrStore()}>
         {/*
-          On whatever the camera is framing — the focused proposal, or a
-          searched building. Reading `focus` alone put the arrow back on a
-          proposal while the screen was about a building; targetE/targetN are
-          already "the subject", whichever kind it is.
+          The clear colour is now the horizon, so the ground has something to
+          dissolve INTO that agrees with the sky above it. Fixed at beige, the
+          model sat on a pale card in front of a night sky.
         */}
-        {showSunArrow && !wholeCity && (
-          <SunArrow
-            sun={sun}
-            anchorEN={[targetE, targetN]}
+        <color attach="background" args={[sky.haze]} />
+
+        <SkyDome angles={sun} />
+
+        {/*
+          Sky and bounce. Direction-free, so they sit outside the world frame.
+          Cool from above, warm from the pavement — the pairing is what stops a
+          white city reading as flat grey once the sun is low and most surfaces
+          are lit by the sky alone.
+
+          Both now fall with the sun. Held at their daytime values the city
+          stayed brightly lit under a night sky, which read as a rendering
+          fault rather than as midnight.
+        */}
+        <hemisphereLight args={['#dce7f0', '#d8cfc0', sky.hemisphere]} />
+        <ambientLight intensity={sky.ambient} />
+
+        <WorldFrame>
+          {/*
+            Only while walking on a monitor. From above, the city's own extent
+            is the scale — and in a headset the reader IS the scale reference,
+            standing at their own height, which is better than any marker and
+            makes this one a black box in the road for no reason.
+          */}
+          {walking && !inVr && <ScaleFigure atEN={scaleAt} groundAhdM={ground} />}
+
+          <SunLight
+            angles={sun}
+            extentM={shadow.extentM}
+            centre={shadow.centre}
+            castShadows={castShadows}
+          />
+          <CityMassing
+            haze={sky.haze}
+            walking={walking}
+            model={model}
+            focus={focus}
+            showProposed={showProposed}
+            showAllProposals={showAllProposals}
+            onSelectDevelopment={onSelectDevelopment}
+            receptor={receptor}
+            windowAt={windowAt}
+            onPickReceptor={onPickReceptor}
+            interactive={interactive}
+            highlightedBuildingId={highlightedBuildingId}
+            showHighlighted={showHighlighted}
+          />
+
+          {/* In the world frame, so it points at the city rather than the screen. */}
+          {/*
+            On whatever the camera is framing — the focused proposal, or a
+            searched building. Reading `focus` alone put the arrow back on a
+            proposal while the screen was about a building; targetE/targetN are
+            already "the subject", whichever kind it is.
+          */}
+          {showSunArrow && !wholeCity && (
+            <SunArrow
+              sun={sun}
+              anchorEN={[targetE, targetN]}
+              groundAhdM={ground}
+              heightM={subjectHeight}
+            />
+          )}
+        </WorldFrame>
+
+        {/*
+          Outside the world frame on purpose — see StreetLabels for why CSS3D
+          cannot inherit that rotation and still land the right way up.
+        */}
+        {/*
+          Hidden while walking. They are HTML laid flat just above the ground —
+          a second map on the floor, which is the same thing that made the
+          basemap read wrong from eye height — and their repositioning follows
+          the orbit target, which walking does not have.
+        */}
+        {!walking && (
+          <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
+        )}
+
+        {/*
+          One marker, on whatever is chosen. A proposal only carries one while
+          the approved massing is actually being shown; a searched building
+          always does, because it is there either way.
+        */}
+        {marker && (marker.kind === 'building' || showProposed) && (
+          <SiteMarker subject={marker} groundAhdM={ground} />
+        )}
+
+        {/*
+          The same street, walked two ways — and never both at once.
+
+          StreetView owns the camera: it sets the position, the near plane and
+          the field of view, and turns it with the mouse. In an immersive
+          session every one of those belongs to the headset, which rewrites
+          them before each frame. Left mounted it would not fight and lose; it
+          would silently do nothing, which is harder to diagnose than a fight.
+
+          VrWalk owns nothing but the floor. Looking is the neck's job.
+        */}
+        {walking && !inVr && (
+          <StreetView
+            startEN={standPoint}
             groundAhdM={ground}
-            heightM={subjectHeight}
+            boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
+            boundsRadiusM={citySpan * 1.2}
+            obstacles={obstacles}
+            onExit={onLeaveStreet}
           />
         )}
-      </WorldFrame>
 
-      {/*
-        Outside the world frame on purpose — see StreetLabels for why CSS3D
-        cannot inherit that rotation and still land the right way up.
-      */}
-      {/*
-        Hidden while walking. They are HTML laid flat 0.4 m above the ground —
-        a second map on the floor, which is the same thing that made the
-        basemap read wrong from eye height — and their repositioning follows
-        the orbit target, which walking does not have.
-      */}
-      {!walking && (
-        <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
-      )}
+        {inVr && (
+          <VrWalk
+            startEN={standPoint}
+            groundAhdM={ground}
+            boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
+            boundsRadiusM={citySpan * 1.2}
+            obstacles={obstacles}
+            timeLabel={timeLabel}
+            dateLabel={dateLabel}
+            onNudgeMinutes={onNudgeMinutes}
+            /*
+              Ends the session only. Walking mode is deliberately left
+              standing, so taking the headset off puts the reader back on the
+              footpath they were on rather than two kilometres above it.
+            */
+            onExit={exitVr}
+          />
+        )}
 
-      {/*
-        One marker, on whatever is chosen. A proposal only carries one while
-        the approved massing is actually being shown; a searched building
-        always does, because it is there either way.
-      */}
-      {marker && (marker.kind === 'building' || showProposed) && (
-        <SiteMarker subject={marker} groundAhdM={ground} />
-      )}
+        {/*
+          Both stay mounted while walking, merely switched off.
+          Unmounting them threw away the reader's own view: a freshly mounted
+          CameraRig has never placed the camera, so on return it immediately
+          reframed the subject and discarded whatever pan, orbit or zoom they
+          had set up before going down to the street.
+        */}
+        {viewCommands && <ViewControlsBridge commands={viewCommands} />}
 
-      {walking && (
-        <StreetView
-          startEN={standPoint}
-          groundAhdM={ground}
-          boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
-          boundsRadiusM={citySpan * 1.2}
-          obstacles={obstacles}
-          onExit={onLeaveStreet}
+        <CameraRig
+          refit={refit}
+          paused={walking || inVr}
+          position={cameraPosition}
+          target={orbitTarget}
+          animate={!reducedMotion}
         />
-      )}
 
-      {/*
-        Both stay mounted while walking, merely switched off.
-        Unmounting them threw away the reader's own view: a freshly mounted
-        CameraRig has never placed the camera, so on return it immediately
-        reframed the subject and discarded whatever pan, orbit or zoom they
-        had set up before going down to the street.
-      */}
-      <CameraRig
-        paused={walking}
-        position={cameraPosition}
-        target={orbitTarget}
-        animate={!reducedMotion}
-      />
+        {/*
+          No `target` prop on purpose. It is applied on every render, so it
+          would drag the orbit centre back to the destination while a flight
+          was still under way. CameraRig sets it instead.
 
-      {/*
-        No `target` prop on purpose. It is applied on every render, so it
-        would drag the orbit centre back to the destination while a flight
-        was still under way. CameraRig sets it instead.
-
-        Damping is drei's own default, so the glide after a drag was always
-        there; what was missing was a say in how much, and a way to turn it
-        off for someone who asked for less movement.
-      */}
-      <OrbitControls
-        makeDefault={!walking}
-        enabled={!walking}
-        enableDamping={!reducedMotion}
-        dampingFactor={0.09}
-        enablePan
-        minDistance={120}
-        maxDistance={Math.max(4000, citySpan * 1.6)}
-        // Never let the camera drop below the ground plane.
-        maxPolarAngle={Math.PI / 2.15}
-        // Swapped from the three.js default: left drag pans, right drag
-        // orbits. Touch is left alone — one finger still orbits.
-        mouseButtons={{
-          LEFT: MOUSE.PAN,
-          MIDDLE: MOUSE.DOLLY,
-          RIGHT: MOUSE.ROTATE,
-        }}
-      />
+          Damping is drei's own default, so the glide after a drag was always
+          there; what was missing was a say in how much, and a way to turn it
+          off for someone who asked for less movement.
+        */}
+        <OrbitControls
+          makeDefault={!walking && !inVr}
+          enabled={!walking && !inVr}
+          enableDamping={!reducedMotion}
+          dampingFactor={0.09}
+          enablePan
+          minDistance={120}
+          maxDistance={Math.max(4000, citySpan * 1.6)}
+          // Never let the camera drop below the ground plane.
+          maxPolarAngle={Math.PI / 2.15}
+          // Swapped from the three.js default: left drag pans, right drag
+          // orbits. Touch is left alone — one finger still orbits.
+          mouseButtons={{
+            LEFT: MOUSE.PAN,
+            MIDDLE: MOUSE.DOLLY,
+            RIGHT: MOUSE.ROTATE,
+          }}
+        />
+      </XR>
     </Canvas>
   );
 }
