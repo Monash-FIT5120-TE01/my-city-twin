@@ -1,10 +1,14 @@
 /*
  * MY CITY TWIN — design tokens
- * Lifted from the Figma exports in MainProjectDoc/Figma.
  *
- * The typeface in the Figma is a licensed geometric sans. Figtree is the
- * closest free stand-in (single-storey g, tall x-height, same weight range).
- * When the real name is confirmed, change --font-display / --font-body only.
+ * Every colour, size, radius, shadow and duration the interface uses, in one
+ * place. A value that appears here is a decision; a value typed into a rule
+ * is an accident waiting to be made twice.
+ *
+ * The original palette came from the design exports in MainProjectDoc. The
+ * type no longer does: the interface used a bundled webfont for a while and
+ * now asks the operating system for its own — see --font-ui, and the note in
+ * global.css about why the root size is not fixed.
  */
 
 :root {
@@ -15,50 +19,329 @@
   --green-500: #1b7a5c; /* eyebrow labels */
   --green-050: #edf5f1; /* soft panel tint */
 
-  /* ── the proposal ──────────────────────────────────────── */
-  --mint-400: #a9e6d6; /* approved / proposed massing */
-  --mint-300: #c4efe4;
-  --mint-glow: #5fe0c8; /* rim light on the proposal */
-
   /* ── sun and time ──────────────────────────────────────── */
   --amber-500: #e89a21; /* sun direction indicator */
   --amber-400: #e9a93f; /* time slider track */
-  --amber-300: #e8b94a; /* active nav underline */
   --amber-050: #fcefcc; /* caution panel background */
-  --amber-ink: #a8730f; /* caution panel text */
-
-  /* ── version and dates ─────────────────────────────────── */
-  --violet-600: #6c3fb5; /* "Updated 12 Aug 2026" */
+  /*
+   * Darkened from #a8730f, which was 3.58:1 on the caution ground — enough
+   * for the large figure and not for the sentence under it.
+   */
+  --amber-ink: #8a5e0c; /* 4.98:1 on --amber-050 */
 
   /* ── neutrals ──────────────────────────────────────────── */
   --paper: #ffffff;
   --page: #ededea;
   --ink: #16181a;
   --ink-2: #5a6169;
-  --ink-3: #8b929a;
+  /*
+   * Darkened from #8b929a, which measured 3.15:1 on white — below the 4.5:1
+   * normal text needs, and this is the colour the fine print uses. Fine
+   * print is the one thing on a page that is legally load-bearing and the
+   * first thing a designer makes faint.
+   */
+  --ink-3: #6b7280; /* 4.83:1 on paper */
   --hairline: #e2e4e1;
 
-  /* ── the model ─────────────────────────────────────────── */
-  --city-existing: #e9e9ec; /* built form we have geometry for */
-  --city-unknown: #d6d3ce; /* ready_for_3d = false — shown, never dropped */
-  --ground: #f2f1ec;
-  --shadow-cast: #3a3560; /* the violet cast shadow in 05 */
+  /*
+   * The ground a control sits IN rather than on: the date row, the segmented
+   * switches, the season strip. Neutral on purpose -- it reads as a recess in
+   * the paper, and anything tinted at this size reads as a state.
+   *
+   * Its own token rather than --green-050, which is a tint that MEANS
+   * something (a soft panel, a hover). Reusing it would make every recessed
+   * control look faintly selected.
+   */
+  --surface-sunken: #f3f5f2;
+
+  /* ── the day, on a rail ────────────────────────────────── */
+
+  /*
+   * The two halves of the time bar's line: the hours the sun is up, and the
+   * hours it is not. Pale on purpose — the rail is a diagram of the day
+   * behind a control, and it has to stay behind it.
+   *
+   * Their own tokens rather than --amber-050 and --hairline, which are a
+   * caution ground and a border. Reusing either would mean a later change to
+   * a caution panel silently moving what daylight looks like.
+   */
+  --rail-day: #f3e5c5;
+  --rail-night: #dce1e3;
 
   /* ── type ──────────────────────────────────────────────── */
-  --font-display: 'Figtree', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Figtree', 'Segoe UI', system-ui, sans-serif;
 
-  --text-eyebrow: 0.6875rem; /* 11px, uppercase, tracked */
-  --text-sm: 0.8125rem;
-  --text-body: 0.9375rem;
-  --text-lg: 1.0625rem;
-  --text-h2: 1.5rem;
-  --text-h1: 3rem;
+  /*
+   * ONE STACK, AND IT IS THE SYSTEM'S.
+   *
+   * The interface used a bundled webfont in three weights — about 60 kB of
+   * woff that had to arrive before any text could be drawn in its final
+   * shape. The stack below is already on the device, so the first paint is
+   * the last one: no reflow, no flash, nothing to download.
+   *
+   * The first two entries are the standard CSS keywords for "whatever this
+   * operating system uses for its own interface". They are values, not
+   * names of anything. The rest are the ordinary fallbacks.
+   */
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  /*
+   * Kept as its own name rather than folded into the one above: headings are
+   * the place a display face would go if one is ever licensed, and this is
+   * the single line that would have to change. Today it resolves to the same
+   * stack, which is a decision rather than an accident.
+   */
+  --font-display: var(--font-ui);
+
+  /*
+   * For marks and figures rather than for code: coordinates, clock readings,
+   * the small tracked capitals on the cover. A fixed pitch is what makes a
+   * line of them read as an instrument reading rather than as a sentence.
+   */
+  --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, monospace;
+
+  /*
+   * ── THREE WEIGHTS, AND NO MORE ─────────────────────────────────────────
+   *
+   * 400 for anything to be read, 500 for the words that label something,
+   * 600 for headings. That is the whole system.
+   *
+   * There were six before, and 33 of the 54 weight declarations in the
+   * interface were 700 or 800 — which is not emphasis, it is the absence of
+   * it. When a panel's title, its section label, its figures and half its
+   * sentences are all bold, none of them is, and the eye has no order to
+   * follow. The hierarchy is carried by size and by space instead, which is
+   * what those are for.
+   */
+  --weight-body: 400;
+  --weight-label: 500;
+  --weight-title: 600;
+
+  /*
+   * The scale, in rem so it rides the root size — see global.css.
+   *
+   * Body is 15px at a 16px root and about 17px at the widest the root
+   * grows to, which is the range a paragraph is comfortable at. Everything
+   * else is set relative to that rather than chosen independently.
+   */
+  --text-xs: 0.75rem; /* 12px — captions, provenance */
+  --text-sm: 0.8125rem; /* 13px — labels, meta lines */
+  --text-body: 0.9375rem; /* 15px — sentences */
+  --text-lg: 1.0625rem; /* 17px — a panel's own subject */
+  --text-h2: 1.375rem; /* 22px — panel titles */
+  --text-h1: 2.25rem; /* 36px — the cover */
+
+  /*
+   * Figures that change in place — a clock, a duration, a measurement.
+   *
+   * Proportional digits are different widths, so a time ticking from 09:59
+   * to 10:00 shifts everything after it sideways. Tabular ones do not move.
+   * Applied wherever a number is read rather than counted.
+   */
+  --numeric: tabular-nums;
 
   /* ── shape ─────────────────────────────────────────────── */
-  --radius-panel: 16px;
-  --radius-card: 12px;
+
+  /*
+   * Three radii, each with a job.
+   *
+   * A panel is a large soft rectangle; a card inside it is a smaller one; a
+   * control is smaller still. Using one value for all three made a button
+   * look like a cut-out of the panel behind it.
+   *
+   * The pill is kept for the two things that are genuinely pill-shaped —
+   * a status badge and a segmented switch — and taken off buttons, where it
+   * was making every action look like a tag.
+   */
+  --radius-panel: 22px;
+  --radius-card: 14px;
+  --radius-control: 12px;
   --radius-pill: 999px;
-  --shadow-panel: 0 12px 32px rgba(20, 30, 26, 0.12);
-  --shadow-chip: 0 4px 14px rgba(20, 30, 26, 0.14);
+
+  /* ── space ─────────────────────────────────────────────── */
+
+  /*
+   * One scale, doubling roughly every other step. Written out as tokens so
+   * that "the gap between a title and its body" is a decision made once
+   * rather than a number typed into forty rules.
+   */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /** What a panel keeps between its edge and its contents. */
+  --pad-panel: 22px;
+
+  /* ── depth ─────────────────────────────────────────────── */
+
+  /*
+   * Two layers each: a tight dark edge that separates the panel from the
+   * city, and a wide soft one that lifts it. A single large blur reads as
+   * fog under the card; a single tight one reads as a border.
+   */
+  --shadow-panel: 0 1px 2px rgba(16, 24, 20, 0.05), 0 12px 32px rgba(16, 24, 20, 0.1);
+  --shadow-chip: 0 1px 2px rgba(16, 24, 20, 0.06), 0 4px 14px rgba(16, 24, 20, 0.09);
+
+  /* ── motion ────────────────────────────────────────────── */
+
+  /*
+   * Two durations. Anything that responds to a pointer uses the quick one;
+   * anything that is a panel arriving or leaving uses the slower.
+   *
+   * Never on `all`: a blanket transition animates properties nobody meant to
+   * animate — a width that should snap, a colour that should not wait — and
+   * the cost only shows up on the slowest device anybody uses.
+   */
+  --dur-quick: 180ms;
+  --dur-panel: 260ms;
+
+  /*
+   * The press. Shorter than anything else on purpose.
+   *
+   * A button that takes 180ms to acknowledge a click has already lost the
+   * argument — the finger is gone by then. 90ms down is felt as the button
+   * moving under the finger rather than as an animation that followed it,
+   * and the release is allowed to take longer because nobody is waiting on
+   * it.
+   */
+  --dur-press: 90ms;
+
+  /*
+   * Decelerating hard: fast at the start, settling at the end. It is the
+   * shape of something arriving under its own weight, and it is why a panel
+   * can travel a few pixels and still read as having come from somewhere.
+   */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /*
+   * A small overshoot, for the one control that is a physical object.
+   *
+   * A switch is a thing with mass that comes to rest against a stop; a knob
+   * that eases to its end position and simply halts reads as a picture of a
+   * switch. 1.32 is about 4% past the end and back — felt, not watched.
+   *
+   * Used on travel only. Nothing else in this interface bounces, because
+   * nothing else in it is pretending to be an object.
+   */
+  --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+
+  /*
+   * How long each item in a list waits behind the one before it.
+   *
+   * Small. A stagger is there to say "these arrived together, in this
+   * order", not to be watched: at 8 items and 24ms the last one is 190ms
+   * behind the first, which reads as one movement with texture. Double it
+   * and it reads as a queue.
+   */
+  --stagger: 24ms;
+
+  /*
+   * ── THE LAYOUT, AS FOUR NUMBERS ────────────────────────────────────────
+   *
+   * Everything that floats over the city — both panels, both cards, the time
+   * bar and the sun chip — is positioned from these. They used to be written
+   * out in pixels at each site, and the arithmetic that tied them together
+   * was done by hand: the time bar's `left: 396px` was really "24 gutter +
+   * 348 panel + 24 gutter", worked out once and then true only by luck. Six
+   * places had to be edited in step to change a panel's width, and the
+   * breakpoint at 1180 px had to repeat all of it a second time.
+   *
+   * WHY clamp() AND NOT A PERCENTAGE
+   *   A percentage is the obvious answer and it is wrong for these, because
+   *   they are columns of TEXT. At 25% a 2560 px monitor gives a 640 px
+   *   panel, and a line of 90-odd characters is measurably harder to read
+   *   than one of 55 — the eye loses its place coming back to the left edge.
+   *   Scaled the other way, 25% of a 1280 px laptop is 320 px, which is
+   *   about the floor before the season buttons start wrapping.
+   *
+   *   clamp() is the percentage WITH those two limits attached: it grows
+   *   with the window between a floor and a ceiling that are both set by the
+   *   content rather than by the screen. Between them it is genuinely fluid,
+   *   so a 2K monitor, a laptop and a headset browser each get a size
+   *   chosen for them rather than one of three sizes chosen in advance.
+   *
+   * WHY THE HEIGHT IS NOT ONE OF THEM
+   *   Because no panel should have a height — it should have a LIMIT, and
+   *   scroll inside it. See .panel--left in ui.css. That is
+   *   what --y-top and --y-bottom are for: the space above and below that
+   *   belongs to something else, leaving the rest for the panel.
+   */
+  --gutter: clamp(14px, 1.7vw, 24px);
+
+  /*
+   * THE BOUNDS ARE IN rem, AND THAT IS THE WHOLE POINT.
+   *
+   * The root font size now grows with the window (see global.css), so a
+   * ceiling written in pixels would hold the panel still while the words
+   * inside it got bigger — and the measure, which is the thing the ceiling
+   * exists to protect, would tighten from about 40 characters to 33 on a 2K
+   * monitor. Narrower AND larger is the one combination that is worse than
+   * either.
+   *
+   * In rem the ceiling tracks the type, so the number of characters on a
+   * line is the same on every screen. The vw term still does the filling in
+   * between. At a 16 px root these are exactly the pixel values they
+   * replace: 384, 432, 356.
+   */
+  /*
+   * The floor is 21.75rem — 348px at a 16px root — and not lower.
+   *
+   * It was briefly 18.25rem, chosen to look like a reasonable minimum. At a
+   * 1280px window that resolves to 294px, which leaves about 220px inside
+   * the date box once padding and borders are taken out. The label, the gap
+   * and a native date input do not fit that, and the row is `nowrap`, so it
+   * stopped wrapping and started scrolling sideways instead.
+   *
+   * The number is the width that row needs, not a round figure.
+   */
+  --w-panel-left: clamp(21.75rem, 23vw, 24rem);
+  --w-panel-wide: clamp(19.5rem, 26vw, 27rem);
+
+  /*
+   * The time dock. Wide enough for the hour, the caption and a rail with
+   * room to aim along; not so wide that the rail becomes a ruler.
+   */
+  --w-dock: 870px;
+
+  /*
+   * Also in rem, for the same reason read vertically: both reserve room for
+   * something made of text — the header above, the time bar below — and both
+   * of those get taller when the type does. Left at 96 and 132 px, a panel
+   * on a large screen would grow down into a time bar that had grown up.
+   */
+  /*
+   * The bar itself, and where everything under it starts.
+   *
+   * Two numbers rather than one, because they are two facts: how tall the
+   * header is, and how far down the panels begin. Written as one, a panel
+   * would sit flush against the bar with no air between them, and changing
+   * the bar's height would silently change the gap.
+   */
+  --h-header: 4rem;
+  --y-top: calc(var(--h-header) + var(--space-4));
+  /*
+   * The band at the foot of the screen that a left-hand panel must stay out
+   * of, and what is actually in it.
+   *
+   * IT IS THE TIME DOCK, AND IT USED TO BE THE ZOOM STACK.
+   *   The reservation was 17.5rem, sized to the six-button stack at 15.6rem
+   *   because the stack once stood over the bottom of the panel that shared
+   *   its corner. Nothing shares that corner now: the stack is at the right
+   *   edge and the only panels this bound applies to are on the left, so at
+   *   every width above the mobile breakpoint they cannot meet.
+   *
+   *   What CAN meet the panel is the dock. It is centred in the space beside
+   *   the panel, and as the window narrows it reaches further left until it
+   *   is under the panel's own column.
+   *
+   * Measured rather than guessed: the dock is 148-162px across the range of
+   * root sizes, plus 28px of gutter beneath it -- about 11rem, because it is
+   * built in rem and scales with the text. 12rem is that plus air.
+   *
+   * The 5.5rem this gave back went to the panel, which needs every line of
+   * it: the sunlight panel scrolls internally even now.
+   */
+  --y-bottom: 12rem;
 }

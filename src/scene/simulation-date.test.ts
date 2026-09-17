@@ -5,6 +5,7 @@ import {
   dateLabel,
   fromDateInput,
   matchingSeason,
+  sameDayInMonth,
   toDateInput,
 } from './solar';
 
@@ -40,23 +41,94 @@ describe('the date field round trip', () => {
       expect(fromDateInput(bad)).toBeNull();
     }
   });
+
+  /*
+   * These parse and look like dates, and they are not days. The address bar
+   * is the way in: ?d=2026-02-31 used to be accepted, printed as
+   * "31 February", and then quietly rolled forward to 3 March when the sun
+   * was placed -- so the label on screen and the shadow under it disagreed.
+   */
+  it('refuses a day its month does not have', () => {
+    for (const bad of ['2026-02-30', '2026-02-31', '2026-04-31', '2026-06-31', '2026-09-31']) {
+      expect(fromDateInput(bad)).toBeNull();
+    }
+  });
+
+  it('knows which Februaries have a twenty-ninth', () => {
+    expect(fromDateInput('2024-02-29')).toEqual({ year: 2024, month: 2, day: 29 });
+    expect(fromDateInput('2000-02-29')).toEqual({ year: 2000, month: 2, day: 29 });
+    expect(fromDateInput('2026-02-29')).toBeNull();
+    expect(fromDateInput('1900-02-29')).toBeNull();
+  });
+
+  it('keeps the last day of every month in 2026', () => {
+    const lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    lengths.forEach((length, index) => {
+      const month = String(index + 1).padStart(2, '0');
+      expect(fromDateInput(`2026-${month}-${String(length).padStart(2, '0')}`)).not.toBeNull();
+      expect(fromDateInput(`2026-${month}-${String(length + 1).padStart(2, '0')}`)).toBeNull();
+    });
+  });
 });
 
 describe('the season shortcuts', () => {
-  it('lights up only while the date really is that date', () => {
+  it('lights up for its whole month, whatever day it is', () => {
     for (const season of SEASONS) {
-      expect(matchingSeason({ year: 2026, month: season.month, day: season.day })?.key).toBe(season.key);
+      for (const day of [1, season.day, 28]) {
+        expect(matchingSeason({ year: 2026, month: season.month, day })?.key).toBe(
+          season.key,
+        );
+      }
     }
-    // A day either side of a solstice is not the solstice.
-    expect(matchingSeason({ year: 2026, month: 12, day: 22 })).toBeNull();
-    expect(matchingSeason({ year: 2026, month: 7, day: 4 })).toBeNull();
+  });
+
+  it('lights up for none of the other eight months', () => {
+    const seasonal = new Set(SEASONS.map((season) => season.month));
+    for (let month = 1; month <= 12; month++) {
+      if (seasonal.has(month)) continue;
+      expect(matchingSeason({ year: 2026, month, day: 15 })).toBeNull();
+    }
   });
 
   it('matches whatever the year is, since the presets are seasonal', () => {
     expect(matchingSeason({ year: 2031, month: 6, day: 21 })?.key).toBe('winter');
   });
 
-  it('opens on the summer solstice', () => {
+  it('opens on a date the summer button claims', () => {
     expect(matchingSeason(DEFAULT_DATE)?.key).toBe('summer');
+  });
+
+  it('keeps the day when it moves a date to another season', () => {
+    /*
+     * The buttons used to replace the day with the 21st, so every press
+     * produced "the 21st of something" — which reads as a stuck default
+     * rather than as a solstice, because nothing said it was one.
+     */
+    expect(sameDayInMonth({ year: 2026, month: 9, day: 17 }, 12)).toEqual({
+      year: 2026,
+      month: 12,
+      day: 17,
+    });
+  });
+
+  it('pulls the day back when the month it lands in is too short', () => {
+    // The 31st of a 31-day month has no counterpart in a 30-day one, and a
+    // date built from it rolls over into the month after.
+    expect(sameDayInMonth({ year: 2026, month: 1, day: 31 }, 9)).toEqual({
+      year: 2026,
+      month: 9,
+      day: 30,
+    });
+    expect(sameDayInMonth({ year: 2026, month: 1, day: 30 }, 2)).toEqual({
+      year: 2026,
+      month: 2,
+      day: 28,
+    });
+    // And knows which Februaries have an extra one.
+    expect(sameDayInMonth({ year: 2024, month: 1, day: 30 }, 2)).toEqual({
+      year: 2024,
+      month: 2,
+      day: 29,
+    });
   });
 });

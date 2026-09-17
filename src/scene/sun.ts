@@ -64,12 +64,6 @@ export function sunDirectionENU({ altitudeDeg, azimuthDeg }: SunAngles): Vec3ENU
   };
 }
 
-/** Where to put the directional light so it shines from the sun's direction. */
-export function sunLightPosition(angles: SunAngles, distanceM: number): [number, number, number] {
-  const d = sunDirectionENU(angles);
-  return [d.east * distanceM, d.north * distanceM, d.up * distanceM];
-}
-
 /**
  * Horizontal distance a shadow reaches from an obstruction of a given height.
  * This is the "≈79 m" measurement on the Impact Interpretation screen.

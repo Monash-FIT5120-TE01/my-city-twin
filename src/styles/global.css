@@ -13,13 +13,66 @@ body,
   margin: 0;
 }
 
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * TYPE THAT KNOWS HOW BIG THE SCREEN IS
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Every size in this interface is in rem, and rem was pinned to whatever the
+ * browser's default is — 16 px, on a 1280 px laptop and on a 2560 px monitor
+ * alike. So the window doubled in width and the words stayed exactly the
+ * same physical size, which does not read as "more room": it reads as
+ * everything having shrunk, because relative to what is around it, it has.
+ *
+ * WHY THE CLAMP IS IN rem AND NOT IN px
+ *   `font-size: clamp(16px, …, 19px)` would work and would also throw away
+ *   the reader's own setting. Somebody who has told their browser they want
+ *   larger text has said something, and a hard px floor overrules it
+ *   silently. Expressed in rem the floor IS their preference, and the vw
+ *   term adds to it rather than replacing it.
+ *
+ * WHY IT IS CAPPED
+ *   Line length is set by the panels, which are clamped in vw by the same
+ *   reasoning (see tokens.css). Type that kept growing past them would run
+ *   the two scales into each other and start wrapping headings.
+ *
+ * WHY THE CEILING CAME DOWN
+ *   It was 1.2rem, which put body text at 18px on a wide monitor. That is
+ *   past the range a paragraph is comfortable at — a line of 15 to 16px is
+ *   what the scale is built around, and everything above the body was
+ *   growing with it, so headings reached sizes chosen for nothing.
+ *
+ *   AND THEN IT WENT BACK UP. 1.08 held body text to 16.2px at the widest,
+ *   which is correct for a page read at arm's length and too small for a
+ *   2560px monitor read across a desk — reported as such. The ceiling is a
+ *   judgement about viewing distance, not about typography, and the only
+ *   evidence that settles it is somebody looking at one.
+ *
+ *   1.15rem puts body text at 17.25px on that monitor and leaves it at 15px
+ *   on a laptop, which is the range the scale was built for at both ends.
+ *
+ * At a 16 px default: 16 px up to about 1260 px of window, rising to 18.4 px
+ * by about 2110 px and holding. Everything measured in rem — every panel,
+ * every heading, every caption — moves with it.
+ */
+html {
+  font-size: clamp(1rem, 0.28vw + 0.78rem, 1.15rem);
+}
+
 body {
   background: var(--page);
   color: var(--ink);
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
+  font-weight: var(--weight-body);
   line-height: 1.55;
+  /*
+   * Only on the dark-on-light this interface is: subpixel smoothing thickens
+   * light text on dark grounds, and the header and panels are white.
+   */
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 canvas {

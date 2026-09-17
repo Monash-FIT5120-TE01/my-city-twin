@@ -35,7 +35,7 @@ describe('bundled', () => {
 
   it('survives the two shapes that produce a doubled slash', () => {
     // Vite always ends its base with a slash and callers are told to pass a
-    // path without one, but a doubled slash is a 404 on Cloudflare's asset
+    // path without one, but a doubled slash is a 404 on the host's asset
     // router rather than a tidy-up, so neither is left to convention.
     expect(joinBase('/ver-1', 'data/roads.json')).toBe('/ver-1/data/roads.json');
     expect(joinBase('/ver-1/', '/data/roads.json')).toBe('/ver-1/data/roads.json');
@@ -87,7 +87,7 @@ describe('bundled', () => {
      * Vite substitutes import.meta.env at build time, so one reference here
      * puts the token inside the bundle — and therefore inside every frozen
      * release, which is committed and never rebuilt. Two things follow, and
-     * neither announces itself: GitHub's secret scanning refuses the push,
+     * neither announces itself: the host's secret scanning refuses the push,
      * and rotating the token kills the map on versions already submitted.
      *
      * It is fetched at run time instead. This is the guard on that decision,

@@ -56,7 +56,6 @@ export function enuToWorld([east, north, up]: [number, number, number]): [
 }
 
 /** EPSG:7855 — GDA2020 / MGA zone 55. Metres. Covers Melbourne. */
-export const PROJECTED_CRS = 'EPSG:7855';
 export const PROJECTED_CRS_DEF =
   '+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
 

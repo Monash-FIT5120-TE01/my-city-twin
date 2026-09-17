@@ -93,7 +93,7 @@ export function effectiveBaseAhdM(massing: Massing, floorAhdM: number): number {
  * down to street level; measured against the source, 201 parts have nothing
  * beneath them, and an invented column casts an invented shadow.
  */
-export function buildMassingGeometry(
+function buildMassingGeometry(
   massing: Massing,
   floorAhdM: number,
 ): BufferGeometry | null {

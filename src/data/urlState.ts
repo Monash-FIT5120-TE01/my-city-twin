@@ -59,7 +59,7 @@ export interface UrlState {
  * The hour the simulation falls back to when the present moment cannot be
  * shown — the middle of the afternoon, when there is a shadow to look at.
  */
-export const DEFAULT_MINUTES = 15 * 60;
+const DEFAULT_MINUTES = 15 * 60;
 
 /**
  * A URL names ONE place.

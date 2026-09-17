@@ -12,7 +12,7 @@
  *   A public token is meant to be readable — every site drawing a Mapbox map
  *   ships one, and what protects it is the URL restriction on it, not
  *   secrecy. But a token baked into the bundle is also baked into the
- *   RELEASE, and releases are committed. GitHub's secret scanning stops the
+ *   RELEASE, and releases are committed. The host's secret scanning stops the
  *   push, and answering that by clicking "allow" once a term teaches
  *   everybody to click it, until the day it is hiding something real.
  *

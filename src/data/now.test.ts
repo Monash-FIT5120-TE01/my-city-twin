@@ -105,3 +105,48 @@ describe('when the clock is outside the hours on offer', () => {
     expect(outsideWindowNote(dawn)).toBeNull();
   });
 });
+
+describe('the clock label', () => {
+  it('writes a whole minute as it is', () => {
+    expect(clockLabel(0)).toBe('00:00');
+    expect(clockLabel(6 * 60)).toBe('06:00');
+    expect(clockLabel(23 * 60 + 31)).toBe('23:31');
+  });
+
+  /*
+   * No caller passes a fraction: civilInZone reads whole hour and minute
+   * fields, and daylightWindow rounds at the end of its bisection. These pin
+   * the formatter as TOTAL, so that a later change to either source cannot
+   * turn a rounding detail into a sunrise labelled an hour early.
+   */
+  it('rounds a fraction of a minute to the nearest one', () => {
+    expect(clockLabel(419.2)).toBe('06:59');
+    expect(clockLabel(419.7)).toBe('07:00');
+  });
+
+  it('carries the rounding into the hour instead of dropping it', () => {
+    /*
+     * The bug this replaces: the hour was floored from the raw number while
+     * the minutes were rounded from it, so 419.7 read 06:00 -- the right
+     * minutes against the wrong hour.
+     */
+    for (const minutes of [419.5, 479.6, 719.9]) {
+      const [hh, mm] = clockLabel(minutes).split(':').map(Number);
+      expect(hh * 60 + mm).toBe(Math.round(minutes));
+    }
+  });
+
+  it('wraps rather than inventing a reading no clock has', () => {
+    // 24:00 and -1:-1 are what the arithmetic gives when left open.
+    expect(clockLabel(1439.6)).toBe('00:00');
+    expect(clockLabel(24 * 60)).toBe('00:00');
+    expect(clockLabel(-1)).toBe('23:59');
+    expect(clockLabel(25 * 60)).toBe('01:00');
+  });
+
+  it('never produces anything but two digits, a colon and two digits', () => {
+    for (let minutes = -120; minutes <= 24 * 60 + 120; minutes += 7) {
+      expect(clockLabel(minutes)).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/);
+    }
+  });
+});

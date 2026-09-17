@@ -3,7 +3,7 @@ import { compassLabel, shadowReachM, type SunAngles } from './sun';
 /*
  * Plain English for what the shadow is doing right now.
  *
- * The Figma writes lines like "Shadow falls east of the protected area" and
+ * The design writes lines like "Shadow falls east of the protected area" and
  * "Direct sun remains on the forecourt". Both name a protected public space,
  * and there is no protected-space data — that is user story 1.3, and the
  * backend carries no table for it. Inventing a forecourt to make the sentence

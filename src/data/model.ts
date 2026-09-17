@@ -93,7 +93,7 @@ export interface Development {
   streetAddress: string;
   status: DevelopmentStatus;
   anchorEN: [number, number];
-  /** Tallest component. This is the "162 m" on the Figma card. */
+  /** Tallest component. This is the "162 m" on the design card. */
   maxHeightM: number;
   /** Highest point above the datum, for framing the camera. */
   topAhdM: number;

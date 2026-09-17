@@ -55,6 +55,7 @@
  *   hemisphere has been flipped somewhere.
  */
 
+import { clockLabel } from '../data/now';
 import type { Massing, PolygonEN, Ring } from '../data/model';
 import { civilToInstant, solarPosition, type SimulationDate } from './solar';
 import { SITE } from './frame';
@@ -63,7 +64,7 @@ import { effectiveBaseAhdM } from './massing';
 const DEG = Math.PI / 180;
 
 /** Sampling interval. Ten minutes matches the time slider's own step. */
-export const STEP_MINUTES = 10;
+const STEP_MINUTES = 10;
 
 /*
  * Wide enough to contain the whole civil day at this latitude in any season —
@@ -196,9 +197,6 @@ export function blockedBySubject(
   return false;
 }
 
-const clock = (minutes: number) =>
-  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-
 /** Walks the day in ten-minute steps and counts what the subject costs. */
 export function sunlightAtPoint(
   receptorEN: [number, number],
@@ -246,8 +244,8 @@ export function sunlightAtPoint(
     withoutSubjectMin,
     withSubjectMin,
     lostMin: withoutSubjectMin - withSubjectMin,
-    firstShadowLabel: firstShadow === null ? null : clock(firstShadow),
-    lastShadowLabel: lastShadow === null ? null : clock(lastShadow),
+    firstShadowLabel: firstShadow === null ? null : clockLabel(firstShadow),
+    lastShadowLabel: lastShadow === null ? null : clockLabel(lastShadow),
     stepMinutes: STEP_MINUTES,
   };
 }

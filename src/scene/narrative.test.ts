@@ -3,7 +3,7 @@ import { describeShadow, shadowBearingDeg } from './narrative';
 
 /*
  * The sentence a resident reads is a claim about their street, so it is
- * tested like any other output — including the case the Figma's own wording
+ * tested like any other output — including the case the design's own wording
  * cannot cover, where the sun has set.
  */
 
@@ -86,7 +86,7 @@ describe('after sunset', () => {
 
 describe('what the sentence does not claim', () => {
   it('never names a protected space, because there is no such data yet', () => {
-    // The Figma reads "Shadow falls east of the protected area". Protected
+    // The design reads "Shadow falls east of the protected area". Protected
     // space is user story 1.3 and has no table behind it; asserting one here
     // would put an unfounded claim about a real street in front of a resident.
     for (const altitudeDeg of [-5, 5, 20, 45, 70]) {

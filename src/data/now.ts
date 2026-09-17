@@ -87,10 +87,31 @@ export function presentMoment(instant: Date): PresentMoment {
   };
 }
 
-/** "23:31" — the Melbourne clock, for saying what could not be shown. */
+/**
+ * "23:31" — a time on the Melbourne clock.
+ *
+ * ROUNDED ONCE, BEFORE IT IS SPLIT.
+ *   Rounding the hour and the minutes separately lets them disagree across a
+ *   boundary: floor(419.7 / 60) is 6 while round(419.7) % 60 is 0, which
+ *   writes 06:00 for a time at seven o'clock — the right minutes against the
+ *   wrong hour. One rounding, then one division, cannot split that way.
+ *
+ *   No caller passes a fraction today. Both sources of minutes hand over
+ *   whole numbers: civilInZone builds them from the hour and minute fields,
+ *   and daylightWindow rounds at the end of its bisection. This is the
+ *   formatter being total rather than a bug being fixed, and it is written
+ *   down because a later change to either source would otherwise arrive as
+ *   a sunrise labelled an hour early.
+ *
+ * AND IT WRAPS, BECAUSE A CLOCK IS A CIRCLE.
+ *   Left open the arithmetic produces readings no clock has: 1439.6 rounds
+ *   to 1440 and reads 24:00, and a negative reads -1:-1. Neither is a time.
+ *   Taking it modulo a day gives 00:00 and 23:59, which are.
+ */
 export function clockLabel(minutes: number): string {
-  const hour = Math.floor(minutes / 60);
-  return `${String(hour).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  const DAY = 24 * 60;
+  const whole = ((Math.round(minutes) % DAY) + DAY) % DAY;
+  return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
 }
 
 /**

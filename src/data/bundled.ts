@@ -28,7 +28,7 @@
  */
 export function joinBase(base: string, path: string): string {
   const root = base.endsWith('/') ? base : `${base}/`;
-  // Cloudflare's asset router treats a doubled slash as a different path
+  // The host's asset router treats a doubled slash as a different path
   // from a single one, and has nothing at the doubled one.
   return root + path.replace(/^\/+/, '');
 }
