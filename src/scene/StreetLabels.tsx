@@ -24,7 +24,33 @@ interface StreetLabelsProps {
 const RESEAT_DISTANCE_M = 40;
 
 /**
- * Street names lying flat on the road, as in the Figma.
+ * ── HOW WIDE TO CAST THE NET, AND WHY IT IS NOT A CONSTANT ────────────────
+ *
+ * A fixed radius answers the wrong question. It asks "which streets are near
+ * the point the camera is orbiting", and what a reader wants is "which
+ * streets can I see". Those agree only at one zoom. Pulled back over the
+ * whole city, a 340 m radius named the handful of streets around the orbit
+ * target and left every street actually on screen unlabelled.
+ *
+ * Tying it to how far the camera has pulled back makes it the same question
+ * at every zoom: a wide shot covers more ground, so more of it gets named.
+ *
+ * The floor keeps at least the surrounding block named when standing close
+ * in; the ceiling stops a fully zoomed-out view from labelling the entire
+ * extract at once, which is the crowding this radius exists to prevent.
+ */
+const RADIUS_PER_DISTANCE = 0.5;
+const RADIUS_MIN_M = 260;
+const RADIUS_MAX_M = 1300;
+
+/** A zoom has to change by this much before the names are reconsidered. */
+const RESEAT_ZOOM_RATIO = 1.2;
+
+const radiusFor = (cameraDistanceM: number) =>
+  Math.min(RADIUS_MAX_M, Math.max(RADIUS_MIN_M, cameraDistanceM * RADIUS_PER_DISTANCE));
+
+/**
+ * Street names lying flat on the road, as in the design.
  *
  * They follow the view. Every screen in the design has street names visible
  * near whatever is being looked at, because that is what tells a resident
@@ -33,8 +59,10 @@ const RESEAT_DISTANCE_M = 40;
  * would leave the frame as soon as anyone panned.
  *
  * Rendered as DOM through drei's <Html transform> rather than as 3D text,
- * which keeps them in the interface typeface and avoids a font loader:
- * troika wants a .ttf and the fonts here are the woff files @fontsource ships.
+ * which keeps them in the interface typeface and avoids a font loader
+ * entirely. 3D text wants a font FILE, and the interface has none to give
+ * it: the type is the stack the operating system already has, which exists
+ * for CSS to ask for and not as an asset anything can load.
  *
  * These sit OUTSIDE <WorldFrame>, unlike everything else in the scene.
  * <Html transform> builds a CSS3D matrix from the object's world transform,
@@ -54,9 +82,16 @@ const RESEAT_DISTANCE_M = 40;
  * behind and mirrored.
  */
 export function StreetLabels({ initialEast, initialNorth, groundAhdM }: StreetLabelsProps) {
-  const controls = useThree((state) => state.controls) as { target?: { x: number; z: number } } | null;
-  const [anchor, setAnchor] = useState<[number, number]>([initialEast, initialNorth]);
-  const seated = useRef<[number, number]>([initialEast, initialNorth]);
+  const controls = useThree((state) => state.controls) as {
+    target?: { x: number; y: number; z: number };
+  } | null;
+  const camera = useThree((state) => state.camera);
+  const [view, setView] = useState<{ east: number; north: number; radiusM: number }>({
+    east: initialEast,
+    north: initialNorth,
+    radiusM: RADIUS_MIN_M,
+  });
+  const seated = useRef(view);
 
   useFrame(() => {
     const target = controls?.target;
@@ -67,14 +102,31 @@ export function StreetLabels({ initialEast, initialNorth, groundAhdM }: StreetLa
     const east = target.x;
     const north = -target.z;
 
-    const [seatedE, seatedN] = seated.current;
-    if (Math.hypot(east - seatedE, north - seatedN) < RESEAT_DISTANCE_M) return;
+    const radiusM = radiusFor(
+      Math.hypot(
+        camera.position.x - target.x,
+        camera.position.y - target.y,
+        camera.position.z - target.z,
+      ),
+    );
 
-    seated.current = [east, north];
-    setAnchor([east, north]);
+    /*
+     * Two reasons to reconsider, and zooming is the one that is easy to
+     * forget: it does not move the orbit target at all, so a check on
+     * position alone left the names as they were while the view they were
+     * chosen for changed underneath them.
+     */
+    const previous = seated.current;
+    const moved = Math.hypot(east - previous.east, north - previous.north);
+    const zoomed = Math.max(radiusM / previous.radiusM, previous.radiusM / radiusM);
+    if (moved < RESEAT_DISTANCE_M && zoomed < RESEAT_ZOOM_RATIO) return;
+
+    const next = { east, north, radiusM };
+    seated.current = next;
+    setView(next);
   });
 
-  const labels = streetLabelsNear(anchor[0], anchor[1]);
+  const labels = streetLabelsNear(view.east, view.north, view.radiusM);
 
   return (
     <group>
@@ -82,12 +134,50 @@ export function StreetLabels({ initialEast, initialNorth, groundAhdM }: StreetLa
         <Html
           key={label.name}
           transform
-          // Just clear of the road so the name is not z-fighting the ground.
-          position={enuToWorld([label.east, label.north, groundAhdM + 0.4])}
+          /*
+           * 1.2 m, and the number is doing two jobs.
+           *
+           * It clears the road surface so the name is not z-fighting it, and
+           * it gives the occlusion below something to work with: that test
+           * compares depths, and a label lying IN the ground plane is hidden
+           * by the ground plane -- at 0.4 m every name disappeared.
+           *
+           * It is not higher because the name is meant to read as paint on
+           * the road. Seen from a typical oblique the lift shifts it about a
+           * metre and a half across a street 30 m wide; at 6 m, where the
+           * occlusion is no more correct, it is seven, and the name visibly
+           * floats off the carriageway.
+           */
+          position={enuToWorld([label.east, label.north, groundAhdM + 1.2])}
           rotation={[-Math.PI / 2, label.rotation, 0, 'YXZ']}
           // Holds the name at a steady size on screen however far the camera
           // is, so the names stay legible when zoomed right in.
           distanceFactor={90}
+          /*
+           * NO OCCLUSION, AND IT IS A TRADE RATHER THAN AN OVERSIGHT.
+           *
+           * DOM has no depth buffer, so a name whose street is behind a tower
+           * still paints over the tower. drei can hide it -- "blending" puts
+           * the canvas above these elements and punches a hole the size of
+           * each one to let it show through. It works, and the hole is the
+           * price: everything the label does not paint itself becomes a
+           * window onto the page behind the map, so the name needs an opaque
+           * plate under it, and the plate is a white box on the road.
+           *
+           * The box was the worse of the two faults to look at, so it went.
+           * Most of what looked like "the name is on a building" was the
+           * placement, not the painting -- Spencer Street was 77 m off its
+           * carriageway and the long streets ran past their own ends. With
+           * those measured properly the names sit in the carriageways, and
+           * what is left is the genuine case of a street hidden behind a
+           * tower.
+           *
+           * The way to have both is raycast occlusion, which hides the whole
+           * label instead of clipping it and needs no hole: occlude={[ref]}
+           * against the massing. It costs a ray per label per frame against
+           * the merged city, so it would have to be throttled to the moments
+           * the view settles rather than run every frame.
+           */
           pointerEvents="none"
           zIndexRange={[1, 0]}
         >

@@ -35,7 +35,8 @@ describe('carriageways', () => {
   });
 
   it('has a road beneath every named street', () => {
-    const labels = streetLabelsNear(0, 0);
+    // Infinity: this is about the grid, not about what is on screen.
+    const labels = streetLabelsNear(0, 0, Infinity);
     for (const name of NAMED_WITH_ROADS) {
       const label = labels.find((l) => l.name === name)!;
       const [offE, offN] =

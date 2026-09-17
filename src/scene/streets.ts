@@ -82,6 +82,15 @@ interface StreetSpec {
   offsetM: number;
   /** Where fitting the development addresses alone put the line. */
   addressFitM: number;
+  /**
+   * Where the street starts and stops along its OWN axis, metres.
+   *
+   * Measured, not assumed -- see the note above the table. A street's offset
+   * says which line it runs down; without these it is an infinite line, and
+   * the label slides along it into places the street does not go.
+   */
+  fromM: number;
+  toM: number;
   /** Share of the line that still falls inside a building footprint, 0–1. */
   buildingCoverage: number;
   /** True where the offset came from block spacing, with no records to fit. */
@@ -103,51 +112,194 @@ interface StreetSpec {
  * everywhere except Lonsdale and Bourke, where the grid's arcades genuinely
  * do overhang.
  */
+/*
+ * ── AND WHERE EACH ONE STOPS ─────────────────────────────────────────────
+ *
+ * fromM and toM come from the building footprints: sampling every 10 m along
+ * a street and asking whether there is a frontage within 55 m on EITHER side,
+ * then keeping the longest run that has. A street is a street where there is
+ * a city facing it; past the last frontage it is a rail yard or a park.
+ *
+ * They exist because a label slides along its street to stay level with what
+ * is being looked at, and an unbounded line does not stop at the end of the
+ * road. Bourke Street's last frontage is at -730, just east of Spencer; the
+ * bound before this was the grid's outer rectangle, so looking west put the
+ * name for Bourke Street out over the station.
+ *
+ * EITHER SIDE, NOT BOTH, and that is the second correction. Requiring both
+ * cut the edge streets in half: Flinders has the railway and the river down
+ * its southern flank and measured as -120..780 when it runs -720..1250, so
+ * its name stopped travelling a third of the way along the city. A street
+ * with a park on one side is still a street.
+ */
 const STREETS: StreetSpec[] = [
   // Long streets, north to south.
-  { name: 'La Trobe Street', axis: 'long', offsetM: -419.3, addressFitM: -467.3, buildingCoverage: 0.02 },
-  { name: 'Lonsdale Street', axis: 'long', offsetM: -178.6, addressFitM: -190.6, buildingCoverage: 0.12 },
-  { name: 'Bourke Street', axis: 'long', offsetM: 52.4, addressFitM: 2.4, buildingCoverage: 0.1 },
-  { name: 'Collins Street', axis: 'long', offsetM: 286.1, addressFitM: 260.1, buildingCoverage: 0.12 },
-  { name: 'Flinders Street', axis: 'long', offsetM: 519.9, addressFitM: 501.9, buildingCoverage: 0 },
+  { name: 'La Trobe Street', axis: 'long', offsetM: -419.3, addressFitM: -467.3, fromM: -740, toM: 1180, buildingCoverage: 0.02 },
+  { name: 'Lonsdale Street', axis: 'long', offsetM: -178.6, addressFitM: -190.6, fromM: -740, toM: 1190, buildingCoverage: 0.12 },
+  { name: 'Bourke Street', axis: 'long', offsetM: 52.4, addressFitM: 2.4, fromM: -730, toM: 1200, buildingCoverage: 0.1 },
+  { name: 'Collins Street', axis: 'long', offsetM: 286.1, addressFitM: 260.1, fromM: -730, toM: 1200, buildingCoverage: 0.12 },
+  { name: 'Flinders Street', axis: 'long', offsetM: 519.9, addressFitM: 501.9, fromM: -720, toM: 1250, buildingCoverage: 0 },
 
-  // Cross streets, west to east.
-  { name: 'Spencer Street', axis: 'cross', offsetM: -780, addressFitM: -780, buildingCoverage: 0, inferred: true },
-  { name: 'King Street', axis: 'cross', offsetM: -469.3, addressFitM: -491.3, buildingCoverage: 0 },
-  { name: 'William Street', axis: 'cross', offsetM: -233.8, addressFitM: -199.8, buildingCoverage: 0 },
-  { name: 'Queen Street', axis: 'cross', offsetM: -0.5, addressFitM: 41.5, buildingCoverage: 0 },
-  { name: 'Elizabeth Street', axis: 'cross', offsetM: 227.7, addressFitM: 191.7, buildingCoverage: 0.04 },
-  { name: 'Swanston Street', axis: 'cross', offsetM: 460.5, addressFitM: 444.5, buildingCoverage: 0.03 },
-  { name: 'Russell Street', axis: 'cross', offsetM: 697, addressFitM: 665, buildingCoverage: 0.07, inferred: true },
+  /*
+   * Cross streets, west to east.
+   *
+   * SPENCER STREET WAS 77 m OUT, AND IT IS THE ONE THAT SHOWED.
+   *   Its offset was interpolated from block spacing and never measured --
+   *   it is the only street with no city on one side, so the gap search that
+   *   placed the others had nothing to bite on. At -780 the line lay in the
+   *   rail land west of the station, and the name with it.
+   *
+   *   -702.6 is the spacing the rest of the family actually keeps: King to
+   *   William is 235.5, William to Queen 233.3, Queen to Elizabeth 228.2,
+   *   Elizabeth to Swanston 232.8, Swanston to Russell 236.5 -- a mean of
+   *   233.3, which from King at -469.3 puts Spencer at -702.6. The westmost
+   *   CBD frontage along its run is at -682.6, and half a 30.2 m carriageway
+   *   inside that is -697.7, so the two methods agree within five metres.
+   */
+  { name: 'Spencer Street', axis: 'cross', offsetM: -702.6, addressFitM: -780, fromM: -430, toM: 760, buildingCoverage: 0, inferred: true },
+  { name: 'King Street', axis: 'cross', offsetM: -469.3, addressFitM: -491.3, fromM: -430, toM: 700, buildingCoverage: 0 },
+  { name: 'William Street', axis: 'cross', offsetM: -233.8, addressFitM: -199.8, fromM: -880, toM: 560, buildingCoverage: 0 },
+  { name: 'Queen Street', axis: 'cross', offsetM: -0.5, addressFitM: 41.5, fromM: -1060, toM: 660, buildingCoverage: 0 },
+  { name: 'Elizabeth Street', axis: 'cross', offsetM: 227.7, addressFitM: 191.7, fromM: -950, toM: 680, buildingCoverage: 0.04 },
+  { name: 'Swanston Street', axis: 'cross', offsetM: 460.5, addressFitM: 444.5, fromM: -830, toM: 700, buildingCoverage: 0.03 },
+  { name: 'Russell Street', axis: 'cross', offsetM: 697, addressFitM: 665, fromM: -710, toM: 720, buildingCoverage: 0.07, inferred: true },
 ];
 
 /**
- * Places each name on its street, near a point of interest.
+ * How far from a street you can be before its name stops being about you.
  *
- * A street is a line, so its offset fixes only one coordinate; the other is
- * chosen so the labels gather around whatever is being looked at instead of
- * sitting off at the edge of the grid.
+ * The grid's main streets are a little over 230 m apart, so this reaches the
+ * street you are on and the one either side of it -- about six names on
+ * screen instead of twelve, and each of them one you could walk to.
+ *
+ * It is the fix for a name that would not leave. Every street used to be
+ * labelled at all times, and because the label slides along its own line to
+ * stay level with the camera, crossing a street did not take its name away:
+ * the name came WITH you, sliding along a street now behind your shoulder.
+ * The label belonged to the camera rather than to a place.
  */
-export function streetLabelsNear(east: number, north: number): StreetLabel[] {
+export const LABEL_RADIUS_M = 340;
+
+/**
+ * Where a named street runs, along its own axis. Null if there is no such
+ * street. Exported for the tests, which check that no label ever leaves the
+ * road it names -- an invariant they cannot state without these numbers.
+ */
+export function streetExtentOf(name: string): [number, number] | null {
+  const street = STREETS.find((candidate) => candidate.name === name);
+  return street ? [street.fromM, street.toM] : null;
+}
+
+/**
+ * How far in from the end of a street to keep the middle of its name.
+ *
+ * The label is centred on the point, so a name parked exactly on the last
+ * metre of the road hangs half its own length off the end of it.
+ */
+const END_INSET_M = 70;
+
+/**
+ * ── WHERE ALONG THE BLOCK, AND WHY NOT SIMPLY "NEAREST TO THE CAMERA" ─────
+ *
+ * The obvious placement -- the point on the street closest to what is being
+ * looked at -- puts every name on an INTERSECTION, and it does it to all of
+ * them at once, because they are all measured from the same point. Bourke
+ * and Elizabeth ended up twenty pixels apart on the same corner.
+ *
+ * A junction is the worst spot on a street for its name. The label is a long
+ * box centred on the point: along the carriageway it lies in the gap, but
+ * across a crossroads it reaches over both corner buildings, which is what
+ * makes a correctly placed name look like it is sitting on a roof.
+ *
+ * So the name snaps to the middle of a block, which is where a map has
+ * always put it. The blocks come from the grid itself -- one family's
+ * offsets are the crossings of the other -- so this is the midpoint between
+ * consecutive crossings, not a spacing invented here.
+ */
+function midBlockPoints(axis: 'long' | 'cross'): number[] {
+  const crossings = STREETS.filter((street) => street.axis !== axis)
+    .map((street) => street.offsetM)
+    .sort((a, b) => a - b);
+
+  const mids: number[] = [];
+  for (let i = 0; i < crossings.length - 1; i++) {
+    mids.push((crossings[i] + crossings[i + 1]) / 2);
+  }
+  return mids;
+}
+
+/**
+ * Places the name of each nearby street on it, beside a point of interest.
+ *
+ * A street is a line, so its offset fixes only one coordinate. The other
+ * follows the point of interest -- clamped to the length of the street, so
+ * the name gathers around what is being looked at without leaving the road it
+ * names. Streets too far off to be worth naming are left out entirely.
+ */
+export function streetLabelsNear(
+  east: number,
+  north: number,
+  /*
+   * Overridable so the tests can ask for the whole catalogue with Infinity.
+   * What the grid IS and what is worth drawing right now are two questions,
+   * and only the second one has a radius.
+   */
+  radiusM: number = LABEL_RADIUS_M,
+): StreetLabel[] {
   // How far along each axis the point of interest sits.
   const alongLong = east * LONG_DIR[0] + north * LONG_DIR[1];
   const alongCross = east * CROSS_DIR[0] + north * CROSS_DIR[1];
 
-  return STREETS.map(({ name, axis, offsetM, buildingCoverage, inferred }) => {
+  return STREETS.flatMap(({ name, axis, offsetM, fromM, toM, buildingCoverage, inferred }) => {
     const [runE, runN] = axis === 'long' ? LONG_DIR : CROSS_DIR;
     const [offE, offN] = axis === 'long' ? CROSS_DIR : LONG_DIR;
-    const distanceAlong = axis === 'long' ? alongLong : alongCross;
 
-    return {
-      name,
-      axis,
-      buildingCoverage,
-      east: runE * distanceAlong + offE * offsetM,
-      north: runN * distanceAlong + offN * offsetM,
-      // Text runs along its own +x; turn that onto the street direction.
-      rotation: Math.atan2(runN, runE),
-      inferred,
-    };
+    /*
+     * The two coordinates, and which is which.
+     *
+     * A street's `offsetM` is measured across it, down the axis the OTHER
+     * family runs. So the anchor's coordinate on that same axis is what says
+     * how far away the street is, and its coordinate on the street's own axis
+     * is how far along it to put the name.
+     */
+    const across = axis === 'long' ? alongCross : alongLong;
+    if (Math.abs(across - offsetM) > radiusM) return [];
+
+    /*
+     * Clamped to THIS street's own ends, not to the grid's outer rectangle.
+     * The inset is dropped rather than inverted on a street shorter than two
+     * insets, which would otherwise put the name outside the very bounds it
+     * is meant to keep it inside.
+     */
+    const room = toM - fromM > END_INSET_M * 2 ? END_INSET_M : 0;
+    const lower = fromM + room;
+    const upper = toM - room;
+    const wanted = Math.min(upper, Math.max(lower, axis === 'long' ? alongLong : alongCross));
+
+    /*
+     * Then to the middle of the nearest block. Only blocks that fall inside
+     * this street's own length are candidates; a street with none -- one
+     * shorter than the gap between two crossings -- keeps the plain clamp.
+     */
+    const blocks = midBlockPoints(axis).filter((at) => at >= lower && at <= upper);
+    const alongStreet = blocks.length
+      ? blocks.reduce((best, at) =>
+          Math.abs(at - wanted) < Math.abs(best - wanted) ? at : best,
+        )
+      : wanted;
+
+    return [
+      {
+        name,
+        axis,
+        buildingCoverage,
+        east: runE * alongStreet + offE * offsetM,
+        north: runN * alongStreet + offN * offsetM,
+        // Text runs along its own +x; turn that onto the street direction.
+        rotation: Math.atan2(runN, runE),
+        inferred,
+      },
+    ];
   });
 }
 
@@ -196,7 +348,8 @@ export const ROADS: RoadSpec[] = [
   { axis: 'long', offsetM: 398.4, widthM: LANE_WIDTH_M },
 
   // The cross streets, west to east.
-  { axis: 'cross', offsetM: -780, widthM: MAIN_WIDTH_M },
+  /* Spencer Street. Moved with its name -- see the note on the offset. */
+  { axis: 'cross', offsetM: -702.6, widthM: MAIN_WIDTH_M },
   { axis: 'cross', offsetM: -469.3, widthM: MAIN_WIDTH_M },
   { axis: 'cross', offsetM: -233.8, widthM: MAIN_WIDTH_M },
   { axis: 'cross', offsetM: -0.5, widthM: MAIN_WIDTH_M },

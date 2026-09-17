@@ -14,10 +14,18 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   color: #4a5158;
-  /* The road is light; a soft halo keeps the name legible where a building
-     shadow crosses it. */
+  user-select: none;
+
+  /*
+   * A halo rather than a plate.
+   *
+   * There was a plate here for a while, because hiding these behind the
+   * buildings in front of them punched a hole the size of each label and
+   * anything the label did not paint showed the page through the map. The
+   * hiding went; so did the box. This is the original treatment: enough
+   * white to hold the name against a shadow crossing the road, and no edge.
+   */
   text-shadow:
     0 0 4px rgba(255, 255, 255, 0.95),
     0 0 11px rgba(255, 255, 255, 0.8);
-  user-select: none;
 }
