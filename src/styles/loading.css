@@ -19,7 +19,8 @@
 
 .loading__eyebrow {
   margin: 0;
-  font-size: var(--text-eyebrow);
+  /* --text-eyebrow went with the type scale rewrite; this is its size. */
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--green-500);

@@ -16,7 +16,7 @@
  *   will disagree.
  *
  * WHY IT LISTENS RATHER THAN READING ONCE
- *   The setting can be changed while the page is open — on Windows it is a
+ *   The setting can be changed while the page is open — on some systems it is a
  *   single toggle in Settings, and people who need it often turn it on
  *   partway through precisely because something moved. Reading once at
  *   startup would ignore them until a reload.

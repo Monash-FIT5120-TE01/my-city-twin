@@ -37,7 +37,7 @@ const MIN_LENGTH_M = 90;
 /**
  * The direction the light travels, drawn on the ground.
  *
- * The Figma puts this arrow on the screen, next to the "SUN 10:00 · FROM EAST"
+ * The design puts this arrow on the screen, next to the "SUN 10:00 · FROM EAST"
  * chip. On screen it can only be right for one camera angle: the moment the
  * view is orbited, a fixed arrow points somewhere the sun is not. Drawn on the
  * ground instead it is a fact about the city rather than about the viewport,
@@ -84,6 +84,16 @@ export function SunArrow({ sun, anchorEN, groundAhdM, heightM }: SunArrowProps) 
     <mesh
       geometry={geometry}
       position={[anchorEN[0], anchorEN[1], groundAhdM + 0.7]}
+      /*
+       * Not a target. It floats 0.7 m over the ground, so without this it
+       * takes the raycast from the surface underneath and the sunlight
+       * screen loses the ability to measure a point anywhere near it — which
+       * is exactly where somebody would want to measure one.
+       *
+       * It reports which way the light travels. Nothing that only reports
+       * should be able to intercept the gesture that asks.
+       */
+      raycast={() => null}
       rotation={[0, 0, rotation]}
       // Over the road, under the buildings: it is an annotation on the ground,
       // not a thing standing on it.

@@ -35,10 +35,11 @@
  *   exists to explain.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { BufferGeometry } from 'three';
 import type { Development } from '../data/model';
 import { mergeMassings } from './massing';
+import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 
 interface DevelopmentMassingsProps {
   developments: Development[];
@@ -88,6 +89,14 @@ export function DevelopmentMassings({
 
   const meshes = showAll ? built : built.filter((entry) => entry.development === focus);
 
+  /*
+   * Where the button went down. The left button pans the camera as well as
+   * selecting, so a release has to be told apart from the end of a drag —
+   * see tap.ts. One ref for all the massings: only one of them can be under
+   * the pointer at a time.
+   */
+  const pressedAt = useRef<Gesture | null>(null);
+
   useEffect(() => {
     return () => {
       document.body.style.cursor = '';
@@ -114,10 +123,30 @@ export function DevelopmentMassings({
             geometry={geometry}
             castShadow
             receiveShadow
+            onPointerDown={
+              interactive
+                ? (event) => {
+                    pressedAt.current = beginTap(event.nativeEvent);
+                  }
+                : undefined
+            }
+            onPointerMove={
+              interactive
+                ? (event) => trackTap(pressedAt.current, event.nativeEvent)
+                : undefined
+            }
             onClick={
               interactive
                 ? (event) => {
                     event.stopPropagation();
+                    /*
+                     * Not if the camera was being moved. A drag that happens
+                     * to finish over a tower is not a request to open it —
+                     * see tap.ts, and Ground, which had the same fault.
+                     */
+                    const from = pressedAt.current;
+                    pressedAt.current = null;
+                    if (wasDragged(from, event.nativeEvent)) return;
                     onSelect(development);
                   }
                 : undefined

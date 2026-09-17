@@ -90,6 +90,17 @@ export function OpenSpace({ groundAhdM }: { groundAhdM: number }) {
       geometry={geometry}
       // Above the ground and the roads, below anything standing on it.
       position={[0, 0, groundAhdM + 0.12]}
+      /*
+       * Not a target. It is drawn 0.12 m above the ground and covers every
+       * park and square in the model, so it took the raycast from the
+       * surface underneath — and a reader trying to measure the sunlight on
+       * a park, which is one of the more likely things anybody would want to
+       * measure, got nothing and no reason why.
+       *
+       * It is a tint on the ground, not a separate surface. The ground is
+       * what answers.
+       */
+      raycast={() => null}
       receiveShadow
     >
       {/*

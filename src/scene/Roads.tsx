@@ -95,7 +95,13 @@ export function Roads({ groundAhdM }: { groundAhdM: number }) {
   if (!geometry) return null;
 
   return (
-    <mesh geometry={geometry} position={[0, 0, groundAhdM + 0.06]} receiveShadow>
+    <mesh
+      geometry={geometry}
+      position={[0, 0, groundAhdM + 0.06]}
+      receiveShadow
+      /* A tint on the ground, like OpenSpace. The ground is what answers. */
+      raycast={() => null}
+    >
       {/*
         The 6 cm above is not enough on its own, and never was.
 

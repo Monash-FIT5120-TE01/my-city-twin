@@ -72,7 +72,17 @@ export function HazeVeil({
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
-    <mesh geometry={geometry} position={[centreE, centreN, groundAhdM + 1]} renderOrder={1}>
+    <mesh
+      geometry={geometry}
+      position={[centreE, centreN, groundAhdM + 1]}
+      renderOrder={1}
+      /*
+       * Not a target. It is a ring a metre above the ground covering the
+       * whole outer edge of the model, so it would swallow every pick near
+       * the edge of the city and there would be no way to tell why.
+       */
+      raycast={() => null}
+    >
       <meshBasicMaterial
         vertexColors
         transparent

@@ -92,6 +92,7 @@ export function CameraRig({
   target,
   animate,
   paused = false,
+  refit = 0,
 }: {
   /** Where the camera should end up, in three.js world coordinates. */
   position: [number, number, number];
@@ -107,6 +108,16 @@ export function CameraRig({
    * walking ended, throwing away whatever view the reader had set up.
    */
   paused?: boolean;
+  /**
+   * Bumped to ask for the current framing again.
+   *
+   * Everything else here reacts to the DESTINATION changing. "Frame the whole
+   * city" does not change it — with nothing selected the destination is
+   * already the whole city — so after panning away there was nothing for this
+   * to notice and the button did nothing at all. A counter gives the effect
+   * something to depend on that the reader can change on purpose.
+   */
+  refit?: number;
 }) {
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls) as OrbitLike | null;
@@ -164,7 +175,7 @@ export function CameraRig({
       elapsed: 0,
       duration: durationFor(distance),
     };
-  }, [px, py, pz, tx, ty, tz, animate, camera, controls]);
+  }, [px, py, pz, tx, ty, tz, animate, camera, controls, paused, refit]);
 
   // The moment the person touches the controls, they are driving.
   useEffect(() => {
@@ -185,7 +196,7 @@ export function CameraRig({
     };
     controls.addEventListener('start', abandon);
     return () => controls.removeEventListener('start', abandon);
-  }, [controls]);
+  }, [controls, paused]);
 
   /*
    * Runs after drei's own controls update, which sits at priority -1. Setting

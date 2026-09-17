@@ -57,7 +57,7 @@ interface Obstacle {
  * still says you are outside. Standing a shoulder's width off is both more
  * honest and what stops that.
  */
-export const BODY_RADIUS_M = 0.35;
+const BODY_RADIUS_M = 0.35;
 
 export interface ObstacleIndex {
   readonly cells: ReadonlyMap<string, readonly Obstacle[]>;

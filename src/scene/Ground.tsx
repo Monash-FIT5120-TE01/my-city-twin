@@ -52,12 +52,13 @@
  *   white when there is a map, or the whole city would be washed with beige.
  */
 
-import { useEffect, useMemo } from 'react';
-import { BufferAttribute, Color, RingGeometry, type Texture } from 'three';
+import { useEffect, useMemo, useRef } from 'react';
+import { BufferAttribute, Color, RingGeometry, type Group, type Texture } from 'three';
 import type { CityModel } from '../data/model';
 import { groundPlacement, textureCoordinate } from './basemap';
 import { groundSurfaceTexture, SURFACE_TILE_M } from './groundSurface';
-
+import { MeasureCursor } from './MeasureCursor';
+import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 
 export function Ground({
   model,
@@ -164,15 +165,129 @@ export function Ground({
     return texture;
   }, [walking, size]);
 
+  /*
+   * ── SHOWING THAT THE GROUND CAN BE CLICKED ──────────────────────────────
+   *
+   * Measuring a point is what this product is for, and the ground was the one
+   * interactive surface in the scene that looked like scenery: buildings
+   * change the cursor, this changed nothing. The panel explained the action in
+   * a sentence, which is not the same as offering it — people look for
+   * something pressable before they read anything.
+   *
+   * So while a pick is possible the cursor becomes a crosshair and a ring
+   * follows the pointer across the ground. See MeasureCursor for why the ring
+   * is worth having as well as the cursor.
+   *
+   * The position is written straight onto the object rather than into state.
+   * Pointer moves arrive dozens of times a second, and re-rendering the scene
+   * graph on each one to move a ring would cost more than everything else in
+   * the frame put together.
+   */
+  const cursor = useRef<Group>(null);
+  /*
+   * Where the button went down, so the release can be told apart from the
+   * end of a pan. The left button does both jobs here — see tap.ts.
+   */
+  const pressedAt = useRef<Gesture | null>(null);
+
+  /*
+   * Shown and hidden by hand, not by state.
+   *
+   * Held in useState this fell over the first time a point was placed: the
+   * marker took the raycast, the ground reported a leave, and with the
+   * reader now looking at their result rather than moving the mouse, nothing
+   * arrived to turn it back on.
+   *
+   * Written straight onto the object there is nothing to fall out of step,
+   * and no re-render in between to undo it.
+   */
+  const canPick = Boolean(onPick);
+
+  const show = (on: boolean) => {
+    if (cursor.current) cursor.current.visible = on;
+    document.body.style.cursor = on ? 'crosshair' : '';
+  };
+
+  /*
+   * Off to begin with, and off again whenever picking stops or this unmounts
+   * — otherwise a crosshair is left on the document for the whole app to
+   * inherit, and a ring is left lying in the street.
+   */
+  useEffect(() => {
+    /*
+     * Captured, not read through the ref in the cleanup: by the time that
+     * runs the ref may point at a different object, and the one left visible
+     * would be the one nobody turned off. StreetView captures its key set
+     * for the same reason.
+     */
+    const ring = cursor.current;
+    if (ring) ring.visible = false;
+    document.body.style.cursor = '';
+    return () => {
+      if (ring) ring.visible = false;
+      document.body.style.cursor = '';
+    };
+    /*
+     * Keyed on WHETHER picking is possible, not on the function that does it.
+     *
+     * App builds `onPickReceptor` inline, so its identity changes on every
+     * render of the whole app — a download finishing, a detail arriving, the
+     * hour moving. Depending on the function meant this cleanup ran on each
+     * of those and put the ring out while picking was still armed, and it
+     * stayed out until the pointer happened to move again.
+     */
+  }, [canPick]);
+
   return (
+    <>
+    {onPick && <MeasureCursor groundAhdM={groundAhdM} innerRef={cursor} />}
     <mesh
       receiveShadow
       geometry={geometry}
       position={[centreE, centreN, groundAhdM]}
+      onPointerOut={onPick && (() => show(false))}
+      onPointerDown={
+        onPick &&
+        ((event) => {
+          pressedAt.current = beginTap(event.nativeEvent);
+        })
+      }
+      onPointerMove={
+        onPick &&
+        ((event) => {
+          const group = cursor.current;
+          if (!group) return;
+          /*
+           * A move over the ground IS the pointer being over the ground,
+           * whatever an earlier leave claimed. There is no separate enter
+           * event to trust: enters and leaves can be lost, moves cannot be
+           * misread.
+           */
+          show(true);
+          // Watched as it happens: a pan that wanders back to where it began
+          // has zero displacement and is still a pan. See tap.ts.
+          trackTap(pressedAt.current, event.nativeEvent);
+          // Same reading back as the click below: the hit arrives in three's
+          // world frame, and the ring lives inside <WorldFrame>.
+          group.position.set(event.point.x, -event.point.z, 0);
+        })
+      }
       onClick={
         onPick &&
         ((event) => {
           event.stopPropagation();
+          /*
+           * Not if the camera was being moved.
+           *
+           * A pan is a press, a drag and a release, and the release lands on
+           * whatever the pointer finished over — which the renderer reports
+           * as a click. So every time somebody turned the view they also
+           * placed a measurement point they had not asked for.
+           */
+          const from = pressedAt.current;
+          pressedAt.current = null;
+          if (wasDragged(from, event.nativeEvent)) return;
+
           // The hit is in three's world frame; enuToWorld sent
           // (east, north, up) to (east, up, -north), so this reads it back.
           onPick([event.point.x, -event.point.z]);
@@ -203,5 +318,6 @@ export function Ground({
         metalness={0}
       />
     </mesh>
+    </>
   );
 }
