@@ -41,9 +41,12 @@ import { describeShadow } from './scene/narrative';
 import { sunlightAtPoint } from './scene/sunlightAt';
 import { groundElevationOf } from './scene/massing';
 import {
+  SEASONS,
   civilToInstant,
   dateLabel,
   daylightWindow,
+  matchingSeason,
+  sameDayInMonth,
   solarPosition,
   type SimulationDate,
 } from './scene/solar';
@@ -77,10 +80,16 @@ import {
 import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
 import { EARLIEST_MINUTES, LATEST_MINUTES, clockLabel, intoWindow } from './data/now';
 import { useMapboxConfig } from './data/mapboxConfig';
-import { useVrSupported, xrStore } from './scene/xrStore';
+import { exitVr, useInVr, useVrSupported, xrStore } from './scene/xrStore';
+import type { VrMenu, VrStage } from './scene/vrMenu';
+import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './ui/words';
 import type { Development, SearchableBuilding } from './data/model';
 import { shortAddress, type SearchHit } from './data/search';
 import './styles/ui.css';
+
+/** Below this the sun is too low to see the city by, in a headset. See enterVr. */
+const LOW_SUN_DEG = 8;
+const MIDDAY_MINUTES = 12 * 60;
 
 export default function App() {
   const { model, error, progress } = useCityModel();
@@ -214,6 +223,26 @@ export default function App() {
    */
   const vrSupported = useVrSupported();
   /*
+   * ── IN A HEADSET ──────────────────────────────────────────────────────
+   *
+   * Whether a session is running, where in it the reader is standing, and a
+   * count that asks for them to be moved. The panel inside the headset calls
+   * the same setters as the page does; these three are the only state that
+   * exists for the headset alone.
+   *
+   * `vrTrip` is a request, not a position: SceneCanvas works out where the
+   * current place and stage put somebody, and VrWalk goes there — in the
+   * dark, see VrWalk — only when this number changes. A new hour or a new
+   * measurement therefore never moves anybody.
+   */
+  const inVr = useInVr();
+  const [vrStage, setVrStage] = useState<VrStage>('above');
+  const [vrTrip, setVrTrip] = useState(0);
+  const moveInVr = (stage: VrStage) => {
+    setVrStage(stage);
+    setVrTrip((n) => n + 1);
+  };
+  /*
    * A building somebody searched for. It is a question the person asked, not
    * a property of the building, so it clears as soon as the question changes
    * — a new search, a proposal opened, or the dismiss button.
@@ -251,6 +280,20 @@ export default function App() {
 
   /** Either way of hiding the interface. */
   const chromeHidden = focusMode || walking;
+
+  /*
+   * Coming out of a headset.
+   *
+   * Somebody who took it off while standing in the street comes back to the
+   * page standing in the same street, walking on a monitor — not two
+   * kilometres above it. Somebody who was over the city comes back to the
+   * city, which is where the page already is.
+   */
+  const wasInVr = useRef(false);
+  useEffect(() => {
+    if (wasInVr.current && !inVr && vrStage === 'street') setWalking(true);
+    wasInVr.current = inVr;
+  }, [inVr, vrStage]);
 
   /*
    * Armed, and only where being armed means anything.
@@ -338,6 +381,7 @@ export default function App() {
     chooseMinutes(intoWindow(minutes + by));
   };
 
+
   /*
    * When the sun crosses the horizon on the chosen day.
    *
@@ -370,6 +414,61 @@ export default function App() {
       ),
     [date, minutes],
   );
+
+  /*
+   * Into the headset, from wherever the page is.
+   *
+   * THE SESSION IS REQUESTED FIRST, in the same synchronous call as the
+   * press — xrStore.ts explains why nothing may come before it. The state
+   * below is set after, which costs the gesture nothing.
+   *
+   * The page is tidied for a place it cannot be seen from: desktop walking
+   * and focus mode hide the interface and lock the ground against picking,
+   * and both are for a monitor. Somebody who was walking arrives in the
+   * street; everybody else arrives above the city, or above the place they
+   * had chosen. A place's own page becomes its sunlight page, because that
+   * is the one the headset panel can operate.
+   *
+   * THE TIDYING WAITS FOR THE SESSION. A request can be refused — a
+   * permission prompt declined, a headset asleep — and tidied first, a
+   * refusal left somebody who had been walking on a monitor standing nowhere
+   * with their search cleared, and no session ending to put them back. So
+   * only where to stand is set now (harmless if nothing starts: nothing reads
+   * it outside a session), and the page is changed once there is a session
+   * for it to be changed for. A refusal leaves the page exactly as it was.
+   */
+  const enterVr = () => {
+    const entering = xrStore().enterVR();
+    moveInVr(walking ? 'street' : 'above');
+    void entering.then(
+      (session) => {
+        if (!session) return;
+        /*
+         * NOT INTO THE DARK. The page opens on the present moment, and in the
+         * evening that is a city after sunset — on a monitor a fair picture
+         * of the hour, in a headset a black room with nothing to show why.
+         * On the headset that was reported as the view "going dark" on the
+         * way in. So a session that starts with the sun low (under 8°, where
+         * the street is already in dusk) starts at midday instead, and the
+         * panel says so; the time bar is right there to go back.
+         */
+        if (sun.altitudeDeg < LOW_SUN_DEG) {
+          setMinutes(MIDDAY_MINUTES);
+          setNowNote(
+            `The sun is down in Melbourne at ${clockLabel(minutes)}. Showing 12:00 - change the time below.`,
+          );
+        }
+        setWalking(false);
+        setFocusMode(false);
+        setQuery('');
+        setLayersOpen(false);
+        if (view === 'development' || view === 'building') setView('sunlight');
+      },
+      () => {
+        // Refused. The page is untouched; the button is still there to try again.
+      },
+    );
+  };
 
   /*
    * The development being examined, or nothing.
@@ -681,6 +780,34 @@ export default function App() {
     setView(next);
   };
 
+  /*
+   * Choosing a place inside the headset — from the panel's list, or by
+   * pointing at a proposal in the city. One function for both, because they
+   * are one request, and written twice they drifted: pointing kept the old
+   * measured spot, so the new proposal was measured at a spot that belonged
+   * to the previous place, and "Stand at the spot" sent the reader back
+   * across the city to it.
+   *
+   * The two differ in one thing only. A place chosen from the list may be
+   * anywhere, so the reader is taken above it; a place pointed at is already
+   * in view, and moving them would take away the thing they just aimed at.
+   *
+   * Pointing at the place that is already chosen changes nothing. While the
+   * ground is armed the laser is sweeping across the subject's own walls on
+   * its way to the pavement, and a stray press there must not wipe the spot.
+   */
+  const chooseInVr = (development: Development, travel: boolean) => {
+    const already =
+      development.devKey === selectedKey && !selectedBuildingId && view === 'sunlight';
+    if (!already) {
+      open(development, 'sunlight');
+      // The old spot belonged to the old place.
+      setReceptor(null);
+      setChoosing(false);
+    }
+    if (travel) moveInVr('above');
+  };
+
   /** A search result: a proposal opens its page, a building lights up pink. */
   const openHit = (hit: SearchHit) => {
     if (hit.kind === 'development') {
@@ -817,6 +944,98 @@ export default function App() {
     dateLabel(date),
   );
 
+  /*
+   * What the headset panel shows, and what its buttons do. Every handler is
+   * one the page already uses, or the same few setters in the same order, so
+   * the two interfaces cannot drift apart.
+   */
+  const noun = place?.kind === 'building' ? 'building' : 'project';
+  const vrMenu: VrMenu | null = inVr
+    ? {
+        stage: vrStage,
+        // Written as the list writes it, without "MELBOURNE VIC 3000".
+        place: place ? { label: shortAddress(place.label), detail: place.detail, noun } : null,
+        /*
+         * Every approved development, by street and then by number, which is
+         * how somebody looking for one on a particular street reads a list.
+         */
+        options: model.developments
+          .map((development) => {
+            // As the search list writes it, without "MELBOURNE VIC 3000".
+            const label = shortAddress(development.streetAddress);
+            return {
+              key: development.devKey,
+              label,
+              detail: `Approved development · ${development.maxHeightM.toFixed(0)} m`,
+              en: development.anchorEN,
+              heightM: development.maxHeightM,
+              street: label.replace(/^[^A-Za-z]*\d\S*\s+/, ''),
+            };
+          })
+          .sort(
+            (a, b) =>
+              a.street.localeCompare(b.street) ||
+              a.label.localeCompare(b.label, undefined, { numeric: true }),
+          )
+          .map(({ street: _street, ...option }) => option),
+        onChoose: (key) => {
+          const development = model.developments.find((d) => d.devKey === key);
+          // Over the new place, looking at it.
+          if (development) chooseInVr(development, true);
+        },
+        seasons: SEASONS,
+        season: matchingSeason(date)?.key ?? null,
+        onSeason: (key) => {
+          const preset = SEASONS.find((option) => option.key === key);
+          // The day on screen is kept; only the month moves — as on the page.
+          if (preset) chooseDate(sameDayInMonth(date, preset.month));
+        },
+        dateLabel: dateLabel(date),
+        timeLabel: clockLabel(minutes),
+        note: nowNote,
+        onNudgeMinutes: nudgeMinutes,
+        minutes,
+        railStart: EARLIEST_MINUTES,
+        railEnd: LATEST_MINUTES,
+        sunrise: daylight.rise,
+        sunset: daylight.set,
+        showSubject: place?.kind === 'building' ? showSubject : layers.developments,
+        onShowSubject: (next) =>
+          place?.kind === 'building'
+            ? setShowSubject(next)
+            : setLayers({ ...layers, developments: next }),
+        armed,
+        onMeasure: () => {
+          // Measuring belongs to the sunlight page; `armed` requires it.
+          setView('sunlight');
+          setChoosing(true);
+        },
+        onCancelMeasure: () => setChoosing(false),
+        measured: measured
+          ? {
+              ...spotWords(measured, noun),
+              withoutMin: measured.withoutSubjectMin,
+              withMin: measured.withSubjectMin,
+            }
+          : null,
+        finePrint: `${measured ? spotFinePrint(measured.stepMinutes) : ''}${NOT_AN_ASSESSMENT}`,
+        onStand: () => {
+          setChoosing(false);
+          moveInVr('street');
+        },
+        onRise: () => moveInVr('above'),
+        onExit: exitVr,
+        /*
+         * The map credit is a licence obligation wherever the map is shown,
+         * and the page's credit is DOM — which a headset does not draw.
+         */
+        credits: [
+          ...(mapbox ? ['© Mapbox  © OpenStreetMap'] : []),
+          'Building Footprints 2023 and Development Activity Monitor © City of Melbourne, CC BY 4.0',
+        ],
+      }
+    : null;
+
   const cityCentreEN: [number, number] = [
     (model.extent.minE + model.extent.maxE) / 2,
     (model.extent.minN + model.extent.maxN) / 2,
@@ -834,6 +1053,7 @@ export default function App() {
       {overture && (
         <Overture
           onEnter={() => setEntered(true)}
+          onEnterVr={vrSupported ? enterVr : undefined}
           onGone={() => setOverture(false)}
           reducedMotion={reducedMotion}
         />
@@ -867,7 +1087,14 @@ export default function App() {
            * is describing buildings the reader cannot see.
            */
           showAllProposals={view !== 'sunlight' || place?.kind === 'building'}
-          onSelectDevelopment={(development) => open(development, 'development')}
+          /*
+            In a headset, the same choice the panel's list makes — straight to
+            the sunlight page, because the project page is DOM and there is no
+            DOM in there to show it on. See chooseInVr.
+          */
+          onSelectDevelopment={(development) =>
+            inVr ? chooseInVr(development, false) : open(development, 'development')
+          }
           receptor={receptor}
         /*
          * Shown whenever a window has been chosen, whichever half of the
@@ -917,13 +1144,16 @@ export default function App() {
           walking={walking}
           onLeaveStreet={() => setWalking(false)}
           /*
-            Read on the wrist and moved by the controller buttons. In an
-            immersive session none of the interface below exists, so the hour
-            has to arrive in the scene or not at all.
+            For the wrist clock and the A/B buttons. The page's own time bar
+            does not exist in a headset; the panel shows the hour too, but it
+            gets it through vrMenu.
           */
           timeLabel={clockLabel(minutes)}
           dateLabel={dateLabel(date)}
           onNudgeMinutes={nudgeMinutes}
+          vrStage={vrStage}
+          vrTrip={vrTrip}
+          vrMenu={vrMenu}
           viewCommands={viewCommands}
           refit={refit}
           onStandMoved={setStandMoved}
@@ -1000,18 +1230,14 @@ export default function App() {
           {vrSupported && (
             <>
               <br />
-              <button
-                type="button"
-                className="walking-hint__vr"
-                onClick={() => void xrStore().enterVR()}
-              >
+              <button type="button" className="walking-hint__vr" onClick={enterVr}>
                 Enter VR
               </button>
               {/*
-                Read here, because it cannot be read in there. An immersive
-                session draws no DOM at all, so this is the only chance to
-                say what the buttons do — there is no help screen to reach
-                once the headset is on.
+                Said before the headset goes on. The panel inside shows what
+                can be pressed, but not what the sticks and face buttons do,
+                and the comfort warning has to be read before the first step,
+                not after it.
               */}
               <span className="walking-hint__note">
                 Left stick walks, push it to the stop to run · right stick
@@ -1068,6 +1294,7 @@ export default function App() {
             setChoosing(false);
             setView('landing');
           }}
+          onEnterVr={vrSupported ? enterVr : undefined}
         >
           <SearchResults
             model={model}

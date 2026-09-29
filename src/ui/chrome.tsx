@@ -102,6 +102,7 @@ export function Header({
   layersHidden,
   onLayers,
   onHome,
+  onEnterVr,
   children,
 }: {
   query: string;
@@ -111,6 +112,12 @@ export function Header({
   layersHidden: number;
   onLayers: () => void;
   onHome: () => void;
+  /**
+   * Present only where a headset session can actually start. On a desktop
+   * there is nothing to enter, and a button that cannot do anything is
+   * worse than no button.
+   */
+  onEnterVr?: () => void;
   /** The search results, rendered by the caller under the field. */
   children?: React.ReactNode;
 }) {
@@ -215,6 +222,25 @@ export function Header({
       </div>
 
       <div className="header__actions">
+        {onEnterVr && (
+          /*
+           * The handler must BE the call — see xrStore.ts. Nothing may be
+           * awaited or confirmed in front of it, or the session never opens.
+           */
+          <button type="button" className="chip chip--icon" onClick={onEnterVr}>
+            <svg width="18" height="17" viewBox="0 0 18 17" aria-hidden="true">
+              {/* A headset seen from the front: the visor and the two lenses. */}
+              <path
+                d="M2 5.2c0-1 .8-1.7 1.7-1.7h10.6c1 0 1.7.8 1.7 1.7v5.3c0 1-.8 1.7-1.7 1.7h-2.9L9.9 10.4a1.1 1.1 0 0 0-1.8 0L6.6 12.2H3.7c-1 0-1.7-.8-1.7-1.7V5.2Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Enter VR
+          </button>
+        )}
         <button
           type="button"
           className="chip chip--icon"

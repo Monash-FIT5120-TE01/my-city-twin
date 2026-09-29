@@ -1,19 +1,16 @@
 /*
  * ─────────────────────────────────────────────────────────────────────────
- * THE ONLY THING YOU CAN READ IN A HEADSET
+ * THE HOUR, ON THE WRIST
  * ─────────────────────────────────────────────────────────────────────────
  *
- * WHY IT HAS TO EXIST
- *   WebXR's `dom-overlay` is in practice an AR feature. In an immersive-vr
- *   session NO DOM IS DRAWN AT ALL — every panel, the time bar, the map
- *   credit, all 110 elements of the interface are simply absent. See §9 of
- *   ProgramDoc/VR-implementation-plan.md.
- *
- *   That is survivable for most of the interface and not for this. The
- *   controller buttons move the sun, and a control whose effect cannot be
- *   read is not a control: press a button, something changes somewhere in a
- *   city of 1,548 buildings, and there is no way to know what. Time is the
- *   one number the whole product is about.
+ * WHY IT EXISTS
+ *   WebXR's `dom-overlay` is in practice an AR feature: in an immersive-vr
+ *   session no DOM is drawn at all. This was, for a while, the only thing a
+ *   headset could read. The panel (VrPanel) now carries the hour as well, but
+ *   the panel can be minimised or put away — and A and B move the sun either
+ *   way. A control whose effect cannot be read is not a control, and time is
+ *   the one number the whole product is about, so the hour stays on the
+ *   wrist whatever the panel is doing.
  *
  * WHY IT IS ON THE WRIST AND NOT IN FRONT OF YOUR FACE
  *   Anything pinned to the head is in the way permanently and cannot be

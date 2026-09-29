@@ -9,6 +9,8 @@ lerna-debug.log*
 
 node_modules
 dist
+# Screenshots from npm run test:vr
+test-results
 dist-ssr
 *.local
 

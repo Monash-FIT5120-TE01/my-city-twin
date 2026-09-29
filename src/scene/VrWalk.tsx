@@ -4,10 +4,12 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT THIS IS
- *   The VR half of the pedestrian view. StreetView is the same idea driven by
- *   a mouse and four keys; this is the same idea with the looking done by a
- *   neck. See ProgramDoc/VR-implementation-plan.md for how the two were meant
- *   to arrive in that order, and why.
+ *   Where the player is, in a headset, and how they move. It began as the VR
+ *   half of the pedestrian view — StreetView is the same idea driven by a
+ *   mouse and four keys — and now also puts the player on the platform over
+ *   the city, carries them between the two in a fade (THE CUT, below), and
+ *   hands the controller buttons that are not the laser's to the panel.
+ *   Where each place is comes from vrPlacement.ts; this file only goes there.
  *
  * WHAT COMES FOR NOTHING, AND WHAT DOES NOT
  *   Looking around is free. WebXR drives the camera from the headset's own
@@ -38,10 +40,11 @@
  *   lines and removes all three problems.
  *
  * WHERE IT SITS IN THE FRAME
- *   OUTSIDE <WorldFrame>, like the camera — so every position it states goes
- *   through `enuToWorld`. The rule is in frame.ts and frame-boundary.test.ts
- *   checks this file by name. Breaking it does not crash: it stands the
- *   player on their side, or underground.
+ *   OUTSIDE <WorldFrame>, like the camera — so every position it states has
+ *   to go through `enuToWorld`. It does not call that itself: every placement
+ *   goes through `originFor` in vrPlacement.ts, which does, and
+ *   frame-boundary.test.ts checks both files by name. Breaking it does not
+ *   crash: it stands the player on their side, or underground.
  *
  * THE THREE PLACES A POSITION LIVES, WHICH ARE NOT THE SAME PLACE
  *   east/north    what the data is in, and what the walls are indexed in
@@ -53,13 +56,13 @@
  *   of the head and every answer is applied to the floor. See vrLocomotion.ts.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { XROrigin, useXRInputSourceState } from '@react-three/xr';
 import { useFrame } from '@react-three/fiber';
-import { Quaternion, Vector3, type Group } from 'three';
-import { enuToWorld } from './frame';
+import { BackSide, Quaternion, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { slide, type ObstacleIndex } from './obstacles';
 import { groundDirection, insideBounds, paceFor, turnAbout } from './vrLocomotion';
+import { originFor, type VrPlacement } from './vrPlacement';
 import { VrWristClock } from './VrWristClock';
 
 /** Names from the standard mapping, the same on both controllers. */
@@ -95,20 +98,19 @@ const TURN_DEAD_ZONE = 0.18;
 /*
  * ── THE BUTTONS ──────────────────────────────────────────────────────────
  *
- * Nothing on the page can be reached from inside a headset: immersive-vr
- * draws no DOM, so the date field, the time bar and every panel are simply
- * gone. Whatever the controllers do is the entire interface.
+ * immersive-vr draws no DOM, so the page's controls are replaced by the
+ * headset panel (VrPanel), which is pressed with the laser and the trigger —
+ * the trigger belongs to the pointer library, not to this file. What is read
+ * here are the buttons that work without aiming at anything:
  *
- * Two things, because two is what there is room to remember without a manual
- * and without being able to read one:
- *
- *   A / B     the hour, forwards and back. This is the product. A view of a
- *             shadow at one fixed moment is a photograph; being able to move
- *             the sun while standing under it is the thing the headset adds.
- *   grip      out. Held, not tapped — see below.
- *
- * The trigger is deliberately left alone. It is the button a hand rests on,
- * and there is nothing yet that should happen by accident.
+ *   A / B         the hour, forwards and back. This is the product. A view
+ *                 of a shadow at one fixed moment is a photograph; being able
+ *                 to move the sun while standing under it is what the headset
+ *                 adds. It works with the panel put away.
+ *   X             the panel, away or back in front of the eyes.
+ *   right stick   left and right turn; a firm push up or down turns a page
+ *                 of the place list.
+ *   grip          out. Held, not tapped — see below.
  */
 
 /** Simulated minutes per real second, while A or B is held. */
@@ -146,16 +148,64 @@ const EXIT_HOLD_S = 1;
  */
 const MAX_STEP_S = 0.1;
 
+/**
+ * How long the view takes to go dark, or to come back, when the player is
+ * moved, milliseconds.
+ *
+ * Moving somebody is a cut, not a flight. Carrying a person three hundred
+ * metres down from the platform to the footpath in a smooth glide is the
+ * movement a headset is worst at — the eyes report a fall the inner ear does
+ * not — and a fade to black and back is the established alternative: the
+ * change happens while there is nothing to see. Short enough to feel like a
+ * blink; long enough that it reads as deliberate rather than as a glitch.
+ */
+const FADE_MS = 200;
+
+/**
+ * The longest the view may be dark, ms, from the start of a move to the end
+ * of it — the fade in included.
+ *
+ * Entering VR on the headset once went dark and stayed dark. The cause
+ * turned out to be elsewhere (see SkyDome and VrPanel), but the fade was a
+ * suspect because it was stepped by frame times, which on a device are not
+ * the emulator's. It is timed by the clock now, and it cannot outlive this:
+ * a move still waiting for the head's pose when the time is up is made anyway
+ * and the view is cleared on the same frame, with no fade after it; and with
+ * no move under way the view is never dark at all.
+ */
+const DARK_AT_MOST_MS = 1000;
+
+/** How far the right stick must go up or down to turn a page, and come back. */
+const FLICK_AT = 0.7;
+const FLICK_REARM = 0.3;
+
+/**
+ * Frames to wait, dark, before a placement is applied.
+ *
+ * The head's pose arrives with the first rendered frame, not before it, so
+ * placing the player on frame one reads a head at the origin's middle and
+ * facing its forward — whichever way that is — and they land off target.
+ * A few frames in the dark cost nothing anybody could see.
+ */
+const SETTLE_FRAMES = 3;
+
 interface VrWalkProps {
-  /** Where to put the player down, east/north metres. */
-  startEN: [number, number];
-  /** The ground under the whole model, metres AHD. */
-  groundAhdM: number;
+  /**
+   * Where to put the player, and which way to turn them. Applied when the
+   * session starts and again whenever `trip` changes — not whenever this
+   * object does, because it is recomputed on every render and a player who
+   * had walked away would be pulled back each time the hour moved.
+   */
+  placement: VrPlacement;
+  trip: number;
   /** How far from the model's centre the player may wander. */
   boundsCentreEN: [number, number];
   boundsRadiusM: number;
-  /** Everything solid at street level — the city as DRAWN. See obstacles.ts. */
-  obstacles: ObstacleIndex;
+  /**
+   * Everything solid at street level — the city as DRAWN. See obstacles.ts.
+   * Null above the city, where the platform flies over the roofs.
+   */
+  obstacles: ObstacleIndex | null;
   /** The hour and the day, written as the rest of the interface writes them. */
   timeLabel: string;
   dateLabel: string;
@@ -166,11 +216,31 @@ interface VrWalkProps {
   onNudgeMinutes: (minutes: number) => void;
   /** Leave the session — the grip, held. */
   onExit: () => void;
+  /** X on the left controller: call the panel up, or put it away. */
+  onTogglePanel: () => void;
+  /**
+   * The right stick pushed up or down and let back: one page of the panel's
+   * list, back (-1) or on (+1). The stick's left and right still turn.
+   */
+  onFlick: (direction: -1 | 1) => void;
+  /**
+   * A move has landed: the player now stands where it put them. Anything
+   * that measures where the player is — the panel's "nearest" list — should
+   * measure after this, not after the move was merely asked for.
+   */
+  onPlaced: () => void;
+  /**
+   * Things that belong to the player's floor rather than to the city — the
+   * panel and the platform. Rendered inside the origin, so they travel with
+   * every move and turn the sticks make and stay where the player left them
+   * when the player walks away physically.
+   */
+  children?: ReactNode;
 }
 
 export function VrWalk({
-  startEN,
-  groundAhdM,
+  placement,
+  trip,
   boundsCentreEN,
   boundsRadiusM,
   obstacles,
@@ -178,6 +248,10 @@ export function VrWalk({
   dateLabel,
   onNudgeMinutes,
   onExit,
+  onTogglePanel,
+  onFlick,
+  onPlaced,
+  children,
 }: VrWalkProps) {
   const origin = useRef<Group>(null);
   /*
@@ -207,35 +281,151 @@ export function VrWalk({
   const hasExited = useRef(false);
 
   /*
-   * Put down once, imperatively.
+   * ── BEING MOVED ─────────────────────────────────────────────────────
    *
-   * NOT as a `position` prop. A prop is re-applied on every render, and a
-   * render happens whenever the hour moves or a panel opens — which would
-   * teleport the player back to where they started, mid-stride, for reasons
-   * invisible from inside a headset. It is the same trap the Canvas camera
-   * prop sets, and CameraRig's header explains it at greater length.
+   * Imperatively, and NOT as a `position` prop. A prop is re-applied on
+   * every render, and a render happens whenever the hour moves or a panel
+   * opens — which would teleport the player back to where they started,
+   * mid-stride, for reasons invisible from inside a headset. It is the same
+   * trap the Canvas camera prop sets, and CameraRig's header explains it at
+   * greater length.
    *
-   * The origin is the player's FEET, so it goes to the ground and not to eye
+   * A move is asked for by changing `trip`. The placement it goes to is the
+   * one current at that moment, held here until the view is dark enough to
+   * make the cut unseen.
+   *
+   * The origin is the player's FEET, so it goes to the floor and not to eye
    * height. How tall they are is between them and the headset; a person who
    * is 1.55 m sees the city from 1.55 m, which is more honest than any
    * constant this file could pick.
+   *
+   * The session starts dark, with the first placement pending, so arriving
+   * is the same fade-in as every later move.
    */
+  const pending = useRef<VrPlacement | null>(placement);
+  const settled = useRef(0);
+  /** When the current move began going dark, and when the view began to clear, ms. */
+  const darkSince = useRef<number | null>(null);
+  const clearSince = useRef<number | null>(null);
+  /** 1 is black. */
+  const dark = useRef(1);
+  const fade = useRef<Mesh>(null);
+  const firstTrip = useRef(trip);
+
   useEffect(() => {
-    const group = origin.current;
-    if (!group) return;
-    const [x, y, z] = enuToWorld([startEN[0], startEN[1], groundAhdM]);
-    group.position.set(x, y, z);
-    group.rotation.set(0, 0, 0);
-    // Once per session, like StreetView's entry. A live model refresh rebuilds
-    // the start point, and re-running this would drag a player who had walked
-    // halfway down Bourke Street back to the beginning.
+    // The mount is handled by the initial `pending`; only later trips move.
+    if (trip === firstTrip.current) return;
+    pending.current = placement;
+    settled.current = 0;
+    darkSince.current = null;
+    // `placement` deliberately left out: it changes on every render, and
+    // only a new trip is a request to move.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [trip]);
+
+  /** Whether X was down last frame, so one press toggles once. */
+  const xWasDown = useRef(false);
+  /** A flick is spent until the stick comes back near the middle. */
+  const flickArmed = useRef(true);
 
   useFrame((state, rawDelta) => {
     const group = origin.current;
     if (!group) return;
     const delta = Math.min(rawDelta, MAX_STEP_S);
+
+    /*
+     * ── THE CUT ─────────────────────────────────────────────────────────
+     *
+     * Dark first, then moved, then light. The sphere sits on the head and
+     * draws over everything, including the controllers, so the moment of the
+     * move has nothing in it to see.
+     */
+    let eyes = state.camera.getWorldPosition(head.current);
+    const target = pending.current;
+    const now = performance.now();
+    if (target) {
+      darkSince.current ??= now;
+      dark.current = Math.max(dark.current, Math.min(1, (now - darkSince.current) / FADE_MS));
+      settled.current += 1;
+      const ready = dark.current >= 1 && settled.current > SETTLE_FRAMES;
+      const overdue = now - darkSince.current > DARK_AT_MOST_MS;
+      if (ready || overdue) {
+        state.camera.getWorldQuaternion(facing.current);
+        const forward = step.current.set(0, 0, -1).applyQuaternion(facing.current);
+        const next = originFor(
+          target,
+          {
+            position: [group.position.x, group.position.y, group.position.z],
+            yawRad: group.rotation.y,
+          },
+          [eyes.x, eyes.y, eyes.z],
+          [forward.x, forward.y, forward.z],
+        );
+        group.position.set(...next.position);
+        group.rotation.set(0, next.yawRad, 0);
+        pending.current = null;
+        /*
+         * Read again, now that the floor has moved. The head was sampled
+         * before the move; left at that sample, the veil stayed at the place
+         * being left while this frame drew the place arrived at — one frame
+         * of the destination with nothing over it, on every move. Reading
+         * the world position refreshes the origin's matrix on the way.
+         */
+        eyes = state.camera.getWorldPosition(head.current);
+        if (overdue) {
+          // Out of time: clear now rather than fade, so the whole blackout
+          // stays within DARK_AT_MOST_MS.
+          dark.current = 0;
+          clearSince.current = null;
+        } else {
+          clearSince.current = now;
+        }
+        darkSince.current = null;
+        onPlaced();
+      }
+    } else if (clearSince.current !== null) {
+      dark.current = Math.max(0, 1 - (now - clearSince.current) / FADE_MS);
+      if (dark.current === 0) clearSince.current = null;
+    } else {
+      // Nothing moving and nothing clearing: never dark. See DARK_AT_MOST_MS.
+      dark.current = 0;
+    }
+    const veil = fade.current;
+    if (veil) {
+      veil.visible = dark.current > 0;
+      veil.position.copy(eyes);
+      (veil.material as MeshBasicMaterial).opacity = dark.current;
+    }
+    // Nothing else while being moved: a step taken now would be measured
+    // from where the player is about to stop being.
+    if (target) return;
+
+    /*
+     * ── THE PANEL ───────────────────────────────────────────────────────
+     *
+     * On the press, not while held. X is the one face button left free: A
+     * and B move the hour, and the grip is the way out.
+     */
+    const xDown = left?.gamepad?.['x-button']?.state === 'pressed';
+    if (xDown && !xWasDown.current) onTogglePanel();
+    xWasDown.current = xDown;
+
+    /*
+     * ── A PAGE OF THE LIST ──────────────────────────────────────────────
+     *
+     * The right stick's up and down did nothing; now a firm push is one
+     * page. Firm, and once per push, so a stick drifting while the reader
+     * turns does not leaf through the list: past 0.7 it flicks, and it has
+     * to come back inside 0.3 before it can flick again. Up is negative on
+     * the standard mapping.
+     */
+    const flickY = right?.gamepad?.[THUMBSTICK]?.yAxis ?? 0;
+    if (flickArmed.current && Math.abs(flickY) > FLICK_AT) {
+      flickArmed.current = false;
+      onFlick(flickY < 0 ? -1 : 1);
+    } else if (!flickArmed.current && Math.abs(flickY) < FLICK_REARM) {
+      flickArmed.current = true;
+    }
 
     /*
      * ── OUT ─────────────────────────────────────────────────────────────
@@ -298,9 +488,10 @@ export function VrWalk({
      * ── TURNING ─────────────────────────────────────────────────────────
      *
      * Proportional: a nudge turns slowly, a shove turns quickly. Only the
-     * horizontal axis — pushing the turning stick forward does nothing,
-     * because pitching the view is the neck's job and doing it in software
-     * is both unnecessary and a good way to make somebody ill.
+     * horizontal axis turns — pitching the view is the neck's job, and doing
+     * it in software is both unnecessary and a good way to make somebody ill.
+     * The vertical axis of this stick turns the panel's pages instead (see
+     * A PAGE OF THE LIST above).
      */
     const turnAxis = right?.gamepad?.[THUMBSTICK]?.xAxis ?? 0;
     if (Math.abs(turnAxis) > TURN_DEAD_ZONE) {
@@ -386,7 +577,9 @@ export function VrWalk({
     // The same walls the desktop view meets, by the same swept test that
     // stops a fast step jumping clean over a thin one. It matters more here:
     // a run at 5.5 m/s covers 0.55 m in a capped frame.
-    const [slidE, slidN] = slide(obstacles, fromE, fromN, wantE, wantN);
+    const [slidE, slidN] = obstacles
+      ? slide(obstacles, fromE, fromN, wantE, wantN)
+      : [wantE, wantN];
     const [nextE, nextN] = insideBounds([slidE, slidN], boundsCentreEN, boundsRadiusM);
 
     /*
@@ -401,7 +594,22 @@ export function VrWalk({
 
   return (
     <>
-      <XROrigin ref={origin} />
+      <XROrigin ref={origin}>{children}</XROrigin>
+      {/*
+        The blink. A small sphere around the head, drawn from inside, last,
+        and through everything — see "THE CUT" above.
+      */}
+      <mesh ref={fade} renderOrder={10_000} frustumCulled={false}>
+        <sphereGeometry args={[0.3, 16, 12]} />
+        <meshBasicMaterial
+          color="#000000"
+          side={BackSide}
+          transparent
+          opacity={1}
+          depthTest={false}
+          depthWrite={false}
+        />
+      </mesh>
       {/*
         On the walking hand, so the hour can be read without letting go of
         the buttons that change it.

@@ -62,11 +62,18 @@ const LEAVE_MS = 620;
 
 export function Overture({
   onEnter,
+  onEnterVr,
   onGone,
   reducedMotion,
 }: {
   /** The press. Called at once, so the city can start moving under the cover. */
   onEnter: () => void;
+  /**
+   * Straight into the headset, from the front door. Present only on a device
+   * that can start a session, and only once the city has loaded — there is
+   * nothing to stand in before that.
+   */
+  onEnterVr?: () => void;
   /** The cover has finished leaving and can be taken off the page. */
   onGone: () => void;
   /** Somebody has asked their system for less movement. */
@@ -193,8 +200,35 @@ export function Overture({
             Take your time. Let Melbourne unfold.
           </p>
 
-          <button type="button" className="overture__enter" onClick={enter}>
-            Explore Melbourne
+          <div className="overture__actions">
+          {onEnterVr && (
+            <button
+              type="button"
+              className="overture__enter"
+              /*
+               * The session FIRST, while the press is still a user gesture —
+               * see xrStore.ts. The cover is lifted after, so that taking the
+               * headset off later finds the city rather than the front door.
+               */
+              onClick={() => {
+                onEnterVr();
+                enter();
+              }}
+            >
+              Enter in VR
+            </button>
+          )}
+          <button
+            type="button"
+            /*
+             * Secondary once a headset is on offer: somebody reading this in a
+             * headset's browser came to stand in the city, and the button that
+             * does that should be the one that looks like the way in.
+             */
+            className={`overture__enter${onEnterVr ? ' overture__enter--quiet' : ''}`}
+            onClick={enter}
+          >
+            {onEnterVr ? 'Explore on screen' : 'Explore Melbourne'}
             <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true">
               <path
                 d="M0 5h15M11 1l4 4-4 4"
@@ -206,6 +240,7 @@ export function Overture({
               />
             </svg>
           </button>
+          </div>
         </div>
 
         <p className="overture__mark overture__mark--footer">

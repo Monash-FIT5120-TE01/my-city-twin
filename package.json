@@ -12,11 +12,14 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:vr": "node scripts/vr-check.mjs",
     "config": "node scripts/mapbox-config.mjs public"
   },
   "dependencies": {
+    "@pmndrs/xr": "6.6.30",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
+    "@react-three/uikit": "^1.0.76",
     "@react-three/xr": "^6.6.30",
     "astronomy-engine": "^2.1.19",
     "proj4": "^2.22.0",
@@ -25,13 +28,16 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@iwer/devui": "1.1.2",
     "@types/node": "^24.13.3",
     "@types/proj4": "^2.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.185.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "iwer": "2.4.0",
     "oxlint": "^1.79.0",
+    "playwright-core": "1.63.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"

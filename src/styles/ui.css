@@ -4015,6 +4015,30 @@
   outline-offset: 3px;
 }
 
+/*
+ * One button, or two when a headset can be entered. The pair sits where the
+ * one did, and the one that looks like the way in is the headset's: somebody
+ * reading this in a headset's browser came to stand in the city.
+ */
+.overture__actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-self: flex-end;
+  gap: 12px;
+}
+
+/* The same shape, told apart by fill and outline rather than by colour. */
+.overture__enter--quiet {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+.overture__enter--quiet:hover {
+  background: rgba(22, 24, 26, 0.06);
+}
+
 .overture__mark--footer {
   margin-top: 26px;
 }
@@ -4032,5 +4056,10 @@
   .overture__enter {
     align-self: stretch;
     justify-content: center;
+  }
+
+  .overture__actions {
+    flex-direction: column;
+    align-self: stretch;
   }
 }

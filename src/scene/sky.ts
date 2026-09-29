@@ -40,6 +40,13 @@
  */
 
 /** Where the sun is, in the terms the rest of the scene already uses. */
+/**
+ * The sky dome's radius on a monitor, metres. In a headset SkyDome scales it
+ * down to fit the headset's much shorter depth range. Kept outside SkyDome.tsx
+ * because a component file that exports a number breaks fast refresh.
+ */
+export const SKY_RADIUS_M = 7800;
+
 export interface SunAnglesDeg {
   altitudeDeg: number;
   azimuthDeg: number;

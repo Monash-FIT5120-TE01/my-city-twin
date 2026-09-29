@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { enuToWorld, worldToEnu } from './frame';
 
 /*
  * One rule, checked mechanically: `enuToWorld` is for things OUTSIDE
@@ -37,13 +38,15 @@ const INSIDE = [
 /**
  * Rendered as siblings of <WorldFrame>: these must convert.
  *
- * VrWalk is the one where getting it wrong is hardest to notice. It places
- * the XR origin — the floor under a person in a headset — and the two ways to
- * break the rule put them underground or lying on their side, neither of
- * which any test or type can see, and both of which require somebody to put
- * the headset on before anybody finds out.
+ * vrPlacement is the one where getting it wrong is hardest to notice. It
+ * places the XR origin — the floor under a person in a headset — and the two
+ * ways to break the rule put them underground or lying on their side, neither
+ * of which any test or type can see, and both of which require somebody to
+ * put the headset on before anybody finds out. VrWalk used to do the
+ * converting itself; it now hands every placement to vrPlacement's
+ * `originFor`, which is checked below so the conversion cannot be bypassed.
  */
-const OUTSIDE = ['SiteMarker.tsx', 'StreetLabels.tsx', 'VrWalk.tsx'];
+const OUTSIDE = ['SiteMarker.tsx', 'StreetLabels.tsx', 'vrPlacement.ts'];
 
 describe('the world-frame boundary', () => {
   it.each(INSIDE)('%s stays in east/north/up and does not convert', (file) => {
@@ -54,6 +57,20 @@ describe('the world-frame boundary', () => {
 
   it.each(OUTSIDE)('%s converts, because it sits outside the frame', (file) => {
     expect(scene(file)).toMatch(/enuToWorld\s*\(/);
+  });
+
+  it('places the headset player only through vrPlacement', () => {
+    expect(scene('VrWalk.tsx')).toMatch(/originFor\s*\(/);
+  });
+
+  it('converts back exactly what it converts out', () => {
+    for (const enu of [
+      [0, 0, 0],
+      [12.5, -340, 29.5],
+      [-702.6, 811, 371.1],
+    ] as [number, number, number][]) {
+      expect(worldToEnu(enuToWorld(enu))).toEqual(enu.map((v) => v + 0));
+    }
   });
 
   it('keeps the conversion itself in one place', () => {

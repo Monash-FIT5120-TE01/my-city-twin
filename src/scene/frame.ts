@@ -55,6 +55,18 @@ export function enuToWorld([east, north, up]: [number, number, number]): [
   return [east, up, -north];
 }
 
+/**
+ * The way back: a three.js world position as east/north/up.
+ *
+ * For the rare question asked from outside the frame about where something
+ * IS in the city — the headset panel listing proposals nearest first needs
+ * the head's east/north. Kept beside enuToWorld so the one rotation is still
+ * written in one file, and tested against it as a round trip.
+ */
+export function worldToEnu([x, y, z]: [number, number, number]): [number, number, number] {
+  return [x, -z, y];
+}
+
 /** EPSG:7855 — GDA2020 / MGA zone 55. Metres. Covers Melbourne. */
 export const PROJECTED_CRS_DEF =
   '+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';

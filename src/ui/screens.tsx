@@ -35,6 +35,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CityModel, Development } from '../data/model';
 import { clockLabel } from '../data/now';
+import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './words';
 import {
   SEASONS,
   matchingSeason,
@@ -1637,12 +1638,11 @@ export function SunlightSheet({
    */
   const noun = subjectKind === 'building' ? 'building' : 'project';
 
-  const hours = (minutes: number) => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return `${m} min`;
-    return m === 0 ? `${h} h` : `${h} h ${m} min`;
-  };
+  /*
+   * The figure's sentences come from words.ts, where the headset panel gets
+   * them too — so a figure reads the same on a monitor and in a headset.
+   */
+  const words = measured ? spotWords(measured, noun) : null;
 
   /*
    * ── BRING THE ANSWER INTO VIEW ──────────────────────────────────────────
@@ -1973,25 +1973,20 @@ export function SunlightSheet({
               >
                 {/* Not the date any more: the field above owns that. */}
                 <p className="result__eyebrow">At this spot</p>
-                {measured.lostMin === 0 ? (
-                  <p className="result__figure result__figure--none">
-                    This {noun} takes no direct sun from here.
-                  </p>
+                {words?.none ? (
+                  <p className="result__figure result__figure--none">{words.none}</p>
                 ) : (
                   <>
-                    <p className="result__figure">{hours(measured.lostMin)}</p>
-                    <p className="result__caption">
-                      less direct sunlight from this {noun}
-                    </p>
+                    <p className="result__figure">{words?.figure}</p>
+                    <p className="result__caption">{words?.caption}</p>
                     {/*
-                      NOT "total daylight". It is the sun this spot would get
-                      with the subject taken away, which is the other half of
-                      the subtraction above -- and on a street of towers it is
-                      nowhere near the whole day.
+                      The other half of the subtraction above: every sampled
+                      minute the sun is up, with the subject taken away and no
+                      other building counted either -- the day's length, not
+                      the sun this spot really gets. See spotWords in
+                      words.ts, and the fine print below.
                     */}
-                    <p className="result__against">
-                      {hours(measured.withoutSubjectMin)} without this {noun}
-                    </p>
+                    <p className="result__against">{words?.against}</p>
                     {measured.firstShadowLabel && (
                       <dl className="stat-row">
                         <dt>In shadow around</dt>
@@ -2139,9 +2134,9 @@ export function SunlightSheet({
             ? `${apartment.hostDemolished ? 'The approved plan replaces this building, so there is no “once built” figure to compare against. ' : ''}Sampled every ${apartment.sunlight.stepMinutes} minutes, counting every building in the model including this one. Measured at one representative point on that side — a flat at the far end of the same wall may differ. Buildings are flat-topped blocks: balconies, awnings, window reveals and the shape of the roof are not modelled, and nor is cloud. `
             : ''
           : measured
-            ? `Sampled every ${measured.stepMinutes} minutes. Existing buildings and the slope of the ground are not counted, so a spot already in someone else’s shadow will still be shown losing sun here. `
+            ? spotFinePrint(measured.stepMinutes)
             : ''}
-        Illustrative shadow shapes · Demo data. Not a planning assessment.
+        {NOT_AN_ASSESSMENT}
       </p>
     </aside>
   );

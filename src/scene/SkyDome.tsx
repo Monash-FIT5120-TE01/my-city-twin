@@ -31,7 +31,8 @@ import { BackSide, BufferAttribute, Color, Group, SphereGeometry, Vector3 } from
 import { Starfield } from './Starfield';
 import { enuToWorld } from './frame';
 import { sunDirectionENU } from './sun';
-import { skyAppearance, type SunAnglesDeg } from './sky';
+import { SKY_RADIUS_M, skyAppearance, type SunAnglesDeg } from './sky';
+import { useInVr } from './xrStore';
 
 /**
  * The dome's radius.
@@ -46,7 +47,10 @@ import { skyAppearance, type SunAnglesDeg } from './sky';
  * plane, which must not be raised to make room: depth precision falls with
  * it, and that is what made the road surface flicker against the ground.
  */
-const RADIUS = 7800;
+const RADIUS = SKY_RADIUS_M;
+
+/** The dome's radius inside a headset, metres — well inside any depth range. See below. */
+const HEADSET_RADIUS_M = 600;
 
 export function SkyDome({ angles }: { angles: SunAnglesDeg }) {
   /*
@@ -132,13 +136,37 @@ export function SkyDome({ angles }: { angles: SunAnglesDeg }) {
    * orbit target, so the distance cap does not hold the camera anywhere near
    * the origin — and a sky anchored to the origin can be left behind.
    */
+  /*
+   * The camera's WORLD position, not its `position`.
+   *
+   * On a monitor the two are the same, because the camera has no parent. In
+   * a headset they are not: the camera is a child of the player's origin
+   * (see VrWalk), so its `position` is where the head is on the player's
+   * floor — a metre or so from the floor's middle — and the dome was centred
+   * on the world's origin while the player stood up to a kilometre away on
+   * the platform.
+   *
+   * SMALLER IN A HEADSET. A headset draws only as far as its session's depth
+   * range, which the page does not control reliably — three.js hands it the
+   * headset camera's default of 2 km, and a device may clamp it further. The
+   * 7.8 km dome was wholly beyond that, so in a headset there was no sky at
+   * all: only whatever the headset clears to, which on the Quest was black.
+   * Raising the depth range to reach it was tried and did not cure the Quest.
+   *
+   * The dome does not need to be big. It writes no depth and is drawn first
+   * (renderOrder −1), so it is a painted backdrop: every building, however
+   * far, is drawn over it, and centred on the head its horizon is the true
+   * horizon at any size. So in a headset it is simply scaled down to a radius
+   * no depth range will ever cut off.
+   */
   const rig = useRef<Group>(null);
+  const scale = useInVr() ? HEADSET_RADIUS_M / RADIUS : 1;
   useFrame(({ camera }) => {
-    rig.current?.position.copy(camera.position);
+    if (rig.current) camera.getWorldPosition(rig.current.position);
   });
 
   return (
-    <group ref={rig}>
+    <group ref={rig} scale={scale}>
       <mesh geometry={geometry} renderOrder={-1}>
         {/*
           Unlit and not tone-mapped: these colours are the finished article,
@@ -149,7 +177,15 @@ export function SkyDome({ angles }: { angles: SunAnglesDeg }) {
         <meshBasicMaterial vertexColors side={BackSide} toneMapped={false} depthWrite={false} />
       </mesh>
 
-      <Starfield opacity={appearance.stars} />
+      {/*
+        Not in a headset. Shrunk with the dome, the stars sat about 540 m out
+        — and unlike the dome they are drawn after the city and depth-tested,
+        so at night they showed in front of every building further away than
+        that. The headset starts at midday when the sun is down (App's
+        enterVr), so night there is only ever asked for, and is shown without
+        them.
+      */}
+      {scale === 1 && <Starfield opacity={appearance.stars} />}
     </group>
   );
 }

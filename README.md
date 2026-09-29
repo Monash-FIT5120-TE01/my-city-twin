@@ -21,6 +21,24 @@ npm test         # 156 tests
 `npm run build` is the real type check. `tsc --noEmit` on the root config
 checks nothing, because that file only holds project references.
 
+### Checking the headset without a headset
+
+On `localhost` the app installs a simulated Meta Quest 3 whenever no real
+headset is attached (see `src/scene/xrStore.ts`). Open
+`http://localhost:5173` in Chrome and the landing page offers **Enter in VR**;
+once in, the simulator draws its own controls over the page — move a
+controller, pull its trigger, press X.
+
+```bash
+npm run test:vr              # walks the headset tasks and reports each one
+npm run test:vr -- --headed  # the same, in a window you can watch
+```
+
+`test:vr` drives the Chrome (or Edge) already installed, uses a dev server on
+5173 if one is running or starts its own, and leaves screenshots in
+`test-results/vr-check/`. It checks what the panel's buttons and the laser DO;
+comfort, readability and frame rate still need the device.
+
 ## Deploying
 
 ```bash

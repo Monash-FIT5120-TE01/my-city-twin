@@ -40,7 +40,7 @@
  *   rotation. Each converts its own position instead; see StreetLabels.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
@@ -70,9 +70,18 @@ import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
 import { SunArrow } from './SunArrow';
 import { CameraRig } from './CameraRig';
 import { VrWalk } from './VrWalk';
+import { overlookFor, streetPlacement } from './vrPlacement';
+import type { VrMenu, VrStage } from './vrMenu';
 import { ViewControlsBridge, type ViewControlsRef } from './ViewControls';
 import { exitVr, xrStore } from './xrStore';
 import { useReducedMotion } from '../ui/useReducedMotion';
+
+/*
+ * The headset's panel and platform, fetched only once a session starts. They
+ * bring a layout engine and a font atlas that a desktop never uses — see the
+ * header of VrPanel.tsx.
+ */
+const VrFurniture = lazy(() => import('./VrPanel'));
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
 import type { SunAngles } from './sun';
@@ -137,11 +146,17 @@ interface SceneCanvasProps {
   timeLabel: string;
   dateLabel: string;
   /**
-   * Move the clock, by whole minutes. The controller buttons in an immersive
-   * session are the only way to do it — no DOM is drawn there, so the time
-   * bar does not exist.
+   * Move the clock, by whole minutes — A and B on the controller, held (see
+   * VrWalk). The headset panel moves it too, through the same App handler,
+   * but reaches it by way of `vrMenu` rather than this prop.
    */
   onNudgeMinutes: (minutes: number) => void;
+  /** Over the city or in the street — meaningful only inside a headset. */
+  vrStage: VrStage;
+  /** Changes whenever the headset player should be moved. See VrWalk. */
+  vrTrip: number;
+  /** What the headset's panel shows and does. */
+  vrMenu: VrMenu | null;
   /**
    * Filled in with the camera commands the zoom buttons outside the canvas
    * call. They are DOM and the camera is not; see ViewControls.
@@ -177,6 +192,9 @@ export function SceneCanvas({
   timeLabel,
   dateLabel,
   onNudgeMinutes,
+  vrStage,
+  vrTrip,
+  vrMenu,
 }: SceneCanvasProps) {
   const ground = useMemo(() => groundElevationOf(model.buildings), [model.buildings]);
 
@@ -394,8 +412,51 @@ export function SceneCanvas({
    *   No initial read: a session cannot already be running on the frame the
    *   canvas mounts, because nothing has been able to ask for one yet.
    */
+  /*
+   * The headset panel: up or away, and a count that brings it back in front
+   * of the eyes. Up whenever a session starts, so the first thing a visitor
+   * sees is what they can do — nobody should need to know about the X button
+   * to begin. Raised by the store's own notice that a session has begun, in
+   * the same listener that learns it.
+   */
+  const [panelShown, setPanelShown] = useState(true);
+  const [summon, setSummon] = useState(0);
+  /** Moves that have landed, counted, so the panel can measure after them. */
+  const [placed, setPlaced] = useState(0);
+  /** Right-stick page turns, handed to the panel: a count and a direction. */
+  const [flick, setFlick] = useState({ count: 0, direction: 0 as -1 | 0 | 1 });
+
   const [inVr, setInVr] = useState(false);
-  useEffect(() => xrStore().subscribe((state) => setInVr(state.session != null)), []);
+  useEffect(
+    () =>
+      xrStore().subscribe((state, previous) => {
+        setInVr(state.session != null);
+        if (state.session != null && previous.session == null) setPanelShown(true);
+      }),
+    [],
+  );
+  const showPanel = () => {
+    setPanelShown(true);
+    setSummon((n) => n + 1);
+  };
+  const togglePanel = () => {
+    if (panelShown) setPanelShown(false);
+    else showPanel();
+  };
+
+  /*
+   * Where a headset puts the player. Recomputed every render and read by
+   * VrWalk only when `vrTrip` changes, so it always reflects the place and
+   * the measured spot as they are at the moment a move is asked for.
+   *
+   * Above: the platform that looks at the subject, or at the whole city when
+   * there is none. In the street: the same free spot the desktop walker is
+   * put down on, facing the subject.
+   */
+  const vrPlacement =
+    vrStage === 'street'
+      ? streetPlacement(standPoint, [targetE, targetN], ground)
+      : overlookFor([targetE, targetN], wholeCity ? null : subjectHeight, ground);
 
   /*
    * The shadow camera covers the WHOLE city, centred on the city — not on
@@ -581,21 +642,42 @@ export function SceneCanvas({
 
         {inVr && (
           <VrWalk
-            startEN={standPoint}
-            groundAhdM={ground}
+            placement={vrPlacement}
+            trip={vrTrip}
             boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
             boundsRadiusM={citySpan * 1.2}
-            obstacles={obstacles}
+            // Over the roofs there is nothing to walk into.
+            obstacles={vrStage === 'street' ? obstacles : null}
             timeLabel={timeLabel}
             dateLabel={dateLabel}
             onNudgeMinutes={onNudgeMinutes}
             /*
-              Ends the session only. Walking mode is deliberately left
-              standing, so taking the headset off puts the reader back on the
-              footpath they were on rather than two kilometres above it.
+              Ends the session only. Where the page comes back is App's
+              decision: on the footpath if the headset left the reader in the
+              street, rather than two kilometres above it.
             */
             onExit={exitVr}
-          />
+            onTogglePanel={togglePanel}
+            onFlick={(direction) =>
+              setFlick((last) => ({ count: last.count + 1, direction }))
+            }
+            onPlaced={() => setPlaced((n) => n + 1)}
+          >
+            {vrMenu && (
+              <Suspense fallback={null}>
+                <VrFurniture
+                  menu={vrMenu}
+                  stage={vrStage}
+                  shown={panelShown}
+                  summon={summon}
+                  flick={flick}
+                  placed={placed}
+                  onHide={() => setPanelShown(false)}
+                  onShow={showPanel}
+                />
+              </Suspense>
+            )}
+          </VrWalk>
         )}
 
         {/*
