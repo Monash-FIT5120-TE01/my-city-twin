@@ -159,8 +159,9 @@ const STOP_ASKING_AFTER_MS = 3000;
 /*
  * ── A HEADSET ON LOCALHOST ───────────────────────────────────────────────
  *
- * On localhost, and only there, a simulated Meta Quest 3 is installed into
- * `navigator.xr` when no real headset is attached. That is the difference
+ * On localhost, and only when asked for with `#vr-sim` on the address, a
+ * simulated Meta Quest 3 is installed into `navigator.xr` when no real
+ * headset is attached. That is the difference
  * between checking a change by reading it and checking it by walking around
  * in it, without putting a headset on for every typo. The simulator draws
  * its own controls over the page — move the controllers, pull triggers,
@@ -186,6 +187,16 @@ const STOP_ASKING_AFTER_MS = 3000;
  *   (a Quest on Link, say, must keep working), and only if not, replace
  *   `navigator.xr` with the simulator.
  *
+ * ONLY WHEN ASKED FOR
+ *   It used to be installed on every visit to localhost, and that made
+ *   localhost a headset: the front page offered "Enter in VR" and the header
+ *   "Enter VR" to a desktop that has none, so the page being checked was not
+ *   the page a desktop visitor sees. Now localhost is an ordinary desktop
+ *   unless the address carries `#vr-sim`. A fragment rather than a query
+ *   parameter because the app rewrites the query to match what is on screen
+ *   and keeps the fragment (see writeUrlState), so the request survives
+ *   that and a reload. `npm run test:vr` opens the page with it.
+ *
  * NOT SHIPPED TO ANYBODY
  *   The hostname gate keeps it off dev.mycitytwin.com and the live versions,
  *   and the simulator is a separate chunk that only localhost ever fetches.
@@ -195,6 +206,7 @@ let localHeadset: Promise<void> | null = null;
 function installLocalHeadset(): Promise<void> {
   localHeadset ??= (async () => {
     if (typeof window === 'undefined' || window.location.hostname !== 'localhost') return;
+    if (window.location.hash !== '#vr-sim') return;
 
     const native = navigator.xr as XRSystem | undefined;
     if (native?.isSessionSupported) {

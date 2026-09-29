@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import golden from './__fixtures__/golden-solar-positions.json';
-import { civilToInstant, solarPosition } from './solar';
+import { civilToInstant, seasonName, solarPosition } from './solar';
 import { compassLabel, shadowReachM, sunDirectionENU } from './sun';
 
 /*
@@ -140,5 +140,15 @@ describe('shadow length', () => {
 
   it('equals the height at 45 degrees', () => {
     expect(shadowReachM(100, 45)).toBeCloseTo(100, 6);
+  });
+});
+
+describe('the season a month is in', () => {
+  it('uses the southern hemisphere: December is summer and June is winter', () => {
+    const names = Array.from({ length: 12 }, (_, i) => seasonName(i + 1));
+    expect(names).toEqual([
+      'Summer', 'Summer', 'Autumn', 'Autumn', 'Autumn', 'Winter',
+      'Winter', 'Winter', 'Spring', 'Spring', 'Spring', 'Summer',
+    ]);
   });
 });

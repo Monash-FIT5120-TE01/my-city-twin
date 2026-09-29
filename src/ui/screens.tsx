@@ -5,7 +5,7 @@
  *
  * WHAT THIS FILE IS
  *   Every panel that floats over the 3D view, in the order a person meets
- *   them: Landing, the layer list, the nearby-projects list, the project
+ *   them: the layer list, the nearby-projects list, the project
  *   detail, the sunlight controls, the time bar, and the two cards that
  *   report what the shadow is doing.
  *
@@ -15,8 +15,9 @@
  *   on top of a view that never goes away.
  *
  * WHAT THESE COMPONENTS DO NOT DO
- *   They hold no state of their own beyond the landing search box. Each is
- *   given what to show and a function to call. That is what lets the same
+ *   They hold no state that matters beyond themselves — which half of a
+ *   panel is open, whether a help card is showing. Everything else is given
+ *   to them, with a function to call. That is what lets the same
  *   layer list appear on two different screens without either screen
  *   knowing about the other.
  *
@@ -193,343 +194,6 @@ export function Progress({ at }: { at: 'place' | 'sunlight' | 'spot' }) {
         </li>
       ))}
     </ol>
-  );
-}
-
-/* ── 01 Landing ─────────────────────────────────────────── */
-
-/**
- * Which half of the landing panel is showing.
- *
- * No null: the panel is the landing screen now rather than something opened
- * beside it, so one of the two is always the answer. It was nullable while
- * there were two panels that could each be closed, and leaving the null in
- * would have meant every reader of this type wondering what a closed landing
- * screen looks like.
- *
- * Exported because App holds it and Landing renders the tabs for it.
- */
-export type LandingPanel = 'how' | 'why';
-
-/**
- * Three figures about living in the CBD, each with where it came from.
- *
- * WHY THE SOURCE IS PART OF THE DATA AND NOT A FOOTNOTE
- *   A percentage with no source is an assertion. These three are the only
- *   numbers in the whole application that did not come out of the model —
- *   everything else on screen is computed from surveyed geometry and can be
- *   checked against it, and these cannot. So each one carries its origin in
- *   the same object, and the panel below cannot render one without the other.
- *
- * WHY EACH URL POINTS AT THE FIGURE AND NOT AT THE ORGANISATION
- *   Every link below was opened and the number read off the page it lands
- *   on. A citation that goes to a department's front door leaves the reader
- *   to find the claim themselves, and a citation that goes to a plausible
- *   address nobody checked is worse than none: it looks verified.
- *
- *   One of these took two attempts for that reason. The walking figure is
- *   quoted all over the transport strategy's site, but the page that reads
- *   most like its home — the strategy's walking chapter — does not actually
- *   contain it, so the link goes to the strategy itself.
- *
- * WHY EACH ONE SAYS WHAT IT IS OF
- *   "99.2%" is meaningless alone; "of occupied private dwellings" is the
- *   fact. The large figure is a way in, not the claim — which is why the
- *   qualifier is never abbreviated to make the card tidier.
- */
-const FIGURES = [
-  {
-    figure: '99.2%',
-    title: 'Apartment living is the norm.',
-    body: 'Of occupied private dwellings in Melbourne suburb were flats or apartments.',
-    source: 'ABS Census 2021',
-    /* QuickStats for the suburb of Melbourne; the page gives "Flat or
-       apartment: 27,250, 99.2%" under dwelling structure. */
-    href: 'https://www.abs.gov.au/census/find-census-data/quickstats/2021/SAL21640',
-  },
-  {
-    figure: '89%',
-    title: 'A city experienced on foot.',
-    body: 'Of trips within the Hoddle Grid were made on foot.',
-    source: 'City of Melbourne, Transport Strategy 2030',
-    href: 'https://www.melbourne.vic.gov.au/transport-strategy-2030',
-  },
-  {
-    figure: '32%',
-    title: 'Greener spaces are a priority.',
-    body: 'Of CBD respondents prioritised plants, trees and improved open spaces.',
-    source: '2024 Neighbourhood Survey · 532 CBD responses',
-    /* The consultation summary lists "More plants, trees and improved open
-       spaces (32%)" as the CBD's third priority, from 532 CBD responses. */
-    href: 'https://participate.melbourne.vic.gov.au/neighbourhood-survey',
-  },
-];
-
-/**
- * The three steps, written once.
- *
- * ONE LIST, TWO PLACES, AND THAT IS THE POINT. They were briefly two — a
- * clipped pair of lines for the card and a longer paragraph each for the
- * panel — and the panel's version was worse for being longer: somebody who
- * has pressed "How it works" wants the shape of the thing, not more prose.
- * A step you can read at a glance is a step you can hold all three of.
- *
- * So the card and the panel show the same words in the same numbered form.
- * The panel adds the title, the reason and the button; it does not restate
- * the steps at greater length.
- */
-/** The two halves, in the order the tabs sit in. */
-const TABS: { id: LandingPanel; label: string }[] = [
-  { id: 'how', label: 'How it works' },
-  { id: 'why', label: 'Why it matters' },
-];
-
-const STEPS = [
-  { title: 'Find a place', body: 'Search an address or explore the map.' },
-  { title: 'Open a project', body: 'See an approved project near you.' },
-  { title: 'Follow the sun', body: 'Choose a season and time. Compare shadows.' },
-];/**
- * ─────────────────────────────────────────────────────────────────────────
- * THE ONE PANEL YOU ARRIVE AT
- * ─────────────────────────────────────────────────────────────────────────
- *
- * WHY IT IS ONE AND NOT TWO
- *   It was a card on the left saying what this is, and a panel on the right
- *   saying it again at greater length — the same title twice, the same three
- *   steps twice, and an "Explore the CBD" button in each. Two panels, one of
- *   which had to be opened to be read, for one page of text.
- *
- *   Whichever the reader looked at first, the other was either a repeat or a
- *   thing they had not found yet. Merged, there is one place the answer is
- *   and one button that leaves it.
- *
- * WHY IT IS ON THE LEFT
- *   Because that is the column the explore screen's layer panel uses, so
- *   arriving and then exploring leaves the interface where it was. The
- *   right-hand column is for what you have CHOSEN — a project, a building,
- *   the measurement at a spot — and nothing has been chosen yet.
- *
- * WHAT THE TABS SWITCH, AND WHAT THEY DO NOT
- *   Only the block under the button. The title, the sentence and the way in
- *   are true either way, so they do not move when the tab does — a heading
- *   that changed under the tab row would make the two halves read as two
- *   different pages rather than as two answers about one thing.
- */
-export function Landing({
-  onExplore,
-  onPanel,
-  panel,
-}: {
-  onExplore: () => void;
-  /** Which half is showing under the button. */
-  onPanel: (next: LandingPanel) => void;
-  panel: LandingPanel;
-}) {
-  return (
-    <section className="panel panel--left landing" aria-labelledby="landing-title">
-      <p className="panel__eyebrow">Melbourne · A city in the making</p>
-
-      {/*
-        Two lines, set as two lines. `text-wrap: balance` used to decide
-        where this broke and it is not a decision an algorithm can make:
-        "Your city." and "Tomorrow, today." are a pair, and a break anywhere
-        else reads as a sentence that ran out of room.
-      */}
-      <h1 className="landing__title" id="landing-title">
-        <span>Your city.</span>
-        <span>Tomorrow, today.</span>
-      </h1>
-
-      <p className="landing__body">
-        Explore what&rsquo;s being built around you — and how it could change
-        the sunlight on your street.
-      </p>
-
-      {/*
-        Above everything it explains. Somebody who already knows what this is
-        should not have to read past an explanation to get in; somebody who
-        does not will read down to it anyway.
-      */}
-      <button type="button" className="button button--block" onClick={onExplore}>
-        Explore the CBD →
-      </button>
-
-      {/*
-        A real tab list, so a screen reader announces these as two views of
-        one thing rather than as two unrelated buttons.
-      */}
-      {/*
-        The whole tab pattern, or none of it.
-
-        It began as role="tablist" with two role="tab" buttons and nothing
-        else — no ids, no aria-controls, no panel, no roving focus. That
-        promises assistive technology a widget and then does not build it,
-        which is worse than two plain buttons would have been: the
-        announcement says "tab, 1 of 2" and then arrow keys do nothing.
-
-        So it is finished. One tab stop for the pair, arrows to move between
-        them, and a panel below that says which tab it belongs to.
-      */}
-      <div className="landing__tabs" role="tablist" aria-label="About this model">
-        {TABS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`landing-tab-${id}`}
-            aria-controls={`landing-tabpanel-${id}`}
-            aria-selected={panel === id}
-            /* Only the selected tab is a tab stop; the arrows do the rest. */
-            tabIndex={panel === id ? 0 : -1}
-            onKeyDown={(event) => {
-              if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-              event.preventDefault();
-              const next = TABS[(TABS.findIndex((t) => t.id === panel) + 1) % TABS.length];
-              onPanel(next.id);
-              // Focus follows selection, which is the pattern's default for
-              // tabs whose panels are cheap to show.
-              document.getElementById(`landing-tab-${next.id}`)?.focus();
-            }}
-            onClick={() => onPanel(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div
-        /*
-          Keyed on the tab, so switching replaces the element rather than
-          swapping its children. React would otherwise keep the same node and
-          the enter animation — which only runs on mount — would never fire
-          again after the first tab.
-        */
-        key={panel}
-        role="tabpanel"
-        id={`landing-tabpanel-${panel}`}
-        aria-labelledby={`landing-tab-${panel}`}
-        className="landing__tabpanel"
-      >
-        {panel === 'how' ? (
-        /*
-          An ordered list, because it is one, with its own markers off: left
-          on, a screen reader says "1. 01 Find a place" and the two numbers
-          disagree in the one place a list should never be ambiguous.
-        */
-        <ol className="steps" role="list">
-          {STEPS.map((step, index) => (
-            <li
-              className="step"
-              key={step.title}
-              style={{ '--i': index } as React.CSSProperties}
-            >
-              <span className="step__number" aria-hidden="true">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <span className="step__title">{step.title}</span>
-              <span className="step__body">{step.body}</span>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <>
-          <ol className="howto__steps" role="list">
-            {FIGURES.map((entry) => (
-              <li key={entry.title}>
-                <div className="howto__step">
-                  <p className="howto__figure">{entry.figure}</p>
-                  <p className="howto__step-title">{entry.title}</p>
-                  <p className="howto__step-body">{entry.body}</p>
-                </div>
-                {/*
-                  Outside the card, deliberately. Inside it the attribution
-                  reads as part of the claim; below it, it reads as the thing
-                  the claim rests on.
-                */}
-                <p className="howto__source">
-                  Source:{' '}
-                  {/*
-                    A new tab, because leaving the page would throw away the
-                    date, the hour and whatever is selected — all of which
-                    live in this tab's state. `noreferrer` with it: `noopener`
-                    is what stops the opened page reaching back through
-                    window.opener, and modern browsers imply it, but the pair
-                    is what makes that true everywhere.
-                  */}
-                  <a href={entry.href} target="_blank" rel="noreferrer noopener">
-                    {entry.source}
-                    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                      <path
-                        d="M3.4 1h5.1v5.1M8.5 1 1.4 8.1"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span className="visually-hidden"> (opens in a new tab)</span>
-                  </a>
-                </p>
-              </li>
-            ))}
-          </ol>
-
-          {/*
-            What the three figures do NOT say, which is the part a reader
-            would otherwise supply and get wrong. "Melbourne" as a suburb is
-            larger than the Hoddle Grid this model covers, and the last two
-            count different things: trips are events, respondents are people.
-          */}
-          <p className="howto__caveat">
-            Melbourne suburb extends beyond the Hoddle Grid. Walking figures
-            describe trips; survey figures describe respondents.
-          </p>
-        </>
-        )}
-      </div>
-
-      <p className="landing__fine">Demo model · Illustrative estimates</p>
-    </section>
-  );
-}
-
-/**
- * What the green means.
- *
- * "Project", not "development", here and everywhere else a reader sees the
- * word. The interface used both — the landing card managed both inside one
- * two-line step, "Open a project" above "See approved development near you"
- * — which asks somebody to work out that two names are one thing before
- * they have worked out what the thing is.
- *
- * Project is the word the navigation already uses, and navigation words get
- * learnt whether or not anyone means to learn them. It is also the less
- * ambiguous of the two: "approved development" can be read as the activity
- * rather than the object, and in that sentence it was.
- *
- * The data keeps its own word. `Development`, `devId`, `subjectKind` and the
- * planning records they come from are unchanged; this is about what is
- * written on the screen.
- *
- * The one piece of colour in the model that carries information, so it is the
- * one that needs a key. Everything else is grey because it is a building;
- * these are green because somebody approved them.
- *
- * The swatch is never alone — the words are always beside it, and the words
- * are what say which is which. A reader who cannot tell the green from the
- * grey loses the shortcut and nothing else.
- */
-export function Legend() {
-  return (
-    <aside className="legend">
-      <span className="legend__swatch" aria-hidden="true" />
-      Approved project
-      <span className="legend__sep" aria-hidden="true">
-        ·
-      </span>
-      <span className="legend__note">Demo model</span>
-    </aside>
   );
 }
 
@@ -1400,7 +1064,7 @@ export function DevelopmentPanel({
       />
 
       <div
-        /* See the note on the landing panel: keyed so it can arrive. */
+        /* Keyed on the tab, so switching replaces the element and its entrance runs again. */
         key={tab}
         role="tabpanel"
         id="subject-tabpanel"
@@ -1632,9 +1296,11 @@ export function SunlightSheet({
 
   const preset = matchingSeason(date);
   /*
-   * What to call the thing on screen. "Project" for a proposal — see the
-   * note on Legend — and "building" for one that is already standing, which
-   * is a different fact rather than a different word for the same one.
+   * What to call the thing on screen. "Project" for a proposal — the word
+   * the navigation uses, and the one a reader learns first; the data keeps
+   * its own word, `Development` — and "building" for one that is already
+   * standing, which is a different fact rather than a different word for
+   * the same one.
    */
   const noun = subjectKind === 'building' ? 'building' : 'project';
 

@@ -16,6 +16,7 @@
     "config": "node scripts/mapbox-config.mjs public"
   },
   "dependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
     "@pmndrs/xr": "6.6.30",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",

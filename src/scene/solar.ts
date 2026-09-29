@@ -204,6 +204,20 @@ export function matchingSeason(date: SimulationDate): SeasonPreset | null {
 }
 
 /**
+ * The season a month falls in, in Melbourne: the southern hemisphere's
+ * meteorological seasons, so December is summer and June is winter.
+ *
+ * For saying which season a date is in, not for choosing one — the four
+ * presets above are the solstices and equinoxes a reader can jump to.
+ */
+export function seasonName(month: number): string {
+  if (month === 12 || month <= 2) return 'Summer';
+  if (month <= 5) return 'Autumn';
+  if (month <= 8) return 'Winter';
+  return 'Spring';
+}
+
+/**
  * The same day of the month, in another month — with the day pulled back if
  * that month is too short for it.
  *

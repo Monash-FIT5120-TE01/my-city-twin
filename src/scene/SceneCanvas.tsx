@@ -84,6 +84,7 @@ import { useReducedMotion } from '../ui/useReducedMotion';
 const VrFurniture = lazy(() => import('./VrPanel'));
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
+import { ViewInset, type ScreenInset } from './ViewInset';
 import type { SunAngles } from './sun';
 import type { CityModel, Development } from '../data/model';
 
@@ -128,12 +129,12 @@ interface SceneCanvasProps {
    */
   lookAt: { east: number; north: number; heightM: number } | null;
   /**
-   * True while the cover is still up — hold the camera back, high and far.
+   * True for the city's first moment on the front page — hold the camera
+   * back, high and far.
    *
-   * The city is built and drawn behind the landing page, so the frame the
-   * reader first sees is decided before they have pressed anything. Holding
-   * it here and releasing it when they do turns the button into an arrival
-   * instead of a cut. See the descent below, and Overture.
+   * The city appears in the front page's window once it has loaded. Holding
+   * the first frame here and releasing it a moment later makes it arrive
+   * rather than pop in. See the descent below, and `arrived` in App.
    */
   approach?: boolean;
   /**
@@ -164,6 +165,11 @@ interface SceneCanvasProps {
   viewCommands?: ViewControlsRef;
   /** Bumped by "Frame the whole city". See CameraRig. */
   refit?: number;
+  /**
+   * How much of the canvas the page covers — the front page's words and
+   * steps — so the city is framed in what is left. See ViewInset.
+   */
+  inset?: ScreenInset | null;
 }
 
 export function SceneCanvas({
@@ -189,6 +195,7 @@ export function SceneCanvas({
   approach = false,
   viewCommands,
   refit,
+  inset = null,
   timeLabel,
   dateLabel,
   onNudgeMinutes,
@@ -248,18 +255,18 @@ export function SceneCanvas({
    * ── THE DESCENT ─────────────────────────────────────────────────────────
    *
    * WHY IT EXISTS
-   *   Pressing the button used to cut. One frame a landing page, the next the
-   *   city — with nothing in between to say the two are the same place. It is
-   *   the same objection CameraRig was written to answer for search, and the
-   *   same answer: arrive somewhere rather than appear at it.
+   *   The city loads a few seconds after the front page is up, and without
+   *   this it would simply pop into its window. It is the same objection
+   *   CameraRig was written to answer for search, and the same answer:
+   *   arrive somewhere rather than appear at it.
    *
    * HOW IT IS DONE
-   *   Not with a new animation. While the cover is up the camera is simply
-   *   asked for a DIFFERENT frame — half again as far out, and steeper. When
-   *   the cover goes that request changes back, and CameraRig, which exists
-   *   to notice exactly that, flies between the two on its own easing. No
-   *   extra state, no second clock, and interrupting it works because
-   *   interrupting a flight already works.
+   *   Not with a new animation. For the first moment the camera is simply
+   *   asked for a DIFFERENT frame — half again as far out, and steeper. Then
+   *   that request changes back (App's `arrived`, a moment after the city
+   *   loads), and CameraRig, which exists to notice exactly that, flies
+   *   between the two on its own easing. No animation of its own, and
+   *   interrupting it works because interrupting a flight already works.
    *
    * WHY THESE TWO NUMBERS
    *   Far enough to be a journey, near enough that the city is recognisable
@@ -420,6 +427,8 @@ export function SceneCanvas({
    * the same listener that learns it.
    */
   const [panelShown, setPanelShown] = useState(true);
+  /** Whether ViewInset has the lens off-centre at this moment. */
+  const [lensShifted, setLensShifted] = useState(false);
   const [summon, setSummon] = useState(0);
   /** Moves that have landed, counted, so the panel can measure after them. */
   const [placed, setPlaced] = useState(0);
@@ -605,7 +614,13 @@ export function SceneCanvas({
           basemap read wrong from eye height — and their repositioning follows
           the orbit target, which walking does not have.
         */}
-        {!walking && (
+        {/*
+          And while the lens is shifted for the front page — including the
+          moment after leaving it, while the shift eases back to nothing. The
+          names are CSS 3D, which ignores the shift, so they would sit beside
+          their streets.
+        */}
+        {!walking && !inset && !lensShifted && (
           <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
         )}
 
@@ -688,6 +703,8 @@ export function SceneCanvas({
           had set up before going down to the street.
         */}
         {viewCommands && <ViewControlsBridge commands={viewCommands} />}
+
+        <ViewInset inset={inset} animate={!reducedMotion} onShifted={setLensShifted} />
 
         <CameraRig
           refit={refit}

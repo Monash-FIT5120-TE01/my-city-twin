@@ -1,0 +1,876 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE FRONT PAGE
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * A page over the city with a window cut in it. The words take the left,
+ * the three steps and the fine print take the bottom, and what is left in
+ * the upper right is the live city — see LandingPage.tsx and ViewInset.
+ *
+ * The page is a grid over the whole screen. Its covered parts are cream and
+ * catch the pointer; the window is transparent and does not, so a drag
+ * there moves the city underneath.
+ *
+ * COLOUR, AND WHAT IS NOT LEFT TO IT
+ *   The main button is the dark green every other main button uses, white on
+ *   #14624a at 7:1 — not the pale mint of the mock-up, which sits at about
+ *   1.2:1 against the cream and is found by hue alone. The legend's two
+ *   swatches are the colours the city is drawn in, and each is named in
+ *   words beside it; the pale one carries an edge so it is not a white
+ *   square on a white card.
+ */
+
+.landing {
+  position: absolute;
+  inset: 0;
+  /* Over the city (0), under the header (6). */
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(24rem, 40%) 1fr;
+  grid-template-rows: var(--h-header) minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    '. .'
+    'hero window'
+    'steps steps'
+    'foot foot';
+  pointer-events: none;
+}
+
+/* On a wide screen the three parts take their own places in the grid. */
+.landing__sheet {
+  display: contents;
+}
+
+.landing__hero,
+.landing__steps,
+.landing__foot {
+  pointer-events: auto;
+  background: var(--cream);
+}
+
+/* ── the words ──────────────────────────────────────────── */
+
+.landing__hero {
+  grid-area: hero;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  /*
+   * Above the steps, and not clipping: the search matches hang down out of
+   * this column and over the steps below it. A scrolling column would cut
+   * them off at its own edge.
+   */
+  position: relative;
+  z-index: 1;
+  padding: var(--space-5) clamp(var(--space-5), 3.4vw, 3.5rem);
+}
+
+/* Each child keeps the column's measure rather than the column's width. */
+.landing__hero > * {
+  width: 100%;
+  max-width: 31rem;
+}
+
+/*
+ * Centred in the column by margins rather than by justify-content. A centred
+ * column that is taller than its box overflows at BOTH ends, and the top end
+ * cannot be scrolled to — the film was cut off on a short laptop screen.
+ * Auto margins centre it when it fits and give way when it does not.
+ */
+.landing__hero > :first-child {
+  margin-top: auto;
+}
+
+.landing__hero > :last-child {
+  margin-bottom: auto;
+}
+
+.landing__film video {
+  display: block;
+  width: min(100%, 26rem);
+  aspect-ratio: 1376 / 576;
+  /*
+   * The film is a dark line on white. Multiplied, the white takes the colour
+   * of the cream under it and only the line is left.
+   */
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transition: opacity var(--dur-panel) var(--ease);
+}
+
+.landing__film video.is-showing {
+  opacity: 1;
+}
+
+.landing__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 3.3vw, 3.4rem);
+  font-weight: var(--weight-title);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--ink-green-900);
+  text-wrap: balance;
+}
+
+.landing__body {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* ── the search ─────────────────────────────────────────── */
+
+.landing__search {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-2);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(16, 24, 20, 0.04);
+}
+
+.landing__search:focus-within {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px rgba(20, 98, 74, 0.14);
+}
+
+.landing__field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: 0 var(--space-2) 0 var(--space-4);
+  color: var(--ink-2);
+}
+
+.landing__field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-lg);
+  color: var(--ink);
+}
+
+.landing__field input:focus {
+  outline: none;
+}
+
+.landing__field input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+.landing__clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.landing__clear:hover {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+/*
+ * The matches, hanging from the field over what is below it. In the flow
+ * they pushed the whole column down, and on a short screen the heading
+ * scrolled away while somebody was typing.
+ */
+.landing__search .results,
+.landing__search .results__none {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: -1px;
+  right: -1px;
+  z-index: 1;
+  max-height: 16rem;
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.landing__search .results__none {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.landing__chosen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-top: 1px solid var(--hairline);
+}
+
+.landing__pin {
+  flex: none;
+  color: var(--green-700);
+}
+
+.landing__chosen-words {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing__chosen-label {
+  font-weight: var(--weight-label);
+}
+
+.landing__chosen small {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* ── the ways in ────────────────────────────────────────── */
+
+.landing__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 54px;
+  font-size: var(--text-lg);
+}
+
+.landing__cta svg {
+  margin: 0;
+}
+
+.landing__hint {
+  min-height: 1.4em;
+  margin: calc(var(--space-2) * -1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--amber-ink);
+}
+
+.landing__hint:empty {
+  min-height: 0;
+  margin: 0;
+}
+
+.landing__vr {
+  min-height: 48px;
+}
+
+.landing__explore {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: auto;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+.landing__explore:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── the window onto the city ───────────────────────────── */
+
+.landing__window {
+  grid-area: window;
+  position: relative;
+  min-height: 0;
+}
+
+/*
+ * The words' ground runs out into the city rather than stopping at a hard
+ * edge. Only the first few dozen pixels, so the city itself is not greyed.
+ */
+.landing__window::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4.5rem;
+  background: linear-gradient(to right, var(--cream), rgba(248, 245, 238, 0));
+}
+
+.landing__legend {
+  position: absolute;
+  right: var(--gutter);
+  bottom: var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  font-size: var(--text-sm);
+  pointer-events: auto;
+}
+
+.landing__legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.landing__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+/* The colours CityMassing and DevelopmentMassings draw these in. */
+.landing__swatch--existing {
+  background: #eeedf0;
+  box-shadow: inset 0 0 0 1px #7a8087;
+}
+
+.landing__swatch--approved {
+  background: #6fbfa6;
+  box-shadow: inset 0 0 0 1px #2f7d66;
+}
+
+/* The map credit, in the city's window rather than the screen's corner. */
+.landing__window .attribution {
+  position: absolute;
+  left: var(--gutter);
+  bottom: var(--gutter);
+  pointer-events: auto;
+}
+
+.landing__loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(20rem, calc(100% - var(--gutter) * 2));
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  pointer-events: auto;
+}
+
+.landing__loading-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--weight-title);
+}
+
+.landing__loading-meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  font-variant-numeric: var(--numeric);
+}
+
+.landing__track {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--green-050);
+}
+
+.landing__fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--green-700);
+  transition: width 160ms linear;
+}
+
+.landing__track.is-indeterminate .landing__fill {
+  width: 38%;
+  animation: landing-sweep 1.15s ease-in-out infinite;
+}
+
+@keyframes landing-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(365%);
+  }
+}
+
+/* ── the three steps ────────────────────────────────────── */
+
+.landing__steps {
+  grid-area: steps;
+  border-top: 1px solid var(--cream-edge);
+}
+
+.landing__steps:focus {
+  outline: none;
+}
+
+.landing__steps:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -4px;
+}
+
+.landing__steps ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: var(--space-5) clamp(var(--space-5), 3.4vw, 3.5rem);
+  list-style: none;
+}
+
+.landing__step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: 0 var(--space-5);
+}
+
+.landing__step + .landing__step {
+  border-left: 1px solid var(--cream-edge);
+}
+
+.landing__step:first-child {
+  padding-left: 0;
+}
+
+.landing__step-number {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--mint-100);
+  font-family: var(--font-display);
+  font-weight: var(--weight-title);
+  color: var(--green-700);
+}
+
+.landing__step-title {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: var(--weight-title);
+  color: var(--ink-green-900);
+}
+
+.landing__step-body {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* ── the fine print ─────────────────────────────────────── */
+
+.landing__foot {
+  grid-area: foot;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) clamp(var(--space-5), 3.4vw, 3.5rem);
+  border-top: 1px solid var(--cream-edge);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.landing__foot p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.landing__foot-sep {
+  margin: 0 var(--space-3);
+  color: var(--ink-3);
+}
+
+.landing__sources-link {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--green-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.landing__when {
+  font-variant-numeric: var(--numeric);
+}
+
+/* ── sources & limitations ──────────────────────────────── */
+
+.landing__sources {
+  /*
+   * The page it sits in lets the pointer through to the city; a modal must
+   * not, or nothing in it can be pressed.
+   */
+  pointer-events: auto;
+  width: min(40rem, calc(100% - 2 * var(--gutter)));
+  max-height: calc(100% - 4rem);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+  color: var(--ink);
+}
+
+.landing__sources::backdrop {
+  pointer-events: auto;
+  background: rgba(18, 24, 22, 0.36);
+}
+
+.landing__sources-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--pad-panel);
+}
+
+.landing__sources-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.landing__sources h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+}
+
+.landing__sources h3 {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-title);
+}
+
+.landing__sources-lead,
+.landing__sources-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.landing__figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing__figures li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--surface-sunken);
+}
+
+.landing__figures p {
+  margin: 0;
+}
+
+.landing__figure {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: var(--weight-title);
+  color: var(--green-700);
+}
+
+.landing__figure-title {
+  font-weight: var(--weight-label);
+}
+
+.landing__figure-body,
+.landing__figure-source {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.landing__figure-source a {
+  color: var(--green-700);
+}
+
+/* ── shorter ────────────────────────────────────────────── */
+
+/*
+ * A laptop screen: the same column, drawn tighter so it fits without
+ * scrolling. Nothing on the desktop layout scrolls — the column is not a
+ * scroll box, because the search matches hang out of it — so every height
+ * down to the point where the phone's sheet takes over has to fit.
+ */
+@media (max-height: 940px) and (min-height: 641px) and (min-width: 901px) {
+  .landing__hero {
+    gap: var(--space-3);
+    padding-block: var(--space-4);
+  }
+
+  .landing__film video {
+    width: min(100%, 20rem);
+  }
+
+  .landing__title {
+    font-size: clamp(2rem, 2.9vw, 2.8rem);
+  }
+
+  .landing__steps ol {
+    padding-block: var(--space-4);
+  }
+}
+
+/*
+ * Shorter still: the steps keep their titles and lose the sentence under
+ * each, which is most of their height. What the steps say is also what the
+ * column above them does, so the titles are enough to point at it.
+ */
+@media (max-height: 760px) and (min-height: 641px) and (min-width: 901px) {
+  .landing__hero {
+    gap: var(--space-2);
+    padding-block: var(--space-3);
+  }
+
+  .landing__film video {
+    width: min(100%, 15rem);
+  }
+
+  .landing__title {
+    font-size: 2rem;
+  }
+
+  .landing__body {
+    font-size: var(--text-body);
+  }
+
+  .landing__cta {
+    min-height: 48px;
+  }
+
+  .landing__steps ol {
+    padding-block: var(--space-3);
+  }
+
+  .landing__step {
+    align-items: center;
+  }
+
+  .landing__step-number {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .landing__step-body {
+    display: none;
+  }
+}
+
+/* ── narrower ───────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  .landing__steps ol {
+    padding-block: var(--space-4);
+  }
+
+  .landing__step {
+    padding: 0 var(--space-3);
+  }
+}
+
+/*
+ * ── ON A PHONE, AND ON A VERY SHORT WINDOW ───────────────────────────────
+ *
+ * The same pattern every other screen uses on a phone: the city on top, a
+ * sheet from the bottom. The words, the steps and the fine print become one
+ * scrolling sheet, and the city keeps the upper part of the screen.
+ *
+ * Also below 640px of height at any width. The desktop layout does not
+ * scroll, and under that height its column no longer fits between the bar
+ * and the steps — the buttons at the bottom of it went under the steps
+ * where nothing could reach them.
+ */
+@media (max-width: 900px), (max-height: 640px) {
+  .landing {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--h-header) 34vh minmax(0, 1fr);
+    grid-template-areas:
+      '.'
+      'window'
+      'sheet';
+  }
+
+  .landing__sheet {
+    grid-area: sheet;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    pointer-events: auto;
+    background: var(--cream);
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+    box-shadow: 0 -8px 24px rgba(16, 24, 20, 0.08);
+  }
+
+  /*
+   * Their own height, all three. In a scrolling column a flex child may
+   * otherwise shrink to nothing, and the words did — the steps were drawn
+   * over them.
+   */
+  .landing__hero,
+  .landing__steps,
+  .landing__foot {
+    flex: none;
+  }
+
+  .landing__hero {
+    overflow: visible;
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .landing__window::before {
+    display: none;
+  }
+
+  .landing__title {
+    font-size: 2rem;
+  }
+
+  .landing__steps ol {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .landing__step,
+  .landing__step:first-child {
+    padding: 0;
+  }
+
+  .landing__step + .landing__step {
+    border-left: 0;
+  }
+
+  .landing__foot {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-3) var(--space-4) var(--space-5);
+  }
+
+  /* Top right, out of the credit's way along the bottom. */
+  .landing__legend {
+    top: var(--space-3);
+    bottom: auto;
+    right: var(--space-3);
+    flex-direction: row;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .landing__window .attribution {
+    left: var(--space-3);
+    bottom: var(--space-3);
+  }
+
+  .landing__figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__film video,
+  .landing__fill {
+    transition: none;
+  }
+
+  .landing__track.is-indeterminate .landing__fill {
+    width: 100%;
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
+/* ── the bar, on the front page ─────────────────────────── */
+
+/*
+ * The page's cream rather than white, so the bar is the top of the page
+ * rather than a strip laid over it.
+ */
+.header.header--front {
+  background: var(--cream);
+  border-bottom-color: var(--cream-edge);
+}
+
+.header--front .field {
+  background: var(--paper);
+  border-color: var(--cream-edge);
+}
+
+.header__link {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.header__link:hover {
+  background: var(--green-050);
+}
+
+/*
+ * On a phone the bar's field would be the second of two identical fields on
+ * one screen, and it would put the bar on two rows. The page's own field is
+ * the one kept; the bar stays one row, the height the page is laid out for.
+ */
+@media (max-width: 900px) {
+  .header__link {
+    display: none;
+  }
+
+  .header.header--front {
+    height: var(--h-header);
+  }
+
+  .header--front .header__search {
+    display: none;
+  }
+}

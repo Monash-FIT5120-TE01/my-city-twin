@@ -6,9 +6,9 @@
  * is an accident waiting to be made twice.
  *
  * The original palette came from the design exports in MainProjectDoc. The
- * type no longer does: the interface used a bundled webfont for a while and
- * now asks the operating system for its own — see --font-ui, and the note in
- * global.css about why the root size is not fixed.
+ * type no longer does: text is set in the operating system's own face — see
+ * --font-ui — and only headings bring one of their own (--font-display). The
+ * note in global.css says why the root size is not fixed.
  */
 
 :root {
@@ -42,6 +42,19 @@
    */
   --ink-3: #6b7280; /* 4.83:1 on paper */
   --hairline: #e2e4e1;
+
+  /*
+   * The front page's ground: warm paper rather than white, so the page reads
+   * as a place to arrive rather than as one more panel. Only the landing
+   * uses it; every panel over the city stays on --paper.
+   *
+   * --cream-edge is the hairline for that ground. --hairline is tuned against
+   * white and nearly vanishes on cream.
+   */
+  --cream: #f8f5ee;
+  --cream-edge: #e6dfd2;
+  /* The step numbers' discs: a mint the numbers clear 6:1 on. */
+  --mint-100: #dcefe7;
 
   /*
    * The ground a control sits IN rather than on: the date row, the segmented
@@ -85,17 +98,25 @@
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   /*
-   * Kept as its own name rather than folded into the one above: headings are
-   * the place a display face would go if one is ever licensed, and this is
-   * the single line that would have to change. Today it resolves to the same
-   * stack, which is a decision rather than an accident.
+   * Headings, and the one place a face is bundled.
+   *
+   * This was kept as its own name so a display face could be added by
+   * changing one line, and the front page's design asked for one: Manrope,
+   * a geometric sans under the SIL Open Font License, bundled from
+   * @fontsource-variable (imported in main.tsx) rather than fetched from a
+   * font service, so no request leaves for a third party. One variable file
+   * per script covers every weight, and the browser fetches only the scripts
+   * a page actually uses.
+   *
+   * The system stack stays behind it, so a heading is never invisible while
+   * the file arrives — it is drawn at once and redrawn when the face lands.
    */
-  --font-display: var(--font-ui);
+  --font-display: 'Manrope Variable', var(--font-ui);
 
   /*
-   * For marks and figures rather than for code: coordinates, clock readings,
-   * the small tracked capitals on the cover. A fixed pitch is what makes a
-   * line of them read as an instrument reading rather than as a sentence.
+   * For marks and figures rather than for code: the key drawn in the search
+   * field. A fixed pitch is what makes a mark like that read as an
+   * instrument reading rather than as part of a sentence.
    */
   --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, monospace;
 
@@ -128,7 +149,7 @@
   --text-body: 0.9375rem; /* 15px — sentences */
   --text-lg: 1.0625rem; /* 17px — a panel's own subject */
   --text-h2: 1.375rem; /* 22px — panel titles */
-  --text-h1: 2.25rem; /* 36px — the cover */
+  /* The front page's heading is sized on its own; see .landing__title. */
 
   /*
    * Figures that change in place — a clock, a duration, a measurement.

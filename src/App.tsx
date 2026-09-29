@@ -47,6 +47,7 @@ import {
   daylightWindow,
   matchingSeason,
   sameDayInMonth,
+  seasonName,
   solarPosition,
   type SimulationDate,
 } from './scene/solar';
@@ -59,16 +60,14 @@ import { buildingCentres, buildingsUnder } from './data/replaces';
 import { buildSkyline } from './scene/skyline';
 import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
-import { Overture } from './ui/Overture';
+import { HOW_IT_WORKS_ID, LandingPage } from './ui/LandingPage';
+import type { ScreenInset } from './scene/ViewInset';
 import { useReducedMotion } from './ui/useReducedMotion';
 import { Header, MapAttribution, SunChip, developmentSummary } from './ui/chrome';
 import {
   DevelopmentPanel,
-  Landing,
-  Legend,
   SearchResults,
   ViewControls,
-  type LandingPanel,
   MapLayers,
   NearbyProjects,
   BuildingPanel,
@@ -123,46 +122,41 @@ export default function App() {
    */
   const [walking, setWalking] = useState(false);
   /*
-   * The cover, and who does not get it.
+   * A bare arrival: the front page, with nothing chosen in the address bar.
    *
-   * Read once, from the state the address bar produced. A URL that names a
-   * view, a subject or an hour is somebody being sent to a particular thing,
-   * and a front door in front of that breaks every link ever shared. Only a
-   * bare arrival sees it.
+   * Read once. Only this gets the city's descent into the front page's
+   * window — a URL that names a subject is somebody being sent to a
+   * particular thing, and it opens exactly where it always did.
    */
-  const [overture, setOverture] = useState(
+  const [bareArrival] = useState(
     () => initial.view === 'landing' && !initial.devKey && !initial.buildingId,
   );
   /*
-   * The press, which is not the same event as the cover going.
-   *
-   * Two flags because the two things must OVERLAP. `entered` says the reader
-   * has asked to come in, and it releases the camera from the held-back frame
-   * it has been sitting in — that descent starts while the cover is still on
-   * screen and fading. `overture` says the cover is still mounted, and it
-   * goes off a little later, once it has finished fading.
-   *
-   * Folded into one flag, either the cover disappears on the press — the cut
-   * this exists to remove — or the city does not start moving until the cover
-   * has gone, which is a still frame followed by a lurch.
+   * The city has had its first moment on screen, held back high and far,
+   * and may now come down to its proper frame. Set a moment after the model
+   * arrives — see the effect below, and the descent in SceneCanvas.
    */
-  const [entered, setEntered] = useState(false);
+  const [arrived, setArrived] = useState(false);
   /*
-   * What is typed in the header's search field.
+   * Where the front page's window onto the city is. Measured by the page,
+   * and handed to the scene only while that page is showing.
+   */
+  const [inset, setInset] = useState<ScreenInset | null>(null);
+  /*
+   * Which search field has the keyboard. The front page has two — its own
+   * and the header's — sharing one text, and the matches belong under the
+   * one being typed into rather than under both.
+   */
+  const [searchAt, setSearchAt] = useState<'header' | 'front'>('header');
+  /*
+   * What is typed into search — one text for both fields.
    *
-   * Up here because the field moved out of the landing card and into the bar
-   * that is on every screen — so the text has to outlive the screen it was
-   * typed on, which a `useState` inside Landing could not do.
+   * The bar's field is on every screen and the front page has its own; they
+   * share this, so what was typed in one is still there in the other and
+   * survives leaving the screen it was typed on. `searchAt` says which of
+   * the two shows the matches.
    */
   const [query, setQuery] = useState('');
-  /*
-   * Which explanation is open beside the landing card — one of two, or none.
-   *
-   * ONE VALUE, NOT A FLAG EACH. Both panels take the right-hand column, and
-   * two independent booleans can both be true; the second would simply cover
-   * the first. As one value the impossible state cannot be written down.
-   */
-  const [landingPanel, setLandingPanel] = useState<LandingPanel>('how');
   /*
    * How the zoom buttons reach the camera.
    *
@@ -530,9 +524,13 @@ export default function App() {
        * and kept one there after "Clear" had unchosen it — so reloading
        * restored a place the person had already dismissed.
        */
-      devKey:
-        view !== 'landing' && !foundBuilding && hasChosen ? (focus?.devKey ?? null) : null,
-      buildingId: view === 'landing' ? null : (foundBuilding?.buildingId ?? null),
+      /*
+       * On the front page too. A place can be chosen there now, and a link
+       * copied at that moment should open with it chosen rather than on an
+       * empty search.
+       */
+      devKey: !foundBuilding && hasChosen ? (focus?.devKey ?? null) : null,
+      buildingId: foundBuilding?.buildingId ?? null,
       date,
       minutes,
       receptor,
@@ -771,6 +769,19 @@ export default function App() {
     [receptor, subjectParts, date, groundAhdM],
   );
 
+  /*
+   * Let the city come down, a moment after it first appears.
+   *
+   * The moment is what makes it a descent: released on the same render the
+   * model arrives in, the held-back frame would never be drawn and the city
+   * would simply appear in its final place.
+   */
+  useEffect(() => {
+    if (!model || arrived) return;
+    const timer = window.setTimeout(() => setArrived(true), 350);
+    return () => window.clearTimeout(timer);
+  }, [model, arrived]);
+
   const open = (development: Development, next: ViewName) => {
     setSelectedKey(development.devKey);
     setSelectedBuildingId(null);
@@ -830,44 +841,126 @@ export default function App() {
     setView('building');
   };
 
+  /*
+   * A search result picked on the front page. It is chosen, not opened: the
+   * city in the window flies to it and the pin goes on it, and the page's
+   * main button is what takes the reader on — to its sunlight.
+   *
+   * The measured spot goes with the old place. It was a question about that
+   * place, and answered for the new one it would be a spot nobody picked.
+   */
+  const chooseOnFront = (hit: SearchHit) => {
+    setQuery('');
+    if (hit.kind === 'development') {
+      setSelectedKey(hit.development.devKey);
+      setSelectedBuildingId(null);
+      setLookAt(null);
+    } else {
+      setSelectedKey(null);
+      setSelectedBuildingId(hit.building.buildingId);
+      setLookAt({
+        east: hit.building.anchorEN[0],
+        north: hit.building.anchorEN[1],
+        heightM: hit.building.heightM,
+      });
+    }
+    setHasChosen(true);
+    setShowSubject(true);
+    setReceptor(null);
+    setChoosing(false);
+  };
+
+  /** Unchoose it: the city goes back to the whole grid. */
+  const clearChosen = () => {
+    setSelectedKey(null);
+    setSelectedBuildingId(null);
+    setLookAt(null);
+    setHasChosen(false);
+    setReceptor(null);
+    setChoosing(false);
+  };
+
+  /* "How it works" in the header: the three steps at the foot of the page. */
+  const showHowItWorks = () => {
+    const steps = document.getElementById(HOW_IT_WORKS_ID);
+    steps?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
+    steps?.focus({ preventScroll: true });
+  };
+
+  /** The two links the header carries on the front page. */
+  const frontNav = (
+    <>
+      <button type="button" className="header__link" onClick={() => setView('explore')}>
+        Explore the city
+      </button>
+      <button type="button" className="header__link" onClick={showHowItWorks}>
+        How it works
+      </button>
+    </>
+  );
+
+  /** The moment on screen, for the front page's fine print. */
+  const when = `${dateLabel(date)} ${date.year}, ${clockLabel(minutes)} · ${seasonName(date.month)}`;
+
+  /** What the front page is given in both branches below. */
+  const frontProps = {
+    query,
+    onQuery: setQuery,
+    onSearchFocus: () => setSearchAt('front'),
+    onExplore: () => setView('explore'),
+    when,
+    onInset: setInset,
+    reducedMotion,
+  };
+
   if (!model) {
     /*
-     * The cover goes up FIRST, over the loading screen. That is the point of
-     * it: the city takes a few seconds to build, and behind this the wait
+     * The front page goes up FIRST, before the city exists. That is the
+     * point of it: the city takes a few seconds to build, and the wait
      * happens while somebody is reading rather than while they watch a bar.
-     * By the time the button is pressed the model is usually standing.
+     * Any other screen needs the city to show anything, so it gets the
+     * loading screen as before.
      *
      * ── WHY THIS IS `<div className="app">` AND NOT A FRAGMENT ────────────
      *
      * It must be the SAME root element the loaded branch returns, with the
-     * cover in the SAME position under it. React reconciles by type and
-     * position: change the root from a fragment to a div and every child is
-     * torn down and rebuilt, cover included.
-     *
-     * The cover cannot survive that, and it is the one thing on the page that
-     * must. Two consequences, and the second is the serious one:
-     *
-     *   The film restarted. Loading finishing — which it always does — threw
-     *   away the video's progress and replayed the entrance from white,
-     *   seconds in, for no reason anybody watching could have guessed at.
-     *
-     *   A press could be lost. Press Enter shortly before the city arrives
-     *   and the replacement cover starts fresh: `leaving` false, the exit
-     *   timer cancelled with the instance that owned it. `entered` stays true
-     *   in App, so the camera descends — behind a cover that has come back
-     *   and will now never leave, because the press it was waiting for
-     *   happened to the previous one.
+     * front page under the same key. React reconciles by type, position and
+     * key: change the root from a fragment to a div and every child is torn
+     * down and rebuilt, the front page included — and rebuilding it restarts
+     * the skyline film from its first stroke, seconds in, for no reason
+     * anybody watching could guess at. The keys let the page and the bar
+     * survive the city arriving even though what surrounds them changes.
      */
     return (
       <div className="app">
-        {overture && (
-          <Overture
-            onEnter={() => setEntered(true)}
-            onGone={() => setOverture(false)}
-            reducedMotion={reducedMotion}
+        {view === 'landing' && (
+          <LandingPage
+            key="front"
+            {...frontProps}
+            results={null}
+            chosen={null}
+            onClearChosen={() => undefined}
+            onSunlight={() => undefined}
+            loading={{ progress, error }}
+            credit={null}
           />
         )}
-        <LoadingScreen progress={progress} error={error} />
+        {view === 'landing' ? (
+          <Header
+            key="header"
+            query={query}
+            onQuery={setQuery}
+            onSearchFocus={() => setSearchAt('header')}
+            layersOpen={false}
+            layersHidden={0}
+            onLayers={() => undefined}
+            onHome={() => undefined}
+            front
+            nav={frontNav}
+          />
+        ) : (
+          <LoadingScreen progress={progress} error={error} />
+        )}
       </div>
     );
   }
@@ -937,6 +1030,9 @@ export default function App() {
    * tower, dividing the shadow's reach by zero and reporting every hour of
    * every season as the longest shadow of the day.
    */
+  /** The front page is up — and with it the window the city is framed in. */
+  const frontShown = !chromeHidden && view === 'landing';
+
   const narrative = describeShadow(
     sun,
     place?.heightM ?? 0,
@@ -1046,16 +1142,24 @@ export default function App() {
   return (
     <div className="app">
       {/*
-        Over everything, the loading screen included. The city builds behind
-        it — 4,443 roof planes and a five megabyte snapshot — so the wait
-        happens while somebody is reading rather than while they watch a bar.
+        First, and under the same key as in the loading branch, so the city
+        arriving does not rebuild it. See the note there.
       */}
-      {overture && (
-        <Overture
-          onEnter={() => setEntered(true)}
+      {frontShown && (
+        <LandingPage
+          key="front"
+          {...frontProps}
+          results={
+            searchAt === 'front' ? (
+              <SearchResults model={model} query={query} onPick={chooseOnFront} />
+            ) : null
+          }
+          chosen={place ? { label: place.label, detail: place.detail } : null}
+          onClearChosen={clearChosen}
+          onSunlight={() => setView('sunlight')}
           onEnterVr={vrSupported ? enterVr : undefined}
-          onGone={() => setOverture(false)}
-          reducedMotion={reducedMotion}
+          loading={null}
+          credit={mapbox ? <MapAttribution /> : null}
         />
       )}
 
@@ -1065,14 +1169,13 @@ export default function App() {
           focus={focus}
           sun={sun}
           /*
-           * Held back until the reader asks to come in — not until the cover
-           * has gone. The press releases this, and CameraRig flies the
-           * difference while the cover is still fading over the top of it.
-           *
-           * `overture && !entered`, so a URL that skipped the cover never
-           * sees the held frame and opens exactly where it always did.
+           * Held back for the city's first moment on the front page, then
+           * released; CameraRig flies the difference. Only for a bare
+           * arrival, so a shared link opens exactly where it always did.
            */
-          approach={overture && !entered}
+          approach={bareArrival && !arrived}
+          // The front page's window, while there is one.
+          inset={frontShown ? inset : null}
           showProposed={layers.developments}
           castShadows={layers.shadows}
           showSunArrow={view === 'sunlight' && layers.shadows}
@@ -1169,8 +1272,10 @@ export default function App() {
         else in focus mode and while walking — down there the wheel and the
         keys are the controls, and a floating pair of buttons is chrome the
         mode exists to remove.
+
+        Not on the front page either, which frames the city itself.
       */}
-      {!chromeHidden && (
+      {!chromeHidden && !frontShown && (
         <ViewControls
           onZoom={(factor) => viewCommands.current?.dolly(factor)}
           onOrbit={(radians) => viewCommands.current?.orbit(radians)}
@@ -1206,7 +1311,8 @@ export default function App() {
         />
       )}
 
-      {mapbox && <MapAttribution />}
+      {/* On the front page the credit sits in the page's own window onto the map. */}
+      {mapbox && !frontShown && <MapAttribution />}
 
       {walking && (
         <p className="walking-hint">
@@ -1275,8 +1381,12 @@ export default function App() {
       */}
       {!chromeHidden && (
         <Header
+          key="header"
           query={query}
           onQuery={setQuery}
+          onSearchFocus={() => setSearchAt('header')}
+          front={frontShown}
+          nav={frontShown ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,
@@ -1296,33 +1406,29 @@ export default function App() {
           }}
           onEnterVr={vrSupported ? enterVr : undefined}
         >
-          <SearchResults
-            model={model}
-            query={query}
-            onPick={(hit) => {
-              setQuery('');
-              openHit(hit);
-            }}
-          />
+          {/*
+            On the front page, only while this field has the keyboard, and a
+            pick there chooses rather than opens — the same as the page's own
+            field, so the two fields on one page do not do two things.
+          */}
+          {(!frontShown || searchAt === 'header') && (
+            <SearchResults
+              model={model}
+              query={query}
+              onPick={(hit) => {
+                setQuery('');
+                if (frontShown) chooseOnFront(hit);
+                else openHit(hit);
+              }}
+            />
+          )}
         </Header>
       )}
 
-      {!chromeHidden && view === 'landing' && (
-        <>
-          <Landing
-            onExplore={() => setView('explore')}
-            onPanel={setLandingPanel}
-            panel={landingPanel}
-          />
-          <Legend />
-        </>
-      )}
-
       {/*
-        Only on the landing screen, and only while the interface is showing.
-        Every other screen has something of its own in the right-hand column,
-        and leaving this open behind a search result would put two panels in
-        the same place.
+        The explore screen: the projects near the chosen place, or near the
+        city centre when nothing is chosen. Only while the interface is
+        showing.
       */}
       {!chromeHidden && view === 'explore' && (
         <>

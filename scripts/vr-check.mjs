@@ -417,7 +417,7 @@ try {
    * what the Melbourne clock happens to read, and so the headset has to deal
    * with night on the way in (see enterVr in App.tsx).
    */
-  await page.goto(`${URL_}?d=2026-06-21&t=1200`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${URL_}?d=2026-06-21&t=1200#vr-sim`, { waitUntil: 'domcontentloaded' });
 
   // 0. From the front door.
   const enter = page.getByRole('button', { name: 'Enter in VR' });
@@ -662,7 +662,7 @@ try {
 
   // ── B. From a building's page, as a shared link opens it ─────────────────
   const building = '60626413-853e-4a38-88d9-9337629eb7c9'; // 206-218 Bourke Street
-  await page.goto(`${URL_}?view=sunlight&bldg=${building}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${URL_}?view=sunlight&bldg=${building}#vr-sim`, { waitUntil: 'domcontentloaded' });
   const headerEnter = page.getByRole('button', { name: 'Enter VR', exact: true });
   await headerEnter.waitFor({ timeout: 90_000 });
   const search = page.getByPlaceholder('Search a street or address');

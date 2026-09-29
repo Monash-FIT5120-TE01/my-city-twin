@@ -23,9 +23,10 @@ checks nothing, because that file only holds project references.
 
 ### Checking the headset without a headset
 
-On `localhost` the app installs a simulated Meta Quest 3 whenever no real
-headset is attached (see `src/scene/xrStore.ts`). Open
-`http://localhost:5173` in Chrome and the landing page offers **Enter in VR**;
+On `localhost`, with `#vr-sim` on the address, the app installs a simulated
+Meta Quest 3 when no real headset is attached (see `src/scene/xrStore.ts`).
+Without it localhost behaves as an ordinary desktop and offers no VR. Open
+`http://localhost:5173/#vr-sim` in Chrome and the landing page offers **Enter in VR**;
 once in, the simulator draws its own controls over the page — move a
 controller, pull its trigger, press X.
 

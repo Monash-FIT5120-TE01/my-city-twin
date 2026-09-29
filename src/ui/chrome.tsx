@@ -103,6 +103,9 @@ export function Header({
   onLayers,
   onHome,
   onEnterVr,
+  onSearchFocus,
+  front = false,
+  nav,
   children,
 }: {
   query: string;
@@ -118,6 +121,16 @@ export function Header({
    * worse than no button.
    */
   onEnterVr?: () => void;
+  /** The field here has the keyboard, so the results belong under it. */
+  onSearchFocus?: () => void;
+  /**
+   * On the front page: the bar takes the page's cream, and the layer button
+   * goes — there is nothing on that page for a layer to change that the
+   * reader has asked about yet.
+   */
+  front?: boolean;
+  /** Links for the front page, set before the buttons on the right. */
+  nav?: React.ReactNode;
   /** The search results, rendered by the caller under the field. */
   children?: React.ReactNode;
 }) {
@@ -130,6 +143,11 @@ export function Header({
    * The guard is the whole of it: without it, every slash anybody types into
    * the date field or an address becomes a jump to the search box, which is
    * a far worse problem than the one the shortcut solves.
+   *
+   * WHICHEVER FIELD IS ON SCREEN. The front page has a field of its own, and
+   * on a narrow screen it hides this one; focusing a hidden field swallowed
+   * the key and did nothing. Every search field carries `data-search-field`,
+   * and the first one that is actually laid out gets the cursor.
    */
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -142,16 +160,20 @@ export function Header({
       ) {
         return;
       }
+      const shown = [
+        ...document.querySelectorAll<HTMLInputElement>('input[data-search-field]'),
+      ].find((input) => input.offsetParent !== null && !input.disabled);
+      if (!shown) return;
       event.preventDefault();
-      field.current?.focus();
-      field.current?.select();
+      shown.focus();
+      shown.select();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   return (
-    <header className="header">
+    <header className={`header${front ? ' header--front' : ''}`}>
       <button
         type="button"
         className="header__brand"
@@ -203,8 +225,10 @@ export function Header({
           </svg>
           <input
             ref={field}
+            data-search-field
             value={query}
             onChange={(event) => onQuery(event.target.value)}
+            onFocus={onSearchFocus}
             placeholder="Search a street or address"
             aria-label="Search for a street or address"
           />
@@ -222,6 +246,7 @@ export function Header({
       </div>
 
       <div className="header__actions">
+        {nav}
         {onEnterVr && (
           /*
            * The handler must BE the call — see xrStore.ts. Nothing may be
@@ -241,6 +266,7 @@ export function Header({
             Enter VR
           </button>
         )}
+        {!front && (
         <button
           type="button"
           className="chip chip--icon"
@@ -277,6 +303,7 @@ export function Header({
             </span>
           )}
         </button>
+        )}
       </div>
     </header>
   );
