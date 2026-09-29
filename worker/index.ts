@@ -27,7 +27,7 @@
  * it points mycitytwin.com at a half-built version, which is the one URL
  * everybody types from memory.
  */
-const LATEST = 'ver-1';
+const LATEST = 'ver-2';
 
 /** '/ver-2/anything' and bare '/ver-2' alike. */
 const VERSION_PATH = /^\/(ver-\d+)(?:\/|$)/;

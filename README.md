@@ -59,6 +59,7 @@ it was marked on.
 |---|---|
 | `mycitytwin.com/ver-1/` | Iteration 1 as submitted — frozen |
 | `mycitytwin.com/ver-2/` | Iteration 2 as submitted — frozen |
+| `mycitytwin.com/ver-3/` | Iteration 3 — rebuilt as it goes, frozen when submitted |
 | `mycitytwin.com/` | Redirects to the newest frozen version |
 | `dev.mycitytwin.com` | Whatever is on `main` right now |
 
