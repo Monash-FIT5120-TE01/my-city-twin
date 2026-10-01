@@ -10,8 +10,18 @@
  *   - Builds each proposal's shape once and keeps it.
  *   - Colours each by what can be done with it (see below).
  *   - Outlines the one being read about (SelectionEdges).
+ *   - Opens a proposal on a DOUBLE click at a desk, and on a single pull of
+ *     the trigger in a headset (see WHY A DOUBLE CLICK below).
  *   - Tells a click apart from the end of a camera drag (tap.ts).
  *   - Frees the old shapes on the GPU when the set is replaced.
+ *
+ * WHY A DOUBLE CLICK
+ *   A single click on the city is mostly the end of something else — a
+ *   pan, a tap to look closer — and opening a project on it took the
+ *   reader somewhere they had not asked to go. A double click is a request.
+ *   In a headset it stays a single pull: aiming a laser twice at the same
+ *   tower is far harder than clicking twice, and the panel is how most
+ *   places are chosen there anyway.
  *
  * WHY EACH ONE IS A SEPARATE OBJECT
  *   The 1,548 existing buildings are welded into one object because nobody
@@ -48,6 +58,7 @@ import type { BufferGeometry } from 'three';
 import type { Development } from '../data/model';
 import { mergeMassings } from './massing';
 import { SelectionEdges } from './SelectionEdges';
+import { useInVr } from './xrStore';
 import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 
 interface DevelopmentMassingsProps {
@@ -107,6 +118,9 @@ export function DevelopmentMassings({
    * the pointer at a time.
    */
   const pressedAt = useRef<Gesture | null>(null);
+  /** Whether the latest click was a clean one, for the double click after it. */
+  const lastClickClean = useRef(false);
+  const inVr = useInVr();
 
   // A pointer cursor left behind when this unmounts under the pointer.
   useEffect(() => {
@@ -149,6 +163,7 @@ export function DevelopmentMassings({
             onClick={
               interactive
                 ? (event) => {
+                    // Kept from the ground beneath even when it opens nothing.
                     event.stopPropagation();
                     /*
                      * Not if the camera was being moved. A drag that happens
@@ -157,8 +172,18 @@ export function DevelopmentMassings({
                      */
                     const from = pressedAt.current;
                     pressedAt.current = null;
-                    if (wasDragged(from, event.nativeEvent)) return;
-                    onSelect(development);
+                    lastClickClean.current = !wasDragged(from, event.nativeEvent);
+                    // In a headset one pull opens it; at a desk, see onDoubleClick.
+                    if (inVr && lastClickClean.current) onSelect(development);
+                  }
+                : undefined
+            }
+            onDoubleClick={
+              interactive && !inVr
+                ? (event) => {
+                    event.stopPropagation();
+                    // The second click must be a click too, not a drag's end.
+                    if (lastClickClean.current) onSelect(development);
                   }
                 : undefined
             }

@@ -98,6 +98,8 @@ const VrFurniture = lazy(() => import('./VrPanel'));
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
 import { ViewInset, type ScreenInset } from './ViewInset';
+import { ViewLink } from './ViewLink';
+import type { CameraLink } from './cameraLink';
 import type { SunAngles } from './sun';
 import type { CityModel, Development } from '../data/model';
 
@@ -186,6 +188,14 @@ interface SceneCanvasProps {
    * ViewInset.
    */
   inset?: { current: ScreenInset | null };
+  /**
+   * No headset wrapper: for the second view on the comparison screen. The
+   * XR store is one per page, and a second <XR> on it would fight the first
+   * for every session.
+   */
+  noHeadset?: boolean;
+  /** The comparison screen's shared camera, and which of the two views this is. */
+  link?: { link: CameraLink; id: string; seed: 'publish' | 'adopt' } | null;
   /** Whether the front page — and so the window — is up. */
   insetOn?: boolean;
 }
@@ -216,6 +226,8 @@ export function SceneCanvas({
   refit,
   inset,
   insetOn = false,
+  noHeadset = false,
+  link = null,
   timeLabel,
   dateLabel,
   onNudgeMinutes,
@@ -457,13 +469,20 @@ export function SceneCanvas({
   const [flick, setFlick] = useState({ count: 0, direction: 0 as -1 | 0 | 1 });
 
   const [inVr, setInVr] = useState(false);
+  /*
+   * Not for a view without the headset wrapper (`noHeadset`). Told a session
+   * had started, it would mount VrWalk — whose controller hooks need the
+   * <XR> it deliberately does not have — and throw.
+   */
   useEffect(
     () =>
-      xrStore().subscribe((state, previous) => {
-        setInVr(state.session != null);
-        if (state.session != null && previous.session == null) setPanelShown(true);
-      }),
-    [],
+      noHeadset
+        ? undefined
+        : xrStore().subscribe((state, previous) => {
+            setInVr(state.session != null);
+            if (state.session != null && previous.session == null) setPanelShown(true);
+          }),
+    [noHeadset],
   );
   const showPanel = () => {
     setPanelShown(true);
@@ -557,7 +576,7 @@ export function SceneCanvas({
         and the world frame all have to be inside the session's render loop
         to appear in it.
       */}
-      <XR store={xrStore()}>
+      <HeadsetFrame on={!noHeadset}>
         {/*
           The clear colour is now the horizon, so the ground has something to
           dissolve INTO that agrees with the sky above it. Fixed at beige, the
@@ -718,6 +737,9 @@ export function SceneCanvas({
           </VrWalk>
         )}
 
+        {/* Tied to the other view on the comparison screen — see ViewLink. */}
+        {link && <ViewLink link={link.link} id={link.id} seed={link.seed} />}
+
         {/* The zoom buttons' way in to the camera — see ViewControls. */}
         {viewCommands && <ViewControlsBridge commands={viewCommands} />}
 
@@ -773,7 +795,15 @@ export function SceneCanvas({
             RIGHT: MOUSE.ROTATE,
           }}
         />
-      </XR>
+      </HeadsetFrame>
     </Canvas>
   );
+}
+
+/**
+ * The headset wrapper, or nothing. The first view on a page carries <XR>;
+ * a second view (the comparison screen's) must not — see `noHeadset`.
+ */
+function HeadsetFrame({ on, children }: { on: boolean; children: React.ReactNode }) {
+  return on ? <XR store={xrStore()}>{children}</XR> : <>{children}</>;
 }

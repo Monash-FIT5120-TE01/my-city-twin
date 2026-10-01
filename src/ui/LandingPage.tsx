@@ -64,7 +64,7 @@ import '../styles/landing.css';
 /** The three steps along the bottom, in the order the app is used. */
 const STEPS = [
   { title: 'Find a place', body: 'Search for an address or explore the map.' },
-  { title: 'Select any building', body: 'Click on a building to see what’s happening nearby.' },
+  { title: 'Select any building', body: 'Double-click a building to see what’s happening nearby.' },
   {
     title: 'Compare sunlight',
     body: 'See how planned developments could affect sunlight on your street.',

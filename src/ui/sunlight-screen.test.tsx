@@ -5,8 +5,8 @@
  * WHAT THESE PIN DOWN
  *   - The panel's controls report their state in markup a screen reader
  *     reads and that is not colour alone: the chosen season is
- *     aria-pressed, the neighbourhood view is a checked radio, the compare
- *     button is aria-pressed and says what pressing it does.
+ *     aria-pressed and the neighbourhood view is a checked radio; the
+ *     compare button is a way on to the side-by-side screen.
  *   - What stays on the screen after the redesign: "Details" (what the
  *     Overview tab was), "Choose a spot", "How it works", and the sources
  *     link for a phone, where the strip under the map is hidden.
@@ -41,7 +41,6 @@ function sheet(overrides: Partial<Parameters<typeof SunlightSheet>[0]> = {}) {
       onCancelChoose={noop}
       afterPlans
       onAfterPlans={noop}
-      comparing={false}
       onCompare={noop}
       onDetails={noop}
       onBack={noop}
@@ -68,9 +67,11 @@ describe('the sunlight panel', () => {
     expect(today).toMatch(/checked=""[^>]*\/>Today/);
   });
 
-  it('says what the compare button will do, and shows when it is on', () => {
-    expect(sheet({ comparing: false })).toMatch(/aria-pressed="false"[^>]*>Compare today and after/);
-    expect(sheet({ comparing: true })).toMatch(/aria-pressed="true"[^>]*>Stop comparing/);
+  it('offers the side-by-side comparison as a way on, not a switch', () => {
+    const html = sheet();
+    expect(html).toContain('Compare side by side');
+    // A link to another screen, not a toggle: nothing to be pressed or not.
+    expect(html).not.toMatch(/aria-pressed="[^"]*"[^>]*>Compare/);
   });
 
   it('offers "Show this building" for a standing building only', () => {

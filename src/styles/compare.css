@@ -1,0 +1,309 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * COMPARE SUNLIGHT
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The comparison page: a head, two framed windows side by side (stacked on
+ * a phone), a bar along the bottom and the fine print. See ComparePage.tsx.
+ *
+ * The windows are empty boxes. ComparePage measures them, and App lays a
+ * canvas over each (`.compare__canvas`, and the main `.app__scene` moved
+ * into the left one), above this page, so the pointer reaches the city
+ * through them. The page scrolls on a screen too short for it, and the
+ * canvases follow.
+ *
+ * IN THIS FILE
+ *   - The page and its head.
+ *   - The two windows and their captions.
+ *   - The bottom bar: the date, the rail, the button.
+ *   - The canvases laid over the windows.
+ *   - A phone: the windows stacked.
+ */
+
+/* ── the page ───────────────────────────────────────────── */
+
+.compare {
+  position: absolute;
+  inset: var(--h-header) 0 0 0;
+  /* Over the city, under the header — and under the canvases laid on it. */
+  z-index: 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  /*
+   * Scrolls when the screen is too short for it all — a phone on its side —
+   * rather than squeezing the windows to nothing. ComparePage re-measures on
+   * scroll so the canvases follow.
+   */
+  overflow-y: auto;
+  gap: var(--space-3);
+  padding: var(--space-4) clamp(var(--space-4), 2.6vw, 2.5rem) var(--space-2);
+  background: var(--cream);
+}
+
+.compare__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.compare__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+.compare__back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.compare__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-weight: var(--weight-title);
+  line-height: 1.1;
+  color: var(--ink-green-900);
+}
+
+.compare__place {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-lg);
+  color: var(--ink-2);
+}
+
+.compare__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.compare__together {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* The key in a row, on the page's own ground rather than a card. */
+.compare__key {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* ── the two windows ────────────────────────────────────── */
+
+.compare__views {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  /* Never squeezed past the point where a window shows anything. */
+  min-height: 18rem;
+}
+
+.compare__title:focus {
+  outline: none;
+}
+
+.compare__view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  margin: 0;
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.compare__view-title {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  color: var(--ink-green-900);
+}
+
+/* The box a canvas is laid over. */
+.compare__frame {
+  min-height: 0;
+  background: var(--surface-sunken);
+}
+
+.compare__caption {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* ── the bottom bar ─────────────────────────────────────── */
+
+.compare__bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+
+.compare__when {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+  color: var(--ink-green-900);
+}
+
+.compare__when select {
+  min-height: 42px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--weight-label);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.compare__when:focus-within {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.compare__when select:focus {
+  outline: none;
+}
+
+.compare__rail {
+  min-width: 0;
+}
+
+/* The rail alone, in the bar's flow — see TimeBar's `inline`. */
+.timebar.timebar--inline {
+  position: static;
+  pointer-events: auto;
+}
+
+.timebar--inline .timebar__dock {
+  display: block;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/*
+ * The design's mint, with the dark green edge and words that make it a
+ * button by lightness as well as by hue.
+ */
+.button.compare__spot {
+  min-height: 48px;
+  border-color: var(--green-700);
+  background: var(--mint-100);
+  color: var(--ink-green-900);
+}
+
+.button.compare__spot:hover {
+  background: #c9e6da;
+}
+
+.compare__foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* ── the canvases laid over the windows ─────────────────── */
+
+/*
+ * Above the page (2) so the pointer reaches the city, under the header (6).
+ * Their place and size come from the windows' measurements, set inline by
+ * App; the credit sits in each one's corner.
+ */
+.compare__canvas,
+.app__scene.app__scene--compare {
+  position: absolute;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.compare__canvas .attribution,
+.app__scene--compare .attribution {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+}
+
+/* ── a phone ────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .compare {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .compare__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .compare__aside {
+    align-items: flex-start;
+  }
+
+  .compare__title {
+    font-size: 1.5rem;
+  }
+
+  /* One above the other, each tall enough to read. */
+  .compare__views {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(11rem, 1fr) minmax(11rem, 1fr);
+    gap: var(--space-2);
+    min-height: 0;
+  }
+
+  .compare__view-title {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-body);
+  }
+
+  .compare__caption {
+    display: none;
+  }
+
+  .compare__bar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .button.compare__spot {
+    width: 100%;
+  }
+}

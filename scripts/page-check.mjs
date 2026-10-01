@@ -17,11 +17,14 @@
  *       credit whenever the map shows);
  *     - choosing an address and pressing "Explore sunlight" opens the
  *       sunlight screen.
+ *   Choosing a project on the map
+ *     - one click opens nothing; a double click opens it.
  *   The sunlight screen
  *     - "Map layers" is there (the only shadows switch);
  *     - play moves the hour, and leaving the screen stops it — returning
  *       does not find it running by itself;
- *     - "Compare today and after" flips the neighbourhood view on its own.
+ *     - "Compare side by side" opens the comparison page — two views, each
+ *       with the map's credit — and "Back to sunlight" returns to one.
  *   On a phone, upright and on its side
  *     - the time bar sits below the header and above the map credit, and the
  *       credit above the sheet — nothing covers anything;
@@ -126,7 +129,11 @@ try {
   let firstFailure = '';
   for (let y = 0; y <= 900; y += 20) {
     await page.evaluate((y) => document.querySelector('.landing').scrollTo(0, y), y);
-    await page.waitForTimeout(60);
+    // The page re-measures on its scroll event; let two frames pass so the
+    // check reads the page after it has, not before.
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
     const state = await page.evaluate(() => {
       const bar = document.querySelector('.header').getBoundingClientRect().bottom;
       const hole = document.querySelector('.landing__window');
@@ -154,6 +161,34 @@ try {
   check('Choosing an address and "Explore sunlight" open the sunlight screen', opened);
   await page.close();
 
+  // ── Choosing a project on the map ───────────────────────────────────────
+  /*
+   * A single click on a project opens nothing; a double click opens it.
+   * The pointer turns to a hand over a project, which is how one is found
+   * without knowing where the camera put it.
+   */
+  page = await open(1440, 900, '?view=explore&d=2026-06-21&t=720', '.viewctl');
+  let spot = null;
+  for (let y = 200; y < 700 && !spot; y += 25) {
+    for (let x = 450; x < 1300 && !spot; x += 25) {
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(40);
+      if ((await page.evaluate(() => document.body.style.cursor)) === 'pointer') spot = [x, y];
+    }
+  }
+  if (!spot) {
+    check('A project can be found under the pointer', false);
+  } else {
+    const view = () => new URL(page.url()).searchParams.get('view');
+    await page.mouse.click(spot[0], spot[1]);
+    await page.waitForTimeout(1200);
+    check('One click on a project opens nothing', view() === 'explore', `view ${view()}`);
+    await page.mouse.dblclick(spot[0], spot[1]);
+    await page.waitForTimeout(1200);
+    check('A double click on a project opens it', view() === 'development', `view ${view()}`);
+  }
+  await page.close();
+
   // ── The sunlight screen ─────────────────────────────────────────────────
   page = await open(1440, 900, SUNLIGHT, '.timebar__dock');
   await page.screenshot({ path: join(OUT, '02-sunlight.png') });
@@ -176,14 +211,26 @@ try {
   check('Leaving the screen stops play, and returning does not restart it',
     label === 'Play the day' && hourLater === hourBack, `${label}, ${hourBack} → ${hourLater}`);
 
-  const radios = () =>
-    page.evaluate(() => [...document.querySelectorAll('input[name=neighbourhood]')].map((r) => r.checked).join());
-  await page.getByRole('button', { name: 'Compare today and after' }).click();
-  const first = await radios();
-  await page.waitForTimeout(2000);
-  const second = await radios();
-  await page.getByRole('button', { name: 'Stop comparing' }).click();
-  check('"Compare today and after" flips the neighbourhood view on its own', first !== second, `${first} → ${second}`);
+  /*
+   * Compare side by side: a page of its own with two views, the "after" one
+   * drawing a project the "today" one does not, both with the map's credit;
+   * and back again to one view.
+   */
+  await page.getByRole('button', { name: 'Compare side by side' }).click();
+  const compared = await page
+    .waitForSelector('.compare__canvas canvas', { timeout: 60_000 })
+    .then(() => true)
+    .catch(() => false);
+  await page.waitForTimeout(3000);
+  const canvases = await page.locator('canvas').count();
+  const credits = await page.locator('.attribution').count();
+  check('"Compare side by side" opens two views, each with the map credit',
+    compared && canvases === 2 && credits === 2, `${canvases} views, ${credits} credits`);
+  await page.screenshot({ path: join(OUT, '02b-compare.png') });
+  await page.getByRole('button', { name: 'Back to sunlight' }).click();
+  await page.waitForSelector('.timebar__dock');
+  await page.waitForTimeout(800);
+  check('"Back to sunlight" returns to one view', (await page.locator('canvas').count()) === 1);
   await page.close();
 
   // ── On a phone ──────────────────────────────────────────────────────────

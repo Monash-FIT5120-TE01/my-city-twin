@@ -38,9 +38,16 @@
 import { fromDateInput, toDateInput, type SimulationDate } from '../scene/solar';
 import { clampMinutes, outsideWindowNote, presentMoment } from './now';
 
-export type ViewName = 'landing' | 'explore' | 'development' | 'building' | 'sunlight';
+export type ViewName =
+  | 'landing'
+  | 'explore'
+  | 'development'
+  | 'building'
+  | 'sunlight'
+  /** The sunlight, today and after, side by side. */
+  | 'compare';
 
-const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight'];
+const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight', 'compare'];
 
 export interface UrlState {
   view: ViewName;
@@ -166,7 +173,8 @@ export function writeUrlState(state: Omit<UrlState, 'nowNote'>): void {
   if (state.view !== 'landing') params.set('view', state.view);
   if (state.devKey) params.set('dev', state.devKey);
   if (state.buildingId) params.set('bldg', state.buildingId);
-  if (state.view === 'sunlight') {
+  // The comparison is the same question at the same moment, so it keeps it.
+  if (state.view === 'sunlight' || state.view === 'compare') {
     params.set('d', toDateInput(state.date));
     params.set('t', String(state.minutes));
     if (state.receptor) {

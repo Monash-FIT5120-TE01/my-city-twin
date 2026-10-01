@@ -20,8 +20,8 @@
  *                    Sunlight tabs or a "Details" link.
  *   DevelopmentPanel one approved project.
  *   SunlightSheet    the sunlight screen's column: date, season, today or
- *                    after, the measured spot or window, comparing the two
- *                    by turns, and "How it works".
+ *                    after, the measured spot or window, the way to the
+ *                    side-by-side comparison, and "How it works".
  *   TimeBar          the dock along the foot of the map: play, the hour on a
  *                    rail through the day, sunrise and sunset, the map key.
  *   BuildingPanel    one existing building.
@@ -820,7 +820,7 @@ export function NearbyProjects({
         · Demo data
       </p>
 
-      <p className="note">Select a project here or click a green building on the map.</p>
+      <p className="note">Select a project here or double-click a green building on the map.</p>
     </aside>
   );
 }
@@ -1269,7 +1269,7 @@ export const SUNLIGHT_HOWTO_ID = 'sunlight-howto';
  *     the floor and side controls for the window.
  *   - The answer: choosing a spot, the figure for it, and what to do next;
  *     or the window's figure, or why there is none.
- *   - "Compare today and after": the two taking turns on the map.
+ *   - "Compare side by side": the way to the comparison screen.
  *   - "How it works", folded.
  *   - The caveats, at the end.
  *
@@ -1305,7 +1305,6 @@ export function SunlightSheet({
   afterPlans,
   onAfterPlans,
   subjectShown,
-  comparing,
   onCompare,
   subjectKind = 'development',
   apartment,
@@ -1366,12 +1365,7 @@ export function SunlightSheet({
    * "before" of what it takes from the street.
    */
   subjectShown?: { shown: boolean; onShown: (next: boolean) => void };
-  /**
-   * Flipping between today and after, on its own, until pressed again — so
-   * the two can be compared from one viewpoint without reaching for the
-   * switch each time.
-   */
-  comparing: boolean;
+  /** Opens the comparison screen: today and after, side by side. */
   onCompare: () => void;
   /** A proposal ("project") or a building already standing ("building"). */
   subjectKind?: 'development' | 'building';
@@ -1533,8 +1527,8 @@ export function SunlightSheet({
           The control the whole screen exists for, and it stays put: it is
           not inside any branch that measuring can take off the screen.
           Switching it does not change what the figures below mean -- this
-          decides what the MAP draws, not what was measured. "Compare today
-          and after" below flips it by turns, and it follows along.
+          decides what the MAP draws, not what was measured. "Compare side by
+          side" below shows the two at once, on a page of their own.
 
           For a standing building, a second control: whether the building
           itself is drawn, the "before" of what it takes from the street.
@@ -1818,32 +1812,28 @@ export function SunlightSheet({
         </div>
 
         {/*
-          -- COMPARE TODAY AND AFTER ----------------------------------------
+          -- COMPARE SIDE BY SIDE -------------------------------------------
 
-          Today and after, taking turns on the map, until pressed again. The
-          same two states the switch above sets, so the switch follows along
-          and says which one is showing at every moment. Choosing one of them
-          by hand stops it — see App.
+          Today and after, side by side on a page of their own (ComparePage),
+          with the two views moving together. The switch above shows one at a
+          time on this map; this shows both at once.
         */}
         <button
           type="button"
           className="button button--ghost button--block button--compare"
-          aria-pressed={comparing}
           onClick={onCompare}
         >
-          {comparing ? 'Stop comparing' : 'Compare today and after'}
-          {!comparing && (
-            <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true">
-              <path
-                d="M0 5h15M11 1l4 4-4 4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
+          Compare side by side
+          <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true">
+            <path
+              d="M0 5h15M11 1l4 4-4 4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
 
         {/*
@@ -1858,7 +1848,7 @@ export function SunlightSheet({
           <ol className="howto__steps">
             <li>Choose a date or a season above.</li>
             <li>Move the time along the bar at the bottom, or press play, to follow the shadow.</li>
-            <li>Switch the neighbourhood view to compare today with after the approved projects.</li>
+            <li>Switch the neighbourhood view, or compare the two side by side, to see today against after the approved projects.</li>
             <li>Choose a spot on the ground to measure what this {noun} takes from it.</li>
           </ol>
         </details>
@@ -1957,8 +1947,9 @@ export function TimeBar({
   max,
   caption,
   daylight,
-  playing,
+  playing = false,
   onPlay,
+  inline = false,
 }: {
   /** The hour on screen, in minutes since midnight. */
   minutes: number;
@@ -1971,9 +1962,15 @@ export function TimeBar({
   /** When the sun crosses the horizon, in minutes. Null outside the window. */
   daylight: { rise: number | null; set: number | null };
   /** The hour is moving on its own. */
-  playing: boolean;
-  /** Play or pause; App restarts a finished day from sunrise. */
-  onPlay: () => void;
+  playing?: boolean;
+  /** Play or pause; App restarts a finished day from sunrise. No play button without it. */
+  onPlay?: () => void;
+  /**
+   * The rail alone, set in its parent's flow rather than docked over the
+   * map: for the comparison screen's bottom bar, which has its own date and
+   * no room for the key twice.
+   */
+  inline?: boolean;
 }) {
   /** Where a time falls along the rail, as a percentage, held to the ends. */
   const place = (at: number) => Math.min(100, Math.max(0, ((at - min) / (max - min)) * 100));
@@ -2007,12 +2004,13 @@ export function TimeBar({
      * The outer one is the position and the measurement; the inner one is
      * the card.
      */
-    <div className="timebar timebar--sun">
+    <div className={`timebar ${inline ? 'timebar--inline' : 'timebar--sun'}`}>
       <div className="timebar__dock">
         {/*
           Play, and pause. It moves the same hour the handle does, so
           dragging the handle stops it — see App.
         */}
+        {onPlay && (
         <button
           type="button"
           className="timebar__play"
@@ -2031,8 +2029,10 @@ export function TimeBar({
             </svg>
           )}
         </button>
+        )}
 
         <div className="timebar__timeline">
+          {!inline && (
           <p className="timebar__events">
             <span className="timebar__caption">{caption}</span>
             <span>
@@ -2041,6 +2041,7 @@ export function TimeBar({
               Sunset <b>{daylight.set === null ? '—' : clock12Label(daylight.set)}</b>
             </span>
           </p>
+          )}
 
           <div
             className="timebar__track"
@@ -2095,7 +2096,7 @@ export function TimeBar({
         </div>
 
         {/* The key to the colours, beside the rail that changes what they cast. */}
-        <MapKey className="timebar__key" />
+        {!inline && <MapKey className="timebar__key" />}
       </div>
     </div>
   );

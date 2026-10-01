@@ -22,7 +22,7 @@
  *   floor, windowSide  the flat being measured, for a standing building
  *   query              the text in both search fields
  *   focusMode, walking the two ways the interface is hidden
- *   playing, comparing the sunlight screen's two automatic modes
+ *   playing            the sunlight screen's day, playing on its own
  *
  *   The first six of those are what the address bar carries (urlState.ts).
  *
@@ -36,7 +36,8 @@
  *     fall-backs when a link names neither.
  *   - What a window in a standing building can see.
  *   - The spot measured on the ground.
- *   - The city's descent, the day played, and today and after taking turns.
+ *   - The city's descent, and the day played.
+ *   - The comparison screen: today and after, side by side (ComparePage).
  *   - Choosing and clearing a place, and the header's links.
  *   - While the city loads: the front page, or the loading screen.
  *   - Once it is here: the scene, then each screen's panels.
@@ -84,6 +85,8 @@ import { LoadingScreen } from './ui/LoadingScreen';
 import { HOW_IT_WORKS_ID, LandingPage } from './ui/LandingPage';
 import { FUTURE_PLANS_ID } from './ui/LandingMore';
 import { SourcesLink } from './ui/Sources';
+import { ComparePage, type FrameRect } from './ui/ComparePage';
+import { createCameraLink } from './scene/cameraLink';
 import './styles/sunlight.css';
 import type { ScreenInset } from './scene/ViewInset';
 import { useReducedMotion } from './ui/useReducedMotion';
@@ -177,13 +180,18 @@ export default function App() {
    */
   const [searchAt, setSearchAt] = useState<'header' | 'front'>('header');
   /*
-   * The sunlight screen's two automatic modes: the hour moving on its own,
-   * and the map taking turns between today and after the approved projects.
-   * Both belong to that screen alone and stop the moment it is left — see
-   * `playingNow` and `comparingNow` below.
+   * The sunlight screen's day, playing on its own. It belongs to that screen
+   * alone and stops the moment it is left — see `playingNow` below.
    */
   const [playing, setPlaying] = useState(false);
-  const [comparing, setComparing] = useState(false);
+  /*
+   * The comparison screen: where its two windows are, measured by the page,
+   * and the camera pose the two views share so they move together.
+   */
+  const [compareFrames, setCompareFrames] = useState<{ today: FrameRect; after: FrameRect } | null>(
+    null,
+  );
+  const [cameraLink] = useState(createCameraLink);
   /*
    * What is typed into search — one text for both fields.
    *
@@ -505,7 +513,13 @@ export default function App() {
         setFocusMode(false);
         setQuery('');
         setLayersOpen(false);
-        if (view === 'development' || view === 'building') setView('sunlight');
+        /*
+         * The comparison too: its second view is a page-only canvas with no
+         * headset in it, and the headset panel operates the sunlight screen.
+         */
+        if (view === 'development' || view === 'building' || view === 'compare') {
+          setView('sunlight');
+        }
       },
       () => {
         // Refused. The page is untouched; the button is still there to try again.
@@ -563,6 +577,7 @@ export default function App() {
     if (view === 'development' && !focus) setView('explore');
     if (view === 'building' && !foundBuilding) setView('explore');
     if (view === 'sunlight' && !focus && !foundBuilding) setView('explore');
+    if (view === 'compare' && !focus && !foundBuilding) setView('explore');
   }, [model, view, focus, foundBuilding]);
 
   // Keep the address bar in step, so the view on screen is always the view a
@@ -844,14 +859,14 @@ export default function App() {
   }, [model, arrived]);
 
   /*
-   * ── THE SUNLIGHT SCREEN'S TWO AUTOMATIC MODES ───────────────────────────
+   * ── THE SUNLIGHT SCREEN'S DAY, PLAYING ──────────────────────────────────
    *
    * Only while the sunlight screen is actually showing, and switched OFF —
-   * not merely paused — the moment it stops showing. Paused, they came back
-   * by themselves: start the day playing, open Details, return, and it was
+   * not merely paused — the moment it stops showing. Paused, it came back
+   * by itself: start the day playing, open Details, return, and it was
    * running again with nobody having pressed anything. Leaving the screen
-   * (for the street, a headset, focus mode or another page) now clears both,
-   * so returning finds them where the reader expects: stopped.
+   * (for the street, a headset, focus mode or another page) now clears it,
+   * so returning finds it where the reader expects: stopped.
    *
    * Done while rendering, with the previous value kept in state, rather than
    * in an effect: React's own pattern for adjusting state to a change in
@@ -861,13 +876,9 @@ export default function App() {
   const [wasSunScreen, setWasSunScreen] = useState(sunScreen);
   if (wasSunScreen !== sunScreen) {
     setWasSunScreen(sunScreen);
-    if (!sunScreen) {
-      setPlaying(false);
-      setComparing(false);
-    }
+    if (!sunScreen) setPlaying(false);
   }
   const playingNow = playing && sunScreen;
-  const comparingNow = comparing && sunScreen;
 
   /*
    * ── THE DAY, PLAYED ────────────────────────────────────────────────────
@@ -895,23 +906,6 @@ export default function App() {
     );
     return () => window.clearInterval(timer);
   }, [playingNow, reducedMotion]);
-
-  /*
-   * ── TODAY AND AFTER, TAKING TURNS ──────────────────────────────────────
-   *
-   * The approved projects on, then off, every 1.6 seconds, from one fixed
-   * viewpoint — long enough to look at each, short enough that the
-   * difference is seen as a change. The day can be playing at the same time;
-   * the two then show the change moving through the hours together. The switch in the panel follows along,
-   * so it always says which of the two is on the map.
-   */
-  useEffect(() => {
-    if (!comparingNow) return;
-    const timer = window.setInterval(() => {
-      setLayers((current) => ({ ...current, developments: !current.developments }));
-    }, 1600);
-    return () => window.clearInterval(timer);
-  }, [comparingNow]);
 
   /*
    * ── CHOOSING A PLACE ────────────────────────────────────────────────────
@@ -1202,6 +1196,9 @@ export default function App() {
         // like it had selected a different building.
         null;
 
+  /** The comparison screen is up: two views of one place, side by side. */
+  const compareShown = !chromeHidden && view === 'compare' && place !== null;
+
   /** The front page is up — and with it the window the city is framed in. */
   const frontShown = !chromeHidden && view === 'landing';
 
@@ -1346,7 +1343,18 @@ export default function App() {
       )}
 
       {/* ── THE CITY ─────────────────────────────────────────────────────── */}
-      <div className="app__scene">
+      {/*
+        On the comparison screen this canvas is the LEFT view, "today",
+        moved into the page's left window rather than filling the screen.
+        It keeps its camera, so the comparison opens from wherever the reader
+        was looking (ViewLink publishes it), and going back finds it there.
+        Its city is rebuilt for "today" — the approved projects come out —
+        and the right view builds a city of its own.
+      */}
+      <div
+        className={`app__scene${compareShown && compareFrames ? ' app__scene--compare' : ''}`}
+        style={compareShown && compareFrames ? compareFrames.today : undefined}
+      >
         <SceneCanvas
           model={model}
           focus={focus}
@@ -1360,7 +1368,8 @@ export default function App() {
           // The front page's window: the box, and whether the page is up.
           inset={inset}
           insetOn={frontShown}
-          showProposed={layers.developments}
+          // On the comparison screen this is "today": no approved project.
+          showProposed={compareShown ? false : layers.developments}
           castShadows={layers.shadows}
           showSunArrow={view === 'sunlight' && layers.shadows}
           /*
@@ -1374,6 +1383,8 @@ export default function App() {
            * is describing buildings the reader cannot see.
            */
           showAllProposals={view !== 'sunlight' || place?.kind === 'building'}
+          // Tied to the "after" view on the comparison screen — see ViewLink.
+          link={compareShown ? { link: cameraLink, id: 'today', seed: 'publish' } : null}
           /*
             In a headset, the same choice the panel's list makes — straight to
             the sunlight page, because the project page is DOM and there is no
@@ -1428,8 +1439,8 @@ export default function App() {
           lookAt={lookAt}
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
-          // to show that it had.
-          interactive={!chromeHidden}
+          // to show that it had. The comparison screen is for looking too.
+          interactive={!chromeHidden && !compareShown}
           walking={walking}
           onLeaveStreet={() => setWalking(false)}
           /*
@@ -1447,7 +1458,57 @@ export default function App() {
           refit={refit}
           onStandMoved={setStandMoved}
         />
+        {/* The map is shown twice on the comparison screen, so its credit is too. */}
+        {compareShown && compareFrames && mapbox && <MapAttribution />}
       </div>
+
+      {/*
+        ── THE "AFTER" VIEW ──────────────────────────────────────────────────
+
+        The comparison screen's right window: the same city, place, spot and
+        moment with every approved project built, in a canvas of its own laid
+        over the page's right window. Its camera follows the left one and the
+        left follows it (ViewLink). No headset wrapper — the page has one
+        already — and nothing in it can be clicked open.
+      */}
+      {compareShown && compareFrames && place && (
+        <div className="compare__canvas" style={compareFrames.after}>
+          <SceneCanvas
+            model={model}
+            focus={focus}
+            sun={sun}
+            showProposed
+            castShadows={layers.shadows}
+            showSunArrow={false}
+            showAllProposals
+            onSelectDevelopment={() => undefined}
+            receptor={receptor}
+            windowAt={windowAt}
+            highlightedBuildingId={foundBuilding?.buildingId ?? null}
+            showHighlighted
+            marker={{
+              anchorEN: place.anchorEN,
+              topAhdM: place.topAhdM,
+              label: place.label,
+              kind: place.kind,
+            }}
+            lookAt={lookAt}
+            interactive={false}
+            walking={false}
+            onLeaveStreet={() => undefined}
+            timeLabel={clockLabel(minutes)}
+            dateLabel={dateLabel(date)}
+            onNudgeMinutes={nudgeMinutes}
+            vrStage="above"
+            vrTrip={0}
+            vrMenu={null}
+            onStandMoved={() => undefined}
+            noHeadset
+            link={{ link: cameraLink, id: 'after', seed: 'adopt' }}
+          />
+          {mapbox && <MapAttribution />}
+        </div>
+      )}
 
       {/*
         ── THE MAP CONTROLS ─────────────────────────────────────────────────
@@ -1458,7 +1519,7 @@ export default function App() {
 
         Not on the front page either, which frames the city itself.
       */}
-      {!chromeHidden && !frontShown && (
+      {!chromeHidden && !frontShown && !compareShown && (
         <ViewControls
           onZoom={(factor) => viewCommands.current?.dolly(factor)}
           onOrbit={(radians) => viewCommands.current?.orbit(radians)}
@@ -1504,7 +1565,7 @@ export default function App() {
         see MapAttribution. On the front page it sits in the page's own
         window onto the map instead.
       */}
-      {mapbox && !frontShown && <MapAttribution />}
+      {mapbox && !frontShown && !compareShown && <MapAttribution />}
 
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
       {walking && (
@@ -1584,9 +1645,9 @@ export default function App() {
             its three links (Future plans, Explore the city, How it works).
             Only the front page drops the layer button — see hideLayers.
           */
-          front={frontShown || view === 'sunlight'}
+          front={frontShown || view === 'sunlight' || compareShown}
           hideLayers={frontShown}
-          nav={frontShown || view === 'sunlight' ? frontNav : undefined}
+          nav={frontShown || view === 'sunlight' || compareShown ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,
@@ -1690,6 +1751,36 @@ export default function App() {
         The column on the left, the time bar along the foot of the map, and
         the fine print under it.
       */}
+      {compareShown && place && (
+        <ComparePage
+          title={place.label}
+          kindLabel={place.kind === 'building' ? 'Existing building' : 'Approved development'}
+          date={date}
+          onDate={chooseDate}
+          minutes={minutes}
+          onMinutes={chooseMinutes}
+          min={EARLIEST_MINUTES}
+          max={LATEST_MINUTES}
+          caption={narrative.caption}
+          daylight={daylight}
+          onBack={() => {
+            setView('sunlight');
+            /*
+             * Back to the button that came here, once the sunlight screen
+             * has been drawn: the back button the keyboard was on has gone.
+             */
+            window.requestAnimationFrame(() =>
+              document.querySelector<HTMLElement>('.button--compare')?.focus(),
+            );
+          }}
+          onChooseSpot={() => {
+            setView('sunlight');
+            setChoosing(true);
+          }}
+          onFrames={setCompareFrames}
+        />
+      )}
+
       {!chromeHidden && view === 'sunlight' && place && (
         <>
           <SunlightSheet
@@ -1746,18 +1837,17 @@ export default function App() {
                 : undefined
             }
             afterPlans={layers.developments}
-            onAfterPlans={(next) => {
-              // Choosing one by hand ends the taking of turns.
-              setComparing(false);
-              setLayers({ ...layers, developments: next });
-            }}
+            onAfterPlans={(next) => setLayers({ ...layers, developments: next })}
             subjectShown={
               place.kind === 'building'
                 ? { shown: showSubject, onShown: setShowSubject }
                 : undefined
             }
-            comparing={comparingNow}
-            onCompare={() => setComparing(!comparingNow)}
+            // Today and after, side by side, on a page of their own.
+            onCompare={() => {
+              setChoosing(false);
+              setView('compare');
+            }}
             // Back to the subject's own page: the project, or the building.
             onDetails={() => {
               setChoosing(false);

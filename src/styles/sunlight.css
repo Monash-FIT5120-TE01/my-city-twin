@@ -17,7 +17,7 @@
  *   - The headings, and "Details" under the address.
  *   - The season: four buttons, the chosen one filled.
  *   - The neighbourhood: today or after, and "Show this building".
- *   - The two actions: "Choose a spot" and "Compare today and after".
+ *   - The two actions: "Choose a spot" and "Compare side by side".
  *   - The fine print along the foot of the map, and what changes on a
  *     phone.
  *   The time bar itself is drawn in ui.css (.timebar, .timebar--sun).
@@ -203,9 +203,8 @@
 }
 
 /*
- * "Compare today and after": a ghost button, and pressed while the two are
- * taking turns — a pale green ground and green words, as well as its label
- * changing to "Stop comparing".
+ * "Compare side by side": a ghost button with an arrow — a way on to the
+ * comparison screen, not a switch, so it has no pressed state.
  */
 .button.button--compare {
   margin-top: var(--space-2);
@@ -219,12 +218,6 @@
 
 .button--compare svg {
   margin: 0;
-}
-
-.button.button--compare[aria-pressed="true"] {
-  border-color: var(--green-700);
-  background: var(--green-050);
-  color: var(--green-700);
 }
 
 /* ── the fine print under the map ───────────────────────── */
