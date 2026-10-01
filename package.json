@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:vr": "node scripts/vr-check.mjs",
+    "test:page": "node scripts/page-check.mjs",
     "config": "node scripts/mapbox-config.mjs public"
   },
   "dependencies": {

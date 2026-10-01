@@ -1,9 +1,24 @@
 /*
- * "Now", as the simulation can state it.
+ * ─────────────────────────────────────────────────────────────────────────
+ * "NOW", AS THE SIMULATION CAN STATE IT
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * The sunlight screen asks for a date and a time and shows where the sun is.
- * This turns the present moment into that pair, so a reader can start from
- * what is happening outside rather than from a solstice they have to imagine.
+ * WHAT THIS FILE IS
+ *   The sunlight screen asks for a date and a time and shows where the sun
+ *   is. This turns the present moment into that pair, so a reader can start
+ *   from what is happening outside rather than from a solstice they have to
+ *   imagine.
+ *
+ * WHAT IT HOLDS
+ *   - EARLIEST_MINUTES / LATEST_MINUTES: the hours the time control covers.
+ *   - intoWindow, clampMinutes: a time held inside those hours, and snapped
+ *     to the control's ten-minute step.
+ *   - presentMoment: the Melbourne clock now, as a date and a time.
+ *   - clockLabel: "23:31", the 24-hour reading used wherever a time is a
+ *     figure to compare.
+ *   - clock12Label: "4:30 pm", the time bar's own labels.
+ *   - outsideWindowNote: the sentence shown when the clock is outside the
+ *     hours on offer.
  *
  * TWO THINGS IT HAS TO BE HONEST ABOUT
  *
@@ -45,6 +60,10 @@ export function intoWindow(minutes: number): number {
   return Math.min(LATEST_MINUTES, Math.max(EARLIEST_MINUTES, minutes));
 }
 
+/**
+ * A time the control can show: inside the window and on its ten-minute
+ * step. `fallback` stands in for a value that is not a number at all.
+ */
 export function clampMinutes(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   // Snap to the slider's own step so a hand-edited URL cannot land between
@@ -52,6 +71,7 @@ export function clampMinutes(value: number, fallback: number): number {
   return intoWindow(Math.round(value / 10) * 10);
 }
 
+/** The present moment, and how far the time control could follow it. */
 export interface PresentMoment {
   date: SimulationDate;
   /** What the time control will be set to. */
@@ -112,6 +132,24 @@ export function clockLabel(minutes: number): string {
   const DAY = 24 * 60;
   const whole = ((Math.round(minutes) % DAY) + DAY) % DAY;
   return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+/**
+ * "8:00 am", "12:00 pm", "4:30 pm" — the time bar's own labels: its ticks,
+ * the reading at the thumb, the sunrise and sunset above it, and the note
+ * about the hours on offer.
+ *
+ * The bar reads as a day in the way a resident says one; the 24-hour
+ * readings stay everywhere a time is a figure to compare (the shadow's
+ * first and last hour at the measured window, the URL). Rounded once and
+ * wrapped round the day, for the same reasons as clockLabel.
+ */
+export function clock12Label(minutes: number): string {
+  const DAY = 24 * 60;
+  const whole = ((Math.round(minutes) % DAY) + DAY) % DAY;
+  const hour = Math.floor(whole / 60);
+  const shown = hour % 12 === 0 ? 12 : hour % 12;
+  return `${shown}:${String(whole % 60).padStart(2, '0')} ${hour < 12 ? 'am' : 'pm'}`;
 }
 
 /**

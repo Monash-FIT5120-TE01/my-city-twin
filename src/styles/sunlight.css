@@ -1,0 +1,316 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE SUNLIGHT SCREEN
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * A column down the left edge with everything that sets up the question —
+ * the place, the date, the season, the neighbourhood, the spot — and the
+ * map beside it, with the hour along its foot. See SunlightSheet and TimeBar
+ * in screens.tsx.
+ *
+ * On a phone the column is the same bottom sheet every other panel is; only
+ * the controls inside it keep this file's look there.
+ *
+ * IN THIS FILE
+ *   - The column: full height, flush left, cream; and where the map's
+ *     credit and the map controls move to beside it.
+ *   - The headings, and "Details" under the address.
+ *   - The season: four buttons, the chosen one filled.
+ *   - The neighbourhood: today or after, and "Show this building".
+ *   - The two actions: "Choose a spot" and "Compare today and after".
+ *   - The fine print along the foot of the map, and what changes on a
+ *     phone.
+ *   The time bar itself is drawn in ui.css (.timebar, .timebar--sun).
+ *
+ * NOTHING HERE IS SAID BY HUE ALONE. The chosen season is white on
+ * #14624a against dark on white; "Choose a spot" carries a dark edge as
+ * well as its mint; a radio is a filled dot or an empty ring.
+ */
+
+/* ── the column ─────────────────────────────────────────── */
+
+/*
+ * `.panel.sheet--sun`, two classes: this file loads before ui.css, whose
+ * `.panel--left` rules would otherwise win on source order.
+ */
+@media (min-width: 901px) {
+  .panel.sheet--sun {
+    top: var(--h-header);
+    bottom: 0;
+    left: 0;
+    width: var(--w-sun-column);
+    max-height: none;
+    border-radius: 0;
+    border-right: 1px solid var(--cream-edge);
+    background: var(--cream);
+    box-shadow: none;
+    padding: var(--space-4) var(--space-5) var(--space-3);
+  }
+
+  /*
+   * The column's content takes the height it is given, so "How it works"
+   * can sit at its foot when there is room and simply follow the rest when
+   * there is not.
+   */
+  .sheet--sun .sheet__tabpanel {
+    flex: 1 0 auto;
+  }
+
+  .sheet--sun .howto {
+    margin-top: auto;
+  }
+
+  /* The map's credit starts where the column ends, on the fine-print row. */
+  .app:has(.sheet--sun) .attribution {
+    left: calc(var(--w-sun-column) + var(--gutter));
+    bottom: calc((var(--h-mapfoot) - 26px) / 2);
+  }
+
+  /* Above the time bar rather than beside it. */
+  .app:has(.timebar--sun) .viewctl {
+    bottom: calc(var(--h-mapfoot) + 8.5rem);
+  }
+}
+
+/* ── the headings, and the link to the details ──────────── */
+
+.sheet--sun .sheet__title {
+  font-family: var(--font-display);
+}
+
+/* The section's own heading, at the size the design gives it. */
+.sheet--sun .sheet__lede {
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+}
+
+/* What the Overview tab was, as a link under the address. */
+.sheet__details {
+  align-self: flex-start;
+  min-height: 44px;
+  margin: calc(var(--space-2) * -1) 0 calc(var(--space-2) * -1);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ── the season ─────────────────────────────────────────── */
+
+.seasons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.seasons button {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 1px solid var(--cream-edge);
+  border-radius: 10px;
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background var(--dur-quick) var(--ease),
+    border-color var(--dur-quick) var(--ease),
+    color var(--dur-quick) var(--ease);
+}
+
+.seasons button:hover {
+  border-color: var(--green-700);
+}
+
+.seasons button[aria-pressed='true'] {
+  border-color: var(--green-700);
+  background: var(--green-700);
+  color: var(--paper);
+  font-weight: var(--weight-label);
+}
+
+.seasons button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+/* ── the neighbourhood ──────────────────────────────────── */
+
+.choice {
+  display: flex;
+  flex-direction: column;
+}
+
+.choice__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.choice__row input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--green-700);
+  cursor: pointer;
+}
+
+.choice__row--check {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+/* ── the two actions ────────────────────────────────────── */
+
+/*
+ * Two classes on these buttons for the same reason as the column: the base
+ * `.button` rules in ui.css come later and would repaint them.
+ */
+
+/*
+ * "Choose a spot": the mint of the design, with a dark edge and dark words,
+ * so it is still a button to somebody who does not see the mint.
+ */
+.button.button--spot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  border-color: var(--green-700);
+  background: var(--mint-100);
+  color: var(--ink-green-900);
+}
+
+.button--spot svg {
+  margin: 0;
+}
+
+.button.button--spot:hover {
+  background: #c9e6da;
+}
+
+/*
+ * "Compare today and after": a ghost button, and pressed while the two are
+ * taking turns — a pale green ground and green words, as well as its label
+ * changing to "Stop comparing".
+ */
+.button.button--compare {
+  margin-top: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  border-color: var(--ink-3);
+}
+
+.button--compare svg {
+  margin: 0;
+}
+
+.button.button--compare[aria-pressed="true"] {
+  border-color: var(--green-700);
+  background: var(--green-050);
+  color: var(--green-700);
+}
+
+/* ── the fine print under the map ───────────────────────── */
+
+/* Bottom right, on its own white strip so it reads over any part of the city. */
+.mapfoot {
+  position: absolute;
+  right: var(--gutter);
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--h-mapfoot);
+  margin: 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+  background: rgba(255, 255, 255, 0.86);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.mapfoot .sources__link {
+  min-height: var(--h-mapfoot);
+}
+
+/* ── on a phone ─────────────────────────────────────────── */
+
+/* The sheet's own way to the sources: only where the strip under the map is gone. */
+.sheet__sources {
+  display: none;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 900px) {
+  /*
+   * The sheet has the bottom edge, so the strip goes; the sheet carries the
+   * caveat and its own "Sources & limitations" link instead.
+   */
+  .mapfoot {
+    display: none;
+  }
+
+  .sheet__sources {
+    display: block;
+  }
+
+  /*
+   * ── THE SHEET AND THE TIME BAR, STACKED ON ONE NUMBER ────────────────
+   *
+   * The generic phone layout puts the time bar 62vh + 6rem up, which left
+   * room for the zoom stack between it and the sheet. This screen has no
+   * zoom stack on a phone, the bar is taller than it was, and the bar above
+   * it is two rows — so on a 375 × 667 phone the time bar ran up under the
+   * header, and on a short landscape one off the top of the screen, where
+   * nothing could reach it.
+   *
+   * Here the sheet's height is one number, `--sun-sheet`; the map credit
+   * sits on the sheet and the bar on the credit. The number leaves room
+   * above for the two-row header (about 6.75rem), the credit (2rem) and the
+   * bar (about 8.5rem), so none of them can be pushed out of view; the sheet
+   * scrolls inside whatever is left. The credit is an obligation, so it is
+   * stacked rather than let anything cover it.
+   */
+  .app:has(.sheet--sun) {
+    --sun-sheet: max(6rem, min(55vh, calc(100% - 18.5rem)));
+  }
+
+  .app:has(.sheet--sun) .attribution {
+    bottom: calc(var(--sun-sheet) + var(--space-2));
+  }
+
+  .panel.sheet--sun {
+    max-height: var(--sun-sheet);
+  }
+
+  .timebar.timebar--sun {
+    bottom: calc(var(--sun-sheet) + var(--space-2) + 2.25rem);
+  }
+
+  /*
+   * No zoom stack over the map on a phone here: the time bar takes the strip
+   * above the sheet, and fingers pinch and drag the map directly.
+   */
+  .app:has(.timebar--sun) .viewctl {
+    display: none;
+  }
+}

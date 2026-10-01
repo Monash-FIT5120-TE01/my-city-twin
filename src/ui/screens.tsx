@@ -4,22 +4,39 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT THIS FILE IS
- *   Every panel that floats over the 3D view, in the order a person meets
- *   them: the layer list, the nearby-projects list, the project
- *   detail, the sunlight controls, the time bar, and the two cards that
- *   report what the shadow is doing.
+ *   Every panel that sits over the 3D view after the front page, in the
+ *   order of this file:
+ *
+ *   SearchResults    the matches under either search field.
+ *   Progress         Place · Sunlight · Spot, at the top of the explore
+ *                    panel.
+ *   ViewControls     turn, zoom, frame the whole city, focus mode, and the
+ *                    card that says how the mouse moves the map.
+ *   MapLayers        the layer panel the header's "Map layers" opens.
+ *   NearbyProjects   the explore screen: the nearest approved projects and
+ *                    the switch between the city as it is and as approved.
+ *   SubjectHead      the top every subject panel shares: the way back, the
+ *                    way out, the address, and either the Overview /
+ *                    Sunlight tabs or a "Details" link.
+ *   DevelopmentPanel one approved project.
+ *   SunlightSheet    the sunlight screen's column: date, season, today or
+ *                    after, the measured spot or window, comparing the two
+ *                    by turns, and "How it works".
+ *   TimeBar          the dock along the foot of the map: play, the hour on a
+ *                    rail through the day, sunrise and sunset, the map key.
+ *   BuildingPanel    one existing building.
  *
  * WHY THEY FLOAT
  *   The thing being explained is behind the glass. A full-width page would
  *   cover the city, and the city is the argument — so every panel is a card
- *   on top of a view that never goes away.
+ *   or a column on top of a view that never goes away.
  *
  * WHAT THESE COMPONENTS DO NOT DO
- *   They hold no state that matters beyond themselves — which half of a
- *   panel is open, whether a help card is showing. Everything else is given
- *   to them, with a function to call. That is what lets the same
- *   layer list appear on two different screens without either screen
- *   knowing about the other.
+ *   They hold no state that matters beyond themselves — which question the
+ *   sunlight column is answering, whether a help card is showing. Everything
+ *   else is given to them, with a function to call. That is what lets the
+ *   same layer list appear on several screens without any of them knowing
+ *   about the others.
  *
  * WHERE THE WORDS CAME FROM
  *   Mostly the design. Two deliberate departures, both because the design
@@ -35,17 +52,17 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CityModel, Development } from '../data/model';
-import { clockLabel } from '../data/now';
+import { clock12Label } from '../data/now';
 import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './words';
 import {
   SEASONS,
   matchingSeason,
   sameDayInMonth,
-  shiftDay,
   type SimulationDate,
 } from '../scene/solar';
 import type { SunlightAtPoint } from '../scene/sunlightAt';
 import { StatusBadge, developmentSummary } from './chrome';
+import { MapKey, SourcesLink } from './Sources';
 import { DateField } from './DateField';
 import { ApartmentControls, WindowResult } from './Apartment';
 import type { Facade } from '../scene/facades';
@@ -53,14 +70,17 @@ import type { WindowSunlight } from '../scene/windowSunlight';
 import { searchCity, type SearchHit } from '../data/search';
 import type { BuildingDetail } from '../data/useBuildingDetail';
 
+/* ── 01 Search, progress and the map controls ───────────── */
+
 /**
- * What the header's search field found.
+ * What a search field found — the header's, or the front page's own.
  *
  * WHY IT IS A COMPONENT AND NOT PART OF THE FIELD
- *   The field is in the bar and the results hang below it, over the city.
+ *   The field is in the bar (or on the page) and the results hang below it.
  *   Keeping them apart means App can own the text — it has to, now that the
  *   field outlives the screen it was typed on — while the matching, which is
  *   a scan of 4,443 buildings, still only happens where the answer is shown.
+ *   App decides which field's results are drawn, and what a pick does.
  *
  * WHY TWO CHARACTERS
  *   One letter matches a third of the city and the list is meaningless; the
@@ -119,7 +139,9 @@ export function SearchResults({
  * HOW FAR ALONG YOU ARE
  * ─────────────────────────────────────────────────────────────────────────
  *
- * Three steps across the top of every panel, with the one you are on marked.
+ * Three steps across the top of the explore panel, with the one you are on
+ * marked. (The `at` values for the later steps are kept, though no panel
+ * after the first carries the row now.)
  *
  * WHY IT EXISTS
  *   Getting an answer out of this takes a fixed order: choose a place, open
@@ -289,8 +311,11 @@ export function ViewControls({
   onReset,
   onFocus,
 }: {
+  /** Multiply the camera's distance: below 1 is in, above 1 is out. */
   onZoom: (factor: number) => void;
+  /** Turn round the orbit centre, in radians; negative is to the left. */
   onOrbit: (radians: number) => void;
+  /** "Frame the whole city": clear what is open and fly back out. */
   onReset: () => void;
   /**
    * Hide the interface and leave the city.
@@ -452,8 +477,9 @@ export function ViewControls({
   );
 }
 
-/* ── 02 Discovery Map ───────────────────────────────────── */
+/* ── 02 Discovery Map: the layers and the projects nearby ─ */
 
+/** What the map draws: the approved projects, and the sun's shadows. */
 export interface Layers {
   developments: boolean;
   shadows: boolean;
@@ -468,8 +494,9 @@ export interface Layers {
  *   It used to be the top of the explore screen's panel, which meant the
  *   tick boxes were only reachable from one screen — and that they took up
  *   room there permanently for something most readers set once and never
- *   touch again. Opened from the header it is available everywhere and in
- *   the way nowhere.
+ *   touch again. Opened from the header it is available on every screen
+ *   with the plain bar, and in the way nowhere. (The front page and the
+ *   sunlight screen do not carry the button: see Header's `front`.)
  *
  * WHY THE UNAVAILABLE LAYERS ARE STILL LISTED
  *   Protected public space is user story 1.3; construction and environment
@@ -577,17 +604,22 @@ export function MapLayers({
   );
 }
 
+/**
+ * The before/after switch on the explore panel: the city as it stands, or
+ * with the approved projects in it. Two buttons with one sliding face —
+ * see .segmented in ui.css.
+ */
 function ExistingApprovedToggle({
   showProposed,
   onChange,
   /*
-   * The same before/after control, named for whatever is being taken away.
-   * For a proposal that is "the approved plan"; for a building that is the
-   * building itself, which the city can be drawn without because it is
-   * already lifted out of the merged geometry to be highlighted.
+   * The two names, which can be changed for whatever is being taken away.
+   * Only the explore panel uses this now, with the defaults; the sunlight
+   * column has its own today / after choice.
    */
   labels = { off: 'Existing City', on: 'Approved Plan' },
 }: {
+  /** The approved projects are drawn — the "after". */
   showProposed: boolean;
   onChange: (next: boolean) => void;
   labels?: { off: string; on: string };
@@ -620,21 +652,20 @@ function ExistingApprovedToggle({
 }
 
 /**
- * The approved projects nearest wherever the person currently is.
- *
- * It takes a plain point and a label rather than a Development, because the
- * chosen place can now be an existing building found by searching. Passing a
- * Development meant this list stayed anchored to a proposal while the camera
- * and the highlight had moved somewhere else — two different "here" on one
- * screen.
- */
-/**
  * ─────────────────────────────────────────────────────────────────────────
  * WHAT IS CHANGING NEARBY
  * ─────────────────────────────────────────────────────────────────────────
  *
- * The explore screen's whole left panel: what is being built around here,
- * and the switch between the city as it stands and the city as approved.
+ * The explore screen's whole left panel: the approved projects nearest
+ * wherever the person currently is, and the switch between the city as it
+ * stands and the city as approved.
+ *
+ * WHY IT TAKES A POINT AND NOT A PROJECT
+ *   It takes a plain point and a label rather than a Development, because
+ *   the chosen place can be an existing building found by searching.
+ *   Passing a Development meant this list stayed anchored to a proposal
+ *   while the camera and the highlight had moved somewhere else — two
+ *   different "here" on one screen.
  *
  * WHY THE LIST IS ROWS AND NOT CARDS WITH BUTTONS
  *   Each project used to be a card with a "View project" button under it,
@@ -665,15 +696,19 @@ export function NearbyProjects({
   onOpen,
   onClose,
 }: {
+  /** Where "here" is: the chosen place, or the city centre. East, north. */
   anchorEN: [number, number];
+  /** What "here" is called in the line under the heading. */
   label: string;
   /** Omit the project itself when the chosen place IS a project. */
   excludeDevId?: string;
   developments: Development[];
-  /** Which row is the one being shown on the map, if any. */
+  /** The approved projects are drawn on the map — the "after". */
   showProposed: boolean;
   onShowProposed: (next: boolean) => void;
+  /** A row: that project's own page. */
   onOpen: (development: Development) => void;
+  /** "Start over": back to the front page. */
   onClose: () => void;
 }) {
   const nearby = useMemo(() => {
@@ -790,16 +825,8 @@ export function NearbyProjects({
   );
 }
 
-/* ── 03 Development Overview ────────────────────────────── */
+/* ── 03 Development Overview: the shared head, and one project ─ */
 
-/**
- * The top of a subject's panel: the way back, the way out, what it is, and
- * the two halves it can be read as.
- *
- * Shared rather than written twice, because the two halves are meant to feel
- * like one panel with a tab changed — and a head that drifted by two pixels
- * between them would make the tab look like a navigation.
- */
 /*
  * SET BY THE ARROW KEYS, READ BY THE HEADER THAT MOUNTS NEXT.
  *
@@ -813,10 +840,22 @@ export function NearbyProjects({
  *
  * A module-level flag outlives the unmount, which is exactly the span that
  * has to be bridged. It is cleared the first time it is read, so a tab
- * switch made with the mouse never steals focus.
+ * switch made with the mouse never steals focus. The Sunlight tab leads to
+ * the sunlight column, which has no tabs: there the keyboard is given the
+ * subject's own heading instead, so it lands at the top of the new panel
+ * rather than falling back to the top of the document.
  */
 let focusTabOnMount = false;
 
+/**
+ * The top of a subject's panel: the way back, the way out (where there is
+ * one), what it is, and then either the Overview / Sunlight tabs or a
+ * "Details" link back to the subject's own page.
+ *
+ * Shared rather than written three times, so the project, the building and
+ * the sunlight column all open the same way — and a head that drifted by
+ * two pixels between them would make changing tab look like a navigation.
+ */
 function SubjectHead({
   status,
   existing,
@@ -828,6 +867,7 @@ function SubjectHead({
   onTab,
   onBack,
   onClose,
+  onDetails,
 }: {
   status?: Development['status'];
   /** Shown instead of a planning status, for something already standing. */
@@ -842,17 +882,27 @@ function SubjectHead({
    * when the address it came from had no comma to split on.
    */
   locality?: string;
+  /** The quietest line: uses, storeys and height, or what a building is. */
   meta: string;
+  /** Where the back link goes, in words: "Nearby projects". */
   backLabel: string;
+  /** Which half this is; also which tab is marked, when there are tabs. */
   tab: 'overview' | 'sunlight';
-  onTab: (next: 'overview' | 'sunlight') => void;
+  /** The Overview / Sunlight tabs. Absent on the sunlight screen, which links to the details instead. */
+  onTab?: (next: 'overview' | 'sunlight') => void;
   onBack: () => void;
-  onClose: () => void;
+  /** "Start over". Absent where the header's own mark is the way home. */
+  onClose?: () => void;
+  /** A "Details" link under the address, in place of the tabs. */
+  onDetails?: () => void;
 }) {
   useEffect(() => {
     if (!focusTabOnMount) return;
     focusTabOnMount = false;
-    document.getElementById(`subject-tab-${tab}`)?.focus();
+    (
+      document.getElementById(`subject-tab-${tab}`) ??
+      document.getElementById('subject-title')
+    )?.focus();
   }, [tab]);
 
   return (
@@ -867,7 +917,8 @@ function SubjectHead({
 
         Now they are what they are -- a text link and an icon. Both still
         carry a 44px target; the room is in padding rather than in a border,
-        so the hit area is unchanged and only the drawing is quieter.
+        so the hit area is unchanged and only the drawing is quieter. The
+        sunlight column has only the first: the header's mark is its way home.
       */}
       <div className="sheet__nav">
         <button type="button" className="backlink" onClick={onBack}>
@@ -892,23 +943,25 @@ function SubjectHead({
           for anybody who cannot see the mark. The drawing is the familiar
           one; the name and the behaviour are unchanged.
         */}
-        <button
-          type="button"
-          className="sheet__close"
-          onClick={onClose}
-          aria-label="Start over"
-          title="Start over"
-        >
-          <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M3.6 3.6l7.8 7.8M11.4 3.6l-7.8 7.8"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+        {onClose && (
+          <button
+            type="button"
+            className="sheet__close"
+            onClick={onClose}
+            aria-label="Start over"
+            title="Start over"
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
+              <path
+                d="M3.6 3.6l7.8 7.8M11.4 3.6l-7.8 7.8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/*
@@ -922,19 +975,32 @@ function SubjectHead({
       <div className="subject">
         {status && <StatusBadge status={status} tone="soft" />}
         {existing && <span className="badge badge--soft">Existing</span>}
-        <h2 className="sheet__title" id="subject-title">
+        {/* Focusable from script only, for the arrow-key move above. */}
+        <h2 className="sheet__title" id="subject-title" tabIndex={-1}>
           {title}
         </h2>
         {locality && <p className="sheet__locality">{locality}</p>}
         <p className="sheet__meta">{meta}</p>
+        {/*
+          What the Overview tab showed, one press away rather than a tab
+          wide: on the sunlight screen the sunlight is the subject, and the
+          record of the building is a reference to look up.
+        */}
+        {onDetails && (
+          <button type="button" className="sheet__details" onClick={onDetails}>
+            Details
+          </button>
+        )}
       </div>
 
       {/*
-        --at is which segment is chosen, and it is what the sliding face
-        follows. See .segmented in ui.css: the raised surface is one element
-        belonging to the strip rather than a background on whichever button
-        happens to be selected, so it can travel between them.
+        The tabs, where onTab is given. --at is which segment is chosen, and
+        it is what the sliding face follows. See .segmented in ui.css: the
+        raised surface is one element belonging to the strip rather than a
+        background on whichever button happens to be selected, so it can
+        travel between them.
       */}
+      {onTab && (
       <div
         className="sheet__tabs"
         role="tablist"
@@ -968,6 +1034,7 @@ function SubjectHead({
           </button>
         ))}
       </div>
+      )}
     </>
   );
 }
@@ -1009,7 +1076,7 @@ function splitUses(development: Development) {
  *   it is user story 1.3 and nothing behind it exists yet — and naming a
  *   specific footpath under a heading that implies it was assessed would be
  *   inventing the one kind of claim this product must not invent. The
- *   sunlight tab measures a point the reader chooses instead.
+ *   sunlight screen measures a point the reader chooses instead.
  */
 export function DevelopmentPanel({
   development,
@@ -1020,11 +1087,14 @@ export function DevelopmentPanel({
   onClose,
 }: {
   development: Development;
+  /** From the details endpoint, when it has answered; left out until then. */
   storeys?: number;
   /** Which tab is showing. 'sunlight' is a different screen; see App. */
   tab: 'overview' | 'sunlight';
   onTab: (next: 'overview' | 'sunlight') => void;
+  /** "Nearby projects": the explore screen. */
   onBack: () => void;
+  /** "Start over": the front page. */
   onClose: () => void;
 }) {
   const tallest = development.parts.reduce((a, b) => (a.heightM > b.heightM ? a : b));
@@ -1121,43 +1191,8 @@ export function DevelopmentPanel({
   );
 }
 
-/* ── Sunlight simulation ────────────────────────────────── */
+/* ── Sunlight simulation: the column and the time bar ───── */
 
-/**
- * ─────────────────────────────────────────────────────────────────────────
- * WHAT CHANGES ON YOUR STREET
- * ─────────────────────────────────────────────────────────────────────────
- *
- * The sunlight half of a subject's panel. Two states: before a spot has been
- * chosen, and after — which are different enough to be two designs and are
- * the same panel because they are the same question part-answered.
- *
- * WHY THE DATE CONTROLS ARE FOLDED AWAY ONCE THERE IS A RESULT
- *   A date field, four season buttons and a note take about a third of the
- *   panel, and once a figure exists that figure is what the reader came for.
- *   The date is still the thing the figure depends on, so it stays on screen
- *   as a readout with one button to open the controls again — visible, and
- *   not in the way.
- *
- * WHAT IT DOES NOT SAY
- *   The design names a footpath under a "public space" heading. There is no
- *   protected-public-space data — user story 1.3, nothing behind it — so
- *   this names what the reader actually chose: a point on the map. Calling
- *   it a named, assessed public space would be inventing the one kind of
- *   claim this product must not invent.
- *
- *   It also does not call its own figures examples. They are computed from
- *   the model geometry for the date on screen, which is why the caveat below
- *   them is about SAMPLING and about what is left out, not about the numbers
- *   being placeholders.
- */
-/**
- * Everything the apartment half needs, gathered by App.
- *
- * One object rather than nine props: the panel does not compute any of it and
- * has no opinion about it, so passing it as a unit keeps the signature of a
- * component that is already long from growing another page.
- */
 /**
  * Why there is no answer, when there is no answer.
  *
@@ -1173,8 +1208,10 @@ export type WindowProblem = 'no-such-floor' | 'side-not-at-this-height' | 'insid
  * Everything the apartment half of the sunlight panel needs, in one object.
  *
  * App computes all of it — the sides from the footprint, the figures from the
- * skyline — and the panel only displays it and reports presses back. Passed
- * as a unit rather than as a dozen props because none of it is independent:
+ * skyline — and the panel only displays it and reports presses back; it has
+ * no opinion about any of it. Passed as a unit rather than as a dozen props,
+ * which would grow an already long signature by another page, and because
+ * none of it is independent:
  * the floor decides which sides exist, the side decides whether there is a
  * figure, and the figure decides what the caveat has to say.
  *
@@ -1185,12 +1222,15 @@ export type WindowProblem = 'no-such-floor' | 'side-not-at-this-height' | 'insid
 export interface ApartmentState {
   /** The sides this building actually has. Empty if the footprint is unusable. */
   sides: Facade[];
+  /** The floor asked about, counted from 1. */
   floor: number;
   onFloor: (next: number) => void;
   /** Compass name, or null before a side has been chosen. */
   side: string | null;
   onSide: (compass: string) => void;
+  /** From the property record; null when it has none. */
   floorsAboveGround: number | null;
+  /** The floor's height was estimated, not read from a record — said so. */
   floorHeightAssumed: boolean;
   /** Null until a side is chosen, or when the floor asked for does not exist. */
   sunlight: WindowSunlight | null;
@@ -1206,6 +1246,47 @@ export interface ApartmentState {
   hostDemolished: boolean;
 }
 
+/** The sunlight panel's "How it works", which the header's link opens. */
+export const SUNLIGHT_HOWTO_ID = 'sunlight-howto';
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHAT CHANGES ON YOUR STREET
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The sunlight screen's column. Two states: before a spot has been chosen,
+ * and after — which are different enough to be two designs and are the
+ * same panel because they are the same question part-answered.
+ *
+ * WHAT IS IN IT, TOP TO BOTTOM
+ *   - The subject's head, with "Explore the city" back and "Details" to
+ *     its own page (SubjectHead).
+ *   - Date, and the note when the present hour could not be shown.
+ *   - Season: four presets that move the month and keep the day.
+ *   - Neighbourhood view: today, or after the approved projects are built;
+ *     for a standing building, also whether the building itself is shown.
+ *   - For a standing building: a spot outside, or a window up here — with
+ *     the floor and side controls for the window.
+ *   - The answer: choosing a spot, the figure for it, and what to do next;
+ *     or the window's figure, or why there is none.
+ *   - "Compare today and after": the two taking turns on the map.
+ *   - "How it works", folded.
+ *   - The caveats, at the end.
+ *
+ * The hour is not here: the time bar along the foot of the map sets it.
+ *
+ * WHAT IT DOES NOT SAY
+ *   The design names a footpath under a "public space" heading. There is no
+ *   protected-public-space data — user story 1.3, nothing behind it — so
+ *   this names what the reader actually chose: a point on the map. Calling
+ *   it a named, assessed public space would be inventing the one kind of
+ *   claim this product must not invent.
+ *
+ *   It also does not call its own figures examples. They are computed from
+ *   the model geometry for the date on screen, which is why the caveat below
+ *   them is about SAMPLING and about what is left out, not about the numbers
+ *   being placeholders.
+ */
 export function SunlightSheet({
   status,
   title,
@@ -1221,27 +1302,32 @@ export function SunlightSheet({
   choosing,
   onChoose,
   onCancelChoose,
-  showProposed,
-  onShowProposed,
+  afterPlans,
+  onAfterPlans,
+  subjectShown,
+  comparing,
+  onCompare,
   subjectKind = 'development',
   apartment,
-  onTab,
+  onDetails,
   onBack,
-  onClose,
 }: {
   status?: Development['status'];
   title: string;
   /** Suburb, state and postcode, when the address had them to give. */
   locality?: string;
+  /** The line under the address: uses and height, or what a building is. */
   meta: string;
   date: SimulationDate;
   onDate: (next: SimulationDate) => void;
   /** Said only when the present moment could not be shown as it is. */
   nowNote: string | null;
+  /** The date as words, for the window's result. */
   dateLabel: string;
   /** The figures for the chosen spot, or null while none has been chosen. */
   measured: SunlightAtPoint | null;
   onClearPoint: () => void;
+  /** "Stand here": down to the footpath at the measured spot. */
   onStand: () => void;
   /**
    * ── THE FIRST MOVE, AS A BUTTON ────────────────────────────────────────
@@ -1268,19 +1354,36 @@ export function SunlightSheet({
   choosing: boolean;
   onChoose: () => void;
   onCancelChoose: () => void;
-  showProposed: boolean;
-  onShowProposed: (next: boolean) => void;
+  /**
+   * The neighbourhood as it is today, or once every approved project is
+   * built. What the MAP draws — the measured figures are the same point on
+   * the same date either way.
+   */
+  afterPlans: boolean;
+  onAfterPlans: (next: boolean) => void;
+  /**
+   * For a standing building only: whether the building itself is drawn. The
+   * "before" of what it takes from the street.
+   */
+  subjectShown?: { shown: boolean; onShown: (next: boolean) => void };
+  /**
+   * Flipping between today and after, on its own, until pressed again — so
+   * the two can be compared from one viewpoint without reaching for the
+   * switch each time.
+   */
+  comparing: boolean;
+  onCompare: () => void;
+  /** A proposal ("project") or a building already standing ("building"). */
   subjectKind?: 'development' | 'building';
   /**
    * The "I live here" half of the screen, for a building that is already
-   * standing. Absent for a proposal: nobody lives in one yet, and offering
-   * to measure a window in a building that has not been built would be
-   * inviting a question the model cannot answer honestly.
+   * standing. Absent for a proposal — see ApartmentState.
    */
   apartment?: ApartmentState;
-  onTab: (next: 'overview' | 'sunlight') => void;
+  /** The subject's own page: what it is, rather than what it does to the sun. */
+  onDetails: () => void;
+  /** "Explore the city": the explore screen. */
   onBack: () => void;
-  onClose: () => void;
 }) {
   /*
    * Which question the action area is answering.
@@ -1288,8 +1391,8 @@ export function SunlightSheet({
    * Panel state rather than App state: nothing outside this sheet depends on
    * it, and lifting it would put a preference about a control a long way from
    * the control. The 3D scene follows the receptor and the window place that
-   * App already holds, so it does not need to know which tab of the panel is
-   * showing.
+   * App already holds, so it does not need to know which of the two
+   * questions the panel is showing.
    */
   const [measuring, setMeasuring] = useState<'spot' | 'window'>('spot');
   const onMeasuring = (next: 'spot' | 'window') => setMeasuring(next);
@@ -1314,8 +1417,8 @@ export function SunlightSheet({
    * ── BRING THE ANSWER INTO VIEW ──────────────────────────────────────────
    *
    * The panel is taller than the room it has and scrolls inside itself. The
-   * result is at the bottom of it, under the date, the seasons and the
-   * comparison -- so on a laptop somebody clicked a spot on the ground, the
+   * result is low down in it, under the date, the seasons and the
+   * neighbourhood view -- so on a laptop somebody clicked a spot on the ground, the
    * figure they had asked for was computed, and NOTHING they could see
    * changed. The panel looked identical. It is the one moment in the screen
    * where the app answers a question, and it was landing off-screen.
@@ -1348,132 +1451,41 @@ export function SunlightSheet({
   }, [answer]);
 
   return (
-    <aside className="panel panel--left sheet" aria-labelledby="subject-title">
+    /*
+     * `sheet--sun`: the full-height column the design draws, flush to the
+     * left edge on a wide screen. On a phone it is the same bottom sheet as
+     * every other panel — see sunlight.css.
+     */
+    <aside className="panel panel--left sheet sheet--sun" aria-labelledby="subject-title">
       <SubjectHead
         status={status}
         existing={subjectKind === 'building'}
         title={title}
         locality={locality}
         meta={meta}
-        backLabel={subjectKind === 'building' ? 'Back to the map' : 'Nearby projects'}
+        backLabel="Explore the city"
         tab="sunlight"
-        onTab={onTab}
         onBack={onBack}
-        onClose={onClose}
+        onDetails={onDetails}
       />
 
-      <div
-        role="tabpanel"
-        id="subject-tabpanel"
-        aria-labelledby="subject-tab-sunlight"
-        className="sheet__tabpanel sheet__tabpanel--flow"
-      >
+      <div className="sheet__tabpanel sheet__tabpanel--flow">
         <h3 className="sheet__lede">Explore sunlight</h3>
-        <p className="sheet__sub">See how this {noun} changes your street.</p>
 
         {/*
           -- WHEN -----------------------------------------------------------
 
-          The date used to appear three times on this panel: a pill reading
-          "21 December | 08:20", the field below it, and the result's own
-          heading. Three statements of one fact, none obviously in charge.
+          The field owns the date, because it is the control that sets it.
+          The HOUR is not here at all: the bar along the bottom of the map
+          sets it and shows it.
 
-          The field owns the date now, because it is the control that sets it.
-          The HOUR is not here at all: the dock along the bottom of the screen
-          sets it and shows it, and a second reading of the same clock up here
-          was a number to keep in sync for nobody's benefit.
+          The words are ours and the control underneath is the browser's: a
+          calendar that answers the keyboard in every locale is not something
+          to rebuild to change how a border looks. See DateField.
         */}
         <section className="block">
-          <h4 className="block__head">Date &amp; season</h4>
-
-          {/*
-            -- THE DATE, AS A SURFACE OVER A REAL INPUT ---------------------
-
-            The words are ours and the control underneath is the browser's.
-
-            WHY NOT A CALENDAR OF OUR OWN
-              Date pickers are among the hardest things to build correctly: a
-              grid that answers arrow keys in two dimensions, page up and down
-              for months, home and end for weeks, an announced label for every
-              cell, and the whole of it in the reader's own locale. Rebuilding
-              that to control how a border looks is a bad trade, and the
-              version that gets shipped is always the one that works with a
-              mouse.
-
-              So the native input is still the control. What is drawn is only
-              what the input would have drawn badly.
-          */}
-          <div className="dateline">
-            <button
-              type="button"
-              className="dateline__step"
-              onClick={() => onDate(shiftDay(date, -1))}
-              aria-label="The day before"
-            >
-              <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-                <path
-                  d="M9.2 2.5 4.4 7.5l4.8 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-
-            <DateField date={date} onDate={onDate} />
-
-            <button
-              type="button"
-              className="dateline__step"
-              onClick={() => onDate(shiftDay(date, 1))}
-              aria-label="The day after"
-            >
-              <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-                <path
-                  d="M5.8 2.5l4.8 5-4.8 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/*
-            -1 when the date is not one of the four. The strip then has no
-            raised face at all, which is correct -- an arbitrary Tuesday in
-            October is not a season preset, and parking the marker on the
-            nearest one would claim it was.
-          */}
-          <div
-            className="segmented segmented--four"
-            role="group"
-            aria-label="Season"
-            data-chosen={preset ? 'yes' : 'no'}
-            style={
-              {
-                '--count': 4,
-                '--at': SEASONS.findIndex((option) => option.key === preset?.key),
-              } as React.CSSProperties
-            }
-          >
-            {SEASONS.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                aria-pressed={option.key === preset?.key}
-                /* The day on screen is kept; only the month moves. */
-                onClick={() => onDate(sameDayInMonth(date, option.month))}
-                data-label={option.label}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <h4 className="block__head">Date</h4>
+          <DateField date={date} onDate={onDate} />
 
           {/*
             aria-live because the note is not there on every visit -- only
@@ -1488,26 +1500,86 @@ export function SunlightSheet({
           )}
         </section>
 
+        {/* -- SEASON: the four presets ------------------------------------ */}
+        <section className="block">
+          <h4 className="block__head" id="season-head">
+            Season
+          </h4>
+          {/*
+            Four separate buttons, the chosen one filled. Filled against
+            outlined is a difference in lightness — white on #14624a — so it
+            reads without telling two colours apart. None is filled when the
+            date is not one of the four: an arbitrary Tuesday in October is
+            not a season preset, and marking the nearest would claim it was.
+          */}
+          <div className="seasons" role="group" aria-labelledby="season-head">
+            {SEASONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                aria-pressed={option.key === preset?.key}
+                /* The day on screen is kept; only the month moves. */
+                onClick={() => onDate(sameDayInMonth(date, option.month))}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
         {/*
-          The control the whole screen exists for, and it stays put.
+          -- NEIGHBOURHOOD VIEW: TODAY, OR AFTER ----------------------------
 
-          It used to live inside the "no point yet" branch, so measuring took
-          it off the screen while the state it sets carried on: somebody who
-          turned the subject off, then measured, was left looking at a city
-          with a building missing and no control to put it back.
+          The control the whole screen exists for, and it stays put: it is
+          not inside any branch that measuring can take off the screen.
+          Switching it does not change what the figures below mean -- this
+          decides what the MAP draws, not what was measured. "Compare today
+          and after" below flips it by turns, and it follows along.
 
-          Switching it does not change what the figures below mean. They are
-          the same point on the same date, measured with and without the
-          subject either way -- this decides what the MAP draws, not what was
-          measured.
+          For a standing building, a second control: whether the building
+          itself is drawn, the "before" of what it takes from the street.
         */}
         <section className="block">
-          <h4 className="block__head">Compare the {noun}</h4>
-          <ExistingApprovedToggle
-            showProposed={showProposed}
-            onChange={onShowProposed}
-            labels={{ off: `Without this ${noun}`, on: `With this ${noun}` }}
-          />
+          <h4 className="block__head" id="view-head">
+            Neighbourhood view
+          </h4>
+          <div className="choice" role="radiogroup" aria-labelledby="view-head">
+            <label className="choice__row">
+              <input
+                type="radio"
+                name="neighbourhood"
+                checked={!afterPlans}
+                onChange={() => onAfterPlans(false)}
+              />
+              Today
+            </label>
+            <label className="choice__row">
+              <input
+                type="radio"
+                name="neighbourhood"
+                checked={afterPlans}
+                onChange={() => onAfterPlans(true)}
+              />
+              After planned projects are built
+            </label>
+          </div>
+          <p className="block__note">
+            {afterPlans
+              ? 'Approved and in-progress projects at their planned height.'
+              : subjectKind === 'building'
+                ? 'The city as it stands.'
+                : 'The city as it stands — this project is not built yet.'}
+          </p>
+          {subjectShown && (
+            <label className="choice__row choice__row--check">
+              <input
+                type="checkbox"
+                checked={subjectShown.shown}
+                onChange={(event) => subjectShown.onShown(event.target.checked)}
+              />
+              Show this building
+            </label>
+          )}
         </section>
 
         {/*
@@ -1515,40 +1587,34 @@ export function SunlightSheet({
 
           Only for a building that is standing, and only when its footprint
           gave us sides to offer. A proposal has no residents, and a shape we
-          could not read has no sides to choose between -- in both cases the
-          switch would be a control with one useful position.
-
-          The ground flow stays the default. Somebody who came here from a
-          proposal is asking about a street, and the switch is there for the
-          reader who is asking about their own home.
+          could not read has no sides to choose between. The ground is the
+          default; the window is there for the reader asking about their own
+          home.
         */}
         {apartment && apartment.sides.length > 0 && (
-          <section className="block">
-            <h4 className="block__head">What would you like to measure?</h4>
-            <div
-              className="segmented"
-              role="group"
-              aria-label="What to measure"
-              style={{ '--count': 2, '--at': measuring === 'spot' ? 0 : 1 } as React.CSSProperties}
+          <div
+            className="segmented"
+            role="group"
+            aria-label="What to measure"
+            style={{ '--count': 2, '--at': measuring === 'spot' ? 0 : 1 } as React.CSSProperties}
+          >
+            <button
+              type="button"
+              aria-pressed={measuring === 'spot'}
+              onClick={() => onMeasuring('spot')}
+              data-label="A spot outside"
             >
-              <button
-                type="button"
-                aria-pressed={measuring === 'spot'}
-                onClick={() => onMeasuring('spot')}
-                data-label="A spot outside"
-              >
-                A spot outside
-              </button>
-              <button
-                type="button"
-                aria-pressed={measuring === 'window'}
-                onClick={() => onMeasuring('window')}
-                data-label="A window up here"
-              >
-                A window up here
-              </button>
-            </div>
-          </section>
+              A spot outside
+            </button>
+            <button
+              type="button"
+              aria-pressed={measuring === 'window'}
+              onClick={() => onMeasuring('window')}
+              data-label="A window up here"
+            >
+              A window up here
+            </button>
+          </div>
         )}
 
         {apartment && measuring === 'window' && (
@@ -1563,6 +1629,13 @@ export function SunlightSheet({
           />
         )}
 
+        {/*
+          -- THE ANSWER -----------------------------------------------------
+
+          The action area: choosing a spot, the figure for it and what to do
+          next, or the window's figure. Brought into view when an answer
+          arrives — see BRING THE ANSWER INTO VIEW above.
+        */}
         <div className="action" ref={actionRef}>
           {/*
             Shown whenever the ground is live, with or without a point already
@@ -1721,60 +1794,79 @@ export function SunlightSheet({
           ) : (
             !choosing && (
               <>
-                <p className="sheet__sub">
-                  Select a point on the ground to measure the change in
-                  sunlight.
-                </p>
                 <button
                   type="button"
-                  className="button button--block"
+                  className="button button--block button--spot"
                   onClick={onChoose}
                 >
-                  <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                    />
+                  <svg width="15" height="19" viewBox="0 0 14 18" aria-hidden="true">
                     <path
-                      d="M12 2v5m0 10v5M2 12h5m10 0h5"
+                      d="M7 17s5.6-5.6 5.6-10A5.6 5.6 0 0 0 1.4 7C1.4 11.4 7 17 7 17Z"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.6"
-                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
+                    <circle cx="7" cy="7" r="2" fill="currentColor" />
                   </svg>
                   Choose a spot
                 </button>
+                <p className="sheet__sub">Select a point on the ground.</p>
               </>
             )
           )}
         </div>
 
         {/*
-          The three steps, folded away.
+          -- COMPARE TODAY AND AFTER ----------------------------------------
 
-          They were an amber box captioned "Start here", open at all times and
-          sitting between the reader and the controls it described. Read once,
-          it was in the way on every visit after that. Closed by default and
-          one press from open keeps it for the person who wants it and gives
-          the panel back to everybody else. The steps themselves are unchanged.
+          Today and after, taking turns on the map, until pressed again. The
+          same two states the switch above sets, so the switch follows along
+          and says which one is showing at every moment. Choosing one of them
+          by hand stops it — see App.
         */}
-        <details className="howto">
-          <summary>How to explore sunlight</summary>
+        <button
+          type="button"
+          className="button button--ghost button--block button--compare"
+          aria-pressed={comparing}
+          onClick={onCompare}
+        >
+          {comparing ? 'Stop comparing' : 'Compare today and after'}
+          {!comparing && (
+            <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true">
+              <path
+                d="M0 5h15M11 1l4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </button>
+
+        {/*
+          -- HOW IT WORKS ---------------------------------------------------
+
+          The steps, folded away at the foot of the column: read once, they
+          would be in the way on every visit after that. "How it works" in
+          the header opens this.
+        */}
+        <details className="howto" id={SUNLIGHT_HOWTO_ID}>
+          <summary>How it works</summary>
           <ol className="howto__steps">
             <li>Choose a date or a season above.</li>
-            <li>Move the time along the bar at the bottom to follow the shadow.</li>
-            <li>Compare with and without this {noun}.</li>
-            <li>Choose a spot on the ground to measure what it loses.</li>
+            <li>Move the time along the bar at the bottom, or press play, to follow the shadow.</li>
+            <li>Switch the neighbourhood view to compare today with after the approved projects.</li>
+            <li>Choose a spot on the ground to measure what this {noun} takes from it.</li>
           </ol>
         </details>
       </div>
 
       {/*
+        -- THE CAVEATS ------------------------------------------------------
+
         Both caveats in one place, at the end.
 
         One of them used to sit between the figure and the buttons — four
@@ -1782,8 +1874,7 @@ export function SunlightSheet({
         about it, which pushed the actions off the fold and made the reader
         scroll past a disclaimer to reach them. Qualifications belong after
         the thing they qualify, not inside it.
-      */}
-      {/*
+
         THE CAVEAT DEPENDS ON WHICH QUESTION WAS ASKED, and getting this wrong
         would be the same class of error as the "total daylight" mislabel.
 
@@ -1804,6 +1895,14 @@ export function SunlightSheet({
             : ''}
         {NOT_AN_ASSESSMENT}
       </p>
+      {/*
+        On a phone the strip of fine print under the map is hidden, and with
+        it the screen's only way to the sources. This is the same link, shown
+        at that width only (sunlight.css).
+      */}
+      <p className="sheet__sources">
+        <SourcesLink />
+      </p>
     </aside>
   );
 }
@@ -1813,7 +1912,19 @@ export function SunlightSheet({
  * THE HOUR
  * ─────────────────────────────────────────────────────────────────────────
  *
- * A quiet dock over the map: the time on the left, the day on the right.
+ * A dock along the bottom of the map: play, the hour on a rail through the
+ * day, and the key to the city's colours — the three things somebody
+ * reading the shadow needs while they move it.
+ *
+ * WHAT IS ON IT, LEFT TO RIGHT
+ *   - Play / pause: the day moving on its own (App runs the clock).
+ *   - Above the rail: what the shadow is doing, then sunrise and sunset.
+ *   - The rail: the daylight band, the handle, and under it the hours
+ *     every four from 8:00 am, with the hour itself under the handle.
+ *   - A sentence when the sun does not rise or set inside the window.
+ *   - The map key.
+ *
+ *   Every time on the bar is a 12-hour reading (clock12Label).
  *
  * WHAT THE RAIL SAYS
  *   The window runs 06:00 to 20:00 because those are the hours the model
@@ -1844,136 +1955,169 @@ export function TimeBar({
   onChange,
   min,
   max,
-  label,
   caption,
   daylight,
+  playing,
+  onPlay,
 }: {
+  /** The hour on screen, in minutes since midnight. */
   minutes: number;
   onChange: (next: number) => void;
+  /** The ends of the window the rail covers, in minutes (06:00 and 20:00). */
   min: number;
   max: number;
-  label: string;
+  /** What the shadow is doing at this hour: "Long south shadow". */
   caption: string;
   /** When the sun crosses the horizon, in minutes. Null outside the window. */
   daylight: { rise: number | null; set: number | null };
+  /** The hour is moving on its own. */
+  playing: boolean;
+  /** Play or pause; App restarts a finished day from sunrise. */
+  onPlay: () => void;
 }) {
+  /** Where a time falls along the rail, as a percentage, held to the ends. */
   const place = (at: number) => Math.min(100, Math.max(0, ((at - min) / (max - min)) * 100));
 
   /*
    * The band, with the existing reading of null kept: a missing crossing
    * means the sun did not cross inside the window, so the band runs to that
    * edge rather than disappearing. The LABELS do not make the same
-   * substitution — saying "sunrise 06:00" because the window starts there
+   * substitution — saying "sunrise 6:00 am" because the window starts there
    * would be inventing an astronomical fact out of a range limit.
    */
   const from = place(daylight.rise ?? min);
   const to = place(daylight.set ?? max);
   const bothKnown = daylight.rise !== null && daylight.set !== null;
 
-  /* Only when noon is actually inside the window, and at its real position. */
-  const noon = 12 * 60;
-  const noonAt = noon > min && noon < max ? place(noon) : null;
+  /*
+   * Every four hours from 08:00, as the design marks them, at their true
+   * positions — 12:00 on a 06:00–20:00 window is 42.9% along, not the
+   * middle. A mark the hour's own label would sit on is left out, so the two
+   * never print over each other.
+   */
+  const at = place(minutes);
+  const ticks = [8, 12, 16, 20]
+    .map((hour) => hour * 60)
+    .filter((tick) => tick >= min && tick <= max)
+    .map((tick) => ({ tick, left: place(tick) }));
 
   return (
     /*
      * Two elements, because an element cannot be its own container query.
-     *
-     * The outer one is the position and the measurement — it spans the gap
-     * between the panel and the view controls, and declares that gap as the
-     * width the layout inside should be judged against. The inner one is the
-     * card. Merged, the dock could only react to the window, which is the
-     * wrong number: a wide window with a panel open still leaves a narrow
-     * space here.
+     * The outer one is the position and the measurement; the inner one is
+     * the card.
      */
-    <div className="timebar">
+    <div className="timebar timebar--sun">
       <div className="timebar__dock">
-        <div className="timebar__summary">
-        <p className="timebar__label">Sunlight · Melbourne</p>
-        <p className="timebar__value">{label}</p>
-        <p className="timebar__caption">{caption}</p>
-      </div>
-
-      <div className="timebar__timeline">
-        <p className="timebar__events">
-          <span>
-            Sunrise <b>{daylight.rise === null ? '—' : clockLabel(daylight.rise)}</b>
-          </span>
-          <span>
-            Sunset <b>{daylight.set === null ? '—' : clockLabel(daylight.set)}</b>
-          </span>
-        </p>
-
-        <div
-          className="timebar__track"
-          style={
-            {
-              '--day-from': `${from}%`,
-              '--day-to': `${to}%`,
-            } as React.CSSProperties
-          }
-        >
-          {/* Drawn separately from the control, so the line can be 6px while
-              the thing a finger has to hit stays 44. */}
-          <span className="timebar__rail" aria-hidden="true" />
-          <input
-            type="range"
-            min={min}
-            max={max}
-            step={10}
-            value={minutes}
-            onChange={(event) => onChange(Number(event.target.value))}
-            aria-label="Time of day"
-            // Without this a screen reader reads "900", not "15:00".
-            aria-valuetext={label}
-            aria-describedby={bothKnown ? undefined : 'timebar-nocross'}
-          />
-        </div>
-
-        <p className="timebar__scale" aria-hidden="true">
-          <span>{clockLabel(min)}</span>
-          {noonAt !== null && (
-            <span className="timebar__noon" style={{ left: `${noonAt}%` }}>
-              {clockLabel(noon)}
-            </span>
-          )}
-          <span>{clockLabel(max)}</span>
-        </p>
-
         {/*
-          Said only when a crossing is missing, and said to everyone: the dash
-          above shows there is no time to give, and this says why there is
-          not. An em dash on its own is a hole, not an explanation.
+          Play, and pause. It moves the same hour the handle does, so
+          dragging the handle stops it — see App.
         */}
-        {!bothKnown && (
-          <p className="timebar__nocross" id="timebar-nocross">
-            The sun does not {daylight.rise === null ? 'rise' : 'set'} between{' '}
-            {clockLabel(min)} and {clockLabel(max)} on this date.
+        <button
+          type="button"
+          className="timebar__play"
+          onClick={onPlay}
+          aria-pressed={playing}
+          aria-label={playing ? 'Pause the day' : 'Play the day'}
+        >
+          {playing ? (
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="3.5" y="2.5" width="3" height="11" rx="1" fill="currentColor" />
+              <rect x="9.5" y="2.5" width="3" height="11" rx="1" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M4.5 2.6v10.8L13 8 4.5 2.6Z" fill="currentColor" />
+            </svg>
+          )}
+        </button>
+
+        <div className="timebar__timeline">
+          <p className="timebar__events">
+            <span className="timebar__caption">{caption}</span>
+            <span>
+              Sunrise <b>{daylight.rise === null ? '—' : clock12Label(daylight.rise)}</b>
+              {' · '}
+              Sunset <b>{daylight.set === null ? '—' : clock12Label(daylight.set)}</b>
+            </span>
           </p>
+
+          <div
+            className="timebar__track"
+            style={
+              {
+                '--day-from': `${from}%`,
+                '--day-to': `${to}%`,
+              } as React.CSSProperties
+            }
+          >
+            {/* Drawn separately from the control, so the line can be 4px while
+                the thing a finger has to hit stays 44px tall. */}
+            <span className="timebar__rail" aria-hidden="true" />
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={10}
+              value={minutes}
+              onChange={(event) => onChange(Number(event.target.value))}
+              aria-label="Time of day"
+              // Without this a screen reader reads "900", not "3:00 pm".
+              aria-valuetext={`${clock12Label(minutes)}, ${caption}`}
+              aria-describedby={bothKnown ? undefined : 'timebar-nocross'}
+            />
+          </div>
+
+          <p className="timebar__scale" aria-hidden="true">
+            {ticks
+              .filter(({ left }) => Math.abs(left - at) > 9)
+              .map(({ tick, left }) => (
+                <span key={tick} className="timebar__tick" style={{ left: `${left}%` }}>
+                  {clock12Label(tick)}
+                </span>
+              ))}
+            {/* The hour itself, under the handle, in the dark ink. */}
+            <span className="timebar__now" style={{ left: `${at}%` }}>
+              {clock12Label(minutes)}
+            </span>
+          </p>
+
+          {/*
+            Said only when a crossing is missing, and said to everyone: the
+            dash above shows there is no time to give, and this says why.
+          */}
+          {!bothKnown && (
+            <p className="timebar__nocross" id="timebar-nocross">
+              The sun does not {daylight.rise === null ? 'rise' : 'set'} between{' '}
+              {clock12Label(min)} and {clock12Label(max)} on this date.
+            </p>
           )}
         </div>
+
+        {/* The key to the colours, beside the rail that changes what they cast. */}
+        <MapKey className="timebar__key" />
       </div>
     </div>
   );
 }
 
-/**
- * What is known about one existing building.
- *
- * The counterpart to DevelopmentPanel. Until now a searched building got the
- * nearby-projects list and nothing about itself, so the one thing a resident
- * had actually asked about was the one thing the screen would not describe.
- *
- * The sunlight screen is reachable from here. It was not at first, on the
- * reasoning that a building has no "before" to compare against — but the
- * searched building is already lifted out of the merged city so it can be
- * drawn pink, so the city without it costs nothing to show.
- */
+/* ── An existing building ───────────────────────────────── */
+
 /**
  * ─────────────────────────────────────────────────────────────────────────
  * ONE EXISTING BUILDING
  * ─────────────────────────────────────────────────────────────────────────
  *
- * The same sheet a project gets, for something that is already standing.
+ * What is known about one existing building: the same sheet a project
+ * gets, for something that is already standing. The counterpart to
+ * DevelopmentPanel. Until then a searched building got the nearby-projects
+ * list and nothing about itself, so the one thing a resident had actually
+ * asked about was the one thing the screen would not describe.
+ *
+ * The sunlight screen is reachable from here. It was not at first, on the
+ * reasoning that a building has no "before" to compare against — but the
+ * searched building is already lifted out of the merged city so it can be
+ * drawn pink, so the city without it costs nothing to show.
  *
  * WHY IT LOOKS LIKE THE PROJECT PANEL NOW
  *   It was the last panel written before the rest were redesigned, and it
@@ -1996,9 +2140,10 @@ export function TimeBar({
  *   to be searched for.
  *
  * WHAT IT DOES NOT DO
- *   It does not compare anything. A project has a before and an after; a
- *   building that is already there has only a now, and the sunlight half
- *   measures what IT takes rather than what it changes.
+ *   This panel does not compare anything: it describes what is standing.
+ *   The comparisons live on the sunlight screen, where the building can be
+ *   taken away to show what IT takes from the street, and the approved
+ *   projects around it added to show what changes.
  */
 export function BuildingPanel({
   label,
@@ -2010,16 +2155,21 @@ export function BuildingPanel({
   onBack,
   onClose,
 }: {
+  /** The street address, the title unless the record has a name. */
   label: string;
   /** Suburb, state and postcode, when the address had them to give. */
   locality?: string;
   /** From the massing, so a height shows even before the record arrives. */
   heightM: number;
+  /** The property record, or null until (or unless) it arrives. */
   detail: BuildingDetail | null;
   /** False while the record is still in flight; true once it will not come. */
   settled: boolean;
+  /** The Sunlight tab and the main button: on to the sunlight screen. */
   onSunlight: () => void;
+  /** "Back to the map": the explore screen. */
   onBack: () => void;
+  /** "Start over": the front page. */
   onClose: () => void;
 }) {
   /*

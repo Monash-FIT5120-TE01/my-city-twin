@@ -6,6 +6,13 @@
  * WHAT THIS FILE IS
  *   Draws the proposals standing in the city, and makes them clickable.
  *
+ * WHAT IT DOES
+ *   - Builds each proposal's shape once and keeps it.
+ *   - Colours each by what can be done with it (see below).
+ *   - Outlines the one being read about (SelectionEdges).
+ *   - Tells a click apart from the end of a camera drag (tap.ts).
+ *   - Frees the old shapes on the GPU when the set is replaced.
+ *
  * WHY EACH ONE IS A SEPARATE OBJECT
  *   The 1,548 existing buildings are welded into one object because nobody
  *   ever needs to click one. A proposal is different: it has to be
@@ -21,7 +28,8 @@
  *
  * COLOUR SAYS WHAT CAN BE DONE
  *
- *   selected     full mint — this is the one being read about
+ *   selected     full mint and a dark outline — this is the one being
+ *                read about
  *   clickable    strong green — plainly not an existing building, and
  *                plainly something to press
  *   not clickable  pale — in focus mode nothing responds, so nothing
@@ -39,10 +47,12 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { BufferGeometry } from 'three';
 import type { Development } from '../data/model';
 import { mergeMassings } from './massing';
+import { SelectionEdges } from './SelectionEdges';
 import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 
 interface DevelopmentMassingsProps {
   developments: Development[];
+  /** The proposal being read about, drawn selected; null for none. */
   focus: Development | null;
   groundAhdM: number;
   /** When false, only the focused proposal is drawn. */
@@ -52,6 +62,7 @@ interface DevelopmentMassingsProps {
   onSelect: (development: Development) => void;
 }
 
+/** The approved projects as separate, clickable, state-coloured meshes. */
 export function DevelopmentMassings({
   developments,
   focus,
@@ -97,6 +108,7 @@ export function DevelopmentMassings({
    */
   const pressedAt = useRef<Gesture | null>(null);
 
+  // A pointer cursor left behind when this unmounts under the pointer.
   useEffect(() => {
     return () => {
       document.body.style.cursor = '';
@@ -113,8 +125,7 @@ export function DevelopmentMassings({
          * An unfocused proposal is only worth noticing while it can be
          * clicked, so it carries the strong green then and drops back to
          * scenery when it cannot — in focus mode, where the interface is
-         * gone and nothing responds. Colour that invites a click the click
-         * will not answer is worse than no invitation at all.
+         * gone and nothing responds. See COLOUR SAYS WHAT CAN BE DONE above.
          */
         const invites = !focused && interactive;
         return (
@@ -175,6 +186,8 @@ export function DevelopmentMassings({
               transparent
               opacity={focused ? 0.95 : invites ? 0.9 : 0.78}
             />
+            {/* The one being read about is outlined too — see SelectionEdges. */}
+            {focused && <SelectionEdges parts={development.parts} floorAhdM={groundAhdM} />}
           </mesh>
         );
       })}

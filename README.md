@@ -15,7 +15,7 @@ Front end for **FIT5120 · Monash-FIT5120-TE01**, Iteration 1 — user stories
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # type-checks with `tsc -b`, then bundles to dist/
-npm test         # 156 tests
+npm test         # unit tests (vitest)
 ```
 
 `npm run build` is the real type check. `tsc --noEmit` on the root config
@@ -34,6 +34,16 @@ controller, pull its trigger, press X.
 npm run test:vr              # walks the headset tasks and reports each one
 npm run test:vr -- --headed  # the same, in a window you can watch
 ```
+
+```bash
+npm run test:page            # the front page and the sunlight screen, in a browser
+```
+
+`test:page` checks what only a real browser shows: the front page's
+sections and its "Future plans" link, the map credit staying in view while
+the page scrolls, play and compare on the sunlight screen (and that leaving
+the screen stops them), and the phone layout stacking without covering
+anything. Screenshots go to `test-results/page-check/`.
 
 `test:vr` drives the Chrome (or Edge) already installed, uses a dev server on
 5173 if one is running or starts its own, and leaves screenshots in

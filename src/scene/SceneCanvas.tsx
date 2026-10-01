@@ -8,6 +8,19 @@
  *   labels and the controls. Above it is App, which decides what is true;
  *   below it are the pieces that each draw one thing.
  *
+ * WHAT IT DOES, IN ORDER
+ *   - Frames the subject: a searched building, the proposal in focus, or
+ *     the whole grid — and the descent onto it on the city's first moment.
+ *   - Works out where a walker is put down, and the city as drawn for them
+ *     to collide with.
+ *   - Decides who drives the camera: OrbitControls and CameraRig on a
+ *     desktop, StreetView in the street, the headset in VR.
+ *   - Sizes the shadow camera to the whole city.
+ *   - Draws the sky, the lights, the city, the sun arrow, the street names
+ *     and the site pin.
+ *   - Shifts the lens into the front page's window (ViewInset).
+ *   - Hosts the headset's walk and panel when a session is running.
+ *
  * THE THREE LIGHTS, AND WHAT EACH IS FOR
  *
  *   directional   the sun. The only one that casts a shadow, and the only
@@ -92,6 +105,7 @@ interface SceneCanvasProps {
   model: CityModel;
   focus: Development | null;
   sun: SunAngles;
+  /** The plans are in the city — the "after". False shows the city as it is. */
   showProposed: boolean;
   castShadows: boolean;
   /** The ground arrow showing which way the light travels. */
@@ -166,12 +180,17 @@ interface SceneCanvasProps {
   /** Bumped by "Frame the whole city". See CameraRig. */
   refit?: number;
   /**
-   * How much of the canvas the page covers — the front page's words and
-   * steps — so the city is framed in what is left. See ViewInset.
+   * How much of the canvas the front page covers — its words and steps — so
+   * the city is framed in what is left. A box App writes into and ViewInset
+   * reads every frame, not a value: it changes on every scroll event. See
+   * ViewInset.
    */
-  inset?: ScreenInset | null;
+  inset?: { current: ScreenInset | null };
+  /** Whether the front page — and so the window — is up. */
+  insetOn?: boolean;
 }
 
+/** The canvas, the camera, the lights and the city — the whole 3D view. */
 export function SceneCanvas({
   model,
   focus,
@@ -195,7 +214,8 @@ export function SceneCanvas({
   approach = false,
   viewCommands,
   refit,
-  inset = null,
+  inset,
+  insetOn = false,
   timeLabel,
   dateLabel,
   onNudgeMinutes,
@@ -299,11 +319,12 @@ export function SceneCanvas({
   const orbitTarget = enuToWorld([targetE, targetN, targetUp]);
 
   /*
+   * ── THE WALKER ──────────────────────────────────────────────────────────
+   *
    * Where the walker is put down. The measured spot if there is one — that
    * is a place the reader chose and asked a question about — and otherwise
    * whatever the camera was already framing.
-   */
-  /*
+   *
    * Memoised on the numbers. As a bare literal it was a new array on every
    * render, so the spiral search below ran again each time looking for the
    * same answer.
@@ -314,16 +335,15 @@ export function SceneCanvas({
   );
 
   /*
-   * Built once for the model, not once per entry: it depends only on the
-   * buildings and the height a person stands at.
-   */
-  /*
-   * The city as DRAWN, not as stored.
+   * What the walker collides with: the city as DRAWN, not as stored.
    *
    * Indexing every building meant the walker met invisible walls where a
    * proposal had demolished one, and walked through the proposal standing in
    * its place. The same filters CityMassing applies have to be applied here,
    * or collision describes a different city from the one on screen.
+   *
+   * Built for the city as shown, not once per entry: it depends only on the
+   * buildings, what is shown of them, and the height a person stands at.
    */
   const obstacles = useMemo(() => {
     const centres = buildingCentres(model.buildings);
@@ -429,6 +449,7 @@ export function SceneCanvas({
   const [panelShown, setPanelShown] = useState(true);
   /** Whether ViewInset has the lens off-centre at this moment. */
   const [lensShifted, setLensShifted] = useState(false);
+  /** Bumped to bring the headset panel back in front of the eyes. */
   const [summon, setSummon] = useState(0);
   /** Moves that have landed, counted, so the panel can measure after them. */
   const [placed, setPlaced] = useState(0);
@@ -467,9 +488,14 @@ export function SceneCanvas({
       ? streetPlacement(standPoint, [targetE, targetN], ground)
       : overlookFor([targetE, targetN], wholeCity ? null : subjectHeight, ground);
 
+  /** The sky's colours and the fill lights' strengths for this sun height. */
+  const sky = useMemo(() => skyAppearance(sun.altitudeDeg), [sun.altitudeDeg]);
+
   /*
-   * The shadow camera covers the WHOLE city, centred on the city — not on
-   * whatever is being examined.
+   * ── THE SHADOW CAMERA ───────────────────────────────────────────────────
+   *
+   * It covers the WHOLE city, centred on the city — not on whatever is being
+   * examined.
    *
    * Two failures this avoids. Centring on the focus and sizing to half the
    * city span leaves the far side of the grid outside the frustum, so those
@@ -478,8 +504,6 @@ export function SceneCanvas({
    * axis — the extent therefore has to cover half the 3D diagonal, not half
    * the plan diagonal, or winter afternoon shadows are clipped mid-street.
    */
-  const sky = useMemo(() => skyAppearance(sun.altitudeDeg), [sun.altitudeDeg]);
-
   const shadow = useMemo(() => {
     const { minE, minN, maxE, maxN } = model.extent;
 
@@ -587,12 +611,12 @@ export function SceneCanvas({
             showHighlighted={showHighlighted}
           />
 
-          {/* In the world frame, so it points at the city rather than the screen. */}
           {/*
-            On whatever the camera is framing — the focused proposal, or a
-            searched building. Reading `focus` alone put the arrow back on a
-            proposal while the screen was about a building; targetE/targetN are
-            already "the subject", whichever kind it is.
+            The sun arrow. In the world frame, so it points at the city rather
+            than the screen. On whatever the camera is framing — the focused
+            proposal, or a searched building. Reading `focus` alone put the
+            arrow back on a proposal while the screen was about a building;
+            targetE/targetN are already "the subject", whichever kind it is.
           */}
           {showSunArrow && !wholeCity && (
             <SunArrow
@@ -605,22 +629,21 @@ export function SceneCanvas({
         </WorldFrame>
 
         {/*
-          Outside the world frame on purpose — see StreetLabels for why CSS3D
-          cannot inherit that rotation and still land the right way up.
-        */}
-        {/*
+          The street names. Outside the world frame on purpose — see
+          StreetLabels for why CSS3D cannot inherit that rotation and still
+          land the right way up.
+
           Hidden while walking. They are HTML laid flat just above the ground —
           a second map on the floor, which is the same thing that made the
           basemap read wrong from eye height — and their repositioning follows
           the orbit target, which walking does not have.
-        */}
-        {/*
-          And while the lens is shifted for the front page — including the
-          moment after leaving it, while the shift eases back to nothing. The
+
+          Hidden too while the front page is up and while the lens is still
+          shifted after leaving it, as the shift eases back to nothing. The
           names are CSS 3D, which ignores the shift, so they would sit beside
           their streets.
         */}
-        {!walking && !inset && !lensShifted && (
+        {!walking && !insetOn && !lensShifted && (
           <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
         )}
 
@@ -695,17 +718,26 @@ export function SceneCanvas({
           </VrWalk>
         )}
 
-        {/*
-          Both stay mounted while walking, merely switched off.
-          Unmounting them threw away the reader's own view: a freshly mounted
-          CameraRig has never placed the camera, so on return it immediately
-          reframed the subject and discarded whatever pan, orbit or zoom they
-          had set up before going down to the street.
-        */}
+        {/* The zoom buttons' way in to the camera — see ViewControls. */}
         {viewCommands && <ViewControlsBridge commands={viewCommands} />}
 
-        <ViewInset inset={inset} animate={!reducedMotion} onShifted={setLensShifted} />
+        {/* The city framed in the front page's window — see ViewInset. */}
+        {inset && (
+          <ViewInset
+            source={inset}
+            on={insetOn}
+            animate={!reducedMotion}
+            onShifted={setLensShifted}
+          />
+        )}
 
+        {/*
+          CameraRig and OrbitControls both stay mounted while walking, merely
+          switched off. Unmounting them threw away the reader's own view: a
+          freshly mounted CameraRig has never placed the camera, so on return
+          it immediately reframed the subject and discarded whatever pan,
+          orbit or zoom they had set up before going down to the street.
+        */}
         <CameraRig
           refit={refit}
           paused={walking || inVr}

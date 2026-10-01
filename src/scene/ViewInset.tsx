@@ -10,6 +10,15 @@
  *   centre of the picture into that window, so the city sits in the middle
  *   of the part anybody can see rather than behind the words.
  *
+ * WHAT IT DOES
+ *   - ScreenInset: the shape of a report — how far the page covers the
+ *     canvas from the left, top and bottom, and whether to follow at once.
+ *   - ViewInset: reads the latest report every frame, eases the lens
+ *     towards it (or snaps, while the page is being scrolled) and shifts the
+ *     camera's projection to match.
+ *   - Tells SceneCanvas when the lens leaves the centre and when it is back,
+ *     so the street names can stand aside in between.
+ *
  * WHY THE CANVAS IS NOT SIMPLY MADE SMALLER
  *   Leaving the front page would then resize the canvas: one frame the city
  *   is in a window, the next it fills the screen at a different size, with
@@ -27,7 +36,14 @@
  *   The picking ray, drei's pinned labels and the pointer all read the same
  *   projection matrix, so they move with it. The street names do not: they
  *   are CSS 3D, which takes only the field of view from the matrix and
- *   ignores the shift. SceneCanvas hides them while there is an inset.
+ *   ignores the shift. SceneCanvas hides them while the front page is up and
+ *   until the lens has settled back in the middle.
+ *
+ * WHY THE WINDOW IS READ FROM A BOX, NOT A PROP
+ *   The front page reports its window on every scroll event. Through React
+ *   state that would re-render the whole app, the scene included, sixty
+ *   times a second to move three numbers. App writes the report into a ref
+ *   instead, and the frame loop here reads it.
  *
  * IN A HEADSET
  *   Nothing. The device owns the projection there, and the camera this would
@@ -43,6 +59,12 @@ export interface ScreenInset {
   left: number;
   top: number;
   bottom: number;
+  /**
+   * Follow at once rather than easing. Set while the page is being
+   * scrolled: the window is moving under the reader's own hand, and a lens
+   * that eased after it would leave the city lagging behind its frame.
+   */
+  snap?: boolean;
 }
 
 const NONE: ScreenInset = { left: 0, top: 0, bottom: 0 };
@@ -55,28 +77,42 @@ const NONE: ScreenInset = { left: 0, top: 0, bottom: 0 };
  */
 const FOLLOW_RATE = 7;
 
+/**
+ * Keeps the camera's picture centred in the part of the canvas the page
+ * leaves uncovered. Renders nothing; it works on the camera in the frame
+ * loop.
+ */
 export function ViewInset({
-  inset,
+  source,
+  on,
   animate,
   onShifted,
 }: {
-  inset: ScreenInset | null;
+  /**
+   * The front page's latest report, read every frame rather than taken as
+   * a prop — see WHY THE WINDOW IS READ FROM A BOX above.
+   */
+  source: { current: ScreenInset | null };
+  /** False when the front page is not up, whatever the box last held. */
+  on: boolean;
+  /** False under a reduced-motion preference: every change is then a jump. */
   animate: boolean;
   /**
    * Told when the lens moves off centre and when it is back — not every
    * frame. The street names need the second: they cannot follow a shifted
-   * lens, and `inset` going null only says the shift has STARTED to clear.
+   * lens, and `on` going false only says the shift has STARTED to clear.
    */
   onShifted?: (shifted: boolean) => void;
 }) {
-  /** Where the lens is now, which trails `inset` while it eases. */
+  /** Where the lens is now, which trails the report while it eases. */
   const now = useRef<ScreenInset>({ ...NONE });
   /*
-   * Null until the first frame. The first inset is taken as it is rather
+   * False until the first frame. The first report is taken as it is rather
    * than eased from zero: the city's first frame should already be in its
    * window, not slide into it from behind the words.
    */
   const started = useRef(false);
+  /** What onShifted was last told, so it hears only of changes. */
   const reported = useRef(false);
   /** What was last applied, so a still frame costs nothing. */
   const applied = useRef('');
@@ -91,8 +127,9 @@ export function ViewInset({
     const lens = camera as PerspectiveCamera;
     if (!lens.isPerspectiveCamera) return;
 
-    const goal = inset ?? NONE;
-    const step = animate && started.current ? 1 - Math.exp(-delta * FOLLOW_RATE) : 1;
+    const goal = (on && source.current) || NONE;
+    const step =
+      animate && started.current && !goal.snap ? 1 - Math.exp(-delta * FOLLOW_RATE) : 1;
     started.current = true;
     const c = now.current;
     for (const edge of ['left', 'top', 'bottom'] as const) {
@@ -134,6 +171,11 @@ export function ViewInset({
   return null;
 }
 
+/**
+ * The aspect the camera should have for this inset. Compared every frame,
+ * because a canvas resize quietly resets the aspect to the whole canvas's
+ * even when the inset has not moved.
+ */
 function expectedAspect(c: ScreenInset, width: number, height: number): number {
   if (c.left === 0 && c.top === 0 && c.bottom === 0) return width / height;
   return Math.max(1, width - c.left) / Math.max(1, height - c.top - c.bottom);

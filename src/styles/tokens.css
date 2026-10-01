@@ -45,8 +45,10 @@
 
   /*
    * The front page's ground: warm paper rather than white, so the page reads
-   * as a place to arrive rather than as one more panel. Only the landing
-   * uses it; every panel over the city stays on --paper.
+   * as a place to arrive rather than as one more panel. The front page and
+   * the sunlight screen's column use it — the two screens that are pages
+   * beside the city rather than panels floated over it. Every floating
+   * panel stays on --paper.
    *
    * --cream-edge is the hairline for that ground. --hairline is tuned against
    * white and nearly vanishes on cream.
@@ -261,8 +263,8 @@
   /*
    * ── THE LAYOUT, AS FOUR NUMBERS ────────────────────────────────────────
    *
-   * Everything that floats over the city — both panels, both cards, the time
-   * bar and the sun chip — is positioned from these. They used to be written
+   * Everything that floats over the city — the panels, the cards and the
+   * time bar — is positioned from these. They used to be written
    * out in pixels at each site, and the arithmetic that tied them together
    * was done by hand: the time bar's `left: 396px` was really "24 gutter +
    * 348 panel + 24 gutter", worked out once and then true only by luck. Six
@@ -321,10 +323,17 @@
   --w-panel-wide: clamp(19.5rem, 26vw, 27rem);
 
   /*
-   * The time dock. Wide enough for the hour, the caption and a rail with
-   * room to aim along; not so wide that the rail becomes a ruler.
+   * The sunlight screen's column, which runs the full height of the screen
+   * against the left edge. The time bar and the map credit start where it
+   * ends, so it is one number.
    */
-  --w-dock: 870px;
+  --w-sun-column: clamp(20rem, 24vw, 23.5rem);
+  /*
+   * The strip of fine print along the bottom of the map. 2.75rem is 44px at
+   * a 16px root: the strip's one link is a target, and gets a finger's
+   * height.
+   */
+  --h-mapfoot: 2.75rem;
 
   /*
    * Also in rem, for the same reason read vertically: both reserve room for

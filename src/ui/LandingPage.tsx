@@ -4,24 +4,39 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT THIS IS
- *   The page a bare visit arrives at: the words on the left, the live city in
- *   a window on the right, the three steps along the bottom and the fine
- *   print under them. It replaced two things — a full-screen cover with a
- *   film on it, and a panel floated over the city — with one page.
+ *   The page a bare visit arrives at. Its first screen has the words on the
+ *   left, the live city in a window on the right, the three steps along the
+ *   bottom and the fine print under them. Below that the page scrolls on
+ *   into the sections in LandingMore. It replaced two things — a full-screen
+ *   cover with a film on it, and a panel floated over the city — with one
+ *   page.
+ *
+ * WHAT IS ON IT
+ *   - The film: the skyline drawn once, above the heading.
+ *   - The search: the field, its matches (rendered by App), and the row
+ *     that holds the chosen place with a way to clear it.
+ *   - "Explore sunlight", and the hint when it is pressed too soon.
+ *   - "Enter in VR", on a device that can.
+ *   - "Explore the city without an address".
+ *   - The three steps — the place "How it works" in the header moves to.
+ *   - The fine print: what the model is, Sources & limitations, the moment
+ *     shown.
+ *   - The window onto the city: the download's progress, then the map key
+ *     and the map's credit.
+ *   - LandingMore, under all of it.
  *
  * WHAT IS UNDER IT
  *   The canvas still fills the screen. This page covers the left and the
- *   bottom and leaves a window over the city; it measures that window and
- *   reports it, and ViewInset frames the city inside it. Leaving the page
- *   takes the covers away and the same city slides to the middle — nothing
- *   is reloaded or rebuilt.
+ *   bottom and leaves a window over the city; it measures that window on
+ *   every resize and every scroll and reports it, and ViewInset frames the
+ *   city inside it. Leaving the page takes the covers away and the same
+ *   city slides to the middle — nothing is reloaded or rebuilt.
  *
  * THE FILM
  *   The one-line drawing of the skyline that used to be the cover now sits
  *   above the heading. It plays once and stops on the finished skyline. It
- *   is white on its own ground, so
- *   it is multiplied onto the page: the white drops out and only the line is
- *   left on the cream.
+ *   is white on its own ground, so it is multiplied onto the page: the white
+ *   drops out and only the line is left on the cream.
  *
  * WHY IT IS UP BEFORE THE CITY
  *   The city takes a few seconds to build — 4,443 roof planes and a five
@@ -42,57 +57,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { bundled } from '../data/bundled';
 import type { LoadProgress } from '../data/useCityModel';
 import type { ScreenInset } from '../scene/ViewInset';
-import { NOT_AN_ASSESSMENT } from './words';
+import { MapKey, SourcesLink } from './Sources';
+import { LandingMore } from './LandingMore';
 import '../styles/landing.css';
-
-/**
- * Three figures about living in the CBD, each with where it came from.
- *
- * WHY THE SOURCE IS PART OF THE DATA AND NOT A FOOTNOTE
- *   A percentage with no source is an assertion. These three are the only
- *   numbers in the whole application that did not come out of the model —
- *   everything else on screen is computed from surveyed geometry and can be
- *   checked against it, and these cannot. So each one carries its origin in
- *   the same object, and nothing can render one without the other.
- *
- * WHY EACH URL POINTS AT THE FIGURE AND NOT AT THE ORGANISATION
- *   Every link below was opened and the number read off the page it lands
- *   on. A citation that goes to a department's front door leaves the reader
- *   to find the claim themselves. The walking figure took two attempts for
- *   that reason: the page that reads most like its home — the strategy's
- *   walking chapter — does not contain it, so the link goes to the strategy.
- *
- * WHY EACH ONE SAYS WHAT IT IS OF
- *   "99.2%" is meaningless alone; "of occupied private dwellings" is the
- *   fact, which is why the qualifier is never shortened.
- */
-const FIGURES = [
-  {
-    figure: '99.2%',
-    title: 'Apartment living is the norm.',
-    body: 'Of occupied private dwellings in Melbourne suburb were flats or apartments.',
-    source: 'ABS Census 2021',
-    /* QuickStats for the suburb of Melbourne; the page gives "Flat or
-       apartment: 27,250, 99.2%" under dwelling structure. */
-    href: 'https://www.abs.gov.au/census/find-census-data/quickstats/2021/SAL21640',
-  },
-  {
-    figure: '89%',
-    title: 'A city experienced on foot.',
-    body: 'Of trips within the Hoddle Grid were made on foot.',
-    source: 'City of Melbourne, Transport Strategy 2030',
-    href: 'https://www.melbourne.vic.gov.au/transport-strategy-2030',
-  },
-  {
-    figure: '32%',
-    title: 'Greener spaces are a priority.',
-    body: 'Of CBD respondents prioritised plants, trees and improved open spaces.',
-    source: '2024 Neighbourhood Survey · 532 CBD responses',
-    /* The consultation summary lists "More plants, trees and improved open
-       spaces (32%)" as the CBD's third priority, from 532 CBD responses. */
-    href: 'https://participate.melbourne.vic.gov.au/neighbourhood-survey',
-  },
-];
 
 /** The three steps along the bottom, in the order the app is used. */
 const STEPS = [
@@ -104,9 +71,17 @@ const STEPS = [
   },
 ];
 
+/**
+ * How much of the city's window must stay clear of the header for the map
+ * credit inside it still to be seen: the credit's own height and the gap
+ * under it, with a little to spare. Pixels.
+ */
+const CREDIT_ROOM = 72;
+
 /** The id "How it works" in the header moves to. */
 export const HOW_IT_WORKS_ID = 'how-it-works';
 
+/** The front page, over the city, with a window cut in it for the city. */
 export function LandingPage({
   query,
   onQuery,
@@ -123,6 +98,7 @@ export function LandingPage({
   onInset,
   reducedMotion,
 }: {
+  /** The text in the search field — App's, shared with the header's field. */
   query: string;
   onQuery: (next: string) => void;
   /** The field here has the keyboard, so the results belong under it. */
@@ -134,6 +110,7 @@ export function LandingPage({
   onClearChosen: () => void;
   /** The main button, once a place is chosen. */
   onSunlight: () => void;
+  /** Into the city with nothing chosen — here and at the foot of LandingMore. */
   onExplore: () => void;
   /**
    * Present only on a device that can start a headset session, and only once
@@ -146,14 +123,17 @@ export function LandingPage({
   when: string | null;
   /** The map's credit, drawn in the city's window. See MapAttribution. */
   credit: ReactNode;
-  /** Where the city's window is, whenever it moves. */
+  /**
+   * Where the city's window is, whenever it moves — on every scroll as well
+   * as every resize, so App keeps it in a ref rather than in state.
+   */
   onInset: (inset: ScreenInset) => void;
+  /** The film is shown finished rather than played. */
   reducedMotion: boolean;
 }) {
   const root = useRef<HTMLElement>(null);
   const window_ = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
-  const sources = useRef<HTMLDialogElement>(null);
   /*
    * Said when the main button is pressed with nothing chosen, rather than
    * the button being disabled: a greyed-out button tells somebody that
@@ -163,10 +143,9 @@ export function LandingPage({
 
   /*
    * The callback, held where the observer can reach the current one without
-   * being torn down and rebuilt by it. App happens to pass a state setter,
-   * which never changes, but the observer should not depend on that: an
-   * inline function passed here later would otherwise rebuild it on every
-   * render — and App renders on every tick of the download.
+   * being torn down and rebuilt by it. App passes an inline function (one
+   * that writes a ref), so its identity changes on every render — and App
+   * renders on every tick of the download.
    */
   const report = useRef(onInset);
   useEffect(() => {
@@ -174,8 +153,9 @@ export function LandingPage({
   });
 
   /*
-   * Measure the city's window whenever the layout moves: a resize, the type
-   * growing with the window, the steps wrapping onto another line.
+   * Measure the city's window whenever it moves: a resize, the type growing
+   * with the window, the steps wrapping onto another line — and a scroll,
+   * which carries the window up the screen.
    *
    * A layout effect so the measurement exists before the first paint. The
    * city is not drawn until it has loaded, by which time this has long been
@@ -186,22 +166,45 @@ export function LandingPage({
     const page = root.current;
     const hole = window_.current;
     if (!page || !hole) return;
-    const measure = () => {
+    const measure = (snap = false) => {
       const outer = page.getBoundingClientRect();
       const inner = hole.getBoundingClientRect();
       report.current({
         left: Math.round(inner.left - outer.left),
         top: Math.round(inner.top - outer.top),
         bottom: Math.round(outer.bottom - inner.bottom),
+        snap,
       });
+      /*
+       * The map's credit rides at the foot of the window, and the bar is
+       * fixed over the top of the page. Scrolling the window up, the credit
+       * reaches the bar while a strip of map is still showing under it — a
+       * map on screen with its credit hidden, which the map's licence does
+       * not allow. So once less than `CREDIT_ROOM` of the window is still
+       * clear of the bar, the window is covered over: no map without its
+       * credit. The bar's height is where the window starts on the unscrolled
+       * page, its offset in the grid.
+       */
+      const clearOfBar = inner.bottom - outer.top - hole.offsetTop;
+      hole.toggleAttribute('data-covered', clearOfBar < CREDIT_ROOM);
     };
     measure();
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(() => measure());
     observer.observe(page);
     observer.observe(hole);
-    return () => observer.disconnect();
+    /*
+     * The page scrolls, and the window scrolls with it: the city follows its
+     * frame up and out of view, at once rather than easing after it.
+     */
+    const onScroll = () => measure(true);
+    page.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      page.removeEventListener('scroll', onScroll);
+    };
   }, []);
 
+  /** The main button: on to the sunlight screen, or ask for a place first. */
   const sunlight = () => {
     if (chosen) {
       onSunlight();
@@ -214,9 +217,14 @@ export function LandingPage({
   return (
     <section className="landing" ref={root} aria-labelledby="landing-title">
       {/*
-        One wrapper for the three parts that scroll together on a phone. On a
-        wide screen it steps out of the way (display: contents) and the three
-        take their own places in the page's grid.
+        The first screen, laid out as a grid. `.landing` around it is the
+        part that scrolls, carrying this and LandingMore under it.
+      */}
+      <div className="landing__screen">
+      {/*
+        One wrapper for the three parts that stack into one sheet on a phone.
+        On a wide screen it steps out of the way (display: contents) and the
+        three take their own places in the first screen's grid.
       */}
       <div className="landing__sheet">
         <div className="landing__hero">
@@ -303,9 +311,11 @@ export function LandingPage({
             <Arrow />
           </button>
 
-          {/* Polite: it answers a press, it does not interrupt one. */}
+          {/*
+            Polite: it answers a press, it does not interrupt one. Gone as
+            soon as something is chosen: it would be answering nothing.
+          */}
           <p className="landing__hint" aria-live="polite">
-            {/* Gone as soon as something is chosen: it would be answering nothing. */}
             {askedTooSoon && !chosen
               ? 'Search for an address above, then choose it from the list.'
               : ''}
@@ -363,13 +373,7 @@ export function LandingPage({
             <span className="landing__foot-sep" aria-hidden="true">
               |
             </span>
-            <button
-              type="button"
-              className="landing__sources-link"
-              onClick={() => sources.current?.showModal()}
-            >
-              Sources &amp; limitations
-            </button>
+            <SourcesLink />
           </p>
           {when && <p className="landing__when">{when}</p>}
         </footer>
@@ -377,92 +381,20 @@ export function LandingPage({
 
       {/*
         The window onto the city. Transparent and deaf to the pointer, so the
-        city under it is what gets dragged and clicked; only the legend and
+        city under it is what gets dragged and clicked; only the map key and
         the credit in it answer.
       */}
       <div className="landing__window" ref={window_}>
         {loading && <Loading progress={loading.progress} error={loading.error} />}
         {!loading && (
-          <aside className="landing__legend" aria-label="Map key">
-            <span className="landing__legend-row">
-              <span className="landing__swatch landing__swatch--existing" aria-hidden="true" />
-              Existing
-            </span>
-            <span className="landing__legend-row">
-              <span className="landing__swatch landing__swatch--approved" aria-hidden="true" />
-              Approved
-            </span>
-          </aside>
+          <MapKey className="landing__legend" />
         )}
         {credit}
       </div>
+      </div>
 
-      <dialog
-        className="landing__sources"
-        ref={sources}
-        aria-labelledby="sources-title"
-        // A click on the backdrop — outside the card — closes it.
-        onClick={(event) => {
-          if (event.target === event.currentTarget) event.currentTarget.close();
-        }}
-      >
-        <div className="landing__sources-card">
-          <div className="landing__sources-head">
-            <h2 id="sources-title">Sources &amp; limitations</h2>
-            <button
-              type="button"
-              className="landing__clear"
-              onClick={() => sources.current?.close()}
-              aria-label="Close"
-            >
-              <Cross />
-            </button>
-          </div>
-
-          <p className="landing__sources-lead">{NOT_AN_ASSESSMENT}</p>
-
-          <h3>Why it matters</h3>
-          <ol className="landing__figures" role="list">
-            {FIGURES.map((entry) => (
-              <li key={entry.title}>
-                <p className="landing__figure">{entry.figure}</p>
-                <p className="landing__figure-title">{entry.title}</p>
-                <p className="landing__figure-body">{entry.body}</p>
-                <p className="landing__figure-source">
-                  Source:{' '}
-                  {/*
-                    A new tab, because leaving the page would throw away the
-                    date, the hour and whatever is chosen — all of which live
-                    in this tab's state.
-                  */}
-                  <a href={entry.href} target="_blank" rel="noreferrer noopener">
-                    {entry.source}
-                    <span className="visually-hidden"> (opens in a new tab)</span>
-                  </a>
-                </p>
-              </li>
-            ))}
-          </ol>
-          {/*
-            What the three figures do NOT say, which is the part a reader
-            would otherwise supply and get wrong. "Melbourne" as a suburb is
-            larger than the Hoddle Grid this model covers, and the last two
-            count different things: trips are events, respondents are people.
-          */}
-          <p className="landing__sources-note">
-            Melbourne suburb extends beyond the Hoddle Grid. Walking figures describe
-            trips; survey figures describe respondents.
-          </p>
-
-          <h3>Data</h3>
-          <p className="landing__sources-note">
-            Building Footprints 2023 and Development Activity Monitor © City of
-            Melbourne. Draft Open Space Data © Victorian Planning Authority. Both
-            licensed CC BY 4.0. Modified: reprojected, extruded to simple block
-            massing, and grouped by structure.
-          </p>
-        </div>
-      </dialog>
+      {/* The sections under the first screen, reached by scrolling. */}
+      <LandingMore onExplore={onExplore} />
     </section>
   );
 }
@@ -554,6 +486,8 @@ function Loading({ progress, error }: { progress: LoadProgress; error: string | 
     </div>
   );
 }
+
+// ── the icons: an arrow for the ways in, a cross to clear, a pin for the chosen place
 
 function Arrow() {
   return (

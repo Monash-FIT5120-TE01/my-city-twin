@@ -1,9 +1,32 @@
 /*
- * The interface over the model.
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE INTERFACE OVER THE MODEL
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * Everything is a floating panel on top of the 3D view, as in the design —
- * the city is never covered by a full-width page, because the thing being
- * explained is behind the glass.
+ * Everything is a panel on top of the 3D view, as in the design — the city
+ * is never covered by a full-width page, because the thing being explained
+ * is behind the glass.
+ *
+ * WHAT IS ELSEWHERE
+ *   The front page and the sections under it: landing.css and
+ *   landing-more.css. The sunlight screen's column, its buttons and its
+ *   fine print: sunlight.css. Sources & limitations and the map key:
+ *   sources.css. The values everything here is built from: tokens.css.
+ *
+ * WHAT IS IN HERE, TOP TO BOTTOM
+ *   - The app and the header bar.
+ *   - Panels, and the shared controls: the before / after switch with its
+ *     travelling face.
+ *   - Motion: how panels, lists and the figure arrive.
+ *   - How far along (Progress), and the subject panels: their head, the
+ *     list of projects, the layer switches, one project, the window
+ *     controls and their figures.
+ *   - Choosing a day, the calendar, and the sunlight half: the figure,
+ *     arming the ground, the folded steps.
+ *   - Notes, the time bar, and the minimum target size.
+ *   - The map controls, the search results, the pin's label.
+ *   - Narrow viewports: the panel becomes a sheet.
+ *   - Standing in the street, the map credit, focus mode, reduced motion.
  */
 
 .app {
@@ -399,11 +422,6 @@
   background: var(--surface-sunken);
 }
 
-.segmented--four {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 9px;
-}
-
 /*
  * ── THE FACE THAT TRAVELS ────────────────────────────────────────────────
  *
@@ -424,9 +442,11 @@
  *   element rather than of its parent.
  *
  * WHEN IT IS NOWHERE
- *   --at of -1 means nothing is chosen -- a date that is not one of the four
- *   seasons. The face is hidden rather than parked on a neighbour, because
- *   parking it would say "Spring" about a day in October.
+ *   --at of -1 means nothing is chosen. It was written for the four
+ *   seasons, for a date that is not one of them; the seasons are four
+ *   separate buttons now (sunlight.css), and the rule stays for any strip
+ *   that can have nothing chosen. The face is hidden rather than parked on a
+ *   neighbour, because parking it would say "Spring" about a day in October.
  *
  * It is drawn UNDER the labels: z-index 0 against their 1. Painted over
  * them it would hide the word it is meant to be selecting.
@@ -472,18 +492,6 @@
   z-index: 1;
 }
 
-
-/*
- * Four names in the width of two. Smaller text and a shorter box, because
- * the alternative at the shared size is "Summer" wrapping — and a control
- * whose height depends on which word is longest moves the panel under the
- * pointer.
- */
-.segmented--four button {
-  min-height: 44px;
-  padding: 9px 2px;
-  font-size: var(--text-xs);
-}
 
 .segmented button {
   position: relative;
@@ -706,24 +714,23 @@
 }
 
 /*
- * A panel arriving.
+ * A panel arriving, and a tab's contents changing — one short settle for
+ * both.
  *
- * Docked panels rise from where they sit rather than fading in place, which
- * is what connects them to the edge they are attached to.
+ * Docked panels, the view controls and the time bar rise a little from
+ * where they sit rather than fading in place, which is what connects them
+ * to the edge they are attached to. (The view controls take the longer
+ * `rise` of their own further down.)
+ *
+ * The tab body is keyed on which tab it is — see screens.tsx. Without the
+ * key React keeps the same element and swaps its children, and nothing
+ * moves at all; with it the panel is genuinely new and can arrive. Its
+ * frame did not go anywhere, so this is a change of contents rather than
+ * an arrival.
  */
 .panel,
 .viewctl,
 .timebar,
-.sunchip,
-
-/*
- * The tab body, keyed on which tab it is — see screens.tsx. Without the key
- * React keeps the same element and swaps its children, and nothing moves at
- * all; with it the panel is genuinely new and can arrive.
- *
- * Shorter and shallower than a whole panel: the frame around it did not go
- * anywhere, so this is a change of contents rather than an arrival.
- */
 .sheet__tabpanel {
   animation: settle var(--dur-quick) var(--ease) both;
 }
@@ -1710,76 +1717,8 @@
 .result__figure,
 .result__against,
 .tile__figure,
-.stat-row dd,
-.timebar__value,
-.sunchip {
+.stat-row dd {
   font-variant-numeric: var(--numeric);
-}
-
-/* ── choosing a day ─────────────────────────────────────── */
-
-/*
- * A day back, the date, a day forward.
- *
- * The arrows are not decoration. Comparing one day with the next is the
- * ordinary thing to do with a shadow, and doing it through the calendar
- * means opening it, finding the cell beside the one already chosen, and
- * closing it again — three actions for "and the day after that".
- *
- * THIS RULE WAS DELETED ONCE, BY A SWEEP FOR DEAD CSS.
- *   The sweep was right about `.dateline__field`, `.dateline__value` and
- *   `.dateline__input`, which the written-out calendar replaced. `.dateline`
- *   and `.dateline__step` went with them because they share a prefix and
- *   were added to the list without being checked. Losing the grid did not
- *   break anything loudly: the three children simply stacked, and the
- *   arrows sat above and below the date instead of either side of it.
- */
-.dateline {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 40px;
-  align-items: stretch;
-  gap: 0;
-  min-height: 48px;
-  border-radius: var(--radius-control);
-  background: var(--surface-sunken);
-}
-
-/*
- * The arrows are part of the row rather than buttons beside it: one recessed
- * surface with a control at each end, so the date and the two ways to move it
- * read as one thing to operate.
- *
- * 40px wide and 48 tall — the row is the target, not the glyph.
- */
-.dateline__step {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  min-height: 48px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: none;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition:
-    background var(--dur-quick) var(--ease),
-    border-color var(--dur-quick) var(--ease),
-    color var(--dur-quick) var(--ease);
-}
-
-.dateline__step:hover {
-  background: var(--green-050);
-  color: var(--ink);
-}
-
-.dateline__step:active {
-  transform: translateY(1px);
-  transition-duration: var(--dur-press);
-}
-
-.dateline__step:focus-visible {
-  outline: 2px solid var(--green-700);
-  outline-offset: 2px;
 }
 
 /* ── the calendar ───────────────────────────────────────── */
@@ -2316,122 +2255,80 @@
 /* ── the time bar ───────────────────────────────────────── */
 
 /*
- * A quiet dock, floating over the map.
+ * A dock along the bottom of the map: play, the rail, the key. Only the
+ * sunlight screen has one (TimeBar in screens.tsx).
  *
- * WHERE IT SITS, AND WHY IT IS NOT "THE MIDDLE OF WHAT IS LEFT"
- *   It was centred inside the gap between the panel and the view controls,
- *   which sounds right and looks wrong. The two sides are not the same size:
- *   on a 2560px screen the panel takes 415px and the controls 45px, so the
- *   middle of the gap is 185px right of the middle of the screen — far
- *   enough to read as a mistake rather than as a margin.
+ * IN THIS SECTION
+ *   Where the dock sits; the play button; the words above the rail; the
+ *   rail and its handle; the hours under it; the key; and what goes when
+ *   the dock is narrow.
  *
- *   So it is centred on the SCREEN, and pushed aside only when the screen
- *   cannot give it the room. Each `max()` takes whichever is larger: the
- *   offset a centred dock would need, or the offset that clears the panel.
- *   Wide enough, both come out at the centring figure and it sits in the
- *   middle; narrow enough, the panel's edge wins on one side and the dock
- *   moves over exactly as far as it has to.
- *
- *   Offsets rather than a translate, deliberately. The entrance animation
- *   moves this on `transform`, and a transform used for centring would be
- *   overwritten by it the moment the panel arrived.
+ * WHERE IT SITS
+ *   From the edge of the sunlight column to the right-hand gutter, just
+ *   above the fine print — the width of the map, which is what the rail is
+ *   a timeline FOR. It stops short of the view controls on the right, which
+ *   sit above it rather than beside it.
  */
 .timebar {
   position: absolute;
-  /* Half of --w-dock, which is the most a centred dock can take from each
-     side. Written out because calc cannot divide a var by a bare 2 inside
-     max() on every engine that matters. */
-  left: max(
-    calc(var(--gutter) * 2 + var(--w-panel-left)),
-    calc(50% - var(--w-dock) / 2)
-  );
-  right: max(
-    calc(var(--gutter) * 2 + 2.6rem),
-    calc(50% - var(--w-dock) / 2)
-  );
-  bottom: 28px;
+  left: calc(var(--w-sun-column) + var(--gutter));
+  right: var(--gutter);
+  bottom: calc(var(--h-mapfoot) + var(--space-2));
   z-index: 3;
   /*
-   * The gap between the panel and the view controls, declared as the width
-   * the dock inside is measured against. This element draws nothing.
+   * The dock's own width, declared so the layout inside can be judged
+   * against it rather than against the window: a wide window with the
+   * column open still leaves a narrow bar. This element draws nothing.
    */
   container: timebar / inline-size;
   pointer-events: none;
 }
 
+/* The card itself, in three columns: play, the timeline, the key. */
 .timebar__dock {
   pointer-events: auto;
   display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 26px;
-  width: auto;
-  max-width: var(--w-dock);
-  margin-inline: auto;
-  padding: 22px 26px;
-  border-radius: 20px;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-card);
   background: var(--paper);
   box-shadow: var(--shadow-panel);
 }
 
-.timebar__summary {
-  min-width: 0;
+/*
+ * Play and pause. Dark on pale when stopped, pale on dark while playing:
+ * the state is a change of lightness, not of hue, and the drawing changes
+ * too — a triangle, then two bars.
+ */
+.timebar__play {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--cream-edge);
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--ink-green-900);
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease);
 }
 
-/*
- * A step larger than the mock's 12px.
- *
- * These are the only words in the dock — what it is, and what the hour
- * means — and at the smallest size in the scale they were being skipped.
- * The hour is what carries the hierarchy here; the labels do not have to be
- * tiny to stay beneath it.
- */
-.timebar__label,
-.timebar__caption {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-2);
+.timebar__play:hover {
+  background: var(--green-050);
 }
 
-/*
- * The hour. The largest thing in the dock and the only thing in it anybody
- * reads at a glance — tabular, so the digits do not shift sideways as it
- * moves and the eye can stay on one spot.
- */
-.timebar__value {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 2.25rem;
-  font-weight: var(--weight-title);
-  font-variant-numeric: var(--numeric);
-  letter-spacing: -0.04em;
-  line-height: 1.2;
+.timebar__play[aria-pressed='true'] {
+  border-color: var(--green-700);
+  background: var(--green-700);
+  color: var(--paper);
 }
 
-/*
- * ── TWO LINES, ALWAYS ────────────────────────────────────────────────────
- *
- * The caption is one of a closed set: "No direct sun", "Shortest shadow", or
- * a length and a compass point — "Long west shadow" up to "Longest
- * north-east shadow". At this column width the short ones take one line and
- * the long ones take two.
- *
- * Left to itself the dock therefore changed height as the slider moved, and
- * because it is anchored to the bottom of the screen it grew UPWARDS: the
- * rail, the handle and the hour all stepped up and down while somebody was
- * dragging the handle. The thing being aimed at moved when it was used.
- *
- * So the room for the longer case is always there. A line of empty space
- * under a short caption costs nothing; a control that shifts under the
- * pointer costs the gesture.
- *
- * The reservation is two lines because two is the most the vocabulary can
- * produce here — caption-length.test.ts holds that true.
- */
-.timebar__caption {
-  margin-top: 5px;
-  line-height: 1.35;
-  min-height: calc(1.35em * 2);
+.timebar__play:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
 }
 
 .timebar__timeline {
@@ -2439,23 +2336,26 @@
 }
 
 /*
- * Sunrise and sunset, at the ends of the line they describe.
- *
- * They are NOT repeated on the scale below. Two rows of times under one
- * rail, some of them the window's limits and some of them astronomical
- * events, would leave the reader to work out which kind each number was.
+ * What the shadow is doing on the left; when the sun rises and sets on the
+ * right. The sunrise and sunset are NOT repeated on the scale below — two
+ * rows of times under one rail, some of them the window's limits and some
+ * astronomical events, would leave the reader to work out which was which.
  */
 .timebar__events {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--ink-2);
 }
 
+.timebar__caption {
+  font-weight: var(--weight-label);
+  color: var(--ink);
+}
+
 .timebar__events b {
-  margin-left: 5px;
   font-weight: var(--weight-label);
   font-variant-numeric: var(--numeric);
   color: var(--ink);
@@ -2464,9 +2364,9 @@
 /*
  * ── THE LINE, AND THE THING THAT GRABS IT ────────────────────────────────
  *
- * The container is 44px and transparent; the line inside it is 6px. They
- * used to be the same element, which is why the control read as a thick
- * coloured band rather than as a slider with a diagram behind it.
+ * The container is 44px and transparent — the size a finger can hit
+ * without aiming — and the line inside it is 4px. The line is a diagram of
+ * the day behind the control, and the control is the handle.
  */
 .timebar__track {
   position: relative;
@@ -2479,29 +2379,19 @@
  * Inset by the handle's radius at each end.
  *
  * A native range moves the handle's CENTRE from one radius in to one radius
- * short of the far end. Run edge to edge, the rail and the scale disagreed
- * with the handle by 11px at each end — enough that noon on the scale sat
- * beside the handle rather than under it.
+ * short of the far end. Run edge to edge, the rail and the scale would
+ * disagree with the handle by that much at each end.
  */
 .timebar__rail {
   position: absolute;
-  left: 11px;
-  right: 11px;
-  height: 6px;
-  border-radius: 8px;
+  left: 9px;
+  right: 9px;
+  height: 4px;
+  border-radius: 4px;
   /*
-   * One gradient rather than stacked elements: the whole line is then a
-   * single paint, and the daylight span moves with the date because the two
-   * stops come from the markup.
-   */
-  /*
-   * Fallbacks, because these two arrive from the markup.
-   *
-   * An unresolved var() invalidates the whole declaration at computed-value
-   * time — not just the stop it appears in — so a render that reached here
-   * without them would draw no rail at all rather than a plain one. The
-   * fallbacks make the line degrade to "daylight throughout", which is wrong
-   * but visible, and visible is debuggable.
+   * One gradient, the daylight span between the two stops from the markup.
+   * The fallbacks keep a rail on screen if the markup ever omits them: an
+   * unresolved var() would otherwise invalidate the whole declaration.
    */
   background: linear-gradient(
     to right,
@@ -2523,31 +2413,30 @@
 }
 
 .timebar__track input::-webkit-slider-runnable-track {
-  height: 6px;
+  height: 4px;
   background: transparent;
 }
 
 /*
  * One major engine draws its own filled portion up to the value unless both
- * the track and the progress are cleared. Left alone it painted a second blue band
- * over the daylight one.
+ * the track and the progress are cleared.
  */
 .timebar__track input::-moz-range-track {
-  height: 6px;
+  height: 4px;
   background: transparent;
 }
 
 .timebar__track input::-moz-range-progress {
-  height: 6px;
+  height: 4px;
   background: transparent;
 }
 
 .timebar__track input::-webkit-slider-thumb {
   appearance: none;
-  width: 22px;
-  height: 22px;
-  margin-top: -8px;
-  border: 5px solid var(--green-700);
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border: 4px solid var(--green-700);
   border-radius: 50%;
   background: var(--paper);
   box-shadow: 0 2px 6px rgba(16, 24, 20, 0.16);
@@ -2555,9 +2444,9 @@
 }
 
 .timebar__track input::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border: 5px solid var(--green-700);
+  width: 18px;
+  height: 18px;
+  border: 4px solid var(--green-700);
   border-radius: 50%;
   background: var(--paper);
   box-shadow: 0 2px 6px rgba(16, 24, 20, 0.16);
@@ -2570,8 +2459,7 @@
 
 /*
  * The ring on both engines. One major engine does not accept a box-shadow on
- * the thumb as a focus ring reliably, so the outline goes on the input itself
- * and is offset clear of the 44px row.
+ * the thumb as a focus ring reliably, so the outline goes on the input.
  */
 .timebar__track input:focus-visible {
   outline: 2px solid var(--green-700);
@@ -2580,102 +2468,71 @@
 }
 
 /*
- * The ends of the window, and noon between them — only when noon is inside
- * it, and at its true position, which on a 06:00–20:00 window is 42.86% and
- * not the middle.
+ * The marks every four hours, and the hour itself under the handle — dark
+ * and heavier than the marks, so it is found by weight and lightness.
  */
 .timebar__scale {
   position: relative;
-  display: flex;
-  justify-content: space-between;
-  margin: 0 11px;
-  /*
-   * Not the 10px the mock used. A fixed pixel size here is the smallest text
-   * in the interface AND the only text that does not grow when the rest
-   * does — so on a large monitor it shrinks relative to everything around
-   * it, and at 200% zoom it is the last thing to become readable.
-   */
+  height: 1.3rem;
+  margin: 0 9px;
   font-size: var(--text-xs);
   font-variant-numeric: var(--numeric);
   color: var(--ink-3);
 }
 
-.timebar__noon {
+.timebar__tick,
+.timebar__now {
   position: absolute;
+  top: 0;
   transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.timebar__now {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  color: var(--ink);
 }
 
 /* Said when a crossing falls outside the window — see the dash it explains. */
 .timebar__nocross {
-  margin: var(--space-2) 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--text-xs);
   color: var(--ink-2);
 }
 
-/*
- * ── WHEN THE GAP IS TOO NARROW FOR TWO COLUMNS ───────────────────────────
- *
- * On the DOCK's own width, not the window's: the panel beside it takes a
- * fixed column, so a wide window can still leave this a narrow one. A
- * container query asks the question that actually decides the layout.
- */
-@container timebar (max-width: 520px) {
-  .timebar__dock {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-3);
-    padding: 18px 16px;
-  }
-
-  /*
-   * The hour stays large. It is the one number the dock exists to show, and
-   * the narrow case is where the screen is smallest and the reading matters
-   * most.
-   */
-  .timebar__value {
-    font-size: 2rem;
-  }
+/* The key sits in the dock itself, without a card of its own. */
+.timebar__key {
+  padding: 0;
+  box-shadow: none;
+  font-size: var(--text-xs);
 }
 
 /*
- * Noon goes before anything else does.
+ * ── WHEN THE BAR IS NARROW ───────────────────────────────────────────────
  *
- * At this width the three marks under the rail start to touch, and the two
- * ends are the ones that say what the control's range is. Sunrise and sunset
- * stay in every case — they are the reason the rail is worth looking at.
+ * Judged on the dock's own width. The key goes under the rail first; below
+ * that the caption line keeps only the caption.
  */
-@container timebar (max-width: 340px) {
-  .timebar__noon {
+@container timebar (max-width: 640px) {
+  .timebar__dock {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-3);
+  }
+
+  .timebar__key {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+/* Narrower still: the hour alone under the rail, and the caption alone above it. */
+@container timebar (max-width: 420px) {
+  .timebar__events > :last-child,
+  .timebar__tick {
     display: none;
   }
-}
-
-/* ── the sun direction chip ─────────────────────────────── */
-
-.sunchip {
-  position: absolute;
-  top: calc(var(--y-top) + 8px);
-  /* Same reasoning as the time bar: centred on the free space, not on the
-     viewport, so it never crosses the panel beside it. Derived rather than
-     totalled by hand, so it cannot drift when a panel is resized. */
-  left: calc(var(--gutter) * 2 + var(--w-panel-left));
-  /* Nothing in the top-right corner to stop short of. */
-  right: var(--gutter);
-  z-index: 3;
-  justify-content: center;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: var(--weight-label);
-  letter-spacing: 0.04em;
-  color: var(--amber-500);
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.85);
-  pointer-events: none;
-}
-
-.sunchip svg {
-  flex: none;
 }
 
 /*
@@ -2707,8 +2564,9 @@
 
 /*
  * The bottom-right corner, which is the only one nothing else claims: the
- * left has the panel, the middle has the time bar, and the bottom-left has
- * the map credit, which is an obligation and cannot move.
+ * left has the panel and the bottom-left has the map credit, which is an
+ * obligation and cannot move. On the sunlight screen the time bar runs
+ * along the whole bottom, and these sit above it (sunlight.css).
  *
  * The stack is one control with several settings rather than six separate
  * buttons — hairlines between, no gaps — so that turning, zooming and
@@ -2900,12 +2758,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── the simulation date box ────────────────────────────── */
-
-
-
-/* ── what is happening at this time ─────────────────────── */
-
 /* ── the label chip over the proposal ───────────────────── */
 
 .site-pin {
@@ -2930,13 +2782,11 @@
 /* ── narrow viewports ───────────────────────────────────── */
 
 /*
- * Two 300-400 px panels plus a time bar do not fit side by side much below a
- * laptop. Rather than let them overlap, the panels shrink first and then the
- * bar gives up its anchoring and spans the width.
- */
-
-/*
  * ── BELOW THIS IT IS NOT THE SAME LAYOUT SMALLER ─────────────────────────
+ *
+ * A panel plus a time bar do not fit side by side much below a laptop.
+ * Rather than let them overlap, the panels shrink first and then the bar
+ * gives up its anchoring and spans the width.
  *
  * Three columns cannot be narrowed until they fit on a phone; at some width
  * they have to stop being three columns. Here the panel becomes a sheet
@@ -2949,14 +2799,14 @@
  *   inside itself rather than growing.
  *
  * WHY NOTHING HAS TO BE SWIPED
- *   Every sheet has a close button in its head, and the header above stays
+ *   Every sheet has a way out in its head — a close button, or on the
+ *   sunlight screen the back link — and the header above stays
  *   put. A drag handle would be the only way to dismiss anything, which is a
  *   gesture with no visible affordance and no keyboard equivalent.
  *
  * WHAT LEAVES
- *   The sun chip and the drag hint — one is a readout the sheet already
- *   carries, the other describes a mouse. The time bar stays, because it is
- *   the control the sunlight screen is FOR; it moves above the sheet.
+ *   The drag hint, which describes a mouse. The time bar stays, because it
+ *   is the control the sunlight screen is FOR; it moves above the sheet.
  */
 @media (max-width: 900px) {
   .panel--left {
@@ -2976,8 +2826,6 @@
     padding-bottom: calc(var(--pad-panel) + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -1px 2px rgba(16, 24, 20, 0.05), 0 -12px 32px rgba(16, 24, 20, 0.12);
   }
-
-  .sunchip,
 
   /*
    * ── THE STRIP ABOVE THE SHEET, IN THREE LAYERS ─────────────────────────

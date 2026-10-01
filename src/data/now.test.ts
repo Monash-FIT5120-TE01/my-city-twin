@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { civilToInstant } from '../scene/solar';
 import { SITE } from '../scene/frame';
-import { clockLabel, outsideWindowNote, presentMoment } from './now';
+import { clock12Label, clockLabel, outsideWindowNote, presentMoment } from './now';
 
 /*
  * Every test here fixes the instant. "Now" is the one piece of state the app
@@ -148,5 +148,18 @@ describe('the clock label', () => {
     for (let minutes = -120; minutes <= 24 * 60 + 120; minutes += 7) {
       expect(clockLabel(minutes)).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/);
     }
+  });
+});
+
+describe('the 12-hour labels on the time bar', () => {
+  it('says am and pm the way a day is spoken', () => {
+    expect([0, 8 * 60, 12 * 60, 16 * 60 + 30, 20 * 60, 23 * 60 + 50].map(clock12Label)).toEqual([
+      '12:00 am',
+      '8:00 am',
+      '12:00 pm',
+      '4:30 pm',
+      '8:00 pm',
+      '11:50 pm',
+    ]);
   });
 });

@@ -1,3 +1,19 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE FRAME AROUND THE CITY
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT THIS FILE IS
+ *   The small pieces that are not a panel of their own but appear on many
+ *   screens:
+ *
+ *   MapAttribution      the credit Mapbox and OpenStreetMap are owed.
+ *   Header              the bar along the top: the name, the search, the
+ *                       front page's links, VR and the layer button.
+ *   StatusBadge         "APPROVED" / "UNDER CONSTRUCTION", spelt out.
+ *   developmentSummary  the one line under a project's address.
+ */
+
 import { useEffect, useRef } from 'react';
 import { bundled } from '../data/bundled';
 import type { Development } from '../data/model';
@@ -82,6 +98,12 @@ export function MapAttribution() {
  *   What is left is what survives the test: who this is, what you are
  *   looking for, and what the map is drawing.
  *
+ * TWO LOOKS
+ *   The plain bar, with the layer button, on the explore, project and
+ *   building screens. The front page's look — the page's cream, the links
+ *   "Future plans", "Explore the city" and "How it works", and no layer
+ *   button — on the front page and the sunlight screen (`front`, `nav`).
+ *
  * WHY THE SEARCH HAS A KEY
  *   It is the one control here somebody uses repeatedly, and reaching for a
  *   mouse to type is the kind of small tax that is only visible in aggregate.
@@ -105,15 +127,19 @@ export function Header({
   onEnterVr,
   onSearchFocus,
   front = false,
+  hideLayers = false,
   nav,
   children,
 }: {
+  /** The search text — App's, shared with the front page's own field. */
   query: string;
   onQuery: (next: string) => void;
+  /** The layer panel is open; the button shows as pressed. */
   layersOpen: boolean;
   /** How many layers are switched off, if any. */
   layersHidden: number;
   onLayers: () => void;
+  /** The name and mark: back to the front page. */
   onHome: () => void;
   /**
    * Present only where a headset session can actually start. On a desktop
@@ -124,12 +150,18 @@ export function Header({
   /** The field here has the keyboard, so the results belong under it. */
   onSearchFocus?: () => void;
   /**
-   * On the front page: the bar takes the page's cream, and the layer button
-   * goes — there is nothing on that page for a layer to change that the
-   * reader has asked about yet.
+   * The front page's look, used on the front page and the sunlight screen:
+   * the bar takes the page's cream.
    */
   front?: boolean;
-  /** Links for the front page, set before the buttons on the right. */
+  /**
+   * No layer button — on the front page only, where there is nothing for a
+   * layer to change that the reader has asked about yet. The sunlight
+   * screen keeps it: it is the only place shadows are switched on and off,
+   * and its mark the only thing that says they were.
+   */
+  hideLayers?: boolean;
+  /** The links set before the buttons on the right, where `front` is set. */
   nav?: React.ReactNode;
   /** The search results, rendered by the caller under the field. */
   children?: React.ReactNode;
@@ -266,7 +298,7 @@ export function Header({
             Enter VR
           </button>
         )}
-        {!front && (
+        {!hideLayers && (
         <button
           type="button"
           className="chip chip--icon"
@@ -309,6 +341,7 @@ export function Header({
   );
 }
 
+/** A project's planning status, written out in a pill. */
 export function StatusBadge({
   status,
   tone = 'solid',
@@ -351,37 +384,4 @@ export function developmentSummary(development: Development, storeys?: number): 
   if (storeys && storeys > 0) parts.push(`${Math.round(storeys)} storeys`);
   parts.push(`${development.maxHeightM.toFixed(0)} m`);
   return parts.join(' · ');
-}
-
-export function SunChip({
-  timeLabel,
-  compass,
-  visible,
-}: {
-  timeLabel: string;
-  compass: string;
-  visible: boolean;
-}) {
-  if (!visible) return null;
-  return (
-    <p className="sunchip">
-      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-        <circle cx="11" cy="11" r="4.4" fill="currentColor" />
-        {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
-          <line
-            key={angle}
-            x1="11"
-            y1="2.6"
-            x2="11"
-            y2="5.4"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            transform={`rotate(${angle} 11 11)`}
-          />
-        ))}
-      </svg>
-      SUN {timeLabel} · FROM {compass}
-    </p>
-  );
 }

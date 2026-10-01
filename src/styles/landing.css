@@ -7,24 +7,55 @@
  * the three steps and the fine print take the bottom, and what is left in
  * the upper right is the live city — see LandingPage.tsx and ViewInset.
  *
- * The page is a grid over the whole screen. Its covered parts are cream and
- * catch the pointer; the window is transparent and does not, so a drag
- * there moves the city underneath.
+ * HOW IT IS BUILT
+ *   `.landing` covers the screen and scrolls. Inside it, `.landing__screen`
+ *   is the first screen — exactly the window's height, laid out as a grid —
+ *   and the sections under it are LandingMore's (landing-more.css). The
+ *   covered parts are cream and catch the pointer; the window is
+ *   transparent and does not, so a drag there moves the city underneath.
+ *
+ * IN THIS FILE, TOP TO BOTTOM
+ *   - The page and its first screen.
+ *   - The words: the film, the heading, the sentence under it.
+ *   - The search: the field, its matches, the chosen place.
+ *   - The ways in: the main button, its hint, VR, exploring without an
+ *     address.
+ *   - The window onto the city: the fade at its edge, the map key, the
+ *     credit, the download's progress.
+ *   - The three steps, and the fine print.
+ *   - Shorter and narrower windows, then the phone's single column.
+ *   - Reduced motion.
+ *   - The header bar as it looks on the front page.
  *
  * COLOUR, AND WHAT IS NOT LEFT TO IT
  *   The main button is the dark green every other main button uses, white on
  *   #14624a at 7:1 — not the pale mint of the mock-up, which sits at about
- *   1.2:1 against the cream and is found by hue alone. The legend's two
+ *   1.2:1 against the cream and is found by hue alone. The map key's two
  *   swatches are the colours the city is drawn in, and each is named in
- *   words beside it; the pale one carries an edge so it is not a white
- *   square on a white card.
+ *   words beside it — see sources.css.
  */
+
+/* ── the page, and its first screen ─────────────────────── */
 
 .landing {
   position: absolute;
   inset: 0;
   /* Over the city (0), under the header (6). */
   z-index: 2;
+  /*
+   * The page scrolls: the first screen is the window onto the city, and the
+   * sections under it (LandingMore) follow. The page itself lets the pointer
+   * through, so a wheel over the city's window zooms the city; a wheel over
+   * anything solid scrolls the page.
+   */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: none;
+}
+
+/* The first screen: exactly the window's height, laid out as a grid. */
+.landing__screen {
+  height: 100%;
   display: grid;
   grid-template-columns: minmax(24rem, 40%) 1fr;
   grid-template-rows: var(--h-header) minmax(0, 1fr) auto auto;
@@ -41,6 +72,7 @@
   display: contents;
 }
 
+/* The covered parts: cream, and solid to the pointer. */
 .landing__hero,
 .landing__steps,
 .landing__foot {
@@ -302,6 +334,19 @@
 }
 
 /*
+ * Covered over once the page has scrolled so far that the map's credit would
+ * be under the header with map still showing. See CREDIT_ROOM in
+ * LandingPage.tsx.
+ */
+.landing__window[data-covered] {
+  background: var(--cream);
+}
+
+.landing__window[data-covered] > * {
+  visibility: hidden;
+}
+
+/*
  * The words' ground runs out into the city rather than stopping at a hard
  * edge. Only the first few dozen pixels, so the city itself is not greyed.
  */
@@ -313,42 +358,13 @@
   background: linear-gradient(to right, var(--cream), rgba(248, 245, 238, 0));
 }
 
+/* The map key (MapKey), in the window's lower right; its look is in sources.css. */
 .landing__legend {
   position: absolute;
   right: var(--gutter);
   bottom: var(--gutter);
-  display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-card);
-  background: var(--paper);
-  box-shadow: var(--shadow-chip);
-  font-size: var(--text-sm);
   pointer-events: auto;
-}
-
-.landing__legend-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.landing__swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-}
-
-/* The colours CityMassing and DevelopmentMassings draw these in. */
-.landing__swatch--existing {
-  background: #eeedf0;
-  box-shadow: inset 0 0 0 1px #7a8087;
-}
-
-.landing__swatch--approved {
-  background: #6fbfa6;
-  box-shadow: inset 0 0 0 1px #2f7d66;
 }
 
 /* The map credit, in the city's window rather than the screen's corner. */
@@ -359,6 +375,7 @@
   pointer-events: auto;
 }
 
+/* The download's progress, centred in the window until the city is here. */
 .landing__loading {
   position: absolute;
   left: 50%;
@@ -511,129 +528,19 @@
   color: var(--ink-3);
 }
 
-.landing__sources-link {
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: var(--green-700);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
 
 .landing__when {
   font-variant-numeric: var(--numeric);
 }
 
-/* ── sources & limitations ──────────────────────────────── */
-
-.landing__sources {
-  /*
-   * The page it sits in lets the pointer through to the city; a modal must
-   * not, or nothing in it can be pressed.
-   */
-  pointer-events: auto;
-  width: min(40rem, calc(100% - 2 * var(--gutter)));
-  max-height: calc(100% - 4rem);
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-panel);
-  background: var(--paper);
-  box-shadow: var(--shadow-panel);
-  color: var(--ink);
-}
-
-.landing__sources::backdrop {
-  pointer-events: auto;
-  background: rgba(18, 24, 22, 0.36);
-}
-
-.landing__sources-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--pad-panel);
-}
-
-.landing__sources-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.landing__sources h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-h2);
-  font-weight: var(--weight-title);
-}
-
-.landing__sources h3 {
-  margin: var(--space-3) 0 0;
-  font-size: var(--text-body);
-  font-weight: var(--weight-title);
-}
-
-.landing__sources-lead,
-.landing__sources-note {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
-.landing__figures {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.landing__figures li {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-card);
-  background: var(--surface-sunken);
-}
-
-.landing__figures p {
-  margin: 0;
-}
-
-.landing__figure {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: var(--weight-title);
-  color: var(--green-700);
-}
-
-.landing__figure-title {
-  font-weight: var(--weight-label);
-}
-
-.landing__figure-body,
-.landing__figure-source {
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
-.landing__figure-source a {
-  color: var(--green-700);
-}
-
 /* ── shorter ────────────────────────────────────────────── */
 
 /*
- * A laptop screen: the same column, drawn tighter so it fits without
- * scrolling. Nothing on the desktop layout scrolls — the column is not a
- * scroll box, because the search matches hang out of it — so every height
- * down to the point where the phone's sheet takes over has to fit.
+ * A laptop screen: the same column, drawn tighter so the first screen fits
+ * without scrolling. The column is not a scroll box, because the search
+ * matches hang out of it, and the first screen is exactly the window's
+ * height — so every height down to the point where the phone's layout
+ * takes over has to fit.
  */
 @media (max-height: 940px) and (min-height: 641px) and (min-width: 901px) {
   .landing__hero {
@@ -701,6 +608,7 @@
 
 /* ── narrower ───────────────────────────────────────────── */
 
+/* The three steps, closer together. */
 @media (max-width: 1180px) {
   .landing__steps ol {
     padding-block: var(--space-4);
@@ -716,17 +624,23 @@
  *
  * The same pattern every other screen uses on a phone: the city on top, a
  * sheet from the bottom. The words, the steps and the fine print become one
- * scrolling sheet, and the city keeps the upper part of the screen.
+ * sheet, and the city keeps the upper part of the screen.
  *
- * Also below 640px of height at any width. The desktop layout does not
- * scroll, and under that height its column no longer fits between the bar
- * and the steps — the buttons at the bottom of it went under the steps
- * where nothing could reach them.
+ * Also below 640px of height at any width. The desktop first screen is
+ * held to the window's height, and under that height its column no longer
+ * fits between the bar and the steps — the buttons at the bottom of it went
+ * under the steps where nothing could reach them.
  */
 @media (max-width: 900px), (max-height: 640px) {
-  .landing {
+  /*
+   * The first screen is as tall as its words here: the city on top, then the
+   * words, the steps and the fine print, then the sections under them — one
+   * page that scrolls, with the city's window scrolling away above.
+   */
+  .landing__screen {
+    height: auto;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--h-header) 34vh minmax(0, 1fr);
+    grid-template-rows: var(--h-header) 34vh auto;
     grid-template-areas:
       '.'
       'window'
@@ -737,8 +651,6 @@
     grid-area: sheet;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    overflow-y: auto;
     pointer-events: auto;
     background: var(--cream);
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
@@ -746,9 +658,9 @@
   }
 
   /*
-   * Their own height, all three. In a scrolling column a flex child may
-   * otherwise shrink to nothing, and the words did — the steps were drawn
-   * over them.
+   * Their own height, all three. In a flex column a child may otherwise
+   * shrink to nothing, and the words did — when the sheet was its own
+   * scroll box, the steps were drawn over them.
    */
   .landing__hero,
   .landing__steps,
@@ -804,11 +716,11 @@
     bottom: var(--space-3);
   }
 
-  .landing__figures {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
+/* ── reduced motion ─────────────────────────────────────── */
+
+/* The film is shown finished (see SkylineFilm); the bar stops sweeping. */
 @media (prefers-reduced-motion: reduce) {
   .landing__film video,
   .landing__fill {
@@ -822,11 +734,12 @@
   }
 }
 
-/* ── the bar, on the front page ─────────────────────────── */
+/* ── the bar, on the front page and the sunlight screen ─── */
 
 /*
  * The page's cream rather than white, so the bar is the top of the page
- * rather than a strip laid over it.
+ * rather than a strip laid over it. `.header--front` is set on the sunlight
+ * screen too, which shares the look and the links (see Header's `front`).
  */
 .header.header--front {
   background: var(--cream);
@@ -857,6 +770,20 @@
 }
 
 /*
+ * "Future plans", set apart as the design sets it: on a mint ground, in the
+ * page's darkest ink and heavier — found by weight and ground, not by hue.
+ */
+.header__link--accent {
+  background: #d6eae3;
+  color: #073c40;
+  font-weight: var(--weight-title);
+}
+
+.header__link--accent:hover {
+  background: #c6e1d7;
+}
+
+/*
  * On a phone the bar's field would be the second of two identical fields on
  * one screen, and it would put the bar on two rows. The page's own field is
  * the one kept; the bar stays one row, the height the page is laid out for.
@@ -866,11 +793,12 @@
     display: none;
   }
 
-  .header.header--front {
+  /* The front page only: the sunlight screen shares the look but keeps its field. */
+  .app:has(.landing) .header.header--front {
     height: var(--h-header);
   }
 
-  .header--front .header__search {
+  .app:has(.landing) .header--front .header__search {
     display: none;
   }
 }

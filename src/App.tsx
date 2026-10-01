@@ -9,15 +9,37 @@
  *   component and the panels are others. This file only decides what is
  *   true and who gets told.
  *
- * THE STATE, ALL OF IT
+ * THE STATE THAT MATTERS
  *
- *   view          which of the four screens is showing
- *   selectedKey   which development, by its planning reference
- *   layers        the tick boxes: proposals on, shadows on
- *   date          the day being simulated
- *   minutes       the time of day, as minutes since midnight
- *   receptor      the spot someone clicked to measure, if any
- *   focusMode     whether the interface is hidden
+ *   view               which screen is showing: the front page, explore,
+ *                      a project, a building, or sunlight
+ *   selectedKey        which development, by its planning reference
+ *   selectedBuildingId which existing building, if one was searched for
+ *   layers             proposals on (the "after"), shadows on
+ *   date               the day being simulated
+ *   minutes            the time of day, as minutes since midnight
+ *   receptor           the spot someone clicked to measure, if any
+ *   floor, windowSide  the flat being measured, for a standing building
+ *   query              the text in both search fields
+ *   focusMode, walking the two ways the interface is hidden
+ *   playing, comparing the sunlight screen's two automatic modes
+ *
+ *   The first six of those are what the address bar carries (urlState.ts).
+ *
+ * WHAT IS IN HERE, TOP TO BOTTOM
+ *   - The state, and the keyboard: Escape for the search, the ground and
+ *     focus mode.
+ *   - The sun: where it is for the date and hour, and when it rises and
+ *     sets.
+ *   - Into a headset.
+ *   - The chosen place: a development or a searched building, and the
+ *     fall-backs when a link names neither.
+ *   - What a window in a standing building can see.
+ *   - The spot measured on the ground.
+ *   - The city's descent, the day played, and today and after taking turns.
+ *   - Choosing and clearing a place, and the header's links.
+ *   - While the city loads: the front page, or the loading screen.
+ *   - Once it is here: the scene, then each screen's panels.
  *
  * WHY THE HOOKS ALL SIT ABOVE `if (!model)`
  *   React requires the same hooks, in the same order, on every render. The
@@ -36,7 +58,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SceneCanvas } from './scene/SceneCanvas';
 import type { ViewCommands } from './scene/ViewControls';
-import { compassLabel } from './scene/sun';
 import { describeShadow } from './scene/narrative';
 import { sunlightAtPoint } from './scene/sunlightAt';
 import { groundElevationOf } from './scene/massing';
@@ -61,9 +82,12 @@ import { buildSkyline } from './scene/skyline';
 import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { HOW_IT_WORKS_ID, LandingPage } from './ui/LandingPage';
+import { FUTURE_PLANS_ID } from './ui/LandingMore';
+import { SourcesLink } from './ui/Sources';
+import './styles/sunlight.css';
 import type { ScreenInset } from './scene/ViewInset';
 import { useReducedMotion } from './ui/useReducedMotion';
-import { Header, MapAttribution, SunChip, developmentSummary } from './ui/chrome';
+import { Header, MapAttribution, developmentSummary } from './ui/chrome';
 import {
   DevelopmentPanel,
   SearchResults,
@@ -71,6 +95,7 @@ import {
   MapLayers,
   NearbyProjects,
   BuildingPanel,
+  SUNLIGHT_HOWTO_ID,
   SunlightSheet,
   TimeBar,
   type Layers,
@@ -138,16 +163,27 @@ export default function App() {
    */
   const [arrived, setArrived] = useState(false);
   /*
-   * Where the front page's window onto the city is. Measured by the page,
-   * and handed to the scene only while that page is showing.
+   * Where the front page's window onto the city is. Measured by the page on
+   * every resize and every scroll, and read by the scene every frame — a ref
+   * and not state, because a scroll would otherwise re-render the whole app
+   * sixty times a second. The scene is told separately (`insetOn`) whether
+   * the page is showing. See ViewInset.
    */
-  const [inset, setInset] = useState<ScreenInset | null>(null);
+  const inset = useRef<ScreenInset | null>(null);
   /*
    * Which search field has the keyboard. The front page has two — its own
    * and the header's — sharing one text, and the matches belong under the
    * one being typed into rather than under both.
    */
   const [searchAt, setSearchAt] = useState<'header' | 'front'>('header');
+  /*
+   * The sunlight screen's two automatic modes: the hour moving on its own,
+   * and the map taking turns between today and after the approved projects.
+   * Both belong to that screen alone and stop the moment it is left — see
+   * `playingNow` and `comparingNow` below.
+   */
+  const [playing, setPlaying] = useState(false);
+  const [comparing, setComparing] = useState(false);
   /*
    * What is typed into search — one text for both fields.
    *
@@ -260,14 +296,15 @@ export default function App() {
     north: number;
     heightM: number;
   } | null>(null);
-  /** True once a place has actually been chosen, rather than defaulted to. */
   /*
-   * The before/after switch on the sunlight screen when the subject is an
-   * existing building. Developments keep using the developments layer, so
-   * that path is untouched; a building needs its own flag because hiding it
-   * must not also hide every proposal in the city.
+   * "Show this building" on the sunlight screen, when the subject is an
+   * existing building: the building itself taken away, to show what it
+   * takes from the street. Its own flag, apart from the developments layer
+   * (the today / after switch), because hiding one building must not also
+   * hide every proposal in the city.
    */
   const [showSubject, setShowSubject] = useState(true);
+  /** True once a place has actually been chosen, rather than defaulted to. */
   const [hasChosen, setHasChosen] = useState(
     Boolean(initial.devKey || initial.buildingId),
   );
@@ -307,6 +344,8 @@ export default function App() {
   const armed = choosing && view === 'sunlight' && !focusMode && !walking;
 
   /*
+   * ── THE KEYBOARD ────────────────────────────────────────────────────────
+   *
    * Escape puts the search away.
    *
    * The results were shown whenever the field held two characters and hidden
@@ -346,10 +385,13 @@ export default function App() {
   }, [chromeHidden]);
 
   /*
+   * ── THE DATE AND THE HOUR ───────────────────────────────────────────────
+   *
    * The date and time controls, wrapped so that touching either retires the
    * note left by "Now in Melbourne". Handing the raw setters to the panel
    * instead left "It is 23:31 in Melbourne" sitting under a slider the reader
-   * had since dragged to noon.
+   * had since dragged to noon. Moving the hour by hand also stops the day
+   * playing; choosing a date does not.
    */
   const chooseDate = (next: SimulationDate) => {
     setDate(next);
@@ -359,6 +401,8 @@ export default function App() {
   const chooseMinutes = (next: number) => {
     setMinutes(next);
     setNowNote(null);
+    // A hand on the handle takes the hour back from the player.
+    setPlaying(false);
   };
 
   /*
@@ -377,6 +421,8 @@ export default function App() {
 
 
   /*
+   * ── THE SUN ─────────────────────────────────────────────────────────────
+   *
    * When the sun crosses the horizon on the chosen day.
    *
    * Memoised on the date alone: it is about eighty solar positions plus two
@@ -393,6 +439,7 @@ export default function App() {
     [date],
   );
 
+  /** Where the sun is in the Melbourne sky at the date and hour on screen. */
   const sun = useMemo(
     () =>
       solarPosition(
@@ -410,6 +457,8 @@ export default function App() {
   );
 
   /*
+   * ── INTO A HEADSET ──────────────────────────────────────────────────────
+   *
    * Into the headset, from wherever the page is.
    *
    * THE SESSION IS REQUESTED FIRST, in the same synchronous call as the
@@ -465,6 +514,8 @@ export default function App() {
   };
 
   /*
+   * ── THE CHOSEN PLACE ────────────────────────────────────────────────────
+   *
    * The development being examined, or nothing.
    *
    * There is deliberately no default. Opening on a particular tower put a pin
@@ -478,6 +529,7 @@ export default function App() {
     return model.developments.find((d) => d.devKey === selectedKey) ?? null;
   }, [model, selectedKey]);
 
+  /** The searched-for building, resolved against the model the same way. */
   const foundBuilding = useMemo<SearchableBuilding | null>(() => {
     if (!model || !selectedBuildingId) return null;
     return model.searchable.find((b) => b.buildingId === selectedBuildingId) ?? null;
@@ -523,8 +575,7 @@ export default function App() {
        * to hold put a development in the URL alongside a searched building,
        * and kept one there after "Clear" had unchosen it — so reloading
        * restored a place the person had already dismissed.
-       */
-      /*
+       *
        * On the front page too. A place can be chosen there now, and a link
        * copied at that moment should open with it chosen rather than on an
        * empty search.
@@ -559,25 +610,6 @@ export default function App() {
     [model],
   );
 
-  /*
-   * Every hook has to run on every render, so this one sits above the loading
-   * guard below rather than beside the value it feeds. Putting it after the
-   * early return changes the number of hooks the moment the city arrives, and
-   * React tears the tree down with "rendered more hooks than during the
-   * previous render" — a crash that neither the unit tests nor `tsc` can see,
-   * because neither of them renders.
-   *
-   * Only recomputed when the spot, the subject or the date changes: a day's
-   * worth of ray tests is cheap, but not cheap enough to redo on every drag
-   * of the time slider.
-   */
-  /*
-   * The thing whose shadow is being measured, as a plain list of parts.
-   *
-   * A development carries its parts already. A building's parts are the rows
-   * of the city that share its id — one scan of 4,443, only when a building
-   * is actually open.
-   */
   /*
    * ── WHAT A WINDOW IN THIS BUILDING CAN SEE ─────────────────────────────
    *
@@ -614,6 +646,7 @@ export default function App() {
    */
   const standingCity = useMemo(() => model?.buildings ?? [], [model]);
 
+  /** The parts of the building the window is in. */
   const homeParts = useMemo(() => {
     if (!model || !foundBuilding) return [];
     return model.buildings.filter((part) => part.parentId === foundBuilding.buildingId);
@@ -644,6 +677,7 @@ export default function App() {
     [sides, windowSide],
   );
 
+  /** The point on the chosen side and floor the window is measured at. */
   const windowAt = useMemo(() => {
     if (!chosenSide || homeParts.length === 0) return null;
     const place = windowPlace(homeParts, chosenSide, floor, floorsAboveGround);
@@ -664,6 +698,7 @@ export default function App() {
   }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding]);
 
 
+  /** The sky from the window today: the expensive step, independent of the date. */
   const windowSkyline = useMemo(() => {
     if (!windowAt) return null;
     return buildSkyline(windowAt.en, windowAt.ahdM, standingCity);
@@ -747,11 +782,21 @@ export default function App() {
     );
   }, [model, foundBuilding, layers.developments]);
 
+  /** The window's sunlight on the date: today, and after the plans if there is a figure. */
   const windowSunlight = useMemo(() => {
     if (!windowAt || !windowSkyline) return null;
     return sunlightAtWindow(windowAt, windowSkyline, proposedSkyline, date);
   }, [windowAt, windowSkyline, proposedSkyline, date]);
 
+  /*
+   * ── THE SPOT ON THE GROUND ──────────────────────────────────────────────
+   *
+   * The thing whose shadow is being measured, as a plain list of parts.
+   *
+   * A development carries its parts already. A building's parts are the rows
+   * of the city that share its id — one scan of 4,443, only when a building
+   * is actually open.
+   */
   const subjectParts = useMemo(() => {
     if (foundBuilding) {
       return model
@@ -761,6 +806,20 @@ export default function App() {
     return focus?.parts ?? [];
   }, [model, foundBuilding, focus]);
 
+  /*
+   * What the subject takes from the measured spot over the day.
+   *
+   * Every hook has to run on every render, so this one sits above the loading
+   * guard below rather than beside the value it feeds. Putting it after the
+   * early return changes the number of hooks the moment the city arrives, and
+   * React tears the tree down with "rendered more hooks than during the
+   * previous render" — a crash that neither the unit tests nor `tsc` can see,
+   * because neither of them renders.
+   *
+   * Only recomputed when the spot, the subject or the date changes: a day's
+   * worth of ray tests is cheap, but not cheap enough to redo on every drag
+   * of the time slider.
+   */
   const measured = useMemo(
     () =>
       receptor && subjectParts.length > 0
@@ -770,6 +829,8 @@ export default function App() {
   );
 
   /*
+   * ── THE CITY'S DESCENT ──────────────────────────────────────────────────
+   *
    * Let the city come down, a moment after it first appears.
    *
    * The moment is what makes it a descent: released on the same render the
@@ -782,6 +843,82 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [model, arrived]);
 
+  /*
+   * ── THE SUNLIGHT SCREEN'S TWO AUTOMATIC MODES ───────────────────────────
+   *
+   * Only while the sunlight screen is actually showing, and switched OFF —
+   * not merely paused — the moment it stops showing. Paused, they came back
+   * by themselves: start the day playing, open Details, return, and it was
+   * running again with nobody having pressed anything. Leaving the screen
+   * (for the street, a headset, focus mode or another page) now clears both,
+   * so returning finds them where the reader expects: stopped.
+   *
+   * Done while rendering, with the previous value kept in state, rather than
+   * in an effect: React's own pattern for adjusting state to a change in
+   * something else, which never lets a frame render with the stale value.
+   */
+  const sunScreen = view === 'sunlight' && !chromeHidden && !inVr;
+  const [wasSunScreen, setWasSunScreen] = useState(sunScreen);
+  if (wasSunScreen !== sunScreen) {
+    setWasSunScreen(sunScreen);
+    if (!sunScreen) {
+      setPlaying(false);
+      setComparing(false);
+    }
+  }
+  const playingNow = playing && sunScreen;
+  const comparingNow = comparing && sunScreen;
+
+  /*
+   * ── THE DAY, PLAYED ────────────────────────────────────────────────────
+   *
+   * Ten minutes of the day every fifth of a second — an hour in a little
+   * over a second, the whole window in about seventeen — so the shadow
+   * sweeps rather than jumps. It stops at the end of the window.
+   *
+   * Under a reduced-motion preference it steps an hour a second instead:
+   * the shadow still changes, but as a sequence of stills rather than as a
+   * sweep.
+   */
+  useEffect(() => {
+    if (!playingNow) return;
+    const step = reducedMotion ? 60 : 10;
+    const timer = window.setInterval(
+      () => {
+        setMinutes((now) => {
+          const next = Math.min(LATEST_MINUTES, now + step);
+          if (next >= LATEST_MINUTES) setPlaying(false);
+          return next;
+        });
+      },
+      reducedMotion ? 1000 : 200,
+    );
+    return () => window.clearInterval(timer);
+  }, [playingNow, reducedMotion]);
+
+  /*
+   * ── TODAY AND AFTER, TAKING TURNS ──────────────────────────────────────
+   *
+   * The approved projects on, then off, every 1.6 seconds, from one fixed
+   * viewpoint — long enough to look at each, short enough that the
+   * difference is seen as a change. The day can be playing at the same time;
+   * the two then show the change moving through the hours together. The switch in the panel follows along,
+   * so it always says which of the two is on the map.
+   */
+  useEffect(() => {
+    if (!comparingNow) return;
+    const timer = window.setInterval(() => {
+      setLayers((current) => ({ ...current, developments: !current.developments }));
+    }, 1600);
+    return () => window.clearInterval(timer);
+  }, [comparingNow]);
+
+  /*
+   * ── CHOOSING A PLACE ────────────────────────────────────────────────────
+   *
+   * Open a development on the given screen. Whatever building had been
+   * searched for, and wherever the camera had been sent for it, are dropped.
+   */
   const open = (development: Development, next: ViewName) => {
     setSelectedKey(development.devKey);
     setSelectedBuildingId(null);
@@ -880,16 +1017,54 @@ export default function App() {
     setChoosing(false);
   };
 
-  /* "How it works" in the header: the three steps at the foot of the page. */
+  /*
+   * ── THE HEADER'S LINKS ──────────────────────────────────────────────────
+   *
+   * "How it works" in the header: the three steps at the foot of the front
+   * page's first screen, or on the sunlight screen the steps folded at the
+   * foot of its column, opened.
+   */
   const showHowItWorks = () => {
+    const folded = document.getElementById(SUNLIGHT_HOWTO_ID);
+    if (folded instanceof HTMLDetailsElement) {
+      folded.open = true;
+      folded.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
+      folded.querySelector('summary')?.focus({ preventScroll: true });
+      return;
+    }
     const steps = document.getElementById(HOW_IT_WORKS_ID);
     steps?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
     steps?.focus({ preventScroll: true });
   };
 
-  /** The two links the header carries on the front page. */
+  /*
+   * "Future plans": the section near the foot of the front page. From any
+   * other screen the front page has to come back first, and the section
+   * exists only once it has been drawn, so the scroll waits a moment.
+   */
+  const showFuturePlans = () => {
+    const go = () => {
+      const section = document.getElementById(FUTURE_PLANS_ID);
+      section?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+      section?.focus({ preventScroll: true });
+    };
+    if (view === 'landing') go();
+    else {
+      setView('landing');
+      window.setTimeout(go, 60);
+    }
+  };
+
+  /** The links the header carries on the front page and the sunlight screen. */
   const frontNav = (
     <>
+      <button
+        type="button"
+        className="header__link header__link--accent"
+        onClick={showFuturePlans}
+      >
+        Future plans
+      </button>
       <button type="button" className="header__link" onClick={() => setView('explore')}>
         Explore the city
       </button>
@@ -909,12 +1084,16 @@ export default function App() {
     onSearchFocus: () => setSearchAt('front'),
     onExplore: () => setView('explore'),
     when,
-    onInset: setInset,
+    onInset: (next: ScreenInset) => {
+      inset.current = next;
+    },
     reducedMotion,
   };
 
   if (!model) {
     /*
+     * ── WHILE THE CITY LOADS ───────────────────────────────────────────────
+     *
      * The front page goes up FIRST, before the city exists. That is the
      * point of it: the city takes a few seconds to build, and the wait
      * happens while somebody is reading rather than while they watch a bar.
@@ -956,6 +1135,7 @@ export default function App() {
             onLayers={() => undefined}
             onHome={() => undefined}
             front
+            hideLayers
             nav={frontNav}
           />
         ) : (
@@ -967,6 +1147,9 @@ export default function App() {
 
   const focusAddress = focus?.streetAddress.split(',')[0] ?? '';
 
+  /** Everything after the street line: "Melbourne VIC 3000", or nothing. */
+  const localityOf = (address: string) => address.split(',').slice(1).join(',').trim();
+
   /*
    * There is exactly one "here" on screen at a time.
    *
@@ -976,9 +1159,6 @@ export default function App() {
    * question, a metre apart on the same panel. The chosen place is now
    * derived once, and everything on the screen reads from it.
    */
-  /** Everything after the street line: "Melbourne VIC 3000", or nothing. */
-  const localityOf = (address: string) => address.split(',').slice(1).join(',').trim();
-
   const place: {
     label: string;
     anchorEN: [number, number];
@@ -1022,17 +1202,18 @@ export default function App() {
         // like it had selected a different building.
         null;
 
-  /*
-   * Moved below `place` so it can be told how tall the subject is.
-   *
-   * It read focus?.maxHeightM ?? 0, and an existing building never sets
-   * focus — so the whole sunlight screen for a building described a 0 m
-   * tower, dividing the shadow's reach by zero and reporting every hour of
-   * every season as the longest shadow of the day.
-   */
   /** The front page is up — and with it the window the city is framed in. */
   const frontShown = !chromeHidden && view === 'landing';
 
+  /*
+   * What the shadow is doing, in words — the time bar's caption.
+   *
+   * Moved below `place` so it can be told how tall the subject is. It read
+   * focus?.maxHeightM ?? 0, and an existing building never sets focus — so
+   * the whole sunlight screen for a building described a 0 m tower,
+   * dividing the shadow's reach by zero and reporting every hour of every
+   * season as the longest shadow of the day.
+   */
   const narrative = describeShadow(
     sun,
     place?.heightM ?? 0,
@@ -1142,6 +1323,7 @@ export default function App() {
   return (
     <div className="app">
       {/*
+        ── THE FRONT PAGE ───────────────────────────────────────────────────
         First, and under the same key as in the loading branch, so the city
         arriving does not rebuild it. See the note there.
       */}
@@ -1163,6 +1345,7 @@ export default function App() {
         />
       )}
 
+      {/* ── THE CITY ─────────────────────────────────────────────────────── */}
       <div className="app__scene">
         <SceneCanvas
           model={model}
@@ -1174,8 +1357,9 @@ export default function App() {
            * arrival, so a shared link opens exactly where it always did.
            */
           approach={bareArrival && !arrived}
-          // The front page's window, while there is one.
-          inset={frontShown ? inset : null}
+          // The front page's window: the box, and whether the page is up.
+          inset={inset}
+          insetOn={frontShown}
           showProposed={layers.developments}
           castShadows={layers.shadows}
           showSunArrow={view === 'sunlight' && layers.shadows}
@@ -1199,16 +1383,16 @@ export default function App() {
             inVr ? chooseInVr(development, false) : open(development, 'development')
           }
           receptor={receptor}
-        /*
-         * Shown whenever a window has been chosen, whichever half of the
-         * panel is on screen. Somebody who picks a floor and a side has
-         * asked "is this my flat?", and the answer belongs in the city
-         * rather than in the panel that asked.
-         */
-        windowAt={windowAt}
-          // Measuring only makes sense where the shadow is the subject.
           /*
-            Only while armed. Undefined the rest of the time, which is what
+           * Shown whenever a window has been chosen, whichever half of the
+           * panel is on screen. Somebody who picks a floor and a side has
+           * asked "is this my flat?", and the answer belongs in the city
+           * rather than in the panel that asked.
+           */
+        windowAt={windowAt}
+          /*
+            Measuring only makes sense where the shadow is the subject, so
+            only while armed. Undefined the rest of the time, which is what
             takes the crosshair and the ring off the ground as well — see
             Ground, where the presence of this handler IS the affordance.
           */
@@ -1226,10 +1410,12 @@ export default function App() {
           showHighlighted={
             view === 'sunlight' && place?.kind === 'building' ? showSubject : true
           }
-          // The pin and the name follow the chosen place, whatever kind it is.
+          /*
+            The pin and the name follow the chosen place, whatever kind it
+            is. Nothing to point at while the building is switched off: the
+            pin would otherwise hang in the air above the gap where it stood.
+          */
           marker={
-            // Nothing to point at while the building is switched off: the pin
-            // would otherwise hang in the air above the gap where it stood.
             place && !(view === 'sunlight' && place.kind === 'building' && !showSubject)
               ? {
                   anchorEN: place.anchorEN,
@@ -1264,10 +1450,7 @@ export default function App() {
       </div>
 
       {/*
-        Outside every focusMode guard on purpose. The map is still on screen in
-        focus mode, so the credit for it has to be too — see MapAttribution.
-      */}
-      {/*
+        ── THE MAP CONTROLS ─────────────────────────────────────────────────
         Bottom right, in the one corner no panel uses. Hidden with everything
         else in focus mode and while walking — down there the wheel and the
         keys are the controls, and a floating pair of buttons is chrome the
@@ -1303,6 +1486,10 @@ export default function App() {
         />
       )}
 
+      {/*
+        The layer panel, opened from "Map layers" in the plain header — the
+        front page and the sunlight screen do not carry that button.
+      */}
       {!chromeHidden && layersOpen && (
         <MapLayers
           layers={layers}
@@ -1311,9 +1498,15 @@ export default function App() {
         />
       )}
 
-      {/* On the front page the credit sits in the page's own window onto the map. */}
+      {/*
+        The map's credit. Outside every focusMode guard on purpose: the map is
+        still on screen in focus mode, so the credit for it has to be too —
+        see MapAttribution. On the front page it sits in the page's own
+        window onto the map instead.
+      */}
       {mapbox && !frontShown && <MapAttribution />}
 
+      {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
       {walking && (
         <p className="walking-hint">
           <strong>W A S D</strong> to walk · <strong>Shift</strong> to hurry ·{' '}
@@ -1371,6 +1564,7 @@ export default function App() {
       )}
 
       {/*
+        ── THE HEADER ───────────────────────────────────────────────────────
         One bar, every screen.
 
         It carried a "where you are" slot for a while: the city by default,
@@ -1385,8 +1579,14 @@ export default function App() {
           query={query}
           onQuery={setQuery}
           onSearchFocus={() => setSearchAt('header')}
-          front={frontShown}
-          nav={frontShown ? frontNav : undefined}
+          /*
+            The front page and the sunlight screen share the page's look and
+            its three links (Future plans, Explore the city, How it works).
+            Only the front page drops the layer button — see hideLayers.
+          */
+          front={frontShown || view === 'sunlight'}
+          hideLayers={frontShown}
+          nav={frontShown || view === 'sunlight' ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,
@@ -1426,17 +1626,16 @@ export default function App() {
       )}
 
       {/*
-        The explore screen: the projects near the chosen place, or near the
-        city centre when nothing is chosen. Only while the interface is
-        showing.
+        ── THE EXPLORE SCREEN ───────────────────────────────────────────────
+        The projects near the chosen place, or near the city centre when
+        nothing is chosen. Only while the interface is showing.
+
+        One panel. The layer list that used to sit above this moved to the
+        header — see MapLayers — so this screen is about one thing: what is
+        being built around the place in question.
       */}
       {!chromeHidden && view === 'explore' && (
         <>
-          {/*
-            One panel. The layer list that used to sit above this moved to
-            the header — see MapLayers — so this screen is about one thing:
-            what is being built around the place in question.
-          */}
           <NearbyProjects
             anchorEN={place?.anchorEN ?? cityCentreEN}
             label={place?.label ?? 'City centre'}
@@ -1450,6 +1649,7 @@ export default function App() {
         </>
       )}
 
+      {/* ── ONE PROJECT ──────────────────────────────────────────────────── */}
       {!chromeHidden && view === 'development' && focus && (
         <>
           <DevelopmentPanel
@@ -1469,6 +1669,7 @@ export default function App() {
         </>
       )}
 
+      {/* ── ONE EXISTING BUILDING ────────────────────────────────────────── */}
       {!chromeHidden && view === 'building' && foundBuilding && place && (
         <>
           <BuildingPanel
@@ -1484,6 +1685,11 @@ export default function App() {
         </>
       )}
 
+      {/*
+        ── THE SUNLIGHT SCREEN ──────────────────────────────────────────────
+        The column on the left, the time bar along the foot of the map, and
+        the fine print under it.
+      */}
       {!chromeHidden && view === 'sunlight' && place && (
         <>
           <SunlightSheet
@@ -1539,14 +1745,21 @@ export default function App() {
                   }
                 : undefined
             }
-            showProposed={place.kind === 'building' ? showSubject : layers.developments}
-            onShowProposed={(next: boolean) =>
+            afterPlans={layers.developments}
+            onAfterPlans={(next) => {
+              // Choosing one by hand ends the taking of turns.
+              setComparing(false);
+              setLayers({ ...layers, developments: next });
+            }}
+            subjectShown={
               place.kind === 'building'
-                ? setShowSubject(next)
-                : setLayers({ ...layers, developments: next })
+                ? { shown: showSubject, onShown: setShowSubject }
+                : undefined
             }
-            onTab={(next) => {
-              if (next !== 'overview') return;
+            comparing={comparingNow}
+            onCompare={() => setComparing(!comparingNow)}
+            // Back to the subject's own page: the project, or the building.
+            onDetails={() => {
               setChoosing(false);
               setView(place.kind === 'building' ? 'building' : 'development');
             }}
@@ -1554,27 +1767,39 @@ export default function App() {
               setChoosing(false);
               setView('explore');
             }}
-            onClose={() => {
-              setChoosing(false);
-              setView('landing');
-            }}
-          />
-          <SunChip
-            timeLabel={clockLabel(minutes)}
-            compass={compassLabel(sun.azimuthDeg)}
-            visible={sun.altitudeDeg > 0}
           />
           <TimeBar
             minutes={minutes}
             onChange={chooseMinutes}
             min={EARLIEST_MINUTES}
             max={LATEST_MINUTES}
-            label={clockLabel(minutes)}
             caption={narrative.caption}
             daylight={daylight}
+            playing={playingNow}
+            onPlay={() => {
+              if (playingNow) {
+                setPlaying(false);
+                return;
+              }
+              /*
+               * From the start of the day if the hour is already at the end
+               * of it — pressing play on a finished day means "again".
+               */
+              if (minutes >= LATEST_MINUTES) {
+                setMinutes(Math.ceil((daylight.rise ?? EARLIEST_MINUTES) / 10) * 10);
+              }
+              setNowNote(null);
+              setPlaying(true);
+            }}
           />
+          {/* The fine print, along the foot of the map as on the front page. */}
+          <p className="mapfoot">
+            Illustrative model · Demo data
+            <SourcesLink />
+          </p>
         </>
       )}
+      {/* The one control focus mode leaves on screen: the way out of it. */}
       {focusMode ? (
         <button
           type="button"

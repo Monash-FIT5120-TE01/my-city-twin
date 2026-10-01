@@ -1,0 +1,528 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * UNDER THE FRONT PAGE
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The sections below the window onto the city. See LandingMore.tsx.
+ *
+ * IN THIS FILE, TOP TO BOTTOM
+ *   - The palette and the frame every section shares.
+ *   - The shared pieces of type: kicker, pill, title, lead.
+ *   - One block per section, in the page's order: the three numbers, about,
+ *     before you explore, the Acknowledgement of Country, future work, the
+ *     way back in, the foot of the page.
+ *   - Narrower windows: the grids fold to one column.
+ *
+ * COLOUR
+ *   The colours are the design's (Figma "01 — Landing", scroll sections),
+ *   named here once. Every pairing is dark on light or light on dark — the
+ *   deep teal #073c40 on the paper and pale greens, and the pale mints on
+ *   the teal — so nothing is read by hue alone.
+ */
+
+/* ── the palette, and the frame every section shares ────── */
+
+/*
+ * Solid to the pointer: the page above it lets the pointer through to the
+ * city, and nothing down here is over the city.
+ */
+.more {
+  --more-ink: #073c40;
+  --more-ink-2: #365856;
+  --more-accent: #25675f;
+  --more-index: #367b73;
+  --more-rule: #b6cbc1;
+  --more-paper: #f6f4ef;
+  --more-pill: #d6eae3;
+  --more-mint: #bce2d8;
+  --more-on-dark: #dbeee8;
+  --more-on-dark-2: #c8e2da;
+  --more-pale: #abd6c8;
+  --more-pale-2: #c3d8d1;
+  --more-card-dark: #164b4d;
+  --more-street: #dfede6;
+  --more-canopy: #f0ded0;
+  --more-country: #e2ece5;
+
+  --more-gutter: clamp(var(--space-4), 4.4vw, 4.25rem);
+
+  pointer-events: auto;
+  background: var(--more-paper);
+  color: var(--more-ink);
+}
+
+/*
+ * Margins zeroed here and given back per class. This rule outranks a single
+ * class, which is why the margin-tops below carry !important.
+ */
+.more p,
+.more h2,
+.more h3 {
+  margin: 0;
+}
+
+.more__section,
+.more__band {
+  padding: clamp(2.5rem, 4vw, 3.5rem) var(--more-gutter);
+}
+
+/* ── the shared pieces of type ──────────────────────────── */
+
+.more__kicker {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--more-accent);
+}
+
+.more__kicker--light {
+  color: var(--more-mint);
+}
+
+.more__kicker--pale {
+  color: var(--more-pale);
+}
+
+.more__pill {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--more-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-title);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--more-accent);
+}
+
+.more__title {
+  margin-top: var(--space-3) !important;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.4vw, 3.25rem);
+  font-weight: var(--weight-title);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--more-ink);
+}
+
+.more__title--light {
+  color: #fff;
+}
+
+.more__title--small {
+  font-size: clamp(1.75rem, 2.7vw, 2.6rem);
+}
+
+.more__title--cta {
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+}
+
+.more__title span {
+  display: block;
+}
+
+.more__lead {
+  margin-top: var(--space-2) !important;
+  max-width: 46rem;
+  font-size: clamp(1.05rem, 1.35vw, 1.375rem);
+  line-height: 1.45;
+  color: var(--more-ink-2);
+}
+
+.more__lead--light {
+  color: var(--more-on-dark-2);
+}
+
+.more__lead--pale {
+  color: var(--more-pale-2);
+}
+
+/* ── the city in three numbers ──────────────────────────── */
+
+.more__figures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  grid-template-rows: 1fr 1fr;
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+}
+
+.more__walk {
+  grid-row: 1 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-radius: 26px;
+  background: var(--more-ink);
+  color: #fff;
+}
+
+.more__big {
+  font-family: var(--font-display);
+  font-size: clamp(4.5rem, 8.3vw, 8rem);
+  font-weight: var(--weight-title);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.more__walk-words {
+  max-width: 21rem;
+  margin-top: var(--space-2) !important;
+  font-size: clamp(1.1rem, 1.55vw, 1.5rem);
+  line-height: 1.4;
+  color: var(--more-on-dark);
+}
+
+.more__walk-art {
+  flex: none;
+  width: clamp(110px, 12vw, 186px);
+  height: auto;
+}
+
+.more__fact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-6);
+  border-radius: 24px;
+}
+
+.more__fact--street {
+  background: var(--more-street);
+}
+
+.more__fact--canopy {
+  background: var(--more-canopy);
+}
+
+.more__mid {
+  flex: none;
+  min-width: 2.6em;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 5vw, 4.75rem);
+  font-weight: var(--weight-title);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.more__fact-words {
+  font-size: clamp(1.05rem, 1.5vw, 1.45rem);
+  font-weight: var(--weight-title);
+  line-height: 1.35;
+}
+
+.more__fact-note {
+  margin-top: var(--space-2) !important;
+  font-size: var(--text-body);
+  color: var(--more-ink-2);
+}
+
+.more__source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-5) !important;
+  font-size: var(--text-body);
+  color: var(--more-ink-2);
+}
+
+.more__source a,
+.more__fine a {
+  color: var(--more-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.more__scope {
+  margin-top: var(--space-2) !important;
+  font-size: var(--text-body);
+  color: var(--more-ink-2);
+}
+
+/* ── about ──────────────────────────────────────────────── */
+
+.more__about {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 32rem);
+  align-items: center;
+  gap: var(--space-6);
+  background: var(--more-ink);
+}
+
+/*
+ * The design's block: a 512 × 408 board the drawings are placed on. The
+ * board scales as one, so the drawings keep their places relative to each
+ * other at any width.
+ */
+.more__block {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 512 / 408;
+}
+
+.more__block img {
+  position: absolute;
+  height: auto;
+}
+
+.more__block-label {
+  position: absolute;
+  left: 4.5%;
+  top: 93.6%;
+  font-size: clamp(0.6rem, 1vw, 0.8125rem);
+  font-weight: var(--weight-title);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--more-ink);
+}
+
+/* ── before you explore ─────────────────────────────────── */
+
+.more__three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5) clamp(var(--space-5), 3.5vw, 3.375rem);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.more__three li {
+  padding-top: var(--space-5);
+  border-top: 2px solid var(--more-rule);
+}
+
+.more__index {
+  display: block;
+  font-size: 1.125rem;
+  font-weight: var(--weight-title);
+  color: var(--more-index);
+}
+
+.more__three h3 {
+  margin-top: var(--space-3);
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 1.7vw, 1.625rem);
+  font-weight: var(--weight-title);
+}
+
+.more__three p {
+  margin-top: var(--space-3);
+  font-size: clamp(1rem, 1.3vw, 1.25rem);
+  line-height: 1.5;
+  color: var(--more-ink-2);
+}
+
+/* ── acknowledgement of country ─────────────────────────── */
+
+.more__country {
+  background: var(--more-country);
+}
+
+.more__kicker--dash {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.more__kicker--dash::before {
+  content: '';
+  width: 48px;
+  height: 3px;
+  background: var(--more-index);
+}
+
+.more__country-words {
+  max-width: 64rem;
+  margin-top: var(--space-4) !important;
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--more-rule);
+  font-size: clamp(1.05rem, 1.5vw, 1.45rem);
+  line-height: 1.5;
+  color: var(--more-ink-2);
+}
+
+/* ── future work ────────────────────────────────────────── */
+
+.more__future {
+  background: var(--more-ink);
+}
+
+.more__future:focus {
+  outline: none;
+}
+
+.more__future:focus-visible {
+  outline: 2px solid var(--more-mint);
+  outline-offset: -4px;
+}
+
+.more__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+  margin: var(--space-6) 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.more__cards li {
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  border-radius: 24px;
+  background: var(--more-card-dark);
+}
+
+.more__cards h3 {
+  margin-top: var(--space-4);
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 1.75vw, 1.7rem);
+  font-weight: var(--weight-title);
+  color: #fff;
+}
+
+.more__cards p:not(.more__kicker) {
+  margin-top: var(--space-3);
+  font-size: clamp(1rem, 1.25vw, 1.2rem);
+  line-height: 1.5;
+  color: #d3e4dd;
+}
+
+/* ── the way back in ────────────────────────────────────── */
+
+.more__cta {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-6);
+  overflow: hidden;
+  background: var(--more-ink);
+}
+
+/* The design's two rings, drawn from their shared centre. */
+.more__cta-rings {
+  position: relative;
+  width: 207px;
+  height: 207px;
+}
+
+.more__cta-rings img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
+.more__cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  min-width: min(22rem, 100%);
+  min-height: 68px;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: 18px;
+  background: var(--more-mint);
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: var(--weight-title);
+  color: var(--more-ink);
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease);
+}
+
+.more__cta-button:hover {
+  background: #a9d8cb;
+}
+
+.more__cta-button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* ── the foot of the page ───────────────────────────────── */
+
+.more__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-6);
+  padding: var(--space-6) var(--more-gutter) var(--space-6);
+}
+
+.more__brand {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: var(--weight-title);
+}
+
+.more__mark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding-bottom: 6px;
+}
+
+.more__motto {
+  font-size: 1.25rem;
+}
+
+.more__fine {
+  margin-top: var(--space-2) !important;
+  font-size: var(--text-body);
+  color: var(--more-ink-2);
+}
+
+/* ── narrower ───────────────────────────────────────────── */
+
+/* The numbers stack, and the rings make way for the button. */
+@media (max-width: 1100px) {
+  .more__figures {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .more__walk {
+    grid-row: auto;
+  }
+
+  .more__cta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .more__cta-rings {
+    display: none;
+  }
+}
+
+/* A phone: every grid is one column, and the walking drawing goes. */
+@media (max-width: 900px) {
+  .more__about,
+  .more__three,
+  .more__cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .more__walk-art {
+    display: none;
+  }
+
+  .more__fact {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .more__cta-button {
+    width: 100%;
+  }
+}
