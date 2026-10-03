@@ -79,13 +79,15 @@ import { useDevelopmentDetail } from './data/useDevelopmentDetail';
 import { useBuildingDetail } from './data/useBuildingDetail';
 import { clearOfBuildings, facadesOf, floorAhdM, windowPlace } from './scene/facades';
 import { buildingCentres, buildingsUnder } from './data/replaces';
+import { buildingEntry } from './data/buildingEntry';
 import { buildSkyline } from './scene/skyline';
 import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
-import { HOW_IT_WORKS_ID, LandingPage } from './ui/LandingPage';
+import { LandingPage } from './ui/LandingPage';
 import { FUTURE_PLANS_ID } from './ui/LandingMore';
 import { SourcesLink } from './ui/Sources';
 import { ComparePage, type FrameRect } from './ui/ComparePage';
+import { HowItWorksPage } from './ui/HowItWorksPage';
 import { createCameraLink } from './scene/cameraLink';
 import './styles/sunlight.css';
 import type { ScreenInset } from './scene/ViewInset';
@@ -96,16 +98,14 @@ import {
   SearchResults,
   ViewControls,
   MapLayers,
-  NearbyProjects,
   BuildingPanel,
-  SUNLIGHT_HOWTO_ID,
   SunlightSheet,
   TimeBar,
   type Layers,
   type WindowProblem,
 } from './ui/screens';
 import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
-import { EARLIEST_MINUTES, LATEST_MINUTES, clockLabel, intoWindow } from './data/now';
+import { EARLIEST_MINUTES, LATEST_MINUTES, clock12Label, clockLabel, intoWindow } from './data/now';
 import { useMapboxConfig } from './data/mapboxConfig';
 import { exitVr, useInVr, useVrSupported, xrStore } from './scene/xrStore';
 import type { VrMenu, VrStage } from './scene/vrMenu';
@@ -546,7 +546,8 @@ export default function App() {
   /** The searched-for building, resolved against the model the same way. */
   const foundBuilding = useMemo<SearchableBuilding | null>(() => {
     if (!model || !selectedBuildingId) return null;
-    return model.searchable.find((b) => b.buildingId === selectedBuildingId) ?? null;
+    // Found by search or double-clicked on the map — with an address or not.
+    return buildingEntry(model, selectedBuildingId);
   }, [model, selectedBuildingId]);
 
   /*
@@ -956,14 +957,22 @@ export default function App() {
       open(hit.development, 'development');
       return;
     }
+    openBuilding(hit.building);
+  };
+
+  /**
+   * An existing building onto its own page — from a search result, or
+   * double-clicked on the map (see BuildingPicker).
+   */
+  const openBuilding = (building: SearchableBuilding) => {
     // Drop the previously selected proposal. Leaving it set kept its pin and
     // its name floating over a building the person had moved on from.
     setSelectedKey(null);
-    setSelectedBuildingId(hit.building.buildingId);
+    setSelectedBuildingId(building.buildingId);
     setLookAt({
-      east: hit.building.anchorEN[0],
-      north: hit.building.anchorEN[1],
-      heightM: hit.building.heightM,
+      east: building.anchorEN[0],
+      north: building.anchorEN[1],
+      heightM: building.heightM,
     });
     setHasChosen(true);
     setShowSubject(true);
@@ -1014,21 +1023,12 @@ export default function App() {
   /*
    * ── THE HEADER'S LINKS ──────────────────────────────────────────────────
    *
-   * "How it works" in the header: the three steps at the foot of the front
-   * page's first screen, or on the sunlight screen the steps folded at the
-   * foot of its column, opened.
+   * "How it works" in the header: its own page (HowItWorksPage).
    */
   const showHowItWorks = () => {
-    const folded = document.getElementById(SUNLIGHT_HOWTO_ID);
-    if (folded instanceof HTMLDetailsElement) {
-      folded.open = true;
-      folded.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
-      folded.querySelector('summary')?.focus({ preventScroll: true });
-      return;
-    }
-    const steps = document.getElementById(HOW_IT_WORKS_ID);
-    steps?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
-    steps?.focus({ preventScroll: true });
+    // The layer panel would stay mounted behind the page, in the tab order.
+    setLayersOpen(false);
+    setView('how');
   };
 
   /*
@@ -1199,6 +1199,9 @@ export default function App() {
   /** The comparison screen is up: two views of one place, side by side. */
   const compareShown = !chromeHidden && view === 'compare' && place !== null;
 
+  /** The How it works page is up, over the city. */
+  const howShown = !chromeHidden && view === 'how';
+
   /** The front page is up — and with it the window the city is framed in. */
   const frontShown = !chromeHidden && view === 'landing';
 
@@ -1310,11 +1313,6 @@ export default function App() {
       }
     : null;
 
-  const cityCentreEN: [number, number] = [
-    (model.extent.minE + model.extent.maxE) / 2,
-    (model.extent.minN + model.extent.maxN) / 2,
-  ];
-
   const storeys = detail ? Number.parseFloat(detail.floorsAbove) : undefined;
 
   return (
@@ -1392,6 +1390,18 @@ export default function App() {
           */
           onSelectDevelopment={(development) =>
             inVr ? chooseInVr(development, false) : open(development, 'development')
+          }
+          /*
+            Not while a spot is being chosen: there a click is a place on the
+            ground, and the second of two would leave the screen.
+          */
+          onSelectBuilding={
+            armed
+              ? undefined
+              : (buildingId) => {
+                  const building = buildingEntry(model, buildingId);
+                  if (building) openBuilding(building);
+                }
           }
           receptor={receptor}
           /*
@@ -1519,7 +1529,7 @@ export default function App() {
 
         Not on the front page either, which frames the city itself.
       */}
-      {!chromeHidden && !frontShown && !compareShown && (
+      {!chromeHidden && !frontShown && !compareShown && !howShown && (
         <ViewControls
           onZoom={(factor) => viewCommands.current?.dolly(factor)}
           onOrbit={(radians) => viewCommands.current?.orbit(radians)}
@@ -1551,7 +1561,7 @@ export default function App() {
         The layer panel, opened from "Map layers" in the plain header — the
         front page and the sunlight screen do not carry that button.
       */}
-      {!chromeHidden && layersOpen && (
+      {!chromeHidden && layersOpen && !howShown && (
         <MapLayers
           layers={layers}
           onChange={setLayers}
@@ -1565,7 +1575,7 @@ export default function App() {
         see MapAttribution. On the front page it sits in the page's own
         window onto the map instead.
       */}
-      {mapbox && !frontShown && !compareShown && <MapAttribution />}
+      {mapbox && !frontShown && !compareShown && !howShown && <MapAttribution />}
 
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
       {walking && (
@@ -1645,9 +1655,9 @@ export default function App() {
             its three links (Future plans, Explore the city, How it works).
             Only the front page drops the layer button — see hideLayers.
           */
-          front={frontShown || view === 'sunlight' || compareShown}
+          front={frontShown || view === 'sunlight' || compareShown || howShown}
           hideLayers={frontShown}
-          nav={frontShown || view === 'sunlight' || compareShown ? frontNav : undefined}
+          nav={frontShown || view === 'sunlight' || compareShown || howShown ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,
@@ -1688,26 +1698,14 @@ export default function App() {
 
       {/*
         ── THE EXPLORE SCREEN ───────────────────────────────────────────────
-        The projects near the chosen place, or near the city centre when
-        nothing is chosen. Only while the interface is showing.
-
-        One panel. The layer list that used to sit above this moved to the
-        header — see MapLayers — so this screen is about one thing: what is
-        being built around the place in question.
+        The city and nothing over it. A place is chosen by searching an
+        address in the header or by double-clicking any building on the map;
+        the line at the foot says so.
       */}
       {!chromeHidden && view === 'explore' && (
-        <>
-          <NearbyProjects
-            anchorEN={place?.anchorEN ?? cityCentreEN}
-            label={place?.label ?? 'City centre'}
-            excludeDevId={place?.devId}
-            developments={model.developments}
-            showProposed={layers.developments}
-            onShowProposed={(next) => setLayers({ ...layers, developments: next })}
-            onOpen={(development) => open(development, 'development')}
-            onClose={() => setView('landing')}
-          />
-        </>
+        <p className="explore-hint" role="note" tabIndex={-1}>
+          Search an address, or double-click any building to select it.
+        </p>
       )}
 
       {/* ── ONE PROJECT ──────────────────────────────────────────────────── */}
@@ -1778,6 +1776,37 @@ export default function App() {
             setChoosing(true);
           }}
           onFrames={setCompareFrames}
+        />
+      )}
+
+      {/* ── HOW IT WORKS: the three steps, over the city ─────────────────── */}
+      {howShown && (
+        <HowItWorksPage
+          dateText={`${dateLabel(date)} ${date.year}`}
+          timeText={clock12Label(minutes)}
+          season={seasonName(date.month)}
+          reducedMotion={reducedMotion}
+          /*
+            The page that had the keyboard is gone with either button, so the
+            keyboard is given somewhere on the screen arrived at: the explore
+            screen's one line, or the sunlight column's heading.
+          */
+          onExplore={() => {
+            setView('explore');
+            window.requestAnimationFrame(() =>
+              document.querySelector<HTMLElement>('.explore-hint')?.focus(),
+            );
+          }}
+          onBack={
+            place
+              ? () => {
+                  setView('sunlight');
+                  window.requestAnimationFrame(() =>
+                    document.getElementById('subject-title')?.focus(),
+                  );
+                }
+              : undefined
+          }
         />
       )}
 

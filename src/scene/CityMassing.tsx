@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import type { Group, Mesh } from 'three';
 import type { CityModel, Development } from '../data/model';
-import { groundElevationOf, mergeMassings } from './massing';
+import { groundElevationOf, mergeMassingsOwned } from './massing';
 import { buildingCentres, buildingsUnder } from '../data/replaces';
 import { groundPlacement } from './basemap';
 import { useBasemapTexture } from './useBasemap';
@@ -13,6 +14,7 @@ import { ReceptorMarker } from './ReceptorMarker';
 import { WindowMarker } from './WindowMarker';
 import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
+import { BuildingPicker } from './BuildingPicker';
 
 interface CityMassingProps {
   model: CityModel;
@@ -23,6 +25,11 @@ interface CityMassingProps {
   /** True everywhere except the sunlight screen, which wants one shadow. */
   showAllProposals: boolean;
   onSelectDevelopment: (development: Development) => void;
+  /**
+   * A double click on a building standing today, by its id. Undefined where
+   * buildings are not to be opened — see BuildingPicker.
+   */
+  onSelectBuilding?: (buildingId: string) => void;
   /** The spot being measured, if one has been picked. */
   receptor: [number, number] | null;
   /**
@@ -66,6 +73,7 @@ export function CityMassing({
   showProposed,
   showAllProposals,
   onSelectDevelopment,
+  onSelectBuilding,
   receptor,
   windowAt,
   onPickReceptor,
@@ -143,10 +151,16 @@ export function CityMassing({
     const ok = model.buildings.filter((b) => b.readyFor3d && inCity(b));
     const bad = model.buildings.filter((b) => !b.readyFor3d && inCity(b));
     return {
-      built: mergeMassings(ok, groundAhdM),
-      unresolved: mergeMassings(bad, groundAhdM),
+      built: mergeMassingsOwned(ok, groundAhdM),
+      unresolved: mergeMassingsOwned(bad, groundAhdM),
     };
   }, [model.buildings, groundAhdM, highlightedBuildingId, replaced]);
+
+  /** What BuildingPicker casts its ray at, and what can stand in front. */
+  const builtMesh = useRef<Mesh>(null);
+  const unresolvedMesh = useRef<Mesh>(null);
+  const highlightGroup = useRef<Group>(null);
+  const projectsGroup = useRef<Group>(null);
 
   /*
    * The merged city is rebuilt whenever a proposal is shown or hidden, and
@@ -157,8 +171,8 @@ export function CityMassing({
    */
   useEffect(
     () => () => {
-      built?.dispose();
-      unresolved?.dispose();
+      built?.geometry.dispose();
+      unresolved?.geometry.dispose();
     },
     [built, unresolved],
   );
@@ -202,11 +216,13 @@ export function CityMassing({
         it straight back inside the proposal, both solids casting shadow.
       */}
       {showHighlighted && !(highlightedBuildingId && replaced.has(highlightedBuildingId)) && (
-        <HighlightedBuilding
-          buildings={model.buildings}
-          buildingId={highlightedBuildingId}
-          groundAhdM={groundAhdM}
-        />
+        <group ref={highlightGroup}>
+          <HighlightedBuilding
+            buildings={model.buildings}
+            buildingId={highlightedBuildingId}
+            groundAhdM={groundAhdM}
+          />
+        </group>
       )}
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
@@ -215,7 +231,7 @@ export function CityMassing({
       )}
 
       {built && (
-        <mesh castShadow receiveShadow geometry={built}>
+        <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry}>
           <meshStandardMaterial color="#eeedf0" roughness={0.82} metalness={0} />
         </mesh>
       )}
@@ -226,7 +242,7 @@ export function CityMassing({
         an absent shadow reads to a resident as sunlight.
       */}
       {unresolved && (
-        <mesh castShadow receiveShadow geometry={unresolved}>
+        <mesh ref={unresolvedMesh} castShadow receiveShadow geometry={unresolved.geometry}>
           <meshStandardMaterial color="#d9d5cf" roughness={0.95} metalness={0} />
         </mesh>
       )}
@@ -257,15 +273,27 @@ export function CityMassing({
       )}
 
       {showProposed && (
-        <DevelopmentMassings
-          developments={model.developments}
-          focus={focus}
-          groundAhdM={groundAhdM}
-          showAll={showAllProposals}
-          interactive={interactive}
-          onSelect={onSelectDevelopment}
-        />
+        <group ref={projectsGroup}>
+          <DevelopmentMassings
+            developments={model.developments}
+            focus={focus}
+            groundAhdM={groundAhdM}
+            showAll={showAllProposals}
+            interactive={interactive}
+            onSelect={onSelectDevelopment}
+          />
+        </group>
       )}
+
+      <BuildingPicker
+        city={[
+          { mesh: builtMesh, owned: built },
+          { mesh: unresolvedMesh, owned: unresolved },
+        ]}
+        blockers={projectsGroup}
+        highlighted={{ object: highlightGroup, id: highlightedBuildingId }}
+        onSelect={interactive && !walking ? onSelectBuilding : undefined}
+      />
     </group>
   );
 }

@@ -19,16 +19,24 @@
  *       sunlight screen.
  *   Choosing a project on the map
  *     - one click opens nothing; a double click opens it.
+ *   Choosing an existing building on the map
+ *     - the same: one click nothing, a double click its page.
  *   The sunlight screen
  *     - "Map layers" is there (the only shadows switch);
  *     - play moves the hour, and leaving the screen stops it — returning
  *       does not find it running by itself;
  *     - "Compare side by side" opens the comparison page — two views, each
  *       with the map's credit — and "Back to sunlight" returns to one.
+ *   How it works
+ *     - the header's link opens the page with its pictures loaded, and its
+ *       two buttons go back to sunlight and on to the map.
  *   On a phone, upright and on its side
  *     - the time bar sits below the header and above the map credit, and the
  *       credit above the sheet — nothing covers anything;
- *     - the sources link is reachable inside the sheet.
+ *     - the sources link is reachable inside the sheet;
+ *     - on a project's page and the explore screen, the view controls and
+ *       the map credit sit between the header and the sheet (or the hint),
+ *       apart from each other.
  *
  * HOW
  *   Like test:vr: the Chrome (or Edge) already installed, a dev server on
@@ -189,6 +197,53 @@ try {
   }
   await page.close();
 
+  /*
+   * An existing building: the same double click opens its page. Found by
+   * double-clicking down columns of the map until a building answers —
+   * where a project answers instead, the search goes on. Each spot is
+   * clicked once first, to show a single click does nothing.
+   *
+   * Done twice, in the left and the right half of the map, and the two must
+   * be different buildings: a ray-to-building mapping that always answered
+   * with the same one would otherwise pass.
+   */
+  const EXPLORE = '?view=explore&d=2026-06-21&t=720';
+  let singleOpened = '';
+  const findBuilding = async (columns) => {
+    page = await open(1440, 900, EXPLORE, '.viewctl');
+    try {
+      for (let y = 160; y < 640; y += 40) {
+        for (const x of columns) {
+          await page.mouse.click(x, y);
+          await page.waitForTimeout(300);
+          const after = new URL(page.url()).searchParams.get('view');
+          if (after !== 'explore') {
+            singleOpened ||= `view ${after} at ${x},${y}`;
+            return null;
+          }
+          await page.mouse.dblclick(x, y);
+          await page.waitForTimeout(900);
+          const now = new URL(page.url());
+          if (now.searchParams.get('view') === 'building') return now.searchParams.get('bldg');
+          if (now.searchParams.get('view') !== 'explore') {
+            await page.goto(URL_ + EXPLORE);
+            await page.waitForSelector('.viewctl', { timeout: 120_000 });
+            await page.waitForTimeout(2500);
+          }
+        }
+      }
+      return null;
+    } finally {
+      await page.close();
+    }
+  };
+  const leftBuilding = await findBuilding([300, 420, 540]);
+  const rightBuilding = await findBuilding([900, 1020, 1140]);
+  check('One click on a building opens nothing', singleOpened === '', singleOpened);
+  check('A double click on an existing building opens its page, a different one on each side',
+    leftBuilding !== null && rightBuilding !== null && leftBuilding !== rightBuilding,
+    `left ${leftBuilding}, right ${rightBuilding}`);
+
   // ── The sunlight screen ─────────────────────────────────────────────────
   page = await open(1440, 900, SUNLIGHT, '.timebar__dock');
   await page.screenshot({ path: join(OUT, '02-sunlight.png') });
@@ -231,6 +286,27 @@ try {
   await page.waitForSelector('.timebar__dock');
   await page.waitForTimeout(800);
   check('"Back to sunlight" returns to one view', (await page.locator('canvas').count()) === 1);
+
+  /*
+   * How it works: the header's link opens its own page, its pictures load,
+   * and from there "Back to sunlight" and "Explore the city" go where they say.
+   */
+  await page.locator('.header').getByRole('button', { name: 'How it works' }).click();
+  await page.waitForSelector('.how img');
+  await page.waitForTimeout(800);
+  const pictures = await page.locator('.how img').evaluateAll((images) =>
+    images.filter((image) => image.complete && image.naturalWidth > 0).length);
+  check('"How it works" opens its page, with its four pictures',
+    page.url().includes('view=how') && pictures === 4, `${page.url()}, ${pictures} pictures`);
+  await page.screenshot({ path: join(OUT, '02c-how.png') });
+  await page.locator('.how').getByRole('button', { name: 'Back to sunlight' }).click();
+  await page.waitForSelector('.timebar__dock');
+  check('"Back to sunlight" from How it works returns to the sunlight screen', page.url().includes('view=sunlight'));
+  await page.locator('.header').getByRole('button', { name: 'How it works' }).click();
+  await page.waitForSelector('.how');
+  await page.locator('.how').getByRole('button', { name: 'Explore the city' }).click();
+  await page.waitForTimeout(800);
+  check('"Explore the city" from How it works opens the map', page.url().includes('view=explore'));
   await page.close();
 
   // ── On a phone ──────────────────────────────────────────────────────────
@@ -251,6 +327,41 @@ try {
     const sources = await page.evaluate(() => getComputedStyle(document.querySelector('.sheet__sources')).display);
     check(`${width}×${height}: the sources link is in the sheet`, sources !== 'none');
     await page.close();
+
+    /*
+     * A project's page and the explore screen: the view controls and the
+     * credit are on the screen, below the header, and nothing covers them —
+     * upright the stack ran off the top, on its side under the header.
+     */
+    for (const [name, path] of [
+      ['project', '?view=development&dev=X0012808'],
+      ['explore', '?view=explore'],
+    ]) {
+      page = await open(width, height, path, '.viewctl');
+      const rects = await page.evaluate(() => {
+        const box = (selector) => {
+          const element = document.querySelector(selector);
+          if (!element) return null;
+          const r = element.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+        };
+        return {
+          header: box('.header'),
+          controls: box('.viewctl__stack'),
+          credit: box('.attribution'),
+          below: box('.panel--left') ?? box('.explore-hint'),
+        };
+      });
+      const { header, controls, credit, below } = rects;
+      const apart = (a, b) =>
+        a.bottom <= b.top || b.bottom <= a.top || a.right <= b.left || b.right <= a.left;
+      const fits =
+        controls.top >= header.bottom && credit.top >= header.bottom &&
+        controls.bottom <= below.top && credit.bottom <= below.top && apart(controls, credit);
+      check(`${width}×${height} ${name}: view controls and credit sit between the header and what is below`,
+        fits, `header ↓${header.bottom}, controls ${controls.top}–${controls.bottom}, credit ${credit.top}–${credit.bottom}, below ↑${below.top}`);
+      await page.close();
+    }
   }
 } catch (error) {
   check('Runs to the end without stopping', false, error.message.split('\n')[0]);

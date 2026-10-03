@@ -8,13 +8,9 @@
  *   order of this file:
  *
  *   SearchResults    the matches under either search field.
- *   Progress         Place · Sunlight · Spot, at the top of the explore
- *                    panel.
  *   ViewControls     turn, zoom, frame the whole city, focus mode, and the
  *                    card that says how the mouse moves the map.
  *   MapLayers        the layer panel the header's "Map layers" opens.
- *   NearbyProjects   the explore screen: the nearest approved projects and
- *                    the switch between the city as it is and as approved.
  *   SubjectHead      the top every subject panel shares: the way back, the
  *                    way out, the address, and either the Overview /
  *                    Sunlight tabs or a "Details" link.
@@ -131,91 +127,6 @@ export function SearchResults({
         </button>
       ))}
     </div>
-  );
-}
-
-/**
- * ─────────────────────────────────────────────────────────────────────────
- * HOW FAR ALONG YOU ARE
- * ─────────────────────────────────────────────────────────────────────────
- *
- * Three steps across the top of the explore panel, with the one you are on
- * marked. (The `at` values for the later steps are kept, though no panel
- * after the first carries the row now.)
- *
- * WHY IT EXISTS
- *   Getting an answer out of this takes a fixed order: choose a place, open
- *   its sunlight, measure a spot. Nothing enforces that order and nothing
- *   stated it either — the sunlight button is simply inert until there is a
- *   subject, and a reader who presses it and sees nothing has learnt that it
- *   is broken, not that something comes first.
- *
- *   The panel already had the sequence written down, in a box headed "Start
- *   here". It arrives on the third screen. By then the reader has either
- *   worked the order out or given up, and is being told something they no
- *   longer need — which is the usual fate of instructions placed where they
- *   were easy to add rather than where they are wanted.
- *
- * WHY IT IS NOT A SET OF LINKS
- *   Because two of the three cannot be jumped to. Measuring needs a subject
- *   and a subject needs choosing, so a step ahead of where you are is not a
- *   destination — it is a description of what happens next. Made pressable
- *   it would be three controls, two of them dead.
- *
- *   The step behind you IS reachable, and it already has a control: the back
- *   link at the top of the panel. A second way to go back, in a row that is
- *   otherwise inert, would read as the row being navigation.
- *
- * WHAT IT IS NOT ALLOWED TO BE
- *   Big. It is a caption on the panel, not a feature of it — three words and
- *   three marks. If it ever needs explaining it has failed, and if it takes
- *   more room than the heading under it, it is competing with the thing it
- *   is meant to introduce.
- */
-export function Progress({ at }: { at: 'place' | 'sunlight' | 'spot' }) {
-  const steps = [
-    { id: 'place', label: 'Place' },
-    { id: 'sunlight', label: 'Sunlight' },
-    { id: 'spot', label: 'Spot' },
-  ] as const;
-  const reached = steps.findIndex((step) => step.id === at);
-
-  return (
-    <ol className="progress" aria-label="Where you are">
-      {steps.map((step, index) => (
-        <li
-          key={step.id}
-          className={
-            index < reached ? 'is-done' : index === reached ? 'is-here' : undefined
-          }
-          /*
-           * The current step is announced as such; the others are read as
-           * ordinary list items. `aria-current="step"` is the one word that
-           * carries this for a screen reader, and without it the row is
-           * three nouns with no relationship.
-           */
-          aria-current={index === reached ? 'step' : undefined}
-        >
-          <span className="progress__mark" aria-hidden="true">
-            {index < reached ? (
-              <svg width="11" height="11" viewBox="0 0 12 12">
-                <path
-                  d="M2.4 6.4 4.8 8.8 9.6 3.2"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : (
-              index + 1
-            )}
-          </span>
-          {step.label}
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -477,7 +388,7 @@ export function ViewControls({
   );
 }
 
-/* ── 02 Discovery Map: the layers and the projects nearby ─ */
+/* ── 02 Discovery Map: the layers ─────────────────────── */
 
 /** What the map draws: the approved projects, and the sun's shadows. */
 export interface Layers {
@@ -604,227 +515,6 @@ export function MapLayers({
   );
 }
 
-/**
- * The before/after switch on the explore panel: the city as it stands, or
- * with the approved projects in it. Two buttons with one sliding face —
- * see .segmented in ui.css.
- */
-function ExistingApprovedToggle({
-  showProposed,
-  onChange,
-  /*
-   * The two names, which can be changed for whatever is being taken away.
-   * Only the explore panel uses this now, with the defaults; the sunlight
-   * column has its own today / after choice.
-   */
-  labels = { off: 'Existing City', on: 'Approved Plan' },
-}: {
-  /** The approved projects are drawn — the "after". */
-  showProposed: boolean;
-  onChange: (next: boolean) => void;
-  labels?: { off: string; on: string };
-}) {
-  return (
-    <div
-      className="segmented"
-      role="group"
-      aria-label="City model"
-      style={{ '--count': 2, '--at': showProposed ? 1 : 0 } as React.CSSProperties}
-    >
-      <button
-        type="button"
-        aria-pressed={!showProposed}
-        onClick={() => onChange(false)}
-        data-label={labels.off}
-      >
-        {labels.off}
-      </button>
-      <button
-        type="button"
-        aria-pressed={showProposed}
-        onClick={() => onChange(true)}
-        data-label={labels.on}
-      >
-        {labels.on}
-      </button>
-    </div>
-  );
-}
-
-/**
- * ─────────────────────────────────────────────────────────────────────────
- * WHAT IS CHANGING NEARBY
- * ─────────────────────────────────────────────────────────────────────────
- *
- * The explore screen's whole left panel: the approved projects nearest
- * wherever the person currently is, and the switch between the city as it
- * stands and the city as approved.
- *
- * WHY IT TAKES A POINT AND NOT A PROJECT
- *   It takes a plain point and a label rather than a Development, because
- *   the chosen place can be an existing building found by searching.
- *   Passing a Development meant this list stayed anchored to a proposal
- *   while the camera and the highlight had moved somewhere else — two
- *   different "here" on one screen.
- *
- * WHY THE LIST IS ROWS AND NOT CARDS WITH BUTTONS
- *   Each project used to be a card with a "View project" button under it,
- *   which made the button the target and the address a caption. But the
- *   address is what somebody is looking for — they are scanning for a street
- *   they know — so the whole row is the control and the address is the
- *   biggest thing in it. Three buttons that each say the same two words are
- *   three places to look that tell you nothing.
- *
- * WHY THE CHOSEN ONE IS MARKED HERE AND NOT ONLY ON THE MAP
- *   A green building on the map is easy to lose behind a tower. The row
- *   carries the same selection so there is always one place on screen that
- *   says which project is being talked about — and clicking the map and
- *   clicking the list have to agree, or the reader has two answers.
- *
- * WHAT THE COUNT IS HONEST ABOUT
- *   It says how many are shown AND that these are the nearest, because "3
- *   nearby projects" on a model holding 49 of them would otherwise read as
- *   there being three.
- */
-export function NearbyProjects({
-  anchorEN,
-  label,
-  excludeDevId,
-  developments,
-  showProposed,
-  onShowProposed,
-  onOpen,
-  onClose,
-}: {
-  /** Where "here" is: the chosen place, or the city centre. East, north. */
-  anchorEN: [number, number];
-  /** What "here" is called in the line under the heading. */
-  label: string;
-  /** Omit the project itself when the chosen place IS a project. */
-  excludeDevId?: string;
-  developments: Development[];
-  /** The approved projects are drawn on the map — the "after". */
-  showProposed: boolean;
-  onShowProposed: (next: boolean) => void;
-  /** A row: that project's own page. */
-  onOpen: (development: Development) => void;
-  /** "Start over": back to the front page. */
-  onClose: () => void;
-}) {
-  const nearby = useMemo(() => {
-    return developments
-      .filter((d) => d.devId !== excludeDevId)
-      .map((d) => ({
-        development: d,
-        distance: Math.hypot(d.anchorEN[0] - anchorEN[0], d.anchorEN[1] - anchorEN[1]),
-      }))
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, 3);
-  }, [developments, anchorEN, excludeDevId]);
-
-  return (
-    <aside className="panel panel--left sheet" aria-labelledby="nearby-title">
-      <div className="sheet__head">
-        <p className="panel__eyebrow">Explore the CBD</p>
-        {/*
-          "Start over", not "Close".
-          
-          It was labelled as a close and it does not close anything — it
-          returns to the opening screen. A cross that quietly navigates is
-          the worst of both: somebody expecting a panel to be dismissed gets
-          sent back to the beginning, and somebody who wanted the beginning
-          had no reason to think this was the way.
-        */}
-        <button
-          type="button"
-          className="sheet__close"
-          onClick={onClose}
-          aria-label="Start over"
-          title="Start over"
-        >
-          <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M3.6 3.6l7.8 7.8M11.4 3.6l-7.8 7.8"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      </div>
-
-      <Progress at="place" />
-
-      <h2 className="sheet__title" id="nearby-title">
-        What&rsquo;s changing nearby?
-      </h2>
-      <p className="sheet__meta">
-        {label} · {nearby.length} nearby {nearby.length === 1 ? 'project' : 'projects'}
-      </p>
-
-      <ExistingApprovedToggle showProposed={showProposed} onChange={onShowProposed} />
-
-      <ul className="rows" role="list">
-        {nearby.map(({ development, distance }, index) => {
-          return (
-            <li key={development.devId} style={{ '--i': index } as React.CSSProperties}>
-              {/*
-                The row IS the button. A card with a control inside it gives a
-                screen reader two things to announce for one project, and a
-                mouse two targets where one of them does nothing.
-              */}
-              <button
-                type="button"
-                className="row"
-                onClick={() => onOpen(development)}
-              >
-                <StatusBadge status={development.status} />
-                <span className="row__title">
-                  {development.streetAddress.split(',')[0]}
-                </span>
-                <span className="row__meta">
-                  {developmentSummary(development)} · {Math.round(distance)} m away
-                </span>
-                <svg
-                  className="row__go"
-                  width="9"
-                  height="14"
-                  viewBox="0 0 9 14"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M1.5 1 L7.5 7 L1.5 13"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      {/*
-        "All 3 shown" only when that is true of the nearest three AND of the
-        model. Said flatly it would be a claim about the city rather than
-        about the list.
-      */}
-      <p className="sheet__fine">
-        {nearby.length === developments.length - (excludeDevId ? 1 : 0)
-          ? `All ${nearby.length} nearby projects shown`
-          : `Nearest ${nearby.length} of ${developments.length} shown`}{' '}
-        · Demo data
-      </p>
-
-      <p className="note">Select a project here or double-click a green building on the map.</p>
-    </aside>
-  );
-}
-
 /* ── 03 Development Overview: the shared head, and one project ─ */
 
 /*
@@ -884,7 +574,7 @@ function SubjectHead({
   locality?: string;
   /** The quietest line: uses, storeys and height, or what a building is. */
   meta: string;
-  /** Where the back link goes, in words: "Nearby projects". */
+  /** Where the back link goes, in words: "Back to the map". */
   backLabel: string;
   /** Which half this is; also which tab is marked, when there are tabs. */
   tab: 'overview' | 'sunlight';
@@ -1092,7 +782,7 @@ export function DevelopmentPanel({
   /** Which tab is showing. 'sunlight' is a different screen; see App. */
   tab: 'overview' | 'sunlight';
   onTab: (next: 'overview' | 'sunlight') => void;
-  /** "Nearby projects": the explore screen. */
+  /** "Back to the map": the explore screen. */
   onBack: () => void;
   /** "Start over": the front page. */
   onClose: () => void;
@@ -1126,7 +816,7 @@ export function DevelopmentPanel({
         title={development.streetAddress.split(',')[0]}
         locality={locality}
         meta={developmentSummary(development, storeys)}
-        backLabel="Nearby projects"
+        backLabel="Back to the map"
         tab={tab}
         onTab={onTab}
         onBack={onBack}

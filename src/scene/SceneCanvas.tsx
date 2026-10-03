@@ -115,6 +115,8 @@ interface SceneCanvasProps {
   /** True everywhere except the sunlight screen, which wants one shadow. */
   showAllProposals: boolean;
   onSelectDevelopment: (development: Development) => void;
+  /** A double click on a building standing today — see BuildingPicker. */
+  onSelectBuilding?: (buildingId: string) => void;
   receptor: [number, number] | null;
   /** The window being measured, if one has been chosen. */
   windowAt?: { en: [number, number]; ahdM: number; facingDeg: number } | null;
@@ -210,6 +212,7 @@ export function SceneCanvas({
   showSunArrow,
   showAllProposals,
   onSelectDevelopment,
+  onSelectBuilding,
   receptor,
   windowAt,
   onPickReceptor,
@@ -622,6 +625,7 @@ export function SceneCanvas({
             showProposed={showProposed}
             showAllProposals={showAllProposals}
             onSelectDevelopment={onSelectDevelopment}
+            onSelectBuilding={onSelectBuilding}
             receptor={receptor}
             windowAt={windowAt}
             onPickReceptor={onPickReceptor}

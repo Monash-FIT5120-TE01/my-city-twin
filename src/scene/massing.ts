@@ -124,21 +124,75 @@ export function mergeMassings(
   massings: Massing[],
   floorAhdM: number,
 ): BufferGeometry | null {
+  return mergeMassingsOwned(massings, floorAhdM)?.geometry ?? null;
+}
+
+/**
+ * A merged geometry that still knows which massing drew each triangle.
+ *
+ * The parts are extrusions without an index, so the merge lays their
+ * vertices end to end: part i owns vertices from ends[i - 1] (0 for the
+ * first) up to ends[i]. A ray's hit names a triangle (`faceIndex`); its
+ * first vertex is faceIndex × 3, and `ownerAt` finds the part it falls in.
+ * That is how a double click on the one welded city mesh names a building.
+ */
+export interface OwnedGeometry {
+  geometry: BufferGeometry;
+  /** Where each drawn massing's vertices end, in merge order. */
+  ends: Int32Array;
+  /** The massings drawn, in the same order — some are too thin to draw. */
+  owners: Massing[];
+}
+
+export function mergeMassingsOwned(
+  massings: Massing[],
+  floorAhdM: number,
+): OwnedGeometry | null {
   const parts: BufferGeometry[] = [];
+  const owners: Massing[] = [];
 
   for (const massing of massings) {
     const geometry = buildMassingGeometry(massing, floorAhdM);
-    if (geometry) parts.push(geometry);
+    if (geometry) {
+      parts.push(geometry);
+      owners.push(massing);
+    }
   }
 
   if (parts.length === 0) return null;
+
+  const ends = new Int32Array(parts.length);
+  let at = 0;
+  parts.forEach((part, i) => {
+    at += part.getAttribute('position').count;
+    ends[i] = at;
+  });
 
   const merged = mergeGeometries(parts, false);
   for (const part of parts) part.dispose();
   if (!merged) return null;
 
   merged.computeVertexNormals();
-  return merged;
+  return { geometry: merged, ends, owners };
+}
+
+/** The massing that drew triangle `faceIndex`, or null if it is out of range. */
+export function ownerAt<T extends Massing>(
+  owned: { ends: Int32Array; owners: T[] },
+  faceIndex: number,
+): T | null {
+  const vertex = faceIndex * 3;
+  const { ends, owners } = owned;
+  if (vertex < 0 || ends.length === 0 || vertex >= ends[ends.length - 1]) return null;
+  // The first part whose end lies beyond the vertex.
+  let lo = 0;
+  let hi = ends.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (ends[mid] > vertex) hi = mid;
+    else lo = mid + 1;
+  }
+  return owners[lo];
 }
 
 /** Elevation the flat ground plane is drawn at: the median of what stands on it. */

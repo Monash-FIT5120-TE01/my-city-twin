@@ -37,7 +37,7 @@
  *   with a colour-vision difference may not get. Hence the outline.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { BufferGeometry } from 'three';
 import type { BuildingMassing } from '../data/model';
 import { mergeMassings } from './massing';
@@ -69,6 +69,13 @@ export function HighlightedBuilding({
     () => (parts.length ? mergeMassings(parts, groundAhdM) : null),
     [parts, groundAhdM],
   );
+
+  /*
+   * Rebuilt for every building chosen, and react-three-fiber does not
+   * dispose a geometry it is handed — so the old one is let go here. With a
+   * double click on any building, choosing one after another is ordinary.
+   */
+  useEffect(() => () => geometry?.dispose(), [geometry]);
 
   if (!geometry) return null;
 

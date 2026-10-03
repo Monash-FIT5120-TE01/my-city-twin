@@ -50,6 +50,7 @@ import type {
 } from './model';
 import { centroidOf, projectLonLat, projectMultiPolygon, ringArea } from './project';
 import { LOCAL_ORIGIN_WGS84 } from '../scene/frame';
+import { summariseBuilding } from './buildingEntry';
 
 const num = (v: string | number | null | undefined): number => {
   const n = typeof v === 'number' ? v : Number.parseFloat(v ?? '');
@@ -233,16 +234,7 @@ function collectSearchable(buildings: BuildingMassing[]): SearchableBuilding[] {
 
   const out: SearchableBuilding[] = [];
   for (const [buildingId, { address, parts }] of byBuilding) {
-    const footprints = parts.flatMap((part) => part.footprint);
-    const topAhdM = Math.max(...parts.map((part) => part.topAhdM));
-    const baseAhdM = Math.min(...parts.map((part) => part.baseAhdM));
-    out.push({
-      buildingId,
-      streetAddress: address,
-      anchorEN: centroidOf(footprints),
-      topAhdM,
-      heightM: topAhdM - baseAhdM,
-    });
+    out.push(summariseBuilding(buildingId, address, parts));
   }
 
   // Tallest first, so a search that matches a street returns its landmarks

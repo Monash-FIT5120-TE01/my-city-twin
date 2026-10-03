@@ -64,7 +64,7 @@ import '../styles/landing.css';
 /** The three steps along the bottom, in the order the app is used. */
 const STEPS = [
   { title: 'Find a place', body: 'Search for an address or explore the map.' },
-  { title: 'Select any building', body: 'Double-click a building to see what’s happening nearby.' },
+  { title: 'Select any building', body: 'Double-click a building to open its page.' },
   {
     title: 'Compare sunlight',
     body: 'See how planned developments could affect sunlight on your street.',
@@ -410,7 +410,7 @@ export function LandingPage({
  * LAST frame, the finished skyline — the first frame is an empty page with
  * one stroke on it, which is a picture of nothing.
  */
-function SkylineFilm({ reducedMotion }: { reducedMotion: boolean }) {
+export function SkylineFilm({ reducedMotion }: { reducedMotion: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
   const [showing, setShowing] = useState(false);
 

@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:vr": "node scripts/vr-check.mjs",
     "test:page": "node scripts/page-check.mjs",
+    "how-images": "node scripts/how-images.mjs",
     "config": "node scripts/mapbox-config.mjs public"
   },
   "dependencies": {

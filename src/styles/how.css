@@ -1,0 +1,340 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * HOW IT WORKS
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The three-step page. See HowItWorksPage.tsx.
+ *
+ * IN THIS FILE
+ *   - The page, its head and the skyline.
+ *   - The three steps: pictures, chips, numbers.
+ *   - The key, the buttons, the fine print.
+ *   - A phone: one column.
+ */
+
+/* ── the page ───────────────────────────────────────────── */
+
+.how {
+  position: absolute;
+  inset: var(--h-header) 0 0 0;
+  /* Over the city, under the header. */
+  z-index: 2;
+  overflow-y: auto;
+  background: var(--cream);
+}
+
+.how__inner {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-5) clamp(var(--space-4), 3vw, 2.5rem) var(--space-4);
+}
+
+.how__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.how__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  font-weight: var(--weight-title);
+  line-height: 1.1;
+  color: var(--ink-green-900);
+}
+
+.how__title:focus {
+  outline: none;
+}
+
+.how__lede {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-lg);
+  color: var(--ink-2);
+}
+
+.how__film {
+  flex: 0 1 22rem;
+  min-width: 0;
+}
+
+/* ── the steps ──────────────────────────────────────────── */
+
+.how__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Picture, words: shared by the three cards, so the pictures line up. */
+  grid-template-rows: auto auto;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how__step {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+
+.how__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.how__picture {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+}
+
+.how__picture img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+/*
+ * Two pictures in the space of one: as tall as the other cards' pictures,
+ * cropped to it. Laid out of flow, so they take the row's height rather
+ * than setting it.
+ */
+.how__pair .how__picture {
+  min-height: 9rem;
+}
+
+.how__pair .how__picture img {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+/* A label laid on a picture: white, with a dark edge so it reads on any ground. */
+.how__chip {
+  position: absolute;
+  left: var(--space-2);
+  top: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: calc(100% - 2 * var(--space-2));
+  padding: 4px 10px;
+  border: 1px solid var(--cream-edge);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+  color: var(--ink-green-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.how__chip--search {
+  color: var(--ink);
+}
+
+/* Half-width pictures: the label wraps rather than being cut off. */
+.how__pair .how__chip {
+  border-radius: 10px;
+  white-space: normal;
+}
+
+.how__words p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.how__number {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  color: var(--green-700);
+}
+
+.how__step-title {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  color: var(--ink-green-900);
+}
+
+/* The moment the app is set to, as the row of chips in the design. */
+.how__words .how__when {
+  display: inline-flex;
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+  color: var(--ink-green-900);
+  font-weight: var(--weight-label);
+}
+
+.how__when span {
+  padding: 6px 12px;
+}
+
+.how__when span + span {
+  border-left: 1px solid var(--cream-edge);
+}
+
+.how__credit {
+  margin: calc(-1 * var(--space-3)) 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  text-align: right;
+}
+
+/* ── the key ────────────────────────────────────────────── */
+
+.how__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  font-size: var(--text-sm);
+}
+
+.how__legend-title {
+  font-weight: var(--weight-label);
+  color: var(--ink-green-900);
+}
+
+.how__key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.how__swatch {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+/* The colours the map draws — the same as the map key in Sources.tsx. */
+.how__swatch--existing {
+  background: #eeedf0;
+  box-shadow: inset 0 0 0 1px #7a8087;
+}
+
+.how__swatch--approved {
+  background: #6fbfa6;
+  box-shadow: inset 0 0 0 1px #2f7d66;
+}
+
+/* HighlightedBuilding's pink, lighter than "Approved" and darker than "Existing". */
+.how__swatch--searched {
+  background: #e87ba8;
+  box-shadow: inset 0 0 0 1px #a8406f;
+}
+
+/* The selection is an outline on the map (SelectionEdges' #1f3a32), so it is an outline here. */
+.how__swatch--selected {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px #1f3a32;
+}
+
+.how__legend-note {
+  margin-left: auto;
+  color: var(--ink-2);
+}
+
+/* ── the buttons and the fine print ─────────────────────── */
+
+.how__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.how__actions .button {
+  min-height: 48px;
+}
+
+.button.how__back {
+  border-color: var(--green-700);
+  background: var(--paper);
+  color: var(--green-700);
+}
+
+.button.how__back:hover {
+  background: var(--mint-100);
+}
+
+.how__foot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* ── a phone ────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .how__inner {
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-4) var(--space-3);
+  }
+
+  .how__head {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+
+  .how__film {
+    flex: none;
+    width: min(100%, 18rem);
+  }
+
+  .how__steps {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+
+  .how__step {
+    grid-row: auto;
+    grid-template-rows: auto auto;
+  }
+
+  .how__pair .how__picture img {
+    position: static;
+    aspect-ratio: 4 / 5;
+  }
+
+  .how__legend-note {
+    margin-left: 0;
+  }
+
+  .how__actions .button {
+    flex: 1 1 100%;
+  }
+}

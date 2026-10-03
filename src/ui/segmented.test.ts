@@ -100,8 +100,8 @@ describe('segmented controls', () => {
      * "Approved Plan".
      */
     const declared = [...screens.matchAll(/data-label=/g)].length;
-    // Four seasons plus the two-way city toggle.
-    expect(declared).toBeGreaterThanOrEqual(3);
+    // The two-way spot / window choice; the explore panel's city toggle is gone.
+    expect(declared).toBeGreaterThanOrEqual(2);
 
     /*
      * Anchored at data-label and run to the closing tag, so each button is

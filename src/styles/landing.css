@@ -794,20 +794,23 @@
   }
 
   /*
-   * The front page and the comparison page only: the sunlight screen shares
+   * The front page, the comparison and How it works: the sunlight screen shares
    * the look but keeps its field.
    */
   .app:has(.landing) .header.header--front,
-  .app:has(.compare) .header.header--front {
+  .app:has(.compare) .header.header--front,
+  .app:has(.how) .header.header--front {
     height: var(--h-header);
   }
 
   /*
    * The comparison page too: it starts directly under a one-row bar, and a
    * second row of bar covered its way back. Search is one press back away.
+   * The How it works page likewise.
    */
   .app:has(.landing) .header--front .header__search,
-  .app:has(.compare) .header--front .header__search {
+  .app:has(.compare) .header--front .header__search,
+  .app:has(.how) .header--front .header__search {
     display: none;
   }
 }
