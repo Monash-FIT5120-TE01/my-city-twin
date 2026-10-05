@@ -390,10 +390,12 @@ export function ViewControls({
 
 /* ── 02 Discovery Map: the layers ─────────────────────── */
 
-/** What the map draws: the approved projects, and the sun's shadows. */
+/** What the map draws: the approved projects, the sun's shadows, and the street lights after dark. */
 export interface Layers {
   developments: boolean;
   shadows: boolean;
+  /** Street and feature lights glow once the sun is fully down. Off keeps the night street unlit. */
+  streetLights: boolean;
 }
 
 /**
@@ -466,6 +468,11 @@ export function MapLayers({
               key: 'shadows',
               name: 'Sunlight & shadows',
               note: 'Preview shadows at the selected time',
+            },
+            {
+              key: 'streetLights',
+              name: 'Street lights',
+              note: 'Lit once the sun has fully set',
             },
           ] as const
         ).map((layer) => (

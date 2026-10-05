@@ -126,7 +126,7 @@ export default function App() {
 
   const [view, setView] = useState<ViewName>(initial.view);
   const [selectedKey, setSelectedKey] = useState<string | null>(initial.devKey);
-  const [layers, setLayers] = useState<Layers>({ developments: true, shadows: true });
+  const [layers, setLayers] = useState<Layers>({ developments: true, shadows: true, streetLights: true });
   const [date, setDate] = useState<SimulationDate>(initial.date);
   const [minutes, setMinutes] = useState(initial.minutes);
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
@@ -1369,6 +1369,7 @@ export default function App() {
           // On the comparison screen this is "today": no approved project.
           showProposed={compareShown ? false : layers.developments}
           castShadows={layers.shadows}
+          streetLights={layers.streetLights}
           showSunArrow={view === 'sunlight' && layers.shadows}
           /*
            * On the sunlight screen only the subject casts, so its shadow is
@@ -1664,7 +1665,7 @@ export default function App() {
             in a product about shadows, should say somewhere that it was
             asked to be — otherwise it reads as broken.
           */
-          layersHidden={Number(!layers.developments) + Number(!layers.shadows)}
+          layersHidden={Number(!layers.developments) + Number(!layers.shadows) + Number(!layers.streetLights)}
           onLayers={() => {
             setQuery('');
             setLayersOpen((open) => !open);

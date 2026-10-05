@@ -99,6 +99,7 @@ import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
 import { ViewInset, type ScreenInset } from './ViewInset';
 import { ViewLink } from './ViewLink';
+import { detectDevice } from './streetscape/lod';
 import type { CameraLink } from './cameraLink';
 import type { SunAngles } from './sun';
 import type { CityModel, Development } from '../data/model';
@@ -110,6 +111,12 @@ interface SceneCanvasProps {
   /** The plans are in the city — the "after". False shows the city as it is. */
   showProposed: boolean;
   castShadows: boolean;
+  /**
+   * The visitor's Map layers switch for the street lights. They are lit only when this is on and the sun is
+   * fully below the horizon (centre 0.833 degrees down: refraction plus the sun's radius), so they never
+   * brighten a street whose shadows are being read in daylight. Off by default (the compare canvas).
+   */
+  streetLights?: boolean;
   /** The ground arrow showing which way the light travels. */
   showSunArrow: boolean;
   /** True everywhere except the sunlight screen, which wants one shadow. */
@@ -209,6 +216,7 @@ export function SceneCanvas({
   sun,
   showProposed,
   castShadows,
+  streetLights = false,
   showSunArrow,
   showAllProposals,
   onSelectDevelopment,
@@ -560,7 +568,9 @@ export function SceneCanvas({
       // Explicit rather than `shadows` — the default soft map is deprecated
       // in three 0.185 and silently falls back to this one anyway.
       shadows="percentage"
-      dpr={[1, 2]}
+      // Phones and headsets: at most 1.5 device pixels per CSS pixel; the extra pixels of a 3x screen cost
+      // fill rate the street level needs (see streetscape/lod.ts).
+      dpr={detectDevice() === 'desktop' ? [1, 2] : [1, 1.5]}
       // The design views are high obliques with little perspective distortion,
       // so a long lens rather than the 50° default.
       camera={{ position: openingShot, fov: 30, near: 5, far: 20000 }}
@@ -619,6 +629,7 @@ export function SceneCanvas({
           />
           <CityMassing
             haze={sky.haze}
+            lampsLit={streetLights && sun.altitudeDeg < -0.833}
             walking={walking}
             model={model}
             focus={focus}

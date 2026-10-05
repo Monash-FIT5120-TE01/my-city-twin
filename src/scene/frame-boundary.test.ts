@@ -33,6 +33,16 @@ const INSIDE = [
   'DevelopmentMassings.tsx',
   'SunArrow.tsx',
   'SunLight.tsx',
+  'streetscape/Streetscape.tsx',
+  'streetscape/kit.ts',
+  'streetscape/surfaces.ts',
+  'streetscape/trees.ts',
+  'streetscape/street.ts',
+  'streetscape/signals.ts',
+  'streetscape/tram.ts',
+  'streetscape/lights.ts',
+  'streetscape/lod.ts',
+  'streetscape/pedestrianAudio.ts',
 ];
 
 /**

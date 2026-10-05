@@ -12,6 +12,7 @@ import { HazeVeil } from './HazeVeil';
 import { DevelopmentMassings } from './DevelopmentMassings';
 import { ReceptorMarker } from './ReceptorMarker';
 import { WindowMarker } from './WindowMarker';
+import { Streetscape } from './streetscape/Streetscape';
 import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
 import { BuildingPicker } from './BuildingPicker';
@@ -55,6 +56,8 @@ interface CityMassingProps {
   interactive: boolean;
   /** What the ground dissolves into far away — see sky.ts. */
   haze: string;
+  /** Street and feature lights glowing (after sunset, if the visitor has them on). */
+  lampsLit?: boolean;
   /** Standing in the street rather than looking down at it. */
   walking: boolean;
 }
@@ -82,6 +85,7 @@ export function CityMassing({
   showHighlighted,
   haze,
   walking,
+  lampsLit = false,
 }: CityMassingProps) {
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
@@ -194,6 +198,13 @@ export function CityMassing({
         than staying sharp inside a fading surround.
       */}
       <OpenSpace groundAhdM={groundAhdM} />
+
+      {/*
+        The street level from open data: surfaces, trees, lights, signals, tram infrastructure and street
+        furniture. It draws the real road outlines, so the inferred roads below are only the fallback for
+        where it has nothing; see streetscape/Streetscape.tsx.
+      */}
+      <Streetscape groundAhdM={groundAhdM} lampsLit={lampsLit} />
 
       {/*
         The inferred carriageways stand down once a real map is under the
