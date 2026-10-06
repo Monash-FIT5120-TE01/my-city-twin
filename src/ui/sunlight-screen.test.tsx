@@ -74,13 +74,9 @@ describe('the sunlight panel', () => {
     expect(html).not.toMatch(/aria-pressed="[^"]*"[^>]*>Compare/);
   });
 
-  it('offers "Show this building" for a standing building only', () => {
+  it('no longer offers "Show this building", for a project or a building', () => {
     expect(sheet()).not.toContain('Show this building');
-    const building = sheet({
-      subjectKind: 'building',
-      subjectShown: { shown: true, onShown: noop },
-    });
-    expect(building).toContain('Show this building');
+    expect(sheet({ subjectKind: 'building' })).not.toContain('Show this building');
   });
 
   it('keeps Details, Choose a spot, How it works and a way to the sources', () => {

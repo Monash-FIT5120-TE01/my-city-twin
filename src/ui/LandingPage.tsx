@@ -204,6 +204,43 @@ export function LandingPage({
     };
   }, []);
 
+  /*
+   * Snap scrolling (landing.css) for a mouse wheel.
+   *
+   * The page snaps to the first screen and to the top of each section below
+   * it. Touch, keys and trackpad flings are snapped by the browser, but one
+   * notch of a wheel moves about 100 px, and the nearest snap point to that is
+   * the one it started from: the page would not move at all. So a wheel turn
+   * goes to the next snap point (or the one before) and the rest of that turn
+   * is ignored until it has arrived. Inside a section taller than the window,
+   * the wheel scrolls it as usual until its edge comes into view.
+   */
+  useEffect(() => {
+    const page = root.current;
+    if (!page) return;
+    let busyUntil = 0;
+    const targets = () => {
+      const header = parseFloat(getComputedStyle(page).scrollPaddingTop) || 0;
+      const base = page.getBoundingClientRect().top - page.scrollTop, end = page.scrollHeight - page.clientHeight;
+      const tops = [...page.querySelectorAll<HTMLElement>('.more > section')].map((s) => s.getBoundingClientRect().top - base - header);
+      return [0, ...tops, end].map((v) => Math.max(0, Math.min(end, Math.round(v)))).sort((x, y) => x - y);
+    };
+    const onWheel = (event: WheelEvent) => {
+      // pinch-zoom and sideways scrolling are not page scrolls
+      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      const now = performance.now();
+      if (now < busyUntil) { event.preventDefault(); return; }
+      const at = page.scrollTop, list = targets();
+      const next = event.deltaY > 0 ? list.find((v) => v > at + 2) : [...list].reverse().find((v) => v < at - 2);
+      if (next === undefined || Math.abs(next - at) > page.clientHeight) return;
+      event.preventDefault();
+      busyUntil = now + 700;
+      page.scrollTo({ top: next, behavior: reducedMotion ? 'auto' : 'smooth' });
+    };
+    page.addEventListener('wheel', onWheel, { passive: false });
+    return () => page.removeEventListener('wheel', onWheel);
+  }, [reducedMotion]);
+
   /** The main button: on to the sunlight screen, or ask for a place first. */
   const sunlight = () => {
     if (chosen) {

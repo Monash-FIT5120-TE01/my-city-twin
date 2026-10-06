@@ -1001,7 +1001,6 @@ export function SunlightSheet({
   onCancelChoose,
   afterPlans,
   onAfterPlans,
-  subjectShown,
   onCompare,
   subjectKind = 'development',
   apartment,
@@ -1057,11 +1056,6 @@ export function SunlightSheet({
    */
   afterPlans: boolean;
   onAfterPlans: (next: boolean) => void;
-  /**
-   * For a standing building only: whether the building itself is drawn. The
-   * "before" of what it takes from the street.
-   */
-  subjectShown?: { shown: boolean; onShown: (next: boolean) => void };
   /** Opens the comparison screen: today and after, side by side. */
   onCompare: () => void;
   /** A proposal ("project") or a building already standing ("building"). */
@@ -1261,16 +1255,6 @@ export function SunlightSheet({
                 ? 'The city as it stands.'
                 : 'The city as it stands — this project is not built yet.'}
           </p>
-          {subjectShown && (
-            <label className="choice__row choice__row--check">
-              <input
-                type="checkbox"
-                checked={subjectShown.shown}
-                onChange={(event) => subjectShown.onShown(event.target.checked)}
-              />
-              Show this building
-            </label>
-          )}
         </section>
 
         {/*

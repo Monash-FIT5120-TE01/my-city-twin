@@ -51,6 +51,24 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   pointer-events: none;
+  /*
+   * Snap scrolling (2026-10-06): a scroll comes to rest on the first screen or
+   * on the top of a section below it, never halfway between two. The fixed
+   * header covers the top of the page, so a section comes to rest just under
+   * it. A section taller than the window still scrolls freely inside itself
+   * (the browser does not snap past content it would hide).
+   */
+  scroll-snap-type: y mandatory;
+  scroll-padding-top: var(--h-header);
+}
+
+.landing__screen,
+.landing .more > section {
+  scroll-snap-align: start;
+}
+
+.landing .more__footer {
+  scroll-snap-align: end;
 }
 
 /* The first screen: exactly the window's height, laid out as a grid. */

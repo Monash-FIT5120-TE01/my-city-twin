@@ -676,14 +676,6 @@ function SunlightPage({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void }
         onChange={menu.onSeason}
       />
       <TimeRail menu={menu} />
-      <Segmented<'without' | 'with'>
-        options={[
-          { value: 'without', label: 'Without it' },
-          { value: 'with', label: `With this ${noun}` },
-        ]}
-        value={menu.showSubject ? 'with' : 'without'}
-        onChange={(value) => menu.onShowSubject(value === 'with')}
-      />
 
       {menu.armed ? (
         <Container flexDirection="column" gap={10} padding={16} borderRadius={14} backgroundColor={GREEN_SOFT}>

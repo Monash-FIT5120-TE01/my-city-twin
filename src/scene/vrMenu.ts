@@ -81,10 +81,6 @@ export interface VrMenu {
   sunrise: number | null;
   sunset: number | null;
 
-  /** The before/after switch: the subject shown, or taken away. */
-  showSubject: boolean;
-  onShowSubject: (show: boolean) => void;
-
   /** The ground is waiting for a point. */
   armed: boolean;
   onMeasure: () => void;

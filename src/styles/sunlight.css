@@ -16,7 +16,7 @@
  *     credit and the map controls move to beside it.
  *   - The headings, and "Details" under the address.
  *   - The season: four buttons, the chosen one filled.
- *   - The neighbourhood: today or after, and "Show this building".
+ *   - The neighbourhood: today or after.
  *   - The two actions: "Choose a spot" and "Compare side by side".
  *   - The fine print along the foot of the map, and what changes on a
  *     phone.
@@ -165,11 +165,6 @@
   margin: 0;
   accent-color: var(--green-700);
   cursor: pointer;
-}
-
-.choice__row--check {
-  margin-top: var(--space-1);
-  font-size: var(--text-sm);
 }
 
 /* ── the two actions ────────────────────────────────────── */

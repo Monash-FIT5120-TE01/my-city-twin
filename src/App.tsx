@@ -304,14 +304,6 @@ export default function App() {
     north: number;
     heightM: number;
   } | null>(null);
-  /*
-   * "Show this building" on the sunlight screen, when the subject is an
-   * existing building: the building itself taken away, to show what it
-   * takes from the street. Its own flag, apart from the developments layer
-   * (the today / after switch), because hiding one building must not also
-   * hide every proposal in the city.
-   */
-  const [showSubject, setShowSubject] = useState(true);
   /** True once a place has actually been chosen, rather than defaulted to. */
   const [hasChosen, setHasChosen] = useState(
     Boolean(initial.devKey || initial.buildingId),
@@ -919,7 +911,6 @@ export default function App() {
     setSelectedBuildingId(null);
     setLookAt(null);
     setHasChosen(true);
-    setShowSubject(true);
     setView(next);
   };
 
@@ -975,7 +966,6 @@ export default function App() {
       heightM: building.heightM,
     });
     setHasChosen(true);
-    setShowSubject(true);
     // Straight to its own page, the way a searched proposal opens on its
     // project page rather than on the map behind it.
     setView('building');
@@ -1005,7 +995,6 @@ export default function App() {
       });
     }
     setHasChosen(true);
-    setShowSubject(true);
     setReceptor(null);
     setChoosing(false);
   };
@@ -1276,11 +1265,6 @@ export default function App() {
         railEnd: LATEST_MINUTES,
         sunrise: daylight.rise,
         sunset: daylight.set,
-        showSubject: place?.kind === 'building' ? showSubject : layers.developments,
-        onShowSubject: (next) =>
-          place?.kind === 'building'
-            ? setShowSubject(next)
-            : setLayers({ ...layers, developments: next }),
         armed,
         onMeasure: () => {
           // Measuring belongs to the sunlight page; `armed` requires it.
@@ -1427,18 +1411,13 @@ export default function App() {
               : undefined
           }
           highlightedBuildingId={foundBuilding?.buildingId ?? null}
-          // Only the sunlight screen ever takes it away, and only when it is
-          // the subject. Everywhere else a searched building is simply there.
-          showHighlighted={
-            view === 'sunlight' && place?.kind === 'building' ? showSubject : true
-          }
+          showHighlighted
           /*
             The pin and the name follow the chosen place, whatever kind it
-            is. Nothing to point at while the building is switched off: the
-            pin would otherwise hang in the air above the gap where it stood.
+            is.
           */
           marker={
-            place && !(view === 'sunlight' && place.kind === 'building' && !showSubject)
+            place
               ? {
                   anchorEN: place.anchorEN,
                   topAhdM: place.topAhdM,
@@ -1868,11 +1847,6 @@ export default function App() {
             }
             afterPlans={layers.developments}
             onAfterPlans={(next) => setLayers({ ...layers, developments: next })}
-            subjectShown={
-              place.kind === 'building'
-                ? { shown: showSubject, onShown: setShowSubject }
-                : undefined
-            }
             // Today and after, side by side, on a page of their own.
             onCompare={() => {
               setChoosing(false);
