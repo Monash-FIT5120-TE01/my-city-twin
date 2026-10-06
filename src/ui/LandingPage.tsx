@@ -82,6 +82,9 @@ const CREDIT_ROOM = 72;
 export const HOW_IT_WORKS_ID = 'how-it-works';
 
 /** The front page, over the city, with a window cut in it for the city. */
+/** How long a wheel turn takes to glide to the next section, ms (slower than the browser's 'smooth'). */
+const SNAP_GLIDE_MS = 850;
+
 export function LandingPage({
   query,
   onQuery,
@@ -218,7 +221,25 @@ export function LandingPage({
   useEffect(() => {
     const page = root.current;
     if (!page) return;
-    let busyUntil = 0;
+    let busyUntil = 0, frame = 0;
+    /*
+     * Our own easing rather than the browser's 'smooth', which is quick and
+     * cannot be slowed. The snap is switched off while it runs: the browser
+     * re-snaps every position a script sets, and would pull each frame back.
+     */
+    const glide = (to: number) => {
+      const from = page.scrollTop, start = performance.now();
+      cancelAnimationFrame(frame);
+      page.style.scrollSnapType = 'none';
+      const step = (now: number) => {
+        const u = Math.min(1, (now - start) / SNAP_GLIDE_MS);
+        const eased = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;   // ease in and out
+        page.scrollTop = from + (to - from) * eased;
+        if (u < 1) frame = requestAnimationFrame(step);
+        else page.style.scrollSnapType = '';
+      };
+      frame = requestAnimationFrame(step);
+    };
     const targets = () => {
       const header = parseFloat(getComputedStyle(page).scrollPaddingTop) || 0;
       const base = page.getBoundingClientRect().top - page.scrollTop, end = page.scrollHeight - page.clientHeight;
@@ -234,11 +255,12 @@ export function LandingPage({
       const next = event.deltaY > 0 ? list.find((v) => v > at + 2) : [...list].reverse().find((v) => v < at - 2);
       if (next === undefined || Math.abs(next - at) > page.clientHeight) return;
       event.preventDefault();
-      busyUntil = now + 700;
-      page.scrollTo({ top: next, behavior: reducedMotion ? 'auto' : 'smooth' });
+      if (reducedMotion) { busyUntil = now + 300; page.scrollTo({ top: next }); return; }
+      busyUntil = now + SNAP_GLIDE_MS + 150;
+      glide(next);
     };
     page.addEventListener('wheel', onWheel, { passive: false });
-    return () => page.removeEventListener('wheel', onWheel);
+    return () => { page.removeEventListener('wheel', onWheel); cancelAnimationFrame(frame); page.style.scrollSnapType = ''; };
   }, [reducedMotion]);
 
   /** The main button: on to the sunlight screen, or ask for a place first. */
