@@ -28,7 +28,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Group, Vector3, type Mesh, type Object3D } from 'three';
+import { Group, Quaternion, Vector3, type Mesh, type Object3D } from 'three';
 import { bundled } from '../../data/bundled';
 import { buildSurfaces, SurfaceTextures, type SurfacesDoc } from './surfaces';
 import { buildTrees, type TreesDoc } from './trees';
@@ -38,6 +38,19 @@ import { buildTram, type TramDoc } from './tram';
 import { PedestrianAudio } from './pedestrianAudio';
 import { Lighting } from './lights';
 import { setSlicer } from './kit';
+import { TramLayer } from './trams/TramLayer';
+import type { DayKey, TramsDoc } from './trams/tramSim';
+import type { SimulationDate } from '../solar';
+
+/** The trams start this long before the clock and run fast to it, so the street is not empty at first. */
+const WARM_S = 900, WARM_STEPS_PER_FRAME = 60;
+let tramsDoc: Promise<TramsDoc> | null = null;
+const loadTrams = () => (tramsDoc ??= fetch(bundled('data/streetscape/trams.json')).then((r) => (r.ok ? r.json() : Promise.reject(new Error('trams')))));
+/** The timetable a date runs: the feed has one ordinary day of each type (special days are not modelled). */
+function dayOf(d: SimulationDate): DayKey {
+  const w = new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay();
+  return w === 0 ? 'sun' : w === 6 ? 'sat' : w === 5 ? 'fri' : 'monThu';
+}
 import { DEVICE, DIST, LodSet, detectDevice, type DeviceSettings } from './lod';
 
 interface Docs { surfaces: SurfacesDoc; trees: TreesDoc; street: StreetDoc; signals: SignalsDoc; tram: TramDoc }
@@ -110,7 +123,13 @@ function stepBands(b: Built, cam: Vector3, device: DeviceSettings): void {
  * @param lampsLit street and feature lights on: decided by the caller (after sunset, unless the visitor has
  *                 switched the street lights off in Map layers).
  */
-export function Streetscape({ groundAhdM, lampsLit = false }: { groundAhdM: number; lampsLit?: boolean }) {
+export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clock }: {
+  groundAhdM: number; lampsLit?: boolean;
+  /** Standing in the street: the trams run (only then; see trams/TramLayer.ts). */
+  walking?: boolean;
+  /** The date and time on the page's clock: the trams run to that day's timetable from that minute. */
+  clock?: { date: SimulationDate; minutes: number };
+}) {
   const [built, setBuilt] = useState<Built | null>(null);
   const getThree = useThree((s) => s.get);
   useEffect(() => {
@@ -153,11 +172,50 @@ export function Streetscape({ groundAhdM, lampsLit = false }: { groundAhdM: numb
     return () => { a.dispose(); audio.current = null; };
   }, [built, camera]);
 
-  const tick = useRef(1), sweep = useRef(0), cam = useMemo(() => new Vector3(), []);
+  // ── trams: loaded and run only while standing in the street ──
+  const trams = useRef<{ layer: TramLayer; warm: number } | null>(null);
+  const clockKey = clock ? `${clock.date.year}-${clock.date.month}-${clock.date.day}-${clock.minutes}` : '';
+  useEffect(() => {
+    if (!built || !walking || !clock) return;
+    let alive = true, layer: TramLayer | null = null;
+    loadTrams().then((doc) => {
+      if (!alive) return;
+      const day = dayOf(clock.date), start = clock.minutes * 60 - WARM_S;
+      layer = new TramLayer(doc, day, start, (site, t) => built.signals.phase(site, t));
+      built.root.add(layer.group);
+      trams.current = { layer, warm: WARM_S };
+      // for the browser checks in scripts/ (development builds only)
+      if (import.meta.env.DEV) (window as unknown as { __trams?: TramLayer }).__trams = layer;
+    }).catch(() => undefined);
+    return () => { alive = false; if (layer) { built.root.remove(layer.group); layer.dispose(); } trams.current = null; };
+    // clockKey stands for clock: a new date or minute restarts the day's trams from there
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [built, walking, clockKey]);
+  // boarding and stepping off: a click on a tram door (the pointer is locked while walking), and E
+  useEffect(() => {
+    if (!walking) return;
+    const at = new Vector3(), dir = new Vector3(), q = new Quaternion();
+    const toLocal = () => {
+      const b = live.current; if (!b) return false;
+      camera.getWorldPosition(at); b.root.worldToLocal(at);
+      camera.getWorldDirection(dir); b.root.getWorldQuaternion(q); dir.applyQuaternion(q.invert());
+      return true;
+    };
+    const down = (e: MouseEvent) => { if (e.button === 0 && trams.current && !trams.current.warm && toLocal()) trams.current.layer.click(at, dir); };
+    const key = (e: KeyboardEvent) => trams.current?.layer.key(e.code);
+    window.addEventListener('mousedown', down); window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('mousedown', down); window.removeEventListener('keydown', key); };
+  }, [walking, camera]);
+
+  const tick = useRef(1), sweep = useRef(0), cam = useMemo(() => new Vector3(), []), camNow = useMemo(() => new Vector3(), []);
   useFrame((state, dt) => {
     const built = live.current;
     if (!built) return;
-    const t = state.clock.elapsedTime;
+    // one clock for the signals and the trams that obey them: the trams' while they run
+    const run = trams.current;
+    if (run && run.warm > 0) { const steps = Math.min(run.warm / 0.5, WARM_STEPS_PER_FRAME); run.layer.sim.warmUp(steps * 0.5, 0.5); run.warm -= steps * 0.5; }
+    else if (run) { state.camera.getWorldPosition(camNow); built.root.worldToLocal(camNow); run.layer.update(dt, camNow, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice].reach); }
+    const t = run ? run.layer.sim.time : state.clock.elapsedTime;
     built.signals.update(t);
     built.lighting.setLit(lampsLit);
     tick.current += dt; if (tick.current < 0.25) return; tick.current = 0;

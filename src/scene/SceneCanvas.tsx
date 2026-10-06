@@ -100,6 +100,7 @@ import { enuToWorld } from './frame';
 import { ViewInset, type ScreenInset } from './ViewInset';
 import { ViewLink } from './ViewLink';
 import { detectDevice } from './streetscape/lod';
+import type { SimulationDate } from './solar';
 import type { CameraLink } from './cameraLink';
 import type { SunAngles } from './sun';
 import type { CityModel, Development } from '../data/model';
@@ -117,6 +118,8 @@ interface SceneCanvasProps {
    * brighten a street whose shadows are being read in daylight. Off by default (the compare canvas).
    */
   streetLights?: boolean;
+  /** The page's date and time, for the trams' timetable (streetscape/trams). */
+  clock?: { date: SimulationDate; minutes: number };
   /** The ground arrow showing which way the light travels. */
   showSunArrow: boolean;
   /** True everywhere except the sunlight screen, which wants one shadow. */
@@ -217,6 +220,7 @@ export function SceneCanvas({
   showProposed,
   castShadows,
   streetLights = false,
+  clock,
   showSunArrow,
   showAllProposals,
   onSelectDevelopment,
@@ -630,6 +634,7 @@ export function SceneCanvas({
           <CityMassing
             haze={sky.haze}
             lampsLit={streetLights && sun.altitudeDeg < -0.833}
+            clock={clock}
             walking={walking}
             model={model}
             focus={focus}

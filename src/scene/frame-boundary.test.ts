@@ -43,6 +43,10 @@ const INSIDE = [
   'streetscape/lights.ts',
   'streetscape/lod.ts',
   'streetscape/pedestrianAudio.ts',
+  'streetscape/signalPlan.ts',
+  'streetscape/trams/TramLayer.ts',
+  'streetscape/trams/tramModel.ts',
+  'streetscape/trams/tramSim.ts',
 ];
 
 /**

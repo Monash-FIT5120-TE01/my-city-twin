@@ -13,6 +13,7 @@ import { DevelopmentMassings } from './DevelopmentMassings';
 import { ReceptorMarker } from './ReceptorMarker';
 import { WindowMarker } from './WindowMarker';
 import { Streetscape } from './streetscape/Streetscape';
+import type { SimulationDate } from './solar';
 import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
 import { BuildingPicker } from './BuildingPicker';
@@ -58,6 +59,8 @@ interface CityMassingProps {
   haze: string;
   /** Street and feature lights glowing (after sunset, if the visitor has them on). */
   lampsLit?: boolean;
+  /** The page's date and time: the trams run to that day's timetable while walking. */
+  clock?: { date: SimulationDate; minutes: number };
   /** Standing in the street rather than looking down at it. */
   walking: boolean;
 }
@@ -86,6 +89,7 @@ export function CityMassing({
   haze,
   walking,
   lampsLit = false,
+  clock,
 }: CityMassingProps) {
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
@@ -204,7 +208,7 @@ export function CityMassing({
         furniture. It draws the real road outlines, so the inferred roads below are only the fallback for
         where it has nothing; see streetscape/Streetscape.tsx.
       */}
-      <Streetscape groundAhdM={groundAhdM} lampsLit={lampsLit} />
+      <Streetscape groundAhdM={groundAhdM} lampsLit={lampsLit} walking={walking} clock={clock} />
 
       {/*
         The inferred carriageways stand down once a real map is under the

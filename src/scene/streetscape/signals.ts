@@ -29,6 +29,7 @@ import {
 } from 'three';
 import { Batch, MAT, TALL_CELL_M, UNIT_BOX, UNIT_CYL, at, boxAt, canvasTexture, quiet, shared, slice, type XY } from './kit';
 import { DIST, compactEach, type CompactGroup } from './lod';
+import { phaseOf, planFor, type Phase, type SignalPlan } from './signalPlan';
 
 export interface SignalsDoc {
   sites: { id: string; name: string; type: string; p: XY; corners: { pt: XY; items: [string, number, string, number][]; ped: [number, string][] }[] }[];
@@ -36,17 +37,7 @@ export interface SignalsDoc {
   marks: [number, number, number, number, number][];
 }
 
-export const CYCLE_S = 46;
-/** 2 green, 1 amber, 0 red, for road A and B, and which road pedestrians may cross. */
-export function phaseAt(t: number): { A: number; B: number; walk: 'A' | 'B' | null } {
-  const x = ((t % CYCLE_S) + CYCLE_S) % CYCLE_S;
-  if (x < 18) return { A: 2, B: 0, walk: 'B' };
-  if (x < 21) return { A: 1, B: 0, walk: null };
-  if (x < 23) return { A: 0, B: 0, walk: null };
-  if (x < 41) return { A: 0, B: 2, walk: 'A' };
-  if (x < 44) return { A: 0, B: 1, walk: null };
-  return { A: 0, B: 0, walk: null };
-}
+// Timing per intersection: signalPlan.ts (cycle lengths, amber and all-red from DTP and field timings).
 
 const FOOTWAY = 0.14;
 const local = (x: number, y: number, yaw: number, u: number, v: number): XY => [x + Math.cos(yaw) * u - Math.sin(yaw) * v, y + Math.sin(yaw) * u + Math.cos(yaw) * v];
@@ -71,7 +62,7 @@ export class SignalSystem {
   marks!: CompactGroup;
   /** Push buttons: position (local east/north/up), site index and which road they cross. */
   readonly buttons: { pos: Vector3; site: number; crosses: string }[] = [];
-  private offsets: number[] = [];
+  private plans: SignalPlan[] = [];
   private lamps: { mesh: InstancedMesh; list: Lamp[]; on: Color[] } [] = [];
   private peds: { top: InstancedMesh; bot: InstancedMesh; list: { site: number; crosses: string }[] } | null = null;
   private trams: { mesh: InstancedMesh; list: { site: number; road: string }[] } | null = null;
@@ -81,7 +72,7 @@ export class SignalSystem {
   /** Builds the posts, heads and lamps (in slices, see kit.ts). */
   async build(doc: SignalsDoc): Promise<this> {
     this.group.name = 'signals';
-    this.offsets = doc.sites.map((s) => (parseInt(s.id, 10) * 7.3) % CYCLE_S);
+    this.plans = doc.sites.map(planFor);
     const near = new Batch(), mid = new Batch(TALL_CELL_M);
     const put = (b: Batch, geo: BufferGeometry, mat: Material, x: number, y: number, z: number, yaw: number, u: number, v: number, sx = 1, sy = 1, sz = 1) => {
       const [px, py] = local(x, y, yaw, u, v); b.add(geo, mat, at(px, py, z, yaw, sx, sy, sz));
@@ -113,7 +104,7 @@ export class SignalSystem {
             put(near, role === 'P' ? VISOR1 : VISOR3, MAT.visor, x, y, zc + dz, yaw, 0.296, 0);
             const [px, py] = local(x, y, yaw, 0.297, 0);
             (k === 0 ? redM : k === 1 ? ambM : grnM).push([px, py, zc + dz, yaw]);
-            (k === 0 ? red : k === 1 ? amber : green).push({ site: si, road, aspect: k }); // top red = 0, amber = 1, bottom green = 2 (as phaseAt)
+            (k === 0 ? red : k === 1 ? amber : green).push({ site: si, road, aspect: k }); // top red = 0, amber = 1, bottom green = 2 (as phaseOf)
           });
           if (tram) {   // tram lantern: a white bar, lit with its road's green (EST: tram phases not modelled)
             put(near, UNIT_BOX, MAT.signal, x, y, z0 + 3.0, yaw, 0.2, 0, 0.19, 0.27, 0.3);
@@ -176,7 +167,7 @@ export class SignalSystem {
   }
 
   /** Phase of one site at time t (s). */
-  phase(site: number, t: number) { return phaseAt(t + this.offsets[site]); }
+  phase(site: number, t: number): Phase { return phaseOf(this.plans[site], t); }
 
   /** Recolour the lamps; cheap when nothing changed (checked once per whole second). */
   update(t: number): void {

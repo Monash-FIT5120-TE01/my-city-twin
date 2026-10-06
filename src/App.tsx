@@ -88,6 +88,7 @@ import { FUTURE_PLANS_ID } from './ui/LandingMore';
 import { SourcesLink } from './ui/Sources';
 import { ComparePage, type FrameRect } from './ui/ComparePage';
 import { HowItWorksPage } from './ui/HowItWorksPage';
+import { TramHint } from './ui/TramHint';
 import { createCameraLink } from './scene/cameraLink';
 import './styles/sunlight.css';
 import type { ScreenInset } from './scene/ViewInset';
@@ -129,6 +130,8 @@ export default function App() {
   const [layers, setLayers] = useState<Layers>({ developments: true, shadows: true, streetLights: true });
   const [date, setDate] = useState<SimulationDate>(initial.date);
   const [minutes, setMinutes] = useState(initial.minutes);
+  // the trams' timetable day and start (streetscape/trams); one object per change, not per render
+  const tramClock = useMemo(() => ({ date, minutes }), [date, minutes]);
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
 
   /*
@@ -1354,6 +1357,7 @@ export default function App() {
           showProposed={compareShown ? false : layers.developments}
           castShadows={layers.shadows}
           streetLights={layers.streetLights}
+          clock={tramClock}
           showSunArrow={view === 'sunlight' && layers.shadows}
           /*
            * On the sunlight screen only the subject casts, so its shadow is
@@ -1562,6 +1566,7 @@ export default function App() {
         <p className="walking-hint">
           <strong>W A S D</strong> to walk · <strong>Shift</strong> to hurry ·{' '}
           <strong>Esc</strong> to come back up
+          <TramHint />
           {/*
             ── THE WAY INTO A HEADSET ─────────────────────────────────────
 

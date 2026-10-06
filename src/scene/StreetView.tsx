@@ -51,6 +51,7 @@ import { PointerLockControls } from '@react-three/drei';
 import { Vector3 } from 'three';
 import { enuToWorld } from './frame';
 import { slide, type ObstacleIndex } from './obstacles';
+import { ride } from './streetscape/trams/ride';
 
 /** Standing height, metres. */
 export const EYE_HEIGHT_M = 1.7;
@@ -98,6 +99,9 @@ const MAX_STEP_S = 0.1;
 const WALK_NEAR = 0.3;
 const WALK_FAR = 12000;
 
+/** World up (y), the axis a tram's turn turns the rider's view about. */
+const UP = new Vector3(0, 1, 0);
+
 interface StreetViewProps {
   /** Where to stand, east/north metres. */
   startEN: [number, number];
@@ -124,6 +128,8 @@ export function StreetView({
   const held = useRef(new Set<string>());
   const forward = useRef(new Vector3());
   const sideways = useRef(new Vector3());
+  /** The tram's heading last frame while riding, so the view turns with it; null on foot. */
+  const rideHeading = useRef<number | null>(null);
 
   /*
    * Down into the street on entry, and back where we came from on the way
@@ -226,6 +232,25 @@ export function StreetView({
   }, [onExit]);
 
   useFrame((_, rawDelta) => {
+    /*
+     * On a tram (streetscape/trams/ride.ts): the eye is carried by it and the view turns as it turns, so a
+     * look out of the side window stays a look out of the side window round a corner. Walking keys do
+     * nothing until the rider steps off, where the tram layer says.
+     */
+    if (ride.active) {
+      const [x, y, z] = enuToWorld([ride.eye[0], ride.eye[1], groundAhdM + ride.eye[2]]);
+      camera.position.set(x, y, z);
+      if (rideHeading.current !== null) camera.rotateOnWorldAxis(UP, ride.heading - rideHeading.current);
+      rideHeading.current = ride.heading;
+      return;
+    }
+    rideHeading.current = null;
+    if (ride.stepOff) {
+      const [x, , z] = enuToWorld([ride.stepOff[0], ride.stepOff[1], 0]);
+      camera.position.set(x, groundAhdM + EYE_HEIGHT_M, z);
+      ride.stepOff = null;
+    }
+
     const delta = Math.min(rawDelta, MAX_STEP_S);
     const keys = held.current;
     const ahead = Number(keys.has('KeyW') || keys.has('ArrowUp')) -
