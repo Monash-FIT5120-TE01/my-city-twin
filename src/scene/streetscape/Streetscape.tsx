@@ -57,6 +57,13 @@ function dayOf(d: SimulationDate): DayKey {
   const w = new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay();
   return w === 0 ? 'sun' : w === 6 ? 'sat' : w === 5 ? 'fri' : 'monThu';
 }
+/** The day before's timetable day: its late trips (listed past 24:00) are still running after midnight. */
+function dayBefore(d: SimulationDate): DayKey {
+  const t = new Date(Date.UTC(d.year, d.month - 1, d.day - 1));
+  return dayOf({ ...d, year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() });
+}
+/** Before this time of day the day before's timetable is read too; no trip of it runs this late. */
+const BEFORE_UNTIL_S = 5 * 3600;
 import { DEVICE, DIST, LodSet, detectDevice, type DeviceSettings } from './lod';
 
 interface Docs { surfaces: SurfacesDoc; trees: TreesDoc; street: StreetDoc; signals: SignalsDoc; tram: TramDoc }
@@ -184,11 +191,12 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
   useEffect(() => {
     if (!built || !walking || !clock) return;
     let alive = true, layer: TramLayer | null = null;
-    const day = dayOf(clock.date);
-    loadTrams(day).then((doc) => {
+    const day = dayOf(clock.date), start = clock.minutes * 60 - WARM_S;
+    const prev = start < BEFORE_UNTIL_S ? dayBefore(clock.date) : null;
+    Promise.all([loadTrams(day), prev ? loadTrams(prev) : null]).then(([doc, prevDoc]) => {
       if (!alive) return;
-      const start = clock.minutes * 60 - WARM_S;
-      layer = new TramLayer(doc, day, start, (site, t) => built.signals.phase(site, t));
+      const before = prev && prevDoc ? { doc: prevDoc, day: prev } : undefined;
+      layer = new TramLayer(doc, day, start, (site, t) => built.signals.phase(site, t), before);
       built.root.add(layer.group);
       trams.current = { layer, warm: WARM_S };
       // for the browser checks in scripts/ (development builds only)

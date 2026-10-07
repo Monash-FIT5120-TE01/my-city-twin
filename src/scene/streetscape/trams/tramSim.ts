@@ -50,6 +50,7 @@ const COMFORT = 0.7;           // plan braking at this share of the service rate
 const BODY_STEP_M = 4;         // spacing of the points a tram's body is checked by
 const MERGE_LOOK_M = 40;       // how near a join two trams start deciding who goes first
 const MAX_HOLD_S = 60;         // the longest a tram waits at a stop for its timetabled time
+const ENTRY_SHORT_M = 8;       // how far short of its first stop a tram comes into the model, at most
 const BOX_M = 25;              // an intersection's depth past its stop line (EST): room needed to clear it
 
 /** A path through the CBD, with distance along it. */
@@ -133,19 +134,23 @@ export class TramSim {
   /**
    * @param time seconds of the service day to start at (the caller warms up from earlier: see warmUp)
    * @param signalPhase the phase of signal site `site` at time t (the same clock as `time`)
+   * @param before the day before's timetable (its own day type), for the trips still running after
+   *               midnight; they are listed in it past 24:00. Without it, this day's own late trips stand in.
    */
-  constructor(doc: TramsDoc, day: DayKey, time: number, signalPhase: (site: number, t: number) => Phase) {
+  constructor(doc: TramsDoc, day: DayKey, time: number, signalPhase: (site: number, t: number) => Phase, before?: { doc: TramsDoc; day: DayKey }) {
     this.paths = doc.paths.map((p) => new TramPath(p));
     this.time = time; this.signalPhase = signalPhase;
     const trips: Trip[] = [];
-    doc.trips[day].forEach(([path, route, cls, flat], index) => {
-      const stops: [number, number][] = []; for (let i = 0; i < flat.length; i += 2) stops.push([flat[i], flat[i + 1]]);
+    const read = (list: TramsDoc['trips'][DayKey], shift: number, lateOnly: boolean) => list.forEach(([path, route, cls, flat], index) => {
+      const stops: [number, number][] = []; for (let i = 0; i < flat.length; i += 2) stops.push([flat[i], flat[i + 1] - shift]);
+      if (lateOnly && stops[stops.length - 1][1] < 0) return;
       const p = this.paths[path], first = p.stops[stops[0][0]];
       const spawnAt = stops[0][1] - first[3] / ENTRY_MS - 20;
-      trips.push({ index, path, route, cls, stops, spawnAt });
-      // after midnight the day before's late trips are still running: they are listed past 24:00
-      if (stops[stops.length - 1][1] >= 86400) trips.push({ index, path, route, cls, stops: stops.map(([i, t]) => [i, t - 86400]), spawnAt: spawnAt - 86400 });
+      trips.push({ index: shift ? -1 - index : index, path, route, cls, stops, spawnAt });
     });
+    read(doc.trips[day], 0, false);
+    if (before) read(before.doc.trips[before.day], 86400, true);
+    else read(doc.trips[day], 86400, true);
     trips.sort((a, b) => a.spawnAt - b.spawnAt);
     this.trips = trips;
     // nothing that would already have left the model
@@ -166,15 +171,29 @@ export class TramSim {
     }
   }
 
+  /*
+   * Trips due to enter, oldest first. One waits while its way in is taken, and so do the later trips on the
+   * same path (they keep their order); trips on other paths come in regardless.
+   */
+  private due: Trip[] = [];
+
   private spawn(): void {
-    while (this.nextTrip < this.trips.length && this.trips[this.nextTrip].spawnAt <= this.time) {
-      const trip = this.trips[this.nextTrip], path = this.paths[trip.path], c = TRAM_CLASSES[trip.cls];
-      // the way in must be clear: no tram body on the first stretch of this path
-      if (this.obstacle(path, 0, c.L + GAP_M + 2, null) < c.L + GAP_M + 2) break;
-      this.nextTrip++;
-      if (trip.stops[trip.stops.length - 1][1] < this.time - 60) continue;   // long gone
+    while (this.nextTrip < this.trips.length && this.trips[this.nextTrip].spawnAt <= this.time) this.due.push(this.trips[this.nextTrip++]);
+    const blocked = new Set<number>();
+    for (let k = 0; k < this.due.length; k++) {
+      const trip = this.due[k], path = this.paths[trip.path], c = TRAM_CLASSES[trip.cls];
+      if (blocked.has(trip.path)) continue;
+      if (trip.stops[trip.stops.length - 1][1] < this.time - 60) { this.due.splice(k--, 1); continue; }   // long gone
+      /*
+       * The front starts short of the first stop, so the trip calls there too: at most a tram length in, and
+       * never past the stop. The body may reach back past the edge of the model, as a tram coming in does.
+       */
+      const front = Math.max(0, Math.min(c.L, path.stops[trip.stops[0][0]][3] - ENTRY_SHORT_M));
+      // the way in must be clear: no tram body from the edge to just ahead of the front
+      if (this.obstacle(path, 0, front + GAP_M + 2, null) < front + GAP_M + 2) { blocked.add(trip.path); continue; }
+      this.due.splice(k--, 1);
       const t: Tram = {
-        id: this.nextId++, trip, path, L: c.L, accel: c.accel, brake: c.brake, s: c.L, v: Math.min(LIMIT_MS, path.limit(c.L)) * 0.6, a: 0,
+        id: this.nextId++, trip, path, L: c.L, accel: c.accel, brake: c.brake, s: front, v: Math.min(LIMIT_MS, path.limit(front)) * 0.6, a: 0,
         next: 0, calling: false, callUntil: 0, callStop: -1, committed: -1, body: Array.from({ length: Math.ceil(c.L / BODY_STEP_M) + 1 }, (): XY => [0, 0]), bodyDir: Array.from({ length: Math.ceil(c.L / BODY_STEP_M) + 1 }, (): XY => [1, 0]), dir: [1, 0], why: '',
       };
       // a stop already behind the entry point is not called at
@@ -238,7 +257,8 @@ export class TramSim {
     let best: Tram | null = null, bestS = Infinity;
     for (const o of this.trams) {
       if (o === t) continue;
-      const pr = t.path.project(o.body[2][0], o.body[2][1], t.s - 1, t.s + within);
+      const back = o.body[o.body.length - 1];
+      const pr = t.path.project(back[0], back[1], t.s - 1, t.s + within);
       if (pr.d < 1.2 && pr.s >= t.s - 0.5 && pr.s < bestS) { bestS = pr.s; best = o; }
     }
     return best;
@@ -272,7 +292,6 @@ export class TramSim {
       if (ph === 2) { if (line < stopAt) { stopAt = line; why = 'box'; } break; }
       const canStop = t.v * t.v <= 2 * t.brake * Math.max(0.01, dist) || t.v < 0.5;
       if (ph === 1 && !canStop) { t.committed = k; continue; }   // too close to stop on amber: go through
-      if (ph === 0 && !canStop && dist < 2) { t.committed = k; continue; }   // already over the line
       if (line < stopAt) { stopAt = line; why = 'signal'; } break;
     }
     // the next stop of the trip

@@ -33,9 +33,9 @@ export class TramLayer {
   private riding: { tram: Tram; door: number; group: Group } | null = null;
   private m = new Matrix4(); private q = new Quaternion(); private v = new Vector3(); private one = new Vector3(1, 1, 1); private z = new Vector3(0, 0, 1);
 
-  constructor(doc: TramsDoc, day: DayKey, time: number, phase: (site: number, t: number) => Phase) {
+  constructor(doc: TramsDoc, day: DayKey, time: number, phase: (site: number, t: number) => Phase, before?: { doc: TramsDoc; day: DayKey }) {
     this.group.name = 'trams';
-    this.sim = new TramSim(doc, day, time, phase);
+    this.sim = new TramSim(doc, day, time, phase, before);
     this.sim.onLeave = (t) => { if (this.riding?.tram === t) this.stepOff(); };
   }
 

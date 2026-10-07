@@ -268,11 +268,13 @@ export function StreetView({
         ride.tap = [((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1];
       }
     };
+    // the browser took the touch over (a system gesture, a call): no tap from it
+    const cancel = (e: PointerEvent) => { if (e.pointerId === id) id = null; };
     const before = el.style.touchAction; el.style.touchAction = 'none';
-    el.addEventListener('pointerdown', down); window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    el.addEventListener('pointerdown', down); window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', cancel);
     return () => {
       el.style.touchAction = before;
-      el.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      el.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', cancel);
     };
   }, [touch, gl, camera]);
 
