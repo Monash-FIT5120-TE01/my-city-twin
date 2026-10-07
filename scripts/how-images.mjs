@@ -13,9 +13,8 @@
  *
  * WHY PHOTOGRAPHS OF THE APP AND NOT THE DESIGN'S DRAWINGS
  *   The design's pictures are one flattened illustration of an imaginary
- *   city, with a third building colour ("In progress") the model does not
- *   draw. A page that explains how to read the map should show the map it
- *   explains. Re-run this when the city's look changes.
+ *   city. A page that explains how to read the map should show the map it
+ *   explains. Re-run this when the city's look changes (palette.ts).
  *
  * The interface is hidden for the shots (focus mode, and the comparison's
  * page is not photographed), and so is the map credit — the How it works
@@ -73,7 +72,7 @@ async function shootCity(page, file) {
 const MOMENT = 'd=2026-06-21&t=720';
 
 // 01 — a searched building, outlined.
-let page = await open(`?view=building&bldg=382cff45-4323-48b5-a305-d8b32e361cd2&${MOMENT}`, 1200, 460, '.viewctl');
+let page = await open(`?view=building&bldg=43125601-08ab-4a1a-b04b-61f2368a0036&${MOMENT}`, 1200, 460, '.viewctl');
 await shootCity(page, 'find.jpg');
 await page.close();
 

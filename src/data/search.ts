@@ -85,7 +85,10 @@ export function searchCity(model: CityModel, query: string): SearchHit[] {
         kind: 'development',
         development,
         label: shortAddress(development.streetAddress),
-        detail: `Approved development · ${development.maxHeightM.toFixed(0)} m`,
+        // The stage in words, as the place card and the map key say it.
+        detail: `${
+          development.status === 'UNDER CONSTRUCTION' ? 'Under construction' : 'Approved development'
+        } · ${development.maxHeightM.toFixed(0)} m`,
       },
     });
   }

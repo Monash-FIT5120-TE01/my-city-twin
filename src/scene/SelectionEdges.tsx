@@ -15,7 +15,7 @@
  *
  * WHY AN OUTLINE
  *   The building somebody chose was told apart by colour alone — pink for a
- *   searched building, a brighter mint for the project in focus — and in a
+ *   searched building, a lighter shade for the project in focus — and in a
  *   city of pale blocks, under shadow, that was reported as hard to find. A
  *   colour is also exactly what a reader with a colour-vision difference may
  *   not get. So the chosen one also has its outline drawn in a dark ink: a
@@ -44,7 +44,7 @@ import { outlineSegments } from './outline';
 
 /**
  * Dark green-grey: the brand's darkest green, which stays far darker than
- * the pink and the mint it is drawn over, and is softer than black.
+ * the pink, teal and orange it is drawn over, and is softer than black.
  */
 const INK = '#1f3a32';
 

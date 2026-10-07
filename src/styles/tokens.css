@@ -42,6 +42,8 @@
    */
   --ink-3: #6b7280; /* 4.83:1 on paper */
   --hairline: #e2e4e1;
+  /* A control's edge that has to be found on cream as well as on white (ghost buttons). */
+  --edge-strong: #b9bdb8;
 
   /*
    * The front page's ground: warm paper rather than white, so the page reads
@@ -57,6 +59,8 @@
   --cream-edge: #e6dfd2;
   /* The step numbers' discs: a mint the numbers clear 6:1 on. */
   --mint-100: #dcefe7;
+  /* Its hover: the mint buttons and the "Future plans" link. */
+  --mint-200: #c9e6da;
 
   /*
    * The ground a control sits IN rather than on: the date row, the segmented
@@ -151,6 +155,12 @@
   --text-body: 0.9375rem; /* 15px — sentences */
   --text-lg: 1.0625rem; /* 17px — a panel's own subject */
   --text-h2: 1.375rem; /* 22px — panel titles */
+  /*
+   * A page's own title — How it works, the comparison. One size for both,
+   * so moving between them does not read as moving between two sites. The
+   * front page's headline is the one larger title, sized on its own.
+   */
+  --text-page: clamp(1.875rem, 3vw, 2.75rem);
   /* The front page's heading is sized on its own; see .landing__title. */
 
   /*
@@ -180,6 +190,22 @@
   --radius-control: 12px;
   --radius-pill: 999px;
 
+  /*
+   * ── CONTROL HEIGHTS ───────────────────────────────────────────────────
+   *
+   * 44px is the smallest target a finger can be asked to hit, and every
+   * control is at least that. The large size is for the one action a
+   * screen exists for ("Choose a spot", "Explore sunlight").
+   */
+  --h-control: 44px;
+  --h-control-lg: 48px;
+  /* The search field: the header's, and the front page's (the page's main way in). */
+  --h-field: 40px;
+  --h-field-lg: 52px;
+
+  /* The focus ring a field wears while it is being typed in. */
+  --ring: 0 0 0 3px rgba(20, 98, 74, 0.14);
+
   /* ── space ─────────────────────────────────────────────── */
 
   /*
@@ -196,6 +222,8 @@
 
   /** What a panel keeps between its edge and its contents. */
   --pad-panel: 22px;
+  /* Left and right of a full page (How it works, the comparison). */
+  --gutter-page: clamp(var(--space-4), 3vw, 2.5rem);
 
   /* ── depth ─────────────────────────────────────────────── */
 
@@ -374,4 +402,25 @@
    * it: the sunlight panel scrolls internally even now.
    */
   --y-bottom: 12rem;
+
+  /*
+   * ── THE MAP KEY ────────────────────────────────────────────────────────
+   *
+   * The colours each kind of building shows ON SCREEN, for every key,
+   * swatch and dot in the interface. The 3D materials are set in
+   * src/scene/palette.ts, which explains why the two differ and how far
+   * apart these sit in lightness; palette.test.ts holds the two together.
+   * Each has a darker edge so a pale swatch is not a blank dot on paper.
+   */
+  --key-existing: #dbd5cd;
+  --key-existing-edge: #7a8087;
+  --key-approved: #80c0b9;
+  --key-approved-edge: #2c7a77;
+  --key-progress: #dda781;
+  --key-progress-edge: #a8653a;
+  /* A building found by searching, drawn pink while chosen. */
+  --key-searched: #e87ba8;
+  --key-searched-edge: #a8406f;
+  /* The chosen building's outline (SelectionEdges). */
+  --key-selected: #1f3a32;
 }

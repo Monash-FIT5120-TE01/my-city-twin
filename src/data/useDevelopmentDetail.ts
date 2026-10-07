@@ -6,10 +6,10 @@ import type { ApiDevelopmentDetail } from './api-types';
  * Storeys, floor areas and the permit number for one development.
  *
  * Only the footprint endpoints are bundled as a snapshot, so this is the one
- * call that genuinely needs the staging API to be awake. It is therefore
- * treated as an enhancement: the panel renders without it, and fills in the
- * storey count if and when it arrives. A sleeping Render instance costs the
- * demonstration a line of text, not a screen.
+ * call that genuinely needs the API to answer. It is therefore treated as an
+ * enhancement: the place card renders without it, and fills in the storey
+ * count if and when it arrives. An unreachable backend costs the
+ * demonstration one figure, not a screen.
  */
 export function useDevelopmentDetail(devId: string | null) {
   const [detail, setDetail] = useState<ApiDevelopmentDetail | null>(null);

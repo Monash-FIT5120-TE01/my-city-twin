@@ -1,0 +1,603 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE SHARED PIECES
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The look of every component in src/ui/kit/, in one place. Loaded right
+ * after the tokens (main.tsx), before any screen's own stylesheet, so a
+ * screen can place or size a piece without fighting it — and so that two
+ * screens cannot draw the same piece two ways.
+ *
+ * IN THIS FILE
+ *   - Marks (icons).
+ *   - Buttons: primary, secondary, ghost, mint; md and lg.
+ *   - The back link, the close button, the text button.
+ *   - Cards and pills.
+ *   - The map key and its swatches.
+ *   - The demo note.
+ *   - The search field and its results.
+ *   - A full page: its shell, head, title and lede.
+ */
+
+/* ── marks ──────────────────────────────────────────────── */
+
+.icon {
+  flex: none;
+}
+
+/* ── buttons ────────────────────────────────────────────── */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--h-control);
+  padding: 0 var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--green-700);
+  color: var(--paper);
+  font: inherit;
+  font-weight: var(--weight-label);
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  /*
+   * Everything that changes on hover or press is listed, not just the
+   * background. A control that recolours instantly but moves abruptly reads
+   * as two different components reacting at different speeds.
+   */
+  transition:
+    background var(--dur-quick) var(--ease),
+    border-color var(--dur-quick) var(--ease),
+    color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease),
+    transform var(--dur-quick) var(--ease);
+}
+
+.button:hover {
+  background: var(--green-600);
+}
+
+/*
+ * One pixel, not four. The press has to be felt rather than watched — this
+ * is a planning tool, and a button that bounces undercuts the numbers next
+ * to it.
+ */
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button--lg {
+  min-height: var(--h-control-lg);
+}
+
+.button--block {
+  width: 100%;
+}
+
+/* The other way on: green edge and words on paper. */
+.button--secondary {
+  border-color: var(--green-700);
+  background: var(--paper);
+  color: var(--green-700);
+}
+
+.button--secondary:hover {
+  background: var(--mint-100);
+}
+
+/* A side action. The edge is dark enough to find on cream as well as white. */
+.button--ghost {
+  border-color: var(--edge-strong);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.button--ghost:hover {
+  border-color: var(--green-600);
+  background: var(--green-050);
+}
+
+/*
+ * The design's mint, with the dark green edge and words that make it a
+ * button by lightness as well as by hue.
+ */
+.button--mint {
+  border-color: var(--green-700);
+  background: var(--mint-100);
+  color: var(--ink-green-900);
+}
+
+.button--mint:hover {
+  background: var(--mint-200);
+}
+
+/* ── the back link ──────────────────────────────────────── */
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--h-control);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+.back-link:hover span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.back-link:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
+}
+
+/* ── the close button ───────────────────────────────────── */
+
+.close-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--h-control);
+  height: var(--h-control);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    background var(--dur-quick) var(--ease),
+    color var(--dur-quick) var(--ease);
+}
+
+.close-button:hover {
+  background: var(--green-050);
+  color: var(--ink);
+}
+
+.close-button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -2px;
+}
+
+/* ── the text button ────────────────────────────────────── */
+
+.text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--h-control);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+  text-align: left;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.text-button--action:hover {
+  text-decoration: underline;
+}
+
+.text-button--reference {
+  text-decoration: underline;
+}
+
+.text-button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── cards and pills ────────────────────────────────────── */
+
+.card {
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+
+.card--raised {
+  box-shadow: var(--shadow-panel);
+}
+
+/*
+ * A panel's or a card's subject: "Map layers", the address on the place card
+ * and in the sunlight column, "Sources & limitations". One size for all of
+ * them, a step under a page's title.
+ */
+.panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ink-green-900);
+}
+
+.panel-title:focus {
+  outline: none;
+}
+
+.panel-title:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+/* A heading inside a card: "What is here today", "Find any building". */
+.card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  line-height: 1.3;
+  color: var(--ink-green-900);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  font-weight: var(--weight-label);
+  color: var(--ink-green-900);
+}
+
+.pill--sm {
+  padding: 7px var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.pill--xs {
+  padding: var(--space-1) 10px;
+  font-size: var(--text-xs);
+}
+
+/* ── the map key ────────────────────────────────────────── */
+
+.map-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.map-key__title {
+  font-weight: var(--weight-label);
+  color: var(--ink-green-900);
+}
+
+.map-key__row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.map-key__note {
+  margin-left: auto;
+  color: var(--ink-2);
+}
+
+.swatch {
+  flex: none;
+  display: inline-block;
+  border-radius: 50%;
+}
+
+.swatch--md {
+  width: 12px;
+  height: 12px;
+}
+
+.swatch--sm {
+  width: 10px;
+  height: 10px;
+}
+
+.swatch--existing {
+  background: var(--key-existing);
+  box-shadow: inset 0 0 0 1px var(--key-existing-edge);
+}
+
+.swatch--approved {
+  background: var(--key-approved);
+  box-shadow: inset 0 0 0 1px var(--key-approved-edge);
+}
+
+.swatch--progress {
+  background: var(--key-progress);
+  box-shadow: inset 0 0 0 1px var(--key-progress-edge);
+}
+
+.swatch--searched {
+  background: var(--key-searched);
+  box-shadow: inset 0 0 0 1px var(--key-searched-edge);
+}
+
+/* An outline, as the chosen building is outlined on the map. */
+.swatch--selected {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--key-selected);
+}
+
+/* ── the demo note ──────────────────────────────────────── */
+
+.demo-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.demo-note__sep {
+  color: var(--ink-3);
+}
+
+/* The link sits in the note at the note's size. */
+.demo-note .text-button {
+  font-size: inherit;
+}
+
+/* ── the search field ───────────────────────────────────── */
+
+/*
+ * One box: white, a cream hairline, the green edge and ring while it has
+ * the keyboard — on the whole box (:focus-within), because what takes
+ * focus is the input and what a reader sees is the box around it.
+ * `position: relative` so the results hang from it without pushing what is
+ * below down as somebody types.
+ */
+.search {
+  position: relative;
+}
+
+.search__box {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  transition:
+    border-color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease);
+}
+
+.search__box:hover {
+  border-color: var(--edge-strong);
+}
+
+.search__box:focus-within {
+  border-color: var(--green-700);
+  box-shadow: var(--ring);
+}
+
+/*
+ * The medium field is the header's, and the header is a fixed bar: 40px
+ * inside the 1px edge, as it always was — the phone's two-row header (about
+ * 6.75rem) and everything stacked under it are measured from that. The whole
+ * box is the target, and it is 42px.
+ */
+.search__field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--h-field);
+  padding: 0 var(--space-1) 0 var(--space-3);
+  color: var(--ink-2);
+}
+
+.search--lg .search__field {
+  gap: var(--space-3);
+  min-height: var(--h-field-lg);
+  padding-left: var(--space-4);
+}
+
+.search__icon {
+  flex: none;
+}
+
+.search__field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+}
+
+.search--lg .search__field input {
+  font-size: var(--text-lg);
+}
+
+.search__field input:focus {
+  outline: none;
+}
+
+/* --ink-3 on white: 4.83:1, enough for the words that say what the field is for. */
+.search__field input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+/* The "/" key, with room on its right as the cross has. */
+.search__key {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  margin-right: var(--space-2);
+  border: 1px solid var(--hairline);
+  border-radius: calc(var(--radius-control) / 2);
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* ── the search results ─────────────────────────────────── */
+
+/*
+ * The list is the field continued downwards: it takes the box's width and
+ * radius, hangs just under it, and comes out of its underside. The same
+ * list in the header and on the front page.
+ */
+.search .results,
+.search .results__none {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: 5;
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+  animation: emerge var(--dur-quick) var(--ease) both;
+  transform-origin: top center;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(60vh, 20rem);
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+
+.results button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-control) - 4px);
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  /*
+   * Each row a little behind the last (--i from the markup), capped at
+   * eight: past that the delay is longer than anybody waits to read on.
+   */
+  animation: settle var(--dur-quick) var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 8) * var(--stagger));
+  transition: background var(--dur-quick) var(--ease);
+}
+
+.results button:hover {
+  background: var(--green-050);
+}
+
+/*
+ * Held while the click is being made: a result starts a camera flight, so
+ * the row confirms which one was chosen before the screen begins to move.
+ */
+.results button:active {
+  background: var(--mint-100);
+}
+
+.results button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -2px;
+}
+
+/* The dot: the colour that thing will be in the city (kit Swatch). */
+.results .swatch {
+  align-self: center;
+}
+
+.results small {
+  flex-basis: 100%;
+  /* Under the address, past the dot and the gap. */
+  padding-left: calc(10px + var(--space-2));
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.results__none {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+/* ── a full page ────────────────────────────────────────── */
+
+/*
+ * How it works and the comparison: a cream page over the city, under the
+ * header, that scrolls on its own when the screen is too short for it.
+ */
+.page {
+  position: absolute;
+  inset: var(--h-header) 0 0 0;
+  z-index: 2;
+  overflow-y: auto;
+  background: var(--cream);
+}
+
+.page-head {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}
+
+.page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-page);
+  font-weight: var(--weight-title);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink-green-900);
+}
+
+.page-title:focus {
+  outline: none;
+}
+
+.page-lede {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-lg);
+  color: var(--ink-2);
+}

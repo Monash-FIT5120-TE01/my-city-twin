@@ -1,49 +1,13 @@
 /*
  * ─────────────────────────────────────────────────────────────────────────
- * SOURCES, AND THE KEY
+ * SOURCES & LIMITATIONS
  * ─────────────────────────────────────────────────────────────────────────
  *
- * The look of the two shared pieces in Sources.tsx, wherever they appear.
- *
- * IN THIS FILE
- *   - The "Sources & limitations" link and the window's close button.
- *   - The window: a modal card over a dimmed page, with the three figures
- *     in a row (one column on a phone).
- *   - The map key: two named swatches. Where it sits is up to the screen
- *     that places it (.landing__legend, .timebar__key).
+ * The window "Sources & limitations" opens (Sources.tsx): a modal card over
+ * a dimmed page, with the three figures in a row (one column on a phone).
+ * The link and the close button are kit pieces (TextButton, CloseButton),
+ * and the map key moved to kit/MapKey.tsx.
  */
-
-/* ── the link, and the close button ─────────────────────── */
-
-.sources__link {
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: var(--green-700);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.sources__close {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: none;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.sources__close:hover {
-  background: var(--surface-sunken);
-  color: var(--ink);
-}
 
 /* ── the window ─────────────────────────────────────────── */
 
@@ -80,13 +44,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-}
-
-.sources h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-h2);
-  font-weight: var(--weight-title);
 }
 
 .sources h3 {
@@ -149,44 +106,4 @@
   .sources__figures {
     grid-template-columns: minmax(0, 1fr);
   }
-}
-
-/* ── the key ────────────────────────────────────────────── */
-
-.mapkey {
-  display: flex;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-card);
-  background: var(--paper);
-  box-shadow: var(--shadow-chip);
-  font-size: var(--text-sm);
-}
-
-.mapkey__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  white-space: nowrap;
-}
-
-.mapkey__swatch {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-}
-
-/*
- * The colours CityMassing and DevelopmentMassings draw. Each carries a darker
- * edge, so the pale one is not a white dot on a white card.
- */
-.mapkey__swatch--existing {
-  background: #eeedf0;
-  box-shadow: inset 0 0 0 1px #7a8087;
-}
-
-.mapkey__swatch--approved {
-  background: #6fbfa6;
-  box-shadow: inset 0 0 0 1px #2f7d66;
 }

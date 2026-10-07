@@ -7,8 +7,8 @@
  *     reads and that is not colour alone: the chosen season is
  *     aria-pressed and the neighbourhood view is a checked radio; the
  *     compare button is a way on to the side-by-side screen.
- *   - What stays on the screen after the redesign: "Details" (what the
- *     Overview tab was), "Choose a spot", "How it works", and the sources
+ *   - What stays on the screen after the redesign: "Details" (back to the
+ *     place card), "Choose a spot", "How it works", and the sources
  *     link for a phone, where the strip under the map is hidden.
  *   - The time bar's 12-hour marks, the hour under the handle, and that the
  *     play button names what it will do.

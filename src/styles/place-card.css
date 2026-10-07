@@ -1,0 +1,160 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE PLACE CARD
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The card beside a chosen building — see PlaceCard.tsx. White on the
+ * city, the address in the display face, the figures large enough to read
+ * at a glance, one green way on.
+ *
+ * IN THIS FILE
+ *   - The card and its parts.
+ *   - Beside the building (wide screens) or docked at the foot (phones).
+ */
+
+.place-card {
+  position: relative;
+  /*
+   * As wide as its figures need, between these two. A fixed width let the
+   * widest figure ("62,754 m²") run out past the card's edge.
+   */
+  width: max-content;
+  min-width: 17.5rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  color: var(--ink);
+  text-align: left;
+}
+
+/* The close button (kit) in the corner, out of the way of the title. */
+.place-card__close {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.place-card__title {
+  padding-right: 2rem;
+}
+
+.place-card__kind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-1);
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* The dot (kit Swatch) is the colour the building is drawn in while chosen; the words say the same. */
+.place-card__kind .swatch {
+  margin-right: 2px;
+}
+
+/*
+ * The figures: equal columns, the number above what it counts, hairlines
+ * between. Grey ground, as measurements rather than something the product
+ * is saying; the green belongs to the one way on.
+ */
+.place-card__figures {
+  display: grid;
+  /* Each column as wide as its figure, the spare room shared out. */
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
+  margin: var(--space-3) 0 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+}
+
+.place-card__figures > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.place-card__unit {
+  font-size: 0.72em;
+  font-weight: var(--weight-label);
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+
+.place-card__figures > div + div {
+  border-left: 1px solid var(--cream-edge);
+}
+
+.place-card__figures dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: var(--weight-title);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: var(--numeric);
+  white-space: nowrap;
+}
+
+.place-card__figures dt {
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.place-card__go {
+  margin-top: var(--space-1);
+}
+
+/* ── where it sits ──────────────────────────────────────── */
+
+/*
+ * Beside the building. SiteMarker places the card's corner on a point in
+ * the upper part of the mass; this moves it off to the right of that point
+ * and centres it on it, so it stands next to the building, not on it.
+ */
+.place-card--anchored {
+  transform: translate(3.5rem, -50%);
+  animation: place-card-in var(--dur-panel) var(--ease) both;
+}
+
+/* The shared `settle`, with this card's own offset kept through it. */
+@keyframes place-card-in {
+  from {
+    opacity: 0;
+    transform: translate(3.5rem, calc(-50% + 6px));
+  }
+}
+
+.place-card--docked {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .place-card--anchored {
+    display: none;
+  }
+
+  /* Along the foot of the screen, the way the other sheets sit on a phone. */
+  .place-card--docked {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: var(--phone-sheet, 15rem);
+    overflow-y: auto;
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+    animation: slideUp var(--dur-panel) var(--ease) both;
+  }
+}

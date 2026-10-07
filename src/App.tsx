@@ -85,21 +85,22 @@ import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { LandingPage } from './ui/LandingPage';
 import { FUTURE_PLANS_ID } from './ui/LandingMore';
-import { SourcesLink } from './ui/Sources';
+import { DemoNote } from './ui/kit/DemoNote';
+import { Pill } from './ui/kit/Pill';
 import { ComparePage, type FrameRect } from './ui/ComparePage';
 import { HowItWorksPage } from './ui/HowItWorksPage';
 import { TramHint } from './ui/TramHint';
+import { PlaceCard } from './ui/PlaceCard';
+import { buildingFacts, developmentFacts } from './ui/placeFacts';
 import { createCameraLink } from './scene/cameraLink';
 import './styles/sunlight.css';
 import type { ScreenInset } from './scene/ViewInset';
 import { useReducedMotion } from './ui/useReducedMotion';
 import { Header, MapAttribution, developmentSummary } from './ui/chrome';
 import {
-  DevelopmentPanel,
   SearchResults,
   ViewControls,
   MapLayers,
-  BuildingPanel,
   SunlightSheet,
   TimeBar,
   type Layers,
@@ -612,7 +613,7 @@ export default function App() {
    *
    * Above the loading guard with every other hook; see the note below.
    */
-  const { detail: buildingDetail, settled: buildingSettled } = useBuildingDetail(
+  const { detail: buildingDetail } = useBuildingDetail(
     view === 'building' || view === 'sunlight' ? (foundBuilding?.buildingId ?? null) : null,
   );
 
@@ -1134,6 +1135,10 @@ export default function App() {
   const focusAddress = focus?.streetAddress.split(',')[0] ?? '';
 
   /** Everything after the street line: "Melbourne VIC 3000", or nothing. */
+  /** A project's stage in words, as the search results and the place card say it. */
+  const stageOf = (development: Development) =>
+    development.status === 'UNDER CONSTRUCTION' ? 'Under construction' : 'Approved development';
+
   const localityOf = (address: string) => address.split(',').slice(1).join(',').trim();
 
   /*
@@ -1167,7 +1172,7 @@ export default function App() {
         locality: localityOf(foundBuilding.streetAddress),
         anchorEN: foundBuilding.anchorEN,
         kind: 'building',
-        detail: `Existing building · ${foundBuilding.heightM.toFixed(0)} m tall`,
+        detail: `Existing building · ${foundBuilding.heightM.toFixed(0)} m`,
         topAhdM: foundBuilding.topAhdM,
         heightM: foundBuilding.heightM,
       }
@@ -1177,7 +1182,7 @@ export default function App() {
           locality: localityOf(focus.streetAddress),
           anchorEN: focus.anchorEN,
           kind: 'development',
-          detail: `Approved development · ${focus.maxHeightM.toFixed(0)} m`,
+          detail: `${stageOf(focus)} · ${focus.maxHeightM.toFixed(0)} m`,
           topAhdM: focus.topAhdM,
           heightM: focus.maxHeightM,
           devId: focus.devId,
@@ -1235,7 +1240,7 @@ export default function App() {
             return {
               key: development.devKey,
               label,
-              detail: `Approved development · ${development.maxHeightM.toFixed(0)} m`,
+              detail: `${stageOf(development)} · ${development.maxHeightM.toFixed(0)} m`,
               en: development.anchorEN,
               heightM: development.maxHeightM,
               street: label.replace(/^[^A-Za-z]*\d\S*\s+/, ''),
@@ -1301,6 +1306,41 @@ export default function App() {
     : null;
 
   const storeys = detail ? Number.parseFloat(detail.floorsAbove) : undefined;
+
+  /*
+   * The place card for the chosen project or building, on its own screen.
+   * Built here once and drawn twice — beside the building, and docked for a
+   * phone — so the two copies can never say different things.
+   */
+  const cardSubject =
+    chromeHidden
+      ? null
+      : view === 'development' && focus
+        ? {
+            title: focus.streetAddress.split(',')[0],
+            facts: developmentFacts(focus, Number.isFinite(storeys) ? storeys : undefined),
+            tone: focus.status === 'UNDER CONSTRUCTION' ? ('progress' as const) : ('approved' as const),
+          }
+        : view === 'building' && foundBuilding && place
+          ? {
+              title: buildingDetail?.buildingName ?? place.label,
+              facts: buildingFacts(foundBuilding.heightM, buildingDetail),
+              tone: 'searched' as const,
+            }
+          : null;
+  const placeCard = (variant: 'anchored' | 'docked') =>
+    cardSubject && (
+      <PlaceCard
+        {...cardSubject}
+        variant={variant}
+        onSunlight={() => {
+          setView('sunlight');
+          // The card had the keyboard; the sunlight column's heading takes it.
+          window.requestAnimationFrame(() => document.getElementById('subject-title')?.focus());
+        }}
+        onClose={() => setView('explore')}
+      />
+    );
 
   return (
     <div className="app">
@@ -1430,6 +1470,7 @@ export default function App() {
                 }
               : null
           }
+          markerCard={placeCard('anchored')}
           lookAt={lookAt}
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
@@ -1687,47 +1728,20 @@ export default function App() {
         address in the header or by double-clicking any building on the map;
         the line at the foot says so.
       */}
-      {!chromeHidden && view === 'explore' && (
-        <p className="explore-hint" role="note" tabIndex={-1}>
+      {/* Not under the layer panel, which opens in the same corner. */}
+      {!chromeHidden && view === 'explore' && !layersOpen && (
+        <Pill as="p" className="explore-hint" role="note" tabIndex={-1}>
           Search an address, or double-click any building to select it.
-        </p>
+        </Pill>
       )}
 
-      {/* ── ONE PROJECT ──────────────────────────────────────────────────── */}
-      {!chromeHidden && view === 'development' && focus && (
-        <>
-          <DevelopmentPanel
-            development={focus}
-            storeys={Number.isFinite(storeys) ? storeys : undefined}
-            tab="overview"
-            /*
-              The sunlight half is a different screen, not a different block
-              in this panel: it drives the shadow, the time bar and what can
-              be clicked on the ground. The tab is what the reader sees; the
-              view is what the app switches.
-            */
-            onTab={(next) => next === 'sunlight' && setView('sunlight')}
-            onBack={() => setView('explore')}
-            onClose={() => setView('landing')}
-          />
-        </>
-      )}
-
-      {/* ── ONE EXISTING BUILDING ────────────────────────────────────────── */}
-      {!chromeHidden && view === 'building' && foundBuilding && place && (
-        <>
-          <BuildingPanel
-            label={place.label}
-            locality={place.locality}
-            heightM={foundBuilding.heightM}
-            detail={buildingDetail}
-            settled={buildingSettled}
-            onSunlight={() => setView('sunlight')}
-            onBack={() => setView('explore')}
-            onClose={() => setView('landing')}
-          />
-        </>
-      )}
+      {/*
+        ── ONE PROJECT, OR ONE EXISTING BUILDING ───────────────────────────
+        The place card. On a wide screen it stands beside the building in
+        the city (handed to SceneCanvas as markerCard, above); this is the
+        copy docked along the foot of a phone. CSS shows one of the two.
+      */}
+      {placeCard('docked')}
 
       {/*
         ── THE SUNLIGHT SCREEN ──────────────────────────────────────────────
@@ -1737,7 +1751,13 @@ export default function App() {
       {compareShown && place && (
         <ComparePage
           title={place.label}
-          kindLabel={place.kind === 'building' ? 'Existing building' : 'Approved development'}
+          kindLabel={
+            place.kind === 'building'
+              ? 'Existing building'
+              : focus?.status === 'UNDER CONSTRUCTION'
+                ? 'Under construction'
+                : 'Approved development'
+          }
           date={date}
           onDate={chooseDate}
           minutes={minutes}
@@ -1892,10 +1912,7 @@ export default function App() {
             }}
           />
           {/* The fine print, along the foot of the map as on the front page. */}
-          <p className="mapfoot">
-            Illustrative model · Demo data
-            <SourcesLink />
-          </p>
+          <DemoNote className="mapfoot" />
         </>
       )}
       {/* The one control focus mode leaves on screen: the way out of it. */}

@@ -5,6 +5,8 @@
  *
  * The comparison page: a head, two framed windows side by side (stacked on
  * a phone), a bar along the bottom and the fine print. See ComparePage.tsx.
+ * The shell, the head, the cards, the key, the button and the demo note are
+ * kit pieces (kit.css); this file lays them out.
  *
  * The windows are empty boxes. ComparePage measures them, and App lays a
  * canvas over each (`.compare__canvas`, and the main `.app__scene` moved
@@ -22,22 +24,20 @@
 
 /* ── the page ───────────────────────────────────────────── */
 
+/*
+ * The shell (position, cream, scrolling) is the shared `.page` in kit.css;
+ * this is the page's own layout. Under the canvases laid on it (z 3).
+ */
 .compare {
-  position: absolute;
-  inset: var(--h-header) 0 0 0;
-  /* Over the city, under the header — and under the canvases laid on it. */
-  z-index: 2;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   /*
-   * Scrolls when the screen is too short for it all — a phone on its side —
-   * rather than squeezing the windows to nothing. ComparePage re-measures on
-   * scroll so the canvases follow.
+   * The page scrolls when the screen is too short for it all — a phone on
+   * its side — rather than squeezing the windows to nothing. ComparePage
+   * re-measures on scroll so the canvases follow.
    */
-  overflow-y: auto;
   gap: var(--space-3);
-  padding: var(--space-4) clamp(var(--space-4), 2.6vw, 2.5rem) var(--space-2);
-  background: var(--cream);
+  padding: var(--space-4) var(--gutter-page) var(--space-2);
 }
 
 .compare__head {
@@ -45,41 +45,6 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-4);
-}
-
-.compare__back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-label);
-  color: var(--green-700);
-  cursor: pointer;
-}
-
-.compare__back:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.compare__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
-  font-weight: var(--weight-title);
-  line-height: 1.1;
-  color: var(--ink-green-900);
-}
-
-.compare__place {
-  margin: var(--space-1) 0 0;
-  font-size: var(--text-lg);
-  color: var(--ink-2);
 }
 
 .compare__aside {
@@ -98,13 +63,6 @@
   color: var(--ink-2);
 }
 
-/* The key in a row, on the page's own ground rather than a card. */
-.compare__key {
-  padding: 0;
-  background: none;
-  box-shadow: none;
-}
-
 /* ── the two windows ────────────────────────────────────── */
 
 .compare__views {
@@ -115,28 +73,16 @@
   min-height: 18rem;
 }
 
-.compare__title:focus {
-  outline: none;
-}
-
 .compare__view {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 0;
   margin: 0;
-  border: 1px solid var(--cream-edge);
-  border-radius: var(--radius-card);
-  background: var(--paper);
   overflow: hidden;
 }
 
 .compare__view-title {
-  margin: 0;
   padding: var(--space-3) var(--space-4);
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-title);
-  color: var(--ink-green-900);
 }
 
 /* The box a canvas is laid over. */
@@ -159,9 +105,6 @@
   align-items: center;
   gap: var(--space-5);
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--cream-edge);
-  border-radius: var(--radius-card);
-  background: var(--paper);
 }
 
 .compare__when {
@@ -213,28 +156,9 @@
   box-shadow: none;
 }
 
-/*
- * The design's mint, with the dark green edge and words that make it a
- * button by lightness as well as by hue.
- */
-.button.compare__spot {
-  min-height: 48px;
-  border-color: var(--green-700);
-  background: var(--mint-100);
-  color: var(--ink-green-900);
-}
-
-.button.compare__spot:hover {
-  background: #c9e6da;
-}
-
 .compare__foot {
   display: flex;
   justify-content: flex-end;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--text-xs);
-  color: var(--ink-2);
 }
 
 /* ── the canvases laid over the windows ─────────────────── */
@@ -276,10 +200,6 @@
     align-items: flex-start;
   }
 
-  .compare__title {
-    font-size: 1.5rem;
-  }
-
   /* One above the other, each tall enough to read. */
   .compare__views {
     grid-template-columns: minmax(0, 1fr);
@@ -303,7 +223,7 @@
     padding: var(--space-2) var(--space-3);
   }
 
-  .button.compare__spot {
+  .compare__spot {
     width: 100%;
   }
 }

@@ -74,10 +74,6 @@
 
 /* ── the headings, and the link to the details ──────────── */
 
-.sheet--sun .sheet__title {
-  font-family: var(--font-display);
-}
-
 /* The section's own heading, at the size the design gives it. */
 .sheet--sun .sheet__lede {
   font-family: var(--font-display);
@@ -85,21 +81,11 @@
   font-weight: var(--weight-title);
 }
 
-/* What the Overview tab was, as a link under the address. */
+/* The way back to the place card, as a link under the address. */
 .sheet__details {
   align-self: flex-start;
-  min-height: 44px;
-  margin: calc(var(--space-2) * -1) 0 calc(var(--space-2) * -1);
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
+  margin: calc(var(--space-2) * -1) 0;
   font-size: var(--text-sm);
-  font-weight: var(--weight-label);
-  color: var(--green-700);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
 }
 
 /* ── the season ─────────────────────────────────────────── */
@@ -170,49 +156,12 @@
 /* ── the two actions ────────────────────────────────────── */
 
 /*
- * Two classes on these buttons for the same reason as the column: the base
- * `.button` rules in ui.css come later and would repaint them.
+ * "Choose a spot" (a mint Button) and "Compare side by side" (a ghost
+ * Button with the arrow) are kit pieces; only the gap above the second is
+ * this column's.
  */
-
-/*
- * "Choose a spot": the mint of the design, with a dark edge and dark words,
- * so it is still a button to somebody who does not see the mint.
- */
-.button.button--spot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: 48px;
-  border-color: var(--green-700);
-  background: var(--mint-100);
-  color: var(--ink-green-900);
-}
-
-.button--spot svg {
-  margin: 0;
-}
-
-.button.button--spot:hover {
-  background: #c9e6da;
-}
-
-/*
- * "Compare side by side": a ghost button with an arrow — a way on to the
- * comparison screen, not a switch, so it has no pressed state.
- */
-.button.button--compare {
+.button--compare {
   margin-top: var(--space-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: 48px;
-  border-color: var(--ink-3);
-}
-
-.button--compare svg {
-  margin: 0;
 }
 
 /* ── the fine print under the map ───────────────────────── */
@@ -223,16 +172,10 @@
   right: var(--gutter);
   bottom: 0;
   z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
   height: var(--h-mapfoot);
-  margin: 0;
   padding: 0 var(--space-3);
   border-radius: var(--radius-control) var(--radius-control) 0 0;
   background: rgba(255, 255, 255, 0.86);
-  font-size: var(--text-xs);
-  color: var(--ink-2);
 }
 
 .mapfoot .sources__link {

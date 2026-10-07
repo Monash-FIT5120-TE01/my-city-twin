@@ -57,7 +57,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { bundled } from '../data/bundled';
 import type { LoadProgress } from '../data/useCityModel';
 import type { ScreenInset } from '../scene/ViewInset';
-import { MapKey, SourcesLink } from './Sources';
+import { MapKey } from './kit/MapKey';
+import { Button } from './kit/Button';
+import { CloseButton } from './kit/CloseButton';
+import { DemoNote } from './kit/DemoNote';
+import { TextButton } from './kit/TextButton';
+import { SearchField } from './kit/SearchField';
 import { LandingMore } from './LandingMore';
 import '../styles/landing.css';
 
@@ -298,54 +303,29 @@ export function LandingPage({
             sunlight on your street.
           </p>
 
-          <div className="landing__search">
-            <label className="landing__field">
-              <svg width="18" height="18" viewBox="0 0 17 17" aria-hidden="true">
-                <circle cx="7" cy="7" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.7" />
-                <line
-                  x1="11"
-                  y1="11"
-                  x2="15.4"
-                  y2="15.4"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <input
-                ref={field}
-                // The "/" key finds whichever search field is on screen. See Header.
-                data-search-field
-                value={query}
-                onChange={(event) => onQuery(event.target.value)}
-                onFocus={onSearchFocus}
-                placeholder={loading ? 'The city is loading…' : 'Search a street or address'}
-                aria-label="Search for a street or address"
-                // Nothing to search until the buildings are here.
-                disabled={loading !== null}
-              />
-              {query && (
-                <button
-                  type="button"
-                  className="landing__clear"
-                  onClick={() => {
-                    onQuery('');
-                    field.current?.focus();
-                  }}
-                  aria-label="Clear the search"
-                >
-                  <Cross />
-                </button>
-              )}
-            </label>
-
-            {results}
-
-            {/*
-              What has been chosen, once something has. The field empties so
-              it is ready for another search; this row is where the answer
-              stays, with the way to undo it beside it.
-            */}
+          {/*
+            The search (kit/SearchField, large: the page's main way in), with
+            the results hung under it and, once a place is picked, the place
+            in a row inside the same box. The field empties so it is ready for
+            another search; the row is where the answer stays, with the way
+            to undo it beside it.
+          */}
+          <SearchField
+            ref={field}
+            size="lg"
+            className="landing__search"
+            value={query}
+            onChange={onQuery}
+            onClear={() => {
+              onQuery('');
+              field.current?.focus();
+            }}
+            onFocus={onSearchFocus}
+            placeholder={loading ? 'The city is loading…' : 'Search a street or address'}
+            // Nothing to search until the buildings are here.
+            disabled={loading !== null}
+            dropdown={results}
+          >
             {chosen && !query && (
               <div className="landing__chosen">
                 <Pin />
@@ -353,22 +333,14 @@ export function LandingPage({
                   <span className="landing__chosen-label">{chosen.label}</span>
                   <small>{chosen.detail}</small>
                 </span>
-                <button
-                  type="button"
-                  className="landing__clear"
-                  onClick={onClearChosen}
-                  aria-label={`Clear ${chosen.label}`}
-                >
-                  <Cross />
-                </button>
+                <CloseButton label={`Clear ${chosen.label}`} onClick={onClearChosen} />
               </div>
             )}
-          </div>
+          </SearchField>
 
-          <button type="button" className="button button--block landing__cta" onClick={sunlight}>
+          <Button size="lg" block arrow className="landing__cta" onClick={sunlight}>
             Explore sunlight
-            <Arrow />
-          </button>
+          </Button>
 
           {/*
             Polite: it answers a press, it does not interrupt one. Gone as
@@ -381,9 +353,10 @@ export function LandingPage({
           </p>
 
           {onEnterVr && (
-            <button
-              type="button"
-              className="button button--block button--ghost landing__vr"
+            <Button
+              variant="ghost"
+              size="lg"
+              block
               /*
                * The handler IS the call — see xrStore.ts. Nothing may be
                * awaited or confirmed in front of it, or the session never
@@ -392,13 +365,12 @@ export function LandingPage({
               onClick={onEnterVr}
             >
               Enter in VR
-            </button>
+            </Button>
           )}
 
-          <button type="button" className="landing__explore" onClick={onExplore}>
+          <TextButton className="landing__explore" onClick={onExplore}>
             Explore the city without an address
-            <Arrow />
-          </button>
+          </TextButton>
         </div>
 
         {/*
@@ -427,13 +399,7 @@ export function LandingPage({
         </section>
 
         <footer className="landing__foot">
-          <p>
-            Illustrative model · Demo data
-            <span className="landing__foot-sep" aria-hidden="true">
-              |
-            </span>
-            <SourcesLink />
-          </p>
+          <DemoNote />
           {when && <p className="landing__when">{when}</p>}
         </footer>
       </div>
@@ -547,29 +513,6 @@ function Loading({ progress, error }: { progress: LoadProgress; error: string | 
 }
 
 // ── the icons: an arrow for the ways in, a cross to clear, a pin for the chosen place
-
-function Arrow() {
-  return (
-    <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true">
-      <path
-        d="M0 5h15M11 1l4 4-4 4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function Cross() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-      <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function Pin() {
   return (

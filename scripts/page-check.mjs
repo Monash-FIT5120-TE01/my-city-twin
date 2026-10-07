@@ -18,7 +18,10 @@
  *     - choosing an address and pressing "Explore sunlight" opens the
  *       sunlight screen.
  *   Choosing a project on the map
- *     - one click opens nothing; a double click opens it.
+ *     - one click opens nothing; a double click opens it, as a card beside
+ *       the building (not a side column) whose "Explore sunlight" works;
+ *     - nothing on the card runs past its edge, and dragging or scrolling
+ *       on the card does not move the map.
  *   Choosing an existing building on the map
  *     - the same: one click nothing, a double click its page.
  *   The sunlight screen
@@ -159,7 +162,7 @@ try {
   check('While the map shows, its credit shows', creditAlwaysShown, firstFailure);
 
   await page.evaluate(() => document.querySelector('.landing').scrollTo(0, 0));
-  await page.fill('.landing__field input', 'Collins');
+  await page.fill('.landing__search input', 'Collins');
   await page.locator('.landing__search .results button').first().click();
   await page.getByRole('button', { name: 'Explore sunlight' }).click();
   const opened = await page
@@ -194,8 +197,77 @@ try {
     await page.mouse.dblclick(spot[0], spot[1]);
     await page.waitForTimeout(1200);
     check('A double click on a project opens it', view() === 'development', `view ${view()}`);
+    /*
+     * What opens is the place card beside the building — no column over the
+     * left of the map — with the figures and the way on to sunlight.
+     */
+    await page.waitForTimeout(1500);
+    const card = await page.evaluate(() => {
+      const element = document.querySelector('.place-card--anchored');
+      if (!element) return null;
+      const r = element.getBoundingClientRect();
+      return {
+        left: r.left,
+        figures: element.querySelectorAll('.place-card__figures dd').length,
+        panel: document.querySelector('.panel--left') !== null,
+      };
+    });
+    check('It opens as a card beside the building, with figures, not a side column',
+      card !== null && card.left > 300 && card.figures >= 1 && !card.panel, JSON.stringify(card));
+    await page.locator('.place-card--anchored').getByRole('button', { name: /Explore sunlight/ }).click();
+    await page.waitForTimeout(800);
+    check('"Explore sunlight" on the card opens the sunlight screen', view() === 'sunlight', `view ${view()}`);
   }
   await page.close();
+
+  /*
+   * The widest figures in the data (148-156 Queen Street: 62,754 m² of
+   * office) stay inside the card, beside the building and docked on the
+   * narrowest phone. "62,754 m²" once ran out past the card's edge.
+   */
+  for (const [width, height] of [[1440, 900], [320, 640]]) {
+    page = await open(width, height, '?view=development&dev=X0014802&d=2026-06-21&t=720', '.place-card');
+    await page.waitForTimeout(1500);
+    const spill = await page.evaluate(() => {
+      const card = [...document.querySelectorAll('.place-card')].find((e) => e.offsetParent !== null);
+      if (!card) return ['no card'];
+      const edge = card.getBoundingClientRect();
+      return [...card.querySelectorAll('*')]
+        .filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && (r.right > edge.right + 0.5 || r.left < edge.left - 0.5);
+        })
+        .map((e) => e.className || e.tagName);
+    });
+    check(`${width}×${height}: nothing on the place card runs past its edge`, spill.length === 0, spill.join(', '));
+
+    /*
+     * A drag that starts on the card, and the wheel over it, leave the map
+     * where it is. The card is drawn inside the map's box, and both used to
+     * reach the camera controls. Measured by the card itself: it follows its
+     * building, so if the camera moved, the card would too.
+     */
+    if (width === 1440) {
+      const where = async () => {
+        const r = await page.locator('.place-card--anchored').boundingBox();
+        return `${Math.round(r.x)},${Math.round(r.y)}`;
+      };
+      const before = await where();
+      const box = await page.locator('.place-card--anchored').boundingBox();
+      const x = box.x + 60;
+      const y = box.y + box.height - 20;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      for (let i = 1; i <= 10; i++) await page.mouse.move(x - i * 25, y + i * 10);
+      await page.mouse.up();
+      await page.mouse.move(box.x + 100, box.y + 100);
+      await page.mouse.wheel(0, 600);
+      await page.waitForTimeout(1500);
+      const after = await where();
+      check('A drag or the wheel on the place card leaves the map still', before === after, `${before} → ${after}`);
+    }
+    await page.close();
+  }
 
   /*
    * An existing building: the same double click opens its page. Found by
@@ -257,7 +329,8 @@ try {
 
   await page.getByRole('button', { name: 'Details' }).click();
   await page.waitForTimeout(800);
-  await page.getByRole('tab', { name: 'Sunlight' }).click();
+  // "Details" now opens the place card beside the building; it leads back.
+  await page.locator('.place-card--anchored').getByRole('button', { name: /Explore sunlight/ }).click();
   await page.waitForSelector('.timebar__play');
   const hourBack = await page.locator('.timebar__now').innerText();
   await page.waitForTimeout(1500);
@@ -349,7 +422,7 @@ try {
           header: box('.header'),
           controls: box('.viewctl__stack'),
           credit: box('.attribution'),
-          below: box('.panel--left') ?? box('.explore-hint'),
+          below: box('.panel--left') ?? box('.place-card--docked') ?? box('.explore-hint'),
         };
       });
       const { header, controls, credit, below } = rects;

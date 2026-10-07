@@ -17,6 +17,7 @@ import type { SimulationDate } from './solar';
 import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
 import { BuildingPicker } from './BuildingPicker';
+import { EXISTING, UNRESOLVED } from './palette';
 
 interface CityMassingProps {
   model: CityModel;
@@ -70,8 +71,9 @@ interface CityMassingProps {
  *
  * Three merged meshes, split by what the colour has to say: built form, form
  * we could not reconcile, and the proposal. The palette is the one from the
- * design — a near-white city so the mint proposal is the only thing that
- * carries colour, and the eye goes straight to what changed.
+ * design (palette.ts) — a warm cream city, so the teal and orange projects
+ * are the only things that carry strong colour, and the eye goes straight to
+ * what changed.
  */
 export function CityMassing({
   model,
@@ -247,7 +249,7 @@ export function CityMassing({
 
       {built && (
         <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry}>
-          <meshStandardMaterial color="#eeedf0" roughness={0.82} metalness={0} />
+          <meshStandardMaterial color={EXISTING} roughness={0.82} metalness={0} />
         </mesh>
       )}
 
@@ -258,7 +260,7 @@ export function CityMassing({
       */}
       {unresolved && (
         <mesh ref={unresolvedMesh} castShadow receiveShadow geometry={unresolved.geometry}>
-          <meshStandardMaterial color="#d9d5cf" roughness={0.95} metalness={0} />
+          <meshStandardMaterial color={UNRESOLVED} roughness={0.95} metalness={0} />
         </mesh>
       )}
 

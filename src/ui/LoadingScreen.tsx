@@ -19,7 +19,7 @@ export function LoadingScreen({ progress, error }: { progress: LoadProgress; err
     <div className="loading">
       <div className="loading__card" role="status" aria-live="polite">
         <p className="loading__eyebrow">MY CITY TWIN</p>
-        <h1 className="loading__title">
+        <h1 className="panel-title loading__title">
           {failed ? 'The city model did not load' : 'Building the city model'}
         </h1>
 

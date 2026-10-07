@@ -22,6 +22,7 @@
  *   own position. See StreetLabels for the longer version.
  */
 
+import type { ReactNode } from 'react';
 import { Html } from '@react-three/drei';
 import { enuToWorld } from './frame';
 
@@ -42,12 +43,36 @@ const PIN_LIFT_M = 34;
 export function SiteMarker({
   subject,
   groundAhdM,
+  card,
 }: {
   subject: SiteMarkerSubject;
   groundAhdM: number;
+  /**
+   * The place card (PlaceCard), when the building's own screen is up. It
+   * takes the place of the pin and the name: it says the name, and a pin
+   * over a building with a card beside it is a third thing pointing at it.
+   */
+  card?: ReactNode;
 }) {
   const [east, north] = subject.anchorEN;
   const found = subject.kind === 'building';
+
+  if (card) {
+    return (
+      <Html
+        position={enuToWorld([
+          east,
+          north,
+          // Level with the upper part of the mass, as the design draws it.
+          groundAhdM + Math.max(24, (subject.topAhdM - groundAhdM) * 0.72),
+        ])}
+        // Over the city and its labels, under the header (6) and the panels.
+        zIndexRange={[4, 3]}
+      >
+        {card}
+      </Html>
+    );
+  }
 
   // Pink for a search result, green for a proposal — the same rule the
   // buildings themselves follow, so the marker never contradicts the colour

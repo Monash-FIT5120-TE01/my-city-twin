@@ -18,10 +18,10 @@
  *     printed under them, since a cropped picture loses the corner it sat in.
  *   - Step 02 shows the date, hour and season the app is set to now, in the
  *     chips the sunlight screen uses for them.
- *   - The key to the map. The design's "In progress" colour is left out: the
- *     model draws approved projects one way whatever their stage. In its
- *     place, the pink a searched building is drawn in. "Selected" is the
- *     outline, shown as an outline — told apart by shape, not hue.
+ *   - The key to the map: existing, approved, in progress (under
+ *     construction), the pink a searched building is drawn in, and
+ *     "Selected", the outline, shown as an outline — told apart by shape,
+ *     not hue.
  *   - "Explore the city", and "Back to sunlight" when a place is chosen.
  *   - The fine print and the sources.
  *
@@ -29,10 +29,14 @@
  *   Nothing. The moment and where the buttons go are App's.
  */
 
-import { useEffect, useRef } from 'react';
 import { bundled } from '../data/bundled';
 import { SkylineFilm } from './LandingPage';
-import { SourcesLink } from './Sources';
+import { Button } from './kit/Button';
+import { Card } from './kit/Card';
+import { DemoNote } from './kit/DemoNote';
+import { MapKey } from './kit/MapKey';
+import { PageHead } from './kit/PageHead';
+import { Pill } from './kit/Pill';
 import '../styles/how.css';
 
 /** The map's credit, for the photographs of it. */
@@ -57,47 +61,38 @@ export function HowItWorksPage({
   /** Back to the sunlight screen; absent when no place has been chosen yet. */
   onBack?: () => void;
 }) {
-  /*
-   * Arriving, the keyboard is given the page's heading — the header link
-   * that brought it here stays, but the page it pointed at is this one.
-   */
-  const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    heading.current?.focus({ preventScroll: true });
-  }, []);
-
   return (
-    <section className="how" aria-labelledby="how-title">
+    <section className="page how" aria-labelledby="how-title">
       <div className="how__inner">
         <div className="how__head">
-          <div>
-            <h1 className="how__title" id="how-title" ref={heading} tabIndex={-1}>
-              Your city, understood.
-            </h1>
-            <p className="how__lede">Find a building. Follow the sun. Compare what changes.</p>
-          </div>
+          {/* The heading takes the keyboard on arrival (PageHead). */}
+          <PageHead
+            id="how-title"
+            title="Your city, understood."
+            lede="Find a building. Follow the sun. Compare what changes."
+          />
           <div className="how__film">
             <SkylineFilm reducedMotion={reducedMotion} />
           </div>
         </div>
 
         <ol className="how__steps">
-          <li className="how__step">
+          <Card as="li" className="how__step">
             <figure className="how__picture">
               <img src={bundled('how/find.jpg')} alt="A building in the city model, outlined after a search." />
-              <span className="how__chip how__chip--search">
+              <Pill size="xs" className="how__chip">
                 <SearchIcon />
                 25-45 Collins Street
-              </span>
+              </Pill>
             </figure>
             <div className="how__words">
               <span className="how__number" aria-hidden="true">01</span>
-              <h2 className="how__step-title">Find any building</h2>
+              <h2 className="card-title how__step-title">Find any building</h2>
               <p>Search an address to open its page. Or explore the map and double-click any building.</p>
             </div>
-          </li>
+          </Card>
 
-          <li className="how__step">
+          <Card as="li" className="how__step">
             <figure className="how__picture">
               <img
                 src={bundled('how/sun.jpg')}
@@ -106,7 +101,7 @@ export function HowItWorksPage({
             </figure>
             <div className="how__words">
               <span className="how__number" aria-hidden="true">02</span>
-              <h2 className="how__step-title">Follow the sun</h2>
+              <h2 className="card-title how__step-title">Follow the sun</h2>
               <p>Set a date and time, then choose a spot on the ground.</p>
               {/* What the app is set to now — not a control here, a picture of one. */}
               <p className="how__when" aria-label={`Set to ${dateText}, ${timeText}, ${season}`}>
@@ -115,71 +110,56 @@ export function HowItWorksPage({
                 <span>{season}</span>
               </p>
             </div>
-          </li>
+          </Card>
 
-          <li className="how__step">
+          <Card as="li" className="how__step">
             <div className="how__pair">
               <figure className="how__picture">
                 <img src={bundled('how/today.jpg')} alt="The neighbourhood as it stands today." />
-                <figcaption className="how__chip">Today</figcaption>
+                <Pill as="figcaption" size="xs" className="how__chip">
+                  Today
+                </Pill>
               </figure>
               <figure className="how__picture">
                 <img
                   src={bundled('how/after.jpg')}
                   alt="The same view with the approved projects built."
                 />
-                <figcaption className="how__chip">After planned projects are built</figcaption>
+                <Pill as="figcaption" size="xs" className="how__chip">
+                  After planned projects are built
+                </Pill>
               </figure>
             </div>
             <div className="how__words">
               <span className="how__number" aria-hidden="true">03</span>
-              <h2 className="how__step-title">Compare the change</h2>
+              <h2 className="card-title how__step-title">Compare the change</h2>
               <p>
                 Choose Compare side by side. See today beside the future neighbourhood, with linked
                 views.
               </p>
             </div>
-          </li>
+          </Card>
         </ol>
 
         <p className="how__credit">Map pictures {MAP_CREDIT}</p>
 
-        <div className="how__legend">
-          <span className="how__legend-title">Read the map legend</span>
-          <span className="how__key">
-            <span className="how__swatch how__swatch--existing" aria-hidden="true" />
-            Existing
-          </span>
-          <span className="how__key">
-            <span className="how__swatch how__swatch--approved" aria-hidden="true" />
-            Approved
-          </span>
-          <span className="how__key">
-            <span className="how__swatch how__swatch--searched" aria-hidden="true" />
-            Searched building
-          </span>
-          <span className="how__key">
-            <span className="how__swatch how__swatch--selected" aria-hidden="true" />
-            Selected
-          </span>
-          <span className="how__legend-note">Double-click any building to open it.</span>
-        </div>
+        <Card className="how__legend">
+          <MapKey full title="Read the map legend" note="Double-click any building to open it." />
+        </Card>
 
         <div className="how__actions">
-          <button type="button" className="button how__explore" onClick={onExplore}>
-            Explore the city <span aria-hidden="true">→</span>
-          </button>
+          <Button size="lg" arrow onClick={onExplore}>
+            Explore the city
+          </Button>
           {onBack && (
-            <button type="button" className="button how__back" onClick={onBack}>
+            <Button variant="secondary" size="lg" onClick={onBack}>
               Back to sunlight
-            </button>
+            </Button>
           )}
         </div>
 
         <footer className="how__foot">
-          Illustrative model · Demo data
-          <span aria-hidden="true">|</span>
-          <SourcesLink />
+          <DemoNote />
         </footer>
       </div>
     </section>

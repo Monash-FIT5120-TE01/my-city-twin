@@ -17,6 +17,7 @@
 import { useEffect, useRef } from 'react';
 import { bundled } from '../data/bundled';
 import type { Development } from '../data/model';
+import { SearchField } from './kit/SearchField';
 
 /**
  * The credit Mapbox is owed for the map under the city.
@@ -242,39 +243,19 @@ export function Header({
       </button>
 
       <div className="header__search">
-        <label className="field">
-          <svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true">
-            <circle cx="7" cy="7" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.7" />
-            <line
-              x1="11"
-              y1="11"
-              x2="15.4"
-              y2="15.4"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-            />
-          </svg>
-          <input
-            ref={field}
-            data-search-field
-            value={query}
-            onChange={(event) => onQuery(event.target.value)}
-            onFocus={onSearchFocus}
-            placeholder="Search a street or address"
-            aria-label="Search for a street or address"
-          />
-          {/*
-            Hidden once there is anything to read in the field, because by
-            then it is behind the words and it has done its job.
-          */}
-          {!query && (
-            <kbd className="field__key" aria-hidden="true">
-              /
-            </kbd>
-          )}
-        </label>
-        {children}
+        {/* The results (children) hang from the field — see SearchField. */}
+        <SearchField
+          ref={field}
+          value={query}
+          onChange={onQuery}
+          onClear={() => {
+            onQuery('');
+            field.current?.focus();
+          }}
+          onFocus={onSearchFocus}
+          shortcut
+          dropdown={children}
+        />
       </div>
 
       <div className="header__actions">
@@ -341,28 +322,13 @@ export function Header({
   );
 }
 
-/** A project's planning status, written out in a pill. */
-export function StatusBadge({
-  status,
-  tone = 'solid',
-}: {
-  status: Development['status'];
-  /**
-   * How loudly to say it.
-   *
-   * A list of projects needs each status to be findable while scanning, so
-   * there it is a filled pill. A subject's own header does not: the reader
-   * is already looking at one project, and a filled pill above its name
-   * outshouted the name. "soft" is the same word on a pale ground.
-   *
-   * Both spell the status out. Neither leans on the colour to say it, which
-   * is what lets the quieter one stay readable.
-   */
-  tone?: 'solid' | 'soft';
-}) {
-  const construction = status === 'UNDER CONSTRUCTION';
-  const variant = tone === 'soft' ? ' badge--soft' : construction ? ' badge--construction' : '';
-  return <span className={`badge${variant}`}>{status}</span>;
+/**
+ * A project's planning status, spelt out on a pale ground above its address.
+ * (A filled version for lists went with the list of nearby projects.) The
+ * words carry it; the tint only says "this is a status".
+ */
+export function StatusBadge({ status }: { status: Development['status'] }) {
+  return <span className="badge">{status}</span>;
 }
 
 /**

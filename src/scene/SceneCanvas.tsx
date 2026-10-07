@@ -53,7 +53,7 @@
  *   rotation. Each converts its own position instead; see StreetLabels.
  */
 
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
@@ -151,6 +151,8 @@ interface SceneCanvasProps {
   showHighlighted: boolean;
   /** The one place that carries a pin and a name, or none. */
   marker: SiteMarkerSubject | null;
+  /** The place card, drawn beside the marked building instead of its pin. */
+  markerCard?: ReactNode;
   /**
    * Where to point the camera, if not at the focused development — used when
    * a search result is an existing building rather than a proposal.
@@ -232,6 +234,7 @@ export function SceneCanvas({
   highlightedBuildingId,
   showHighlighted,
   marker,
+  markerCard,
   lookAt,
   walking,
   onLeaveStreet,
@@ -691,8 +694,8 @@ export function SceneCanvas({
           the approved massing is actually being shown; a searched building
           always does, because it is there either way.
         */}
-        {marker && (marker.kind === 'building' || showProposed) && (
-          <SiteMarker subject={marker} groundAhdM={ground} />
+        {marker && (marker.kind === 'building' || showProposed || markerCard) && (
+          <SiteMarker subject={marker} groundAhdM={ground} card={markerCard} />
         )}
 
         {/*

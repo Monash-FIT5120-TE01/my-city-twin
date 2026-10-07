@@ -11,16 +11,13 @@
  *   ViewControls     turn, zoom, frame the whole city, focus mode, and the
  *                    card that says how the mouse moves the map.
  *   MapLayers        the layer panel the header's "Map layers" opens.
- *   SubjectHead      the top every subject panel shares: the way back, the
- *                    way out, the address, and either the Overview /
- *                    Sunlight tabs or a "Details" link.
- *   DevelopmentPanel one approved project.
+ *   SubjectHead      the top of the sunlight column: the way back, the
+ *                    address, and a "Details" link to the place card.
  *   SunlightSheet    the sunlight screen's column: date, season, today or
  *                    after, the measured spot or window, the way to the
  *                    side-by-side comparison, and "How it works".
  *   TimeBar          the dock along the foot of the map: play, the hour on a
  *                    rail through the day, sunrise and sunset, the map key.
- *   BuildingPanel    one existing building.
  *
  * WHY THEY FLOAT
  *   The thing being explained is behind the glass. A full-width page would
@@ -57,14 +54,19 @@ import {
   type SimulationDate,
 } from '../scene/solar';
 import type { SunlightAtPoint } from '../scene/sunlightAt';
-import { StatusBadge, developmentSummary } from './chrome';
-import { MapKey, SourcesLink } from './Sources';
+import { StatusBadge } from './chrome';
+import { SourcesLink } from './Sources';
+import { MapKey } from './kit/MapKey';
+import { BackLink } from './kit/BackLink';
+import { Button } from './kit/Button';
+import { CloseButton } from './kit/CloseButton';
+import { Swatch } from './kit/Swatch';
+import { TextButton } from './kit/TextButton';
 import { DateField } from './DateField';
 import { ApartmentControls, WindowResult } from './Apartment';
 import type { Facade } from '../scene/facades';
 import type { WindowSunlight } from '../scene/windowSunlight';
 import { searchCity, type SearchHit } from '../data/search';
-import type { BuildingDetail } from '../data/useBuildingDetail';
 
 /* ── 01 Search, progress and the map controls ───────────── */
 
@@ -121,7 +123,20 @@ export function SearchResults({
           aria-selected="false"
           onClick={() => onPick(hit)}
         >
-          <span className={`results__kind results__kind--${hit.kind}`} />
+          {/*
+            The colour it will be in the city: pink for a building, teal for an
+            approved project, orange for one under construction.
+          */}
+          <Swatch
+            tone={
+              hit.kind === 'building'
+                ? 'searched'
+                : hit.development.status === 'UNDER CONSTRUCTION'
+                  ? 'progress'
+                  : 'approved'
+            }
+            size="sm"
+          />
           {hit.label}
           <small>{hit.detail}</small>
         </button>
@@ -432,26 +447,10 @@ export function MapLayers({
   return (
     <aside className="panel panel--left sheet" aria-labelledby="layers-title">
       <div className="sheet__head">
-        <h2 className="sheet__title" id="layers-title">
+        <h2 className="panel-title sheet__title" id="layers-title">
           Map layers
         </h2>
-        <button
-          type="button"
-          className="sheet__close"
-          onClick={onClose}
-          aria-label="Close map layers"
-          title="Close"
-        >
-          <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M3.6 3.6l7.8 7.8M11.4 3.6l-7.8 7.8"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+        <CloseButton label="Close map layers" onClick={onClose} />
       </div>
 
       <p className="sheet__meta">Choose what appears on the map.</p>
@@ -515,43 +514,20 @@ export function MapLayers({
 
       <p className="note">Layer settings stay as you move between projects.</p>
 
-      <button type="button" className="button button--block" onClick={onClose}>
+      <Button block onClick={onClose}>
         Done
-      </button>
+      </Button>
     </aside>
   );
 }
 
-/* ── 03 Development Overview: the shared head, and one project ─ */
-
-/*
- * SET BY THE ARROW KEYS, READ BY THE HEADER THAT MOUNTS NEXT.
- *
- * Module scope, and not a ref, because the header does not survive the thing
- * it is trying to remember. Switching tabs swaps one panel component for
- * another, so the tab strip is unmounted and a new one is built -- a ref
- * inside it is gone by the time the destination exists, and so is the button
- * that focus was moved to. Focusing synchronously in the key handler put
- * focus on an element React removed a moment later, which dropped the reader
- * back to the top of the document mid-keystroke.
- *
- * A module-level flag outlives the unmount, which is exactly the span that
- * has to be bridged. It is cleared the first time it is read, so a tab
- * switch made with the mouse never steals focus. The Sunlight tab leads to
- * the sunlight column, which has no tabs: there the keyboard is given the
- * subject's own heading instead, so it lands at the top of the new panel
- * rather than falling back to the top of the document.
- */
-let focusTabOnMount = false;
+/* ── 03 The subject's head, on the sunlight column ──────── */
 
 /**
- * The top of a subject's panel: the way back, the way out (where there is
- * one), what it is, and then either the Overview / Sunlight tabs or a
- * "Details" link back to the subject's own page.
- *
- * Shared rather than written three times, so the project, the building and
- * the sunlight column all open the same way — and a head that drifted by
- * two pixels between them would make changing tab look like a navigation.
+ * The top of the sunlight column: the way back, what the subject is, and a
+ * "Details" link to its place card. (It once also headed the project and
+ * building panels, with Overview / Sunlight tabs; those panels became the
+ * place card — see PlaceCard.)
  */
 function SubjectHead({
   status,
@@ -560,10 +536,7 @@ function SubjectHead({
   locality,
   meta,
   backLabel,
-  tab,
-  onTab,
   onBack,
-  onClose,
   onDetails,
 }: {
   status?: Development['status'];
@@ -583,82 +556,22 @@ function SubjectHead({
   meta: string;
   /** Where the back link goes, in words: "Back to the map". */
   backLabel: string;
-  /** Which half this is; also which tab is marked, when there are tabs. */
-  tab: 'overview' | 'sunlight';
-  /** The Overview / Sunlight tabs. Absent on the sunlight screen, which links to the details instead. */
-  onTab?: (next: 'overview' | 'sunlight') => void;
   onBack: () => void;
-  /** "Start over". Absent where the header's own mark is the way home. */
-  onClose?: () => void;
-  /** A "Details" link under the address, in place of the tabs. */
+  /** A "Details" link under the address: the subject's place card. */
   onDetails?: () => void;
 }) {
-  useEffect(() => {
-    if (!focusTabOnMount) return;
-    focusTabOnMount = false;
-    (
-      document.getElementById(`subject-tab-${tab}`) ??
-      document.getElementById('subject-title')
-    )?.focus();
-  }, [tab]);
-
   return (
     <>
       {/*
-        ── THE TWO WAYS OUT, AT THE SIZE THEY DESERVE ────────────────────────
+        ── THE WAY BACK, AT THE SIZE IT DESERVES ────────────────────────────
 
-        Both were drawn as full controls: a bordered button for going back and
-        a cross for starting over. Two framed boxes above the subject's name
-        competed with the name, and the heaviest thing on the panel was the
-        way off it.
-
-        Now they are what they are -- a text link and an icon. Both still
-        carry a 44px target; the room is in padding rather than in a border,
-        so the hit area is unchanged and only the drawing is quieter. The
-        sunlight column has only the first: the header's mark is its way home.
+        It was drawn as a bordered button, and the heaviest thing on the
+        panel was the way off it. Now it is what it is -- a text link -- with
+        the 44px target kept in padding rather than in a border. The header's
+        mark is the way home.
       */}
       <div className="sheet__nav">
-        <button type="button" className="backlink" onClick={onBack}>
-          <svg width="13" height="13" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M9.2 2.5 4.4 7.5l4.8 5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span>{backLabel}</span>
-        </button>
-
-        {/*
-          The cross, by request.
-
-          It is still wired to onClose, which returns to the opening screen
-          rather than dismissing the panel, so the label says "Start over"
-          for anybody who cannot see the mark. The drawing is the familiar
-          one; the name and the behaviour are unchanged.
-        */}
-        {onClose && (
-          <button
-            type="button"
-            className="sheet__close"
-            onClick={onClose}
-            aria-label="Start over"
-            title="Start over"
-          >
-            <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-              <path
-                d="M3.6 3.6l7.8 7.8M11.4 3.6l-7.8 7.8"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        )}
+        <BackLink onClick={onBack}>{backLabel}</BackLink>
       </div>
 
       {/*
@@ -670,221 +583,27 @@ function SubjectHead({
         order they are read in is decided by the drawing rather than by luck.
       */}
       <div className="subject">
-        {status && <StatusBadge status={status} tone="soft" />}
-        {existing && <span className="badge badge--soft">Existing</span>}
-        {/* Focusable from script only, for the arrow-key move above. */}
-        <h2 className="sheet__title" id="subject-title" tabIndex={-1}>
+        {status && <StatusBadge status={status} />}
+        {existing && <span className="badge badge--existing">Existing</span>}
+        {/* Focusable from script only: arriving from the place card. */}
+        <h2 className="panel-title sheet__title" id="subject-title" tabIndex={-1}>
           {title}
         </h2>
         {locality && <p className="sheet__locality">{locality}</p>}
         <p className="sheet__meta">{meta}</p>
         {/*
-          What the Overview tab showed, one press away rather than a tab
-          wide: on the sunlight screen the sunlight is the subject, and the
-          record of the building is a reference to look up.
+          The place card, with its figures, one press away: on the sunlight
+          screen the sunlight is the subject, and the record of the building
+          is a reference to look up.
         */}
         {onDetails && (
-          <button type="button" className="sheet__details" onClick={onDetails}>
+          <TextButton variant="reference" className="sheet__details" onClick={onDetails}>
             Details
-          </button>
+          </TextButton>
         )}
       </div>
 
-      {/*
-        The tabs, where onTab is given. --at is which segment is chosen, and
-        it is what the sliding face follows. See .segmented in ui.css: the
-        raised surface is one element belonging to the strip rather than a
-        background on whichever button happens to be selected, so it can
-        travel between them.
-      */}
-      {onTab && (
-      <div
-        className="sheet__tabs"
-        role="tablist"
-        aria-label="This project"
-        style={{ '--count': 2, '--at': tab === 'overview' ? 0 : 1 } as React.CSSProperties}
-      >
-        {(
-          [
-            ['overview', 'Overview'],
-            ['sunlight', 'Sunlight'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`subject-tab-${id}`}
-            aria-controls="subject-tabpanel"
-            aria-selected={tab === id}
-            tabIndex={tab === id ? 0 : -1}
-            onKeyDown={(event) => {
-              if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-              event.preventDefault();
-              const next = tab === 'overview' ? 'sunlight' : 'overview';
-              focusTabOnMount = true;
-              onTab(next);
-            }}
-            onClick={() => onTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      )}
     </>
-  );
-}
-
-/**
- * Area uses and counted uses, told apart by their unit.
- *
- * The distinction matters because they are read differently: 7,743 m² of
- * office is a sentence, and 72 bike spaces is a figure. Putting a floor area
- * on a tile makes it look like a headline number when it is really a
- * measurement, and burying a bike count in prose loses the one thing about a
- * building somebody might actually be looking for.
- *
- * The test is the unit, not the name, because the vocabulary of use types
- * comes from the planning records and this file does not get to decide it.
- */
-function splitUses(development: Development) {
-  const area = development.landUses.filter((use) => /m2|m²|sqm/i.test(use.unit ?? ''));
-  const counted = development.landUses
-    .filter((use) => !area.includes(use))
-    .sort((a, b) => b.quantity - a.quantity);
-  return { area, counted };
-}
-
-/**
- * ─────────────────────────────────────────────────────────────────────────
- * ONE PROJECT
- * ─────────────────────────────────────────────────────────────────────────
- *
- * WHY THE HEADLINE IS BUILT FROM THE DATA
- *   The design shows an editorial line — "A new place to work, shop and
- *   arrive by bike." Nothing in the records says that. What they do say is
- *   which uses the building has, so the sentence is assembled from those and
- *   claims nothing else. A written headline would have to be written per
- *   project, by somebody, for forty-nine of them.
- *
- * WHY THERE IS NO "PUBLIC SPACE NEARBY" SECTION
- *   The design names a footpath. There is no protected-public-space data —
- *   it is user story 1.3 and nothing behind it exists yet — and naming a
- *   specific footpath under a heading that implies it was assessed would be
- *   inventing the one kind of claim this product must not invent. The
- *   sunlight screen measures a point the reader chooses instead.
- */
-export function DevelopmentPanel({
-  development,
-  storeys,
-  tab,
-  onTab,
-  onBack,
-  onClose,
-}: {
-  development: Development;
-  /** From the details endpoint, when it has answered; left out until then. */
-  storeys?: number;
-  /** Which tab is showing. 'sunlight' is a different screen; see App. */
-  tab: 'overview' | 'sunlight';
-  onTab: (next: 'overview' | 'sunlight') => void;
-  /** "Back to the map": the explore screen. */
-  onBack: () => void;
-  /** "Start over": the front page. */
-  onClose: () => void;
-}) {
-  const tallest = development.parts.reduce((a, b) => (a.heightM > b.heightM ? a : b));
-  const { area, counted } = splitUses(development);
-
-  const uses = development.landUses
-    .map((use) => use.useType.toLowerCase())
-    .filter((use, i, all) => all.indexOf(use) === i);
-  const headline =
-    uses.length > 0
-      ? `A new ${uses.slice(0, 2).join(' and ')} building.`
-      : 'A new building.';
-
-  /*
-   * The suburb and postcode, which the address carries after the street.
-   *
-   * Its own line in the header rather than appended to the summary: it is a
-   * different kind of fact from "Office + Retail / 51 storeys / 190 m", and
-   * run together with them by a middot it read as a fourth attribute of the
-   * building. Empty when the address has no comma, in which case the header
-   * simply does not draw the line.
-   */
-  const locality = development.streetAddress.split(',').slice(1).join(',').trim();
-
-  return (
-    <aside className="panel panel--left sheet" aria-labelledby="subject-title">
-      <SubjectHead
-        status={development.status}
-        title={development.streetAddress.split(',')[0]}
-        locality={locality}
-        meta={developmentSummary(development, storeys)}
-        backLabel="Back to the map"
-        tab={tab}
-        onTab={onTab}
-        onBack={onBack}
-        onClose={onClose}
-      />
-
-      <div
-        /* Keyed on the tab, so switching replaces the element and its entrance runs again. */
-        key={tab}
-        role="tabpanel"
-        id="subject-tabpanel"
-        aria-labelledby={`subject-tab-${tab}`}
-        className="sheet__tabpanel"
-      >
-        <p className="panel__eyebrow">What is proposed</p>
-        <h3 className="sheet__lede">{headline}</h3>
-
-        <div className="tiles">
-          <div className="tile">
-            <p className="tile__figure">{tallest.heightM.toFixed(0)} m</p>
-            <p className="tile__label">Building height</p>
-          </div>
-          {/*
-            The second tile only exists when there is a counted use to put in
-            it. An empty tile beside a full one reads as a number that failed
-            to load.
-          */}
-          {counted[0] && (
-            <div className="tile">
-              <p className="tile__figure">{counted[0].quantity.toLocaleString()}</p>
-              <p className="tile__label">{counted[0].useType}</p>
-            </div>
-          )}
-        </div>
-
-        <p className="sheet__body">
-          {area.length > 0 && (
-            <>
-              {area
-                .map(
-                  (use) =>
-                    `${use.quantity.toLocaleString()} ${use.unit} of ${use.useType.toLowerCase()}`,
-                )
-                .join(' and ')}
-              .{' '}
-            </>
-          )}
-          The building reaches {tallest.topAhdM.toFixed(0)} m above the model datum.
-        </p>
-
-        <button
-          type="button"
-          className="button button--block"
-          onClick={() => onTab('sunlight')}
-        >
-          Explore sunlight &amp; shadow
-        </button>
-      </div>
-
-      <p className="sheet__fine">Illustrative demo data · Not a planning assessment.</p>
-    </aside>
   );
 }
 
@@ -1149,7 +868,6 @@ export function SunlightSheet({
         locality={locality}
         meta={meta}
         backLabel="Explore the city"
-        tab="sunlight"
         onBack={onBack}
         onDetails={onDetails}
       />
@@ -1330,13 +1048,9 @@ export function SunlightSheet({
                 A ring follows the pointer. The spot you pick is measured
                 across the whole day.
               </p>
-              <button
-                type="button"
-                className="button button--ghost button--block"
-                onClick={onCancelChoose}
-              >
+              <Button variant="ghost" block onClick={onCancelChoose}>
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
 
@@ -1423,18 +1137,14 @@ export function SunlightSheet({
                 The other two are the same size as each other because they are
                 alternatives to it, not to one another.
               */}
-              <button
-                type="button"
-                className="button button--block"
-                onClick={onChoose}
-              >
+              <Button block onClick={onChoose}>
                 Choose another point
-              </button>
+              </Button>
 
               <div className="sheet__actions">
-                <button type="button" className="button button--ghost" onClick={onClearPoint}>
+                <Button variant="ghost" onClick={onClearPoint}>
                   Clear point
-                </button>
+                </Button>
                 {/*
                   The measured spot is a place the reader chose and asked a
                   question about, which makes it the one place worth being put
@@ -1442,50 +1152,27 @@ export function SunlightSheet({
                   diagram; from the footpath it is the thing the question was
                   about.
                 */}
-                <button type="button" className="button button--ghost" onClick={onStand}>
-                  <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
-                    <ellipse
-                      cx="9"
-                      cy="13.6"
-                      rx="6.2"
-                      ry="2.6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M9 1.4v8.2M5.9 6.6 9 9.8l3.1-3.2"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                <Button
+                  variant="ghost"
+                  onClick={onStand}
+                  icon={<StandIcon />}
+                >
                   Stand here
-                </button>
+                </Button>
               </div>
             </>
           ) : (
             !choosing && (
               <>
-                <button
-                  type="button"
-                  className="button button--block button--spot"
+                <Button
+                  variant="mint"
+                  size="lg"
+                  block
                   onClick={onChoose}
+                  icon={<PinIcon />}
                 >
-                  <svg width="15" height="19" viewBox="0 0 14 18" aria-hidden="true">
-                    <path
-                      d="M7 17s5.6-5.6 5.6-10A5.6 5.6 0 0 0 1.4 7C1.4 11.4 7 17 7 17Z"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinejoin="round"
-                    />
-                    <circle cx="7" cy="7" r="2" fill="currentColor" />
-                  </svg>
                   Choose a spot
-                </button>
+                </Button>
                 <p className="sheet__sub">Select a point on the ground.</p>
               </>
             )
@@ -1499,23 +1186,10 @@ export function SunlightSheet({
           with the two views moving together. The switch above shows one at a
           time on this map; this shows both at once.
         */}
-        <button
-          type="button"
-          className="button button--ghost button--block button--compare"
-          onClick={onCompare}
-        >
+        {/* .button--compare: where the keyboard returns from the comparison (App). */}
+        <Button variant="ghost" size="lg" block arrow className="button--compare" onClick={onCompare}>
           Compare side by side
-          <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true">
-            <path
-              d="M0 5h15M11 1l4 4-4 4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        </Button>
 
         {/*
           -- HOW IT WORKS ---------------------------------------------------
@@ -1783,174 +1457,43 @@ export function TimeBar({
   );
 }
 
-/* ── An existing building ───────────────────────────────── */
-
-/**
- * ─────────────────────────────────────────────────────────────────────────
- * ONE EXISTING BUILDING
- * ─────────────────────────────────────────────────────────────────────────
- *
- * What is known about one existing building: the same sheet a project
- * gets, for something that is already standing. The counterpart to
- * DevelopmentPanel. Until then a searched building got the nearby-projects
- * list and nothing about itself, so the one thing a resident had actually
- * asked about was the one thing the screen would not describe.
- *
- * The sunlight screen is reachable from here. It was not at first, on the
- * reasoning that a building has no "before" to compare against — but the
- * searched building is already lifted out of the merged city so it can be
- * drawn pink, so the city without it costs nothing to show.
- *
- * WHY IT LOOKS LIKE THE PROJECT PANEL NOW
- *   It was the last panel written before the rest were redesigned, and it
- *   stayed as it was: no back link, no tabs, no progress, a different way of
- *   laying out its figures, and on the opposite side of the screen. A reader
- *   who searched an address got a panel that shared nothing with the one
- *   they had been using a moment earlier, and had to work out its exits from
- *   scratch.
- *
- *   Everything here comes from SubjectHead, so the two cannot drift again.
- *
- * WHY IT IS ON THE LEFT
- *   Because everything else is. It was the one panel in the app on the right
- *   — and its own sunlight half was on the left, so switching tab threw it
- *   across the city and the reader had to find it again.
- *
- *   Which side matters far less than every panel using the same one. A
- *   reader learns where panels appear in the first ten seconds and then
- *   stops looking; a panel that arrives somewhere else is a panel that has
- *   to be searched for.
- *
- * WHAT IT DOES NOT DO
- *   This panel does not compare anything: it describes what is standing.
- *   The comparisons live on the sunlight screen, where the building can be
- *   taken away to show what IT takes from the street, and the approved
- *   projects around it added to show what changes.
- */
-export function BuildingPanel({
-  label,
-  locality,
-  heightM,
-  detail,
-  settled,
-  onSunlight,
-  onBack,
-  onClose,
-}: {
-  /** The street address, the title unless the record has a name. */
-  label: string;
-  /** Suburb, state and postcode, when the address had them to give. */
-  locality?: string;
-  /** From the massing, so a height shows even before the record arrives. */
-  heightM: number;
-  /** The property record, or null until (or unless) it arrives. */
-  detail: BuildingDetail | null;
-  /** False while the record is still in flight; true once it will not come. */
-  settled: boolean;
-  /** The Sunlight tab and the main button: on to the sunlight screen. */
-  onSunlight: () => void;
-  /** "Back to the map": the explore screen. */
-  onBack: () => void;
-  /** "Start over": the front page. */
-  onClose: () => void;
-}) {
-  /*
-   * The two figures worth a tile, and the rest as a list.
-   *
-   * Height is always known — it comes from the massing, which is how the
-   * building got drawn at all. Storeys come from the record, which may not
-   * arrive, so the second tile appears only when there is something in it.
-   */
-  const rest: { label: string; value: string }[] = [];
-  if (detail?.constructionYear) {
-    rest.push({ label: 'Built', value: String(detail.constructionYear) });
-  }
-  if (detail?.refurbishedYear) {
-    rest.push({ label: 'Refurbished', value: String(detail.refurbishedYear) });
-  }
-  // Zero is worth showing — "no bicycle parking" is a fact about a building.
-  if (detail?.bicycleSpaces !== null && detail?.bicycleSpaces !== undefined) {
-    rest.push({ label: 'Bicycle spaces', value: String(detail.bicycleSpaces) });
-  }
-
-  /*
-   * The address often already contains the name — the footprint data has
-   * "Pegasus Apartment Hotel 206-216 A'Beckett Street" as the address — so
-   * the address is only worth repeating when it adds something.
-   */
-  const name = detail?.buildingName ?? label;
-  const meta = [
-    detail?.buildingName && !label.includes(detail.buildingName) ? label : null,
-    detail?.predominantUse ? `Mainly ${detail.predominantUse.toLowerCase()}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
+/** "Stand here": a figure's footprint with an arrow down into it. */
+function StandIcon() {
   return (
-    <aside className="panel panel--left sheet" aria-labelledby="subject-title">
-      <SubjectHead
-        existing
-        title={name}
-        locality={locality}
-        meta={meta}
-        backLabel="Back to the map"
-        tab="overview"
-        onTab={(next) => next === 'sunlight' && onSunlight()}
-        onBack={onBack}
-        onClose={onClose}
+    <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
+      <ellipse
+        cx="9"
+        cy="13.6"
+        rx="6.2"
+        ry="2.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
       />
+      <path
+        d="M9 1.4v8.2M5.9 6.6 9 9.8l3.1-3.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
-      <div
-        key="overview"
-        role="tabpanel"
-        id="subject-tabpanel"
-        aria-labelledby="subject-tab-overview"
-        className="sheet__tabpanel"
-      >
-        <p className="panel__eyebrow">What is here</p>
-
-        <div className="tiles">
-          <div className="tile">
-            <p className="tile__figure">{heightM.toFixed(0)} m</p>
-            <p className="tile__label">Building height</p>
-          </div>
-          {detail?.floorsAboveGround && (
-            <div className="tile">
-              <p className="tile__figure">{detail.floorsAboveGround}</p>
-              <p className="tile__label">Storeys</p>
-            </div>
-          )}
-        </div>
-
-        {rest.length > 0 && (
-          <dl className="facts">
-            {rest.map((fact) => (
-              <div key={fact.label}>
-                <dt>{fact.label}</dt>
-                <dd>{fact.value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-
-        {/*
-          Said only once the record has settled. While it is in flight an
-          empty panel is a panel still arriving; afterwards it is a panel
-          with nothing in it, and those need different sentences.
-        */}
-        {settled && rest.length === 0 && !detail?.floorsAboveGround && (
-          <p className="sheet__body">
-            No further record for this building. Its height comes from the
-            model&rsquo;s own geometry.
-          </p>
-        )}
-
-        <button type="button" className="button button--block" onClick={onSunlight}>
-          Explore sunlight &amp; shadow
-        </button>
-      </div>
-
-      <p className="sheet__fine">Illustrative demo data · Not a planning assessment.</p>
-    </aside>
+/** "Choose a spot": a map pin. */
+function PinIcon() {
+  return (
+    <svg width="15" height="19" viewBox="0 0 14 18" aria-hidden="true">
+      <path
+        d="M7 17s5.6-5.6 5.6-10A5.6 5.6 0 0 0 1.4 7C1.4 11.4 7 17 7 17Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="7" cy="7" r="2" fill="currentColor" />
+    </svg>
   );
 }

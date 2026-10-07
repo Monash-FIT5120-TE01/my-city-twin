@@ -27,7 +27,11 @@
 
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { SEASONS, matchingSeason, sameDayInMonth, type SimulationDate } from '../scene/solar';
-import { MapKey, SourcesLink } from './Sources';
+import { MapKey } from './kit/MapKey';
+import { Button } from './kit/Button';
+import { Card } from './kit/Card';
+import { DemoNote } from './kit/DemoNote';
+import { PageHead } from './kit/PageHead';
 import { TimeBar } from './screens';
 import '../styles/compare.css';
 
@@ -139,42 +143,21 @@ export function ComparePage({
     };
   }, []);
 
-  /*
-   * Arriving, the keyboard is given the page's heading — the button that
-   * brought it here has gone, and without this focus fell back to the top of
-   * the document.
-   */
-  const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    heading.current?.focus({ preventScroll: true });
-  }, []);
-
   const preset = matchingSeason(date);
 
   return (
-    <section className="compare" ref={root} aria-labelledby="compare-title">
+    <section className="page compare" ref={root} aria-labelledby="compare-title">
       <div className="compare__head">
-        <div>
-          <button type="button" className="compare__back" onClick={onBack}>
-            <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true">
-              <path
-                d="M13 6H2M6 1.5 1.5 6 6 10.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Back to sunlight
-          </button>
-          <h1 className="compare__title" id="compare-title" ref={heading} tabIndex={-1}>
-            Compare sunlight
-          </h1>
-          <p className="compare__place">
-            {title} · {kindLabel}
-          </p>
-        </div>
+        {/*
+          Arriving, the keyboard is given the page's heading (PageHead) — the
+          button that brought it here has gone.
+        */}
+        <PageHead
+          id="compare-title"
+          title="Compare sunlight"
+          lede={`${title} · ${kindLabel}`}
+          back={{ label: 'Back to sunlight', onClick: onBack }}
+        />
         <div className="compare__aside">
           <p className="compare__together">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
@@ -188,29 +171,29 @@ export function ComparePage({
             </svg>
             Views move together
           </p>
-          <MapKey className="compare__key" />
+          <MapKey />
         </div>
       </div>
 
       <div className="compare__views">
-        <figure className="compare__view">
-          <h2 className="compare__view-title">What is here today</h2>
+        <Card as="figure" className="compare__view">
+          <h2 className="card-title compare__view-title">What is here today</h2>
           {/* Empty: App lays the "today" canvas over this box. */}
           <div className="compare__frame" ref={today} />
           <figcaption className="compare__caption">
             The city as it stands. Approved and in-progress projects are not shown.
           </figcaption>
-        </figure>
-        <figure className="compare__view">
-          <h2 className="compare__view-title">Planned projects at full height</h2>
+        </Card>
+        <Card as="figure" className="compare__view">
+          <h2 className="card-title compare__view-title">Planned projects at full height</h2>
           <div className="compare__frame" ref={after} />
           <figcaption className="compare__caption">
             Approved and in-progress projects at their planned height.
           </figcaption>
-        </figure>
+        </Card>
       </div>
 
-      <div className="compare__bar">
+      <Card className="compare__bar">
         {/*
           The date, as the season it falls in. Choosing another season keeps
           the day of the month, as on the sunlight screen. A date that is not
@@ -250,15 +233,13 @@ export function ComparePage({
           />
         </div>
 
-        <button type="button" className="button compare__spot" onClick={onChooseSpot}>
+        <Button variant="mint" size="lg" className="compare__spot" onClick={onChooseSpot}>
           Choose another spot
-        </button>
-      </div>
+        </Button>
+      </Card>
 
       <footer className="compare__foot">
-        Illustrative scenarios · Demo data
-        <span aria-hidden="true">|</span>
-        <SourcesLink />
+        <DemoNote />
       </footer>
     </section>
   );

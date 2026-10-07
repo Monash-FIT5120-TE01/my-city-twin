@@ -21,12 +21,13 @@
  *   unwelding the city.
  *
  * WHY PINK
- *   Colour in this scene already means something: mint is a proposal, white
- *   is built, grey is data we do not trust. Pink is a fourth meaning — "this
- *   is the one you looked for" — and it has to be unmistakable against mint
- *   in particular, because a search result standing beside a proposal is the
- *   common case. Pink and mint sit on opposite sides of the wheel, which is
- *   why it works where another green would not.
+ *   Colour in this scene already means something (palette.ts): cream is
+ *   built, teal an approved project, orange one under construction, a
+ *   muted beige data we do not trust. Pink is a further meaning — "this is
+ *   the one you looked for" — and it has to be unmistakable against the
+ *   project colours in particular, because a search result standing beside
+ *   a project is the common case. On screen it is the darkest of them (L*
+ *   about 63, against 73 for both project colours), and it is outlined.
  *
  *   It is deliberately temporary. It says nothing about the building itself,
  *   only about what the person asked for, so it clears the moment the

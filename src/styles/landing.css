@@ -173,100 +173,18 @@
 
 /* ── the search ─────────────────────────────────────────── */
 
+/* The field and its results are kit/SearchField (kit.css); only the gap above is this page's. */
 .landing__search {
-  position: relative;
-  display: flex;
-  flex-direction: column;
   margin-top: var(--space-2);
-  border: 1px solid var(--cream-edge);
-  border-radius: var(--radius-control);
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgba(16, 24, 20, 0.04);
 }
 
-.landing__search:focus-within {
-  border-color: var(--green-700);
-  box-shadow: 0 0 0 3px rgba(20, 98, 74, 0.14);
-}
-
-.landing__field {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 52px;
-  padding: 0 var(--space-2) 0 var(--space-4);
-  color: var(--ink-2);
-}
-
-.landing__field input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: var(--text-lg);
-  color: var(--ink);
-}
-
-.landing__field input:focus {
-  outline: none;
-}
-
-.landing__field input::placeholder {
-  color: var(--ink-3);
-  opacity: 1;
-}
-
-.landing__clear {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: none;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.landing__clear:hover {
-  background: var(--surface-sunken);
-  color: var(--ink);
-}
-
-/*
- * The matches, hanging from the field over what is below it. In the flow
- * they pushed the whole column down, and on a short screen the heading
- * scrolled away while somebody was typing.
- */
-.landing__search .results,
-.landing__search .results__none {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  left: -1px;
-  right: -1px;
-  z-index: 1;
-  max-height: 16rem;
-  border: 1px solid var(--cream-edge);
-  border-radius: var(--radius-control);
-  background: var(--paper);
-  box-shadow: var(--shadow-panel);
-}
-
-.landing__search .results__none {
-  margin: 0;
-  padding: 12px 16px;
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
+/* The chosen place: a row inside the field's box, under the input. */
 .landing__chosen {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  border-top: 1px solid var(--hairline);
+  padding: var(--space-2) var(--space-1) var(--space-2) var(--space-4);
+  border-top: 1px solid var(--cream-edge);
 }
 
 .landing__pin {
@@ -292,17 +210,9 @@
 
 /* ── the ways in ────────────────────────────────────────── */
 
+/* The page's one action, a step larger in its words than other buttons. */
 .landing__cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: 54px;
   font-size: var(--text-lg);
-}
-
-.landing__cta svg {
-  margin: 0;
 }
 
 .landing__hint {
@@ -317,30 +227,8 @@
   margin: 0;
 }
 
-.landing__vr {
-  min-height: 48px;
-}
-
 .landing__explore {
   align-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  width: auto;
-  min-height: 44px;
-  padding: 0 var(--space-2);
-  border: 0;
-  background: none;
-  font: inherit;
-  font-weight: var(--weight-label);
-  color: var(--green-700);
-  cursor: pointer;
-}
-
-.landing__explore:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 /* ── the window onto the city ───────────────────────────── */
@@ -376,12 +264,21 @@
   background: linear-gradient(to right, var(--cream), rgba(248, 245, 238, 0));
 }
 
-/* The map key (MapKey), in the window's lower right; its look is in sources.css. */
+/*
+ * The map key (kit/MapKey), in the window's lower right, on a white card of
+ * its own so it reads over the city.
+ */
 .landing__legend {
   position: absolute;
   right: var(--gutter);
   bottom: var(--gutter);
   flex-direction: column;
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
   pointer-events: auto;
 }
 
@@ -534,20 +431,11 @@
   color: var(--ink-2);
 }
 
-.landing__foot p {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.landing__foot-sep {
-  margin: 0 var(--space-3);
-  color: var(--ink-3);
-}
+/* The date, on the right of the demo note (kit/DemoNote). */
 
 
 .landing__when {
+  margin: 0;
   font-variant-numeric: var(--numeric);
 }
 
@@ -600,10 +488,6 @@
 
   .landing__body {
     font-size: var(--text-body);
-  }
-
-  .landing__cta {
-    min-height: 48px;
   }
 
   .landing__steps ol {
@@ -764,11 +648,6 @@
   border-bottom-color: var(--cream-edge);
 }
 
-.header--front .field {
-  background: var(--paper);
-  border-color: var(--cream-edge);
-}
-
 .header__link {
   min-height: 44px;
   padding: 0 var(--space-3);
@@ -792,13 +671,13 @@
  * page's darkest ink and heavier — found by weight and ground, not by hue.
  */
 .header__link--accent {
-  background: #d6eae3;
-  color: #073c40;
+  background: var(--mint-100);
+  color: var(--ink-green-900);
   font-weight: var(--weight-title);
 }
 
 .header__link--accent:hover {
-  background: #c6e1d7;
+  background: var(--mint-200);
 }
 
 /*

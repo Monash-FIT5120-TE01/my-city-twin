@@ -4,8 +4,9 @@
  * WHAT THESE PIN DOWN
  *   - The design's words: the title, the three steps and their sentences.
  *   - Step 02 shows the moment the app is set to, not a fixed one.
- *   - The key names only colours the map draws — no "In progress" — and
- *     each swatch has its word beside it, so no entry is colour alone.
+ *   - The key names the colours the map draws, under construction ("In
+ *     progress") included, and each swatch has its word beside it, so no
+ *     entry is colour alone.
  *   - "Back to sunlight" is offered only when there is a place to go back to.
  *   - The map's credit and the sources are on the page.
  */
@@ -48,9 +49,8 @@ describe('the How it works page', () => {
 
   it('keys only the colours the map draws, each with its word', () => {
     const html = page();
-    expect(html).not.toContain('In progress');
-    for (const key of ['Existing', 'Approved', 'Searched building', 'Selected']) {
-      expect(html).toMatch(new RegExp(`how__swatch[^"]*" aria-hidden="true"></span>${key}<`));
+    for (const key of ['Existing', 'Approved', 'In progress', 'Searched building', 'Selected']) {
+      expect(html).toMatch(new RegExp(`class="swatch [^"]*" aria-hidden="true"></span>${key}<`));
     }
   });
 

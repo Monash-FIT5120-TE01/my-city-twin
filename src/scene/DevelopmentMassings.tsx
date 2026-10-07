@@ -36,11 +36,15 @@
  *   was a visible pause. The shapes are built once; the colour is decided
  *   at draw time.
  *
- * COLOUR SAYS WHAT CAN BE DONE
+ * COLOUR SAYS WHAT CAN BE DONE, AND HOW FAR ALONG IT IS
  *
- *   selected     full mint and a dark outline — this is the one being
- *                read about
- *   clickable    strong green — plainly not an existing building, and
+ *   The family is the stage: teal for approved, orange for under
+ *   construction (palette.ts, where the lightness of each is worked out).
+ *   Within it, the shade is the state:
+ *
+ *   selected     the lightest shade and a dark outline — this is the one
+ *                being read about
+ *   clickable    the full colour — plainly not an existing building, and
  *                plainly something to press
  *   not clickable  pale — in focus mode nothing responds, so nothing
  *                  should look like it will
@@ -58,6 +62,7 @@ import type { BufferGeometry } from 'three';
 import type { Development } from '../data/model';
 import { mergeMassings } from './massing';
 import { SelectionEdges } from './SelectionEdges';
+import { toneOf } from './palette';
 import { useInVr } from './xrStore';
 import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 
@@ -142,6 +147,7 @@ export function DevelopmentMassings({
          * gone and nothing responds. See COLOUR SAYS WHAT CAN BE DONE above.
          */
         const invites = !focused && interactive;
+        const tone = toneOf(development.status);
         return (
           <mesh
             key={development.devId}
@@ -198,16 +204,16 @@ export function DevelopmentMassings({
             onPointerOut={interactive ? () => { document.body.style.cursor = ''; } : undefined}
           >
             {/*
-              The focused proposal carries the full mint; the rest are stated
+              The focused proposal carries the lightest shade; the rest are stated
               quietly enough that the eye still goes to the one being read
               about, but plainly enough to be seen and clicked.
             */}
             <meshStandardMaterial
-              color={focused ? '#8fdcc7' : invites ? '#6fbfa6' : '#cfe6dd'}
+              color={focused ? tone.selected : invites ? tone.base : tone.quiet}
               roughness={focused ? 0.4 : 0.55}
               metalness={0}
-              emissive="#2fbfa2"
-              emissiveIntensity={focused ? 0.3 : invites ? 0.16 : 0.05}
+              emissive={tone.glow}
+              emissiveIntensity={focused ? 0.3 : invites ? tone.glowStrength : 0.05}
               transparent
               opacity={focused ? 0.95 : invites ? 0.9 : 0.78}
             />

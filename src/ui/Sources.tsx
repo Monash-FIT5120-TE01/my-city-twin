@@ -1,26 +1,24 @@
 /*
  * ─────────────────────────────────────────────────────────────────────────
- * WHERE THE NUMBERS COME FROM, AND WHAT THE COLOURS MEAN
+ * WHERE THE NUMBERS COME FROM
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT THIS IS
- *   Two small things every screen that shows the city needs, written once:
+ *   SourcesLink: "Sources & limitations", and the window it opens — the
+ *   three figures about the CBD with their sources, what the model does not
+ *   claim, and the data licences. Written once: two copies of a licence
+ *   line would drift.
  *
- *   SourcesLink  "Sources & limitations" in the fine print, and the window
- *                it opens — the three figures about the CBD with their
- *                sources, what the model does not claim, and the data
- *                licences.
- *   MapKey       the key to the two colours the city is drawn in.
- *
- * WHERE THEY APPEAR
- *   SourcesLink: the front page's fine print, and the line of fine print
- *   App draws along the foot of the map on the sunlight screen. MapKey: the
- *   front page's window onto the city, and the sunlight screen's time bar.
- *   Written twice, the two copies of a licence line would drift.
+ * WHERE IT APPEARS
+ *   In the demo note on every screen (kit/DemoNote), and in the sunlight
+ *   column on a phone. (The map key that used to live here is
+ *   kit/MapKey.tsx.)
  */
 
 import { useRef } from 'react';
 import { NOT_AN_ASSESSMENT } from './words';
+import { TextButton } from './kit/TextButton';
+import { CloseButton } from './kit/CloseButton';
 import '../styles/sources.css';
 
 /**
@@ -85,9 +83,13 @@ export function SourcesLink() {
   const dialog = useRef<HTMLDialogElement>(null);
   return (
     <>
-      <button type="button" className="sources__link" onClick={() => dialog.current?.showModal()}>
+      <TextButton
+        variant="reference"
+        className="sources__link"
+        onClick={() => dialog.current?.showModal()}
+      >
         Sources &amp; limitations
-      </button>
+      </TextButton>
       <dialog
         className="sources"
         ref={dialog}
@@ -99,15 +101,8 @@ export function SourcesLink() {
       >
         <div className="sources-card">
           <div className="sources-head">
-            <h2 id="sources-title">Sources &amp; limitations</h2>
-            <button
-              type="button"
-              className="sources__close"
-              onClick={() => dialog.current?.close()}
-              aria-label="Close"
-            >
-              <Cross />
-            </button>
+            <h2 className="panel-title" id="sources-title">Sources &amp; limitations</h2>
+            <CloseButton label="Close" onClick={() => dialog.current?.close()} />
           </div>
 
           <p className="sources-lead">{NOT_AN_ASSESSMENT}</p>
@@ -155,39 +150,5 @@ export function SourcesLink() {
         </div>
       </dialog>
     </>
-  );
-}
-
-/**
- * The key to the city's colours.
- *
- * The swatches are the colours CityMassing and DevelopmentMassings draw, and
- * each is named in words beside it: the words say which is which, and a
- * reader who cannot tell the two apart by colour loses the shortcut and
- * nothing else. "In progress" is not here because the city does not draw
- * projects under construction apart from approved ones. `className`
- * places it; each screen puts it in a different corner.
- */
-export function MapKey({ className }: { className?: string }) {
-  return (
-    <aside className={`mapkey${className ? ` ${className}` : ''}`} aria-label="Map key">
-      <span className="mapkey__row">
-        <span className="mapkey__swatch mapkey__swatch--existing" aria-hidden="true" />
-        Existing
-      </span>
-      <span className="mapkey__row">
-        <span className="mapkey__swatch mapkey__swatch--approved" aria-hidden="true" />
-        Approved
-      </span>
-    </aside>
-  );
-}
-
-/** The close button's cross. */
-function Cross() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-      <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
   );
 }

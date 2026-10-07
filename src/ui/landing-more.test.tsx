@@ -17,7 +17,8 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FUTURE_PLANS_ID, LandingMore } from './LandingMore';
-import { MapKey, SourcesLink } from './Sources';
+import { SourcesLink } from './Sources';
+import { MapKey } from './kit/MapKey';
 
 const markup = renderToStaticMarkup(<LandingMore onExplore={() => undefined} />);
 /** The markup as plain words, for reading sentences across tags. */
@@ -96,12 +97,12 @@ describe('the sections under the first screen', () => {
 });
 
 describe('the shared sources and key', () => {
-  it('names both colours of the map key in words', () => {
+  it('names every colour of the map key in words', () => {
     const key = renderToStaticMarkup(<MapKey />);
-    expect(key).toContain('Existing');
-    expect(key).toContain('Approved');
-    // No third category: the city does not draw projects under construction apart.
-    expect(key).not.toContain('In progress');
+    // Projects under construction are drawn apart from approved ones (palette.ts).
+    for (const word of ['Existing', 'Approved', 'In progress']) {
+      expect(key).toMatch(new RegExp(`aria-hidden="true"></span>${word}<`));
+    }
   });
 
   it('cites the walking figure at its PDF page, not the strategy’s home page', () => {
