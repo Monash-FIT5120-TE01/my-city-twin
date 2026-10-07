@@ -20,10 +20,20 @@
  *   3. THEN call the real API in the background. If it answers, rebuild
  *      and swap. If it does not, nothing happens and nobody notices.
  *
- *   The staging API runs on a free Render instance, which goes to sleep.
- *   Waking it takes the better part of a minute. Step 1 exists so that a
- *   sleeping backend costs a slightly stale model instead of a blank page
- *   in the middle of a demonstration.
+ *   The API is the team's backend at api.mycitytwin.com (it replaced a free
+ *   Render instance that slept and took most of a minute to wake). Step 1
+ *   stays so that a slow or unreachable backend costs a slightly stale model
+ *   instead of a blank page in the middle of a demonstration.
+ *
+ * THE SNAPSHOT HAS TO CARRY THE API'S OWN IDS
+ *   A chosen building, a shared link (?bldg=) and the details request all
+ *   name a building by its buildingId, and a project's details by its devId.
+ *   When the live model replaces the snapshot, those ids must still exist —
+ *   otherwise the building on screen vanishes from under the reader and its
+ *   details answer 404. The new backend issued every id afresh (the shapes
+ *   and figures are unchanged), so the snapshot was re-taken from it
+ *   (2026-10-04, see public/data/snapshot.json). Re-take it whenever the
+ *   backend's ids change again.
  *
  * THE STRICTMODE TRAP
  *   React runs effects twice in development — mount, unmount, mount. The
@@ -43,7 +53,7 @@ import type {
 } from './api-types';
 
 export const API_BASE =
-  import.meta.env.VITE_API_BASE ?? 'https://fit5120-te01-be.onrender.com';
+  import.meta.env.VITE_API_BASE ?? 'https://api.mycitytwin.com';
 
 const SNAPSHOT = {
   buildings: bundled('data/building-footprints.json'),
@@ -96,11 +106,10 @@ const INITIAL: LoadProgress = {
 /**
  * Loads the city, snapshot first.
  *
- * The staging API runs on a free Render instance, which sleeps. A cold start
- * takes the better part of a minute, and a demonstration cannot wait for it.
- * So the bundled snapshot draws the scene, and the live API is tried behind
- * it; if it answers, the model is swapped. If not, the scene is already up
- * and the provenance line says "snapshot".
+ * A demonstration cannot wait for a network. So the bundled snapshot draws
+ * the scene, and the live API is tried behind it; if it answers, the model
+ * is swapped. If not, the scene is already up and the provenance line says
+ * "snapshot".
  */
 export function useCityModel(): CityModelState {
   const [state, setState] = useState<CityModelState>({

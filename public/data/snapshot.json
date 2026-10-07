@@ -1,7 +1,7 @@
 {
-  "retrieved_at": "2026-09-04T13:20:00+10:00",
-  "base_url": "https://fit5120-te01-be.onrender.com",
-  "note": "Offline snapshot of the staging API. The app renders from this immediately, then refreshes from the live API in the background, so a sleeping Render instance never blocks first paint. Building footprints re-taken after the backend added streetAddress.",
+  "retrieved_at": "2026-10-04T06:20:00+11:00",
+  "base_url": "https://api.mycitytwin.com",
+  "note": "Offline snapshot of the team API. The app renders from this immediately, then refreshes from the live API in the background, so a slow or unreachable backend never blocks first paint. Re-taken from api.mycitytwin.com when the backend moved there: the shapes and figures were unchanged, but every buildingId and devId had been reissued, and the snapshot has to carry the same ids as the live API.",
   "endpoints": {
     "building-footprints.json": "/api/building/footprints",
     "development-footprints.json": "/api/development/footprints"

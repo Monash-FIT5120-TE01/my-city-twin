@@ -665,7 +665,7 @@ try {
   await shoot('05-after');
 
   // ── B. From a building's page, as a shared link opens it ─────────────────
-  const building = '60626413-853e-4a38-88d9-9337629eb7c9'; // 206-218 Bourke Street
+  const building = '642138c8-44c5-444b-b87f-9f57c1f4438b'; // 206-218 Bourke Street
   await page.goto(`${URL_}?view=sunlight&bldg=${building}#vr-sim`, { waitUntil: 'domcontentloaded' });
   const headerEnter = page.getByRole('button', { name: 'Enter VR', exact: true });
   await headerEnter.waitFor({ timeout: 90_000 });
