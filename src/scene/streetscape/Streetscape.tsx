@@ -44,8 +44,13 @@ import type { SimulationDate } from '../solar';
 
 /** The trams start this long before the clock and run fast to it, so the street is not empty at first. */
 const WARM_S = 900, WARM_STEPS_PER_FRAME = 60;
-let tramsDoc: Promise<TramsDoc> | null = null;
-const loadTrams = () => (tramsDoc ??= fetch(bundled('data/streetscape/trams.json')).then((r) => (r.ok ? r.json() : Promise.reject(new Error('trams')))));
+/*
+ * Only the day shown, and not kept: once the walker leaves the street the layer is disposed and its
+ * timetable goes with it (phones and headsets are short of memory). Coming back reads it again, from the
+ * browser's cache.
+ */
+const loadTrams = (day: DayKey): Promise<TramsDoc> =>
+  fetch(bundled(`data/streetscape/trams-${day}.json`)).then((r) => (r.ok ? r.json() : Promise.reject(new Error('trams'))));
 /** The timetable a date runs: the feed has one ordinary day of each type (special days are not modelled). */
 function dayOf(d: SimulationDate): DayKey {
   const w = new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay();
@@ -178,16 +183,21 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
   useEffect(() => {
     if (!built || !walking || !clock) return;
     let alive = true, layer: TramLayer | null = null;
-    loadTrams().then((doc) => {
+    const day = dayOf(clock.date);
+    loadTrams(day).then((doc) => {
       if (!alive) return;
-      const day = dayOf(clock.date), start = clock.minutes * 60 - WARM_S;
+      const start = clock.minutes * 60 - WARM_S;
       layer = new TramLayer(doc, day, start, (site, t) => built.signals.phase(site, t));
       built.root.add(layer.group);
       trams.current = { layer, warm: WARM_S };
       // for the browser checks in scripts/ (development builds only)
       if (import.meta.env.DEV) (window as unknown as { __trams?: TramLayer }).__trams = layer;
     }).catch(() => undefined);
-    return () => { alive = false; if (layer) { built.root.remove(layer.group); layer.dispose(); } trams.current = null; };
+    return () => {
+      alive = false; trams.current = null;
+      if (layer) { built.root.remove(layer.group); layer.dispose(); }
+      if (import.meta.env.DEV) delete (window as unknown as { __trams?: TramLayer }).__trams;
+    };
     // clockKey stands for clock: a new date or minute restarts the day's trams from there
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [built, walking, clockKey]);

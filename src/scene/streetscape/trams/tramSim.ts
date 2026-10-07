@@ -4,7 +4,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT IT DOES
- *   Runs the day's tram trips through the CBD (trams.json, from the GTFS timetable) as vehicles that obey the
+ *   Runs the day's tram trips through the CBD (trams-<day>.json, from the GTFS timetable) as vehicles that obey the
  *   signals, keep clear of each other, stop at every timetabled stop and speed up and slow down gradually.
  *   Pure logic: no three.js, so it can be tested on its own. Distances in metres along a path, times in
  *   seconds of the service day.
@@ -213,7 +213,7 @@ export class TramSim {
   }
 
   /**
-   * Where a tram must wait for another joining the same track (trams.json merges). Within MERGE_LOOK_M of a
+   * Where a tram must wait for another joining the same track (the paths' merges). Within MERGE_LOOK_M of a
    * join, the tram nearer it goes first (or the one already on it, until its back is clear); the other waits
    * GAP_M short of it. Both paths list the join, so each tram reaches the same answer.
    */

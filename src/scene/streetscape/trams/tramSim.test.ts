@@ -4,11 +4,11 @@ import { TramSim, type DayKey, type Tram, type TramsDoc } from './tramSim';
 import { phaseOf, planFor } from '../signalPlan';
 
 /*
- * The simulation on the real timetable (trams.json) and signals: trams never overlap on a track, none is held
+ * The simulation on the real timetable (trams-<day>.json) and signals: trams never overlap on a track, none is held
  * for minutes by anything but a stop, none breaks the 40 km/h limit or its class's acceleration and braking,
  * and the mean speed through the CBD is close to the published ~10-11 km/h.
  */
-const doc = JSON.parse(readFileSync('public/data/streetscape/trams.json', 'utf8')) as TramsDoc;
+const docs = Object.fromEntries((['monThu', 'fri', 'sat', 'sun'] as DayKey[]).map((d) => [d, JSON.parse(readFileSync(`public/data/streetscape/trams-${d}.json`, 'utf8')) as TramsDoc]));
 const plans = JSON.parse(readFileSync('public/data/streetscape/signals.json', 'utf8')).sites.map(planFor);
 
 function overlapping(a: Tram, b: Tram): boolean {
@@ -20,7 +20,7 @@ function overlapping(a: Tram, b: Tram): boolean {
 }
 
 function run(day: DayKey, from: number, minutes: number) {
-  const sim = new TramSim(doc, day, from, (s, t) => phaseOf(plans[s], t));
+  const sim = new TramSim(docs[day], day, from, (s, t) => phaseOf(plans[s], t));
   const still = new Map<number, number>();
   let overlaps = 0, held = 0, maxV = 0, moved = 0, time = 0, peak = 0;
   for (let k = 0; k < minutes * 120; k++) {

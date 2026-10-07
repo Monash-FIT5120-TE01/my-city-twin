@@ -245,6 +245,11 @@ function build(C: TramClass, wire: number): Group {
 }
 
 const kits = new Map<ClassKey, TramKit>();
+/** Lets every built model go (their geometry leaves the GPU); built again on next use. */
+export function disposeKits(): void {
+  for (const kit of kits.values()) for (const sec of kit.sections) for (const p of [...sec.outside, ...sec.inside]) p.geo.dispose();
+  kits.clear();
+}
 let plainMat: MeshStandardMaterial | null = null;
 /** The class's model, cut into sections and merged (built on first use). */
 export function kitFor(key: ClassKey, wire = 5.64): TramKit {

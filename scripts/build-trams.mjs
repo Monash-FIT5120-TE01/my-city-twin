@@ -8,7 +8,7 @@
  *   https://opendata.transport.vic.gov.au/dataset/gtfs-schedule  ->  gtfs.zip / 3 / google_transit.zip
  *   Run after build-streetscape.mjs: it reads tram.json (tracks, platforms) and signals.json from there.
  *
- * WRITES public/data/streetscape/trams.json
+ * WRITES public/data/streetscape/trams-{monThu,fri,sat,sun}.json (the same paths in each; the day's trips)
  *   paths   one per distinct route path through the CBD: the GTFS shape clipped to the model's extent and
  *           laid onto the surveyed track centrelines (the shapes already follow the track they run on, within
  *           ~0.6 m; inside intersections, where there is no surveyed curve, the shape itself is kept). Each
@@ -306,14 +306,19 @@ for (const [key, day] of Object.entries(days)) {
   console.log(key, 'trips', list.length);
 }
 
-const doc = {
+// One file per day type: the app reads only the day it shows (a quarter of the trips, ~0.5 MB), and lets it go
+// when the walker leaves the street.
+const common = {
   built: new Date().toISOString().slice(0, 10),
   source: 'Transport Victoria GTFS Schedule (CC BY 4.0), tram feed; Yarra Trams Infrastructure - Tram Track Design (2019) for curve speeds',
   days: Object.fromEntries(Object.entries(days).map(([k, v]) => [k, v.date])),
   paths: paths.map((p) => ({ pts: p.pts, stops: p.stops, signals: p.sig, slow: p.slow, merges: p.merges })),
-  trips: out,
 };
-const txt = JSON.stringify(doc);
-fs.writeFileSync(path.join(OUT, 'trams.json'), txt);
-console.log('wrote trams.json', (txt.length / 1024).toFixed(0), 'KB; paths', paths.length, 'stops on paths', paths.reduce((a, p) => a + p.stops.length, 0),
+for (const key of Object.keys(out)) {
+  const txt = JSON.stringify({ ...common, trips: { [key]: out[key] } });
+  fs.writeFileSync(path.join(OUT, `trams-${key}.json`), txt);
+  console.log(`wrote trams-${key}.json`, (txt.length / 1024).toFixed(0), 'KB');
+}
+fs.rmSync(path.join(OUT, 'trams.json'), { force: true });   // the single file of before
+console.log('paths', paths.length, 'stops on paths', paths.reduce((a, p) => a + p.stops.length, 0),
   'signals', paths.reduce((a, p) => a + p.sig.length, 0), 'platform-matched', paths.reduce((a, p) => a + p.stops.filter((q) => q[4] > 0).length, 0));

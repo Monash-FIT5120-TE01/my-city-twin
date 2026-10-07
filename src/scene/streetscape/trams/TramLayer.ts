@@ -14,7 +14,7 @@
  */
 import { Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3, type Material } from 'three';
 import type { Phase } from '../signalPlan';
-import { kitFor, type TramKit } from './tramModel';
+import { disposeKits, kitFor, type TramKit } from './tramModel';
 import type { ClassKey } from './tramClasses';
 import { TramSim, type DayKey, type Tram, type TramsDoc } from './tramSim';
 import { ride } from './ride';
@@ -171,6 +171,8 @@ export class TramLayer {
     if (this.riding) this.stepOff();
     ride.reset();
     for (const c of this.classes.values()) for (const { mesh } of c.meshes) mesh.dispose();
+    this.classes.clear();
     this.group.clear();
+    disposeKits();   // the models too: nothing draws a tram until the next walk
   }
 }
