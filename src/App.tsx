@@ -90,6 +90,8 @@ import { Pill } from './ui/kit/Pill';
 import { ComparePage, type FrameRect } from './ui/ComparePage';
 import { HowItWorksPage } from './ui/HowItWorksPage';
 import { TramHint } from './ui/TramHint';
+import { TouchWalk } from './ui/TouchWalk';
+import { walksByTouch } from './scene/touchWalk';
 import { PlaceCard } from './ui/PlaceCard';
 import { buildingFacts, developmentFacts } from './ui/placeFacts';
 import { createCameraLink } from './scene/cameraLink';
@@ -133,6 +135,8 @@ export default function App() {
   const [minutes, setMinutes] = useState(initial.minutes);
   // the trams' timetable day and start (streetscape/trams); one object per change, not per render
   const tramClock = useMemo(() => ({ date, minutes }), [date, minutes]);
+  /** A phone or tablet: walked with a stick and buttons, not keys (TouchWalk). */
+  const byTouch = useMemo(() => walksByTouch(), []);
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
 
   /*
@@ -1603,10 +1607,20 @@ export default function App() {
       {mapbox && !frontShown && !compareShown && !howShown && <MapAttribution />}
 
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
+      {/* On a phone the keys are a stick and buttons (TouchWalk) */}
+      {walking && byTouch && <TouchWalk onBackUp={() => setWalking(false)} />}
       {walking && (
         <p className="walking-hint">
-          <strong>W A S D</strong> to walk · <strong>Shift</strong> to hurry ·{' '}
-          <strong>Esc</strong> to come back up
+          {byTouch ? (
+            <>
+              <strong>Stick</strong> to walk · <strong>drag</strong> to look round
+            </>
+          ) : (
+            <>
+              <strong>W A S D</strong> to walk · <strong>Shift</strong> to hurry ·{' '}
+              <strong>Esc</strong> to come back up
+            </>
+          )}
           <TramHint />
           {/*
             ── THE WAY INTO A HEADSET ─────────────────────────────────────

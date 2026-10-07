@@ -28,7 +28,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Group, Quaternion, Vector3, type Mesh, type Object3D } from 'three';
+import { Group, Quaternion, Raycaster, Vector2, Vector3, type Mesh, type Object3D } from 'three';
 import { bundled } from '../../data/bundled';
 import { buildSurfaces, SurfaceTextures, type SurfacesDoc } from './surfaces';
 import { buildTrees, type TreesDoc } from './trees';
@@ -39,6 +39,7 @@ import { PedestrianAudio } from './pedestrianAudio';
 import { Lighting } from './lights';
 import { setSlicer } from './kit';
 import { TramLayer } from './trams/TramLayer';
+import { ride } from './trams/ride';
 import type { DayKey, TramsDoc } from './trams/tramSim';
 import type { SimulationDate } from '../solar';
 
@@ -211,20 +212,39 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
       camera.getWorldDirection(dir); b.root.getWorldQuaternion(q); dir.applyQuaternion(q.invert());
       return true;
     };
-    const down = (e: MouseEvent) => { if (e.button === 0 && trams.current && !trams.current.warm && toLocal()) trams.current.layer.click(at, dir); };
+    // a real mouse only: a phone's tap is handled from the touch itself (StreetView), and the mouse event a
+    // browser makes up after it would step straight back off the tram just boarded
+    const down = (e: PointerEvent) => { if (e.pointerType === 'mouse' && e.button === 0 && trams.current && !trams.current.warm && toLocal()) trams.current.layer.click(at, dir); };
     const key = (e: KeyboardEvent) => trams.current?.layer.key(e.code);
-    window.addEventListener('mousedown', down); window.addEventListener('keydown', key);
-    return () => { window.removeEventListener('mousedown', down); window.removeEventListener('keydown', key); };
+    window.addEventListener('pointerdown', down); window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('pointerdown', down); window.removeEventListener('keydown', key); };
   }, [walking, camera]);
 
   const tick = useRef(1), sweep = useRef(0), cam = useMemo(() => new Vector3(), []), camNow = useMemo(() => new Vector3(), []);
+  const [pick, tapAt, rayFrom, rayDir, rootTurn] = useMemo(() => [new Raycaster(), new Vector2(), new Vector3(), new Vector3(), new Quaternion()] as const, []);
   useFrame((state, dt) => {
     const built = live.current;
     if (!built) return;
     // one clock for the signals and the trams that obey them: the trams' while they run
     const run = trams.current;
     if (run && run.warm > 0) { const steps = Math.min(run.warm / 0.5, WARM_STEPS_PER_FRAME); run.layer.sim.warmUp(steps * 0.5, 0.5); run.warm -= steps * 0.5; }
-    else if (run) { state.camera.getWorldPosition(camNow); built.root.worldToLocal(camNow); run.layer.update(dt, camNow, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice].reach); }
+    else if (run) {
+      state.camera.getWorldPosition(camNow); built.root.worldToLocal(camNow);
+      run.layer.update(dt, camNow, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice].reach);
+      // for the headset: where the rider's eye is, and where a ride ended, in world coordinates
+      if (ride.active) ride.eyeWorld = built.root.localToWorld(rayFrom.fromArray(ride.eye)).toArray() as [number, number, number];
+      else ride.eyeWorld = null;
+      if (ride.stepOff && !ride.stepOffWorld) ride.stepOffWorld = built.root.localToWorld(rayFrom.set(ride.stepOff[0], ride.stepOff[1], 0)).toArray() as [number, number, number];
+      // a phone's tap, a headset's laser, the "Get off" button (trams/ride.ts)
+      if (ride.alight) { ride.alight = false; run.layer.key('KeyE'); }
+      if (ride.tap || ride.ray) {
+        if (ride.tap) { pick.setFromCamera(tapAt.set(ride.tap[0], ride.tap[1]), state.camera); rayFrom.copy(pick.ray.origin); rayDir.copy(pick.ray.direction); }
+        else if (ride.ray) { rayFrom.fromArray(ride.ray.from); rayDir.fromArray(ride.ray.dir); }
+        ride.tap = null; ride.ray = null;
+        built.root.worldToLocal(rayFrom); built.root.getWorldQuaternion(rootTurn); rayDir.applyQuaternion(rootTurn.invert()).normalize();
+        run.layer.click(rayFrom, rayDir);
+      }
+    }
     const t = run ? run.layer.sim.time : state.clock.elapsedTime;
     built.signals.update(t);
     built.lighting.setLit(lampsLit);

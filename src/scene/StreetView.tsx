@@ -45,13 +45,14 @@
  *   treating it as one would wall off arcades that are genuinely open.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { PointerLockControls } from '@react-three/drei';
-import { Vector3 } from 'three';
+import { Euler, Vector3 } from 'three';
 import { enuToWorld } from './frame';
 import { slide, type ObstacleIndex } from './obstacles';
 import { ride } from './streetscape/trams/ride';
+import { touchWalk, walksByTouch } from './touchWalk';
 
 /** Standing height, metres. */
 export const EYE_HEIGHT_M = 1.7;
@@ -67,6 +68,10 @@ export const EYE_HEIGHT_M = 1.7;
  */
 const WALK_MS = 1.4;
 const RUN_MS = 5.5;
+/** On a phone, a full push of the stick: a brisk walk, as there is no key to hurry with. */
+const TOUCH_WALK_MS = 2.5;
+/** Radians the view turns per pixel dragged. */
+const TOUCH_TURN = 0.005;
 
 /**
  * A wider lens for walking.
@@ -125,7 +130,10 @@ export function StreetView({
   onExit,
 }: StreetViewProps) {
   const camera = useThree((state) => state.camera);
+  const gl = useThree((state) => state.gl);
   const held = useRef(new Set<string>());
+  /** A phone or tablet: the stick and a drag instead of keys and a locked pointer (touchWalk.ts). */
+  const touch = useMemo(() => walksByTouch(), []);
   const forward = useRef(new Vector3());
   const sideways = useRef(new Vector3());
   /** The tram's heading last frame while riding, so the view turns with it; null on foot. */
@@ -231,6 +239,43 @@ export function StreetView({
     };
   }, [onExit]);
 
+  /*
+   * Looking round by touch: a drag on the city turns the view (left and right, and up and down within
+   * reason). A touch that hardly moves and lets go quickly is a tap: it is handed to the trams as a point on
+   * the screen (a tram door boards it). The stick is not part of the city, so its touches never get here.
+   */
+  useEffect(() => {
+    if (!touch) return;
+    const el = gl.domElement, look = new Euler(0, 0, 0, 'YXZ');
+    let id: number | null = null, lastX = 0, lastY = 0, moved = 0, since = 0;
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' || id !== null) return;
+      // the input's own time, not when this runs: on a busy phone the two can be most of a second apart
+      id = e.pointerId; lastX = e.clientX; lastY = e.clientY; moved = 0; since = e.timeStamp;
+    };
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; moved += Math.abs(dx) + Math.abs(dy);
+      look.setFromQuaternion(camera.quaternion);
+      look.y += dx * TOUCH_TURN; look.x = Math.max(-1.3, Math.min(1.3, look.x + dy * TOUCH_TURN));
+      camera.quaternion.setFromEuler(look);
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      if (moved < 10 && e.timeStamp - since < 500) {
+        const box = el.getBoundingClientRect();
+        ride.tap = [((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1];
+      }
+    };
+    const before = el.style.touchAction; el.style.touchAction = 'none';
+    el.addEventListener('pointerdown', down); window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    return () => {
+      el.style.touchAction = before;
+      el.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    };
+  }, [touch, gl, camera]);
+
   useFrame((_, rawDelta) => {
     /*
      * On a tram (streetscape/trams/ride.ts): the eye is carried by it and the view turns as it turns, so a
@@ -248,17 +293,18 @@ export function StreetView({
     if (ride.stepOff) {
       const [x, , z] = enuToWorld([ride.stepOff[0], ride.stepOff[1], 0]);
       camera.position.set(x, groundAhdM + EYE_HEIGHT_M, z);
-      ride.stepOff = null;
+      ride.stepOff = null; ride.stepOffWorld = null;
     }
 
     const delta = Math.min(rawDelta, MAX_STEP_S);
     const keys = held.current;
-    const ahead = Number(keys.has('KeyW') || keys.has('ArrowUp')) -
-      Number(keys.has('KeyS') || keys.has('ArrowDown'));
-    const across = Number(keys.has('KeyD') || keys.has('ArrowRight')) -
-      Number(keys.has('KeyA') || keys.has('ArrowLeft'));
+    // keys, or the on-screen stick (touchWalk.ts), which also says how far: a little push is a slow walk
+    const keyAhead = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
+    const keyAcross = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
+    const ahead = keyAhead || touchWalk.move[1], across = keyAcross || touchWalk.move[0];
+    const push = Math.min(1, Math.hypot(ahead, across));
 
-    if (ahead === 0 && across === 0) return;
+    if (push < 0.05) return;
 
     /*
      * Along the ground, not along the view. Looking up at a tower and walking
@@ -270,9 +316,11 @@ export function StreetView({
     forward.current.normalize();
     sideways.current.crossVectors(forward.current, camera.up).normalize();
 
-    const speed = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN_MS : WALK_MS) * delta;
-    // Normalised, so pressing two keys does not walk 41% faster diagonally.
-    const scale = ahead !== 0 && across !== 0 ? Math.SQRT1_2 : 1;
+    // a full push of the stick walks briskly; Shift (keys) hurries
+    const pace = keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN_MS : keyAhead || keyAcross ? WALK_MS : TOUCH_WALK_MS;
+    const speed = pace * delta * push;
+    // Normalised, so pressing two keys (or pushing the stick corner-wise) does not walk faster diagonally.
+    const scale = 1 / Math.hypot(ahead, across);
 
     const fromE = camera.position.x;
     const fromN = -camera.position.z;
@@ -309,5 +357,6 @@ export function StreetView({
     camera.position.y = groundAhdM + EYE_HEIGHT_M;
   });
 
-  return <PointerLockControls makeDefault onUnlock={onExit} />;
+  // a locked pointer turns the view on a desktop; a phone has none, and is turned by the drag above
+  return touch ? null : <PointerLockControls makeDefault onUnlock={onExit} />;
 }

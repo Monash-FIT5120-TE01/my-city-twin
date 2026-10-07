@@ -59,7 +59,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { XROrigin, useXRInputSourceState } from '@react-three/xr';
 import { useFrame } from '@react-three/fiber';
-import { BackSide, Quaternion, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { BackSide, Matrix4, Quaternion, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { ride } from './streetscape/trams/ride';
 import { slide, type ObstacleIndex } from './obstacles';
 import { groundDirection, insideBounds, paceFor, turnAbout } from './vrLocomotion';
 import { originFor, type VrPlacement } from './vrPlacement';
@@ -68,6 +69,9 @@ import { VrWristClock } from './VrWristClock';
 /** Names from the standard mapping, the same on both controllers. */
 const THUMBSTICK = 'xr-standard-thumbstick';
 const SQUEEZE = 'xr-standard-squeeze';
+const TRIGGER = 'xr-standard-trigger';
+/** The tram layer puts a rider's eye this far above the tram's floor (StreetView's standing height). */
+const RIDER_EYE_M = 1.7;
 
 /**
  * How fast the view turns at full deflection, degrees per second.
@@ -275,6 +279,11 @@ export function VrWalk({
    * nothing every frame and never moving at all.
    */
   const owed = useRef(0);
+  // riding a tram (streetscape/trams/ride.ts): the triggers last frame, the tram's heading last frame, and
+  // the floor's height on the ground to go back to
+  const leftTriggerWas = useRef(false), rightTriggerWas = useRef(false);
+  const rideHeading = useRef<number | null>(null), groundY = useRef<number | null>(null);
+  const rayPose = useRef(new Matrix4()), rayDir = useRef(new Vector3());
   /** How long a grip has been squeezed, seconds. Reset the moment it is let go. */
   const squeezed = useRef(0);
   /** So one long squeeze leaves once, rather than every frame after a second. */
@@ -483,6 +492,53 @@ export function VrWalk({
     // Where the person actually is, which is the origin plus however far they
     // have physically walked across their room.
     const at = state.camera.getWorldPosition(head.current);
+
+    /*
+     * ── TRAMS (streetscape/trams) ───────────────────────────────────────
+     *
+     * A trigger pulled with the laser on a tram's door boards it; on a tram at a stop, it steps off. The laser
+     * is handed over as a ray in world coordinates; the tram layer decides what it meant.
+     */
+    for (const [hand, was] of [[left, leftTriggerWas], [right, rightTriggerWas]] as const) {
+      const down = hand?.gamepad?.[TRIGGER]?.state === 'pressed';
+      if (down && !was.current && hand?.inputSource) {
+        const frame = state.gl.xr.getFrame(), space = state.gl.xr.getReferenceSpace();
+        const pose = frame && space ? frame.getPose(hand.inputSource.targetRaySpace, space) : null;
+        if (pose) {
+          rayPose.current.fromArray(pose.transform.matrix).premultiply(group.matrixWorld);
+          const from = step.current.setFromMatrixPosition(rayPose.current);
+          const dir = rayDir.current.set(0, 0, -1).transformDirection(rayPose.current);
+          ride.ray = { from: [from.x, from.y, from.z], dir: [dir.x, dir.y, dir.z] };
+        }
+      }
+      was.current = down;
+    }
+    /*
+     * Riding: the floor goes with the tram, at the height of its floor, and turns as it turns, about the
+     * head so a look out of the window stays one. The sticks do nothing until the rider steps off, back on
+     * the ground where the tram layer says.
+     */
+    if (ride.active && ride.eyeWorld) {
+      groundY.current ??= group.position.y;
+      if (rideHeading.current !== null) {
+        const radians = ride.heading - rideHeading.current;
+        const [x, z] = turnAbout([group.position.x, group.position.z], [at.x, at.z], radians);
+        group.position.x = x; group.position.z = z; group.rotation.y += radians;
+      }
+      rideHeading.current = ride.heading;
+      group.position.x += ride.eyeWorld[0] - at.x;
+      group.position.z += ride.eyeWorld[2] - at.z;
+      group.position.y = ride.eyeWorld[1] - RIDER_EYE_M;   // the floor: the tram's, where the ground was
+      return;
+    }
+    rideHeading.current = null;
+    if (groundY.current !== null) { group.position.y = groundY.current; groundY.current = null; }
+    if (ride.stepOffWorld) {
+      group.position.x += ride.stepOffWorld[0] - at.x;
+      group.position.z += ride.stepOffWorld[2] - at.z;
+      ride.stepOffWorld = null; ride.stepOff = null;
+      return;
+    }
 
     /*
      * ── TURNING ─────────────────────────────────────────────────────────

@@ -28,6 +28,23 @@ class Ride {
   heading = 0;
   /** Set when a ride ends: where the walker steps off (east, north). The street view takes it and clears it. */
   stepOff: [number, number] | null = null;
+  /*
+   * The same two in three.js world coordinates, for the headset (VrWalk), which moves the floor under the
+   * player and does not convert frames itself. Filled in by the streetscape each frame.
+   */
+  eyeWorld: [number, number, number] | null = null;
+  stepOffWorld: [number, number, number] | null = null;
+
+  /*
+   * Asked of the tram layer from outside the streetscape, taken by it on its next frame:
+   *   tap    a tap on a phone's screen, as normalised device coordinates (-1..1, y up)
+   *   ray    a headset controller's laser, in three.js world coordinates (from, unit direction)
+   *   alight the "Get off" button
+   * A tap or a ray at a door of a tram at a stop boards it; while riding, at a stop, either steps off.
+   */
+  tap: [number, number] | null = null;
+  ray: { from: [number, number, number]; dir: [number, number, number] } | null = null;
+  alight = false;
 
   private status = IDLE;
   private listeners = new Set<() => void>();
@@ -38,7 +55,10 @@ class Ride {
     if (s.riding === next.riding && s.canBoard === next.canBoard && s.canAlight === next.canAlight && s.route === next.route && s.next === next.next) return;
     this.status = next; for (const fn of this.listeners) fn();
   }
-  reset(): void { this.active = false; this.stepOff = null; this.setStatus(IDLE); }
+  reset(): void {
+    this.active = false; this.stepOff = null; this.eyeWorld = null; this.stepOffWorld = null;
+    this.tap = null; this.ray = null; this.alight = false; this.setStatus(IDLE);
+  }
 }
 
 export const ride = new Ride();

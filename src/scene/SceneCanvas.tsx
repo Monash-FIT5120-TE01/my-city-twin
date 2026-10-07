@@ -638,6 +638,8 @@ export function SceneCanvas({
             haze={sky.haze}
             lampsLit={streetLights && sun.altitudeDeg < -0.833}
             clock={clock}
+            // in a headset, standing in the street counts too: the trams run there as well
+            streetTrams={walking || (inVr && vrStage === 'street')}
             walking={walking}
             model={model}
             focus={focus}

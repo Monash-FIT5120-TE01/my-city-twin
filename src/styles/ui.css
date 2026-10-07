@@ -2600,3 +2600,55 @@
     transform: none;
   }
 }
+
+/* ── walking on a phone: the stick and the buttons (ui/TouchWalk.tsx) ── */
+
+.touch-walk {
+  position: absolute;
+  inset: auto var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom)) var(--space-4);
+  z-index: 7;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.touch-walk__pad {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: rgb(20 30 28 / 0.28);
+  border: 2px solid rgb(255 255 255 / 0.55);
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.touch-walk__knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.9);
+  box-shadow: var(--shadow-chip);
+  pointer-events: none;
+}
+
+.touch-walk__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  pointer-events: auto;
+}
+
+/* On a phone the hint sits above the stick and the buttons, across the screen, never over them. */
+.touch-walk + .walking-hint {
+  bottom: calc(160px + env(safe-area-inset-bottom));
+  width: max-content;
+  max-width: calc(100% - 2 * var(--space-4));
+  border-radius: var(--radius-card, 14px);
+  text-align: center;
+}
