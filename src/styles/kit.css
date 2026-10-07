@@ -283,6 +283,28 @@
   font-size: var(--text-xs);
 }
 
+/* A pill to press: the same look, a pointer, and a ring of green under it. */
+.pill--button {
+  font: inherit;
+  font-size: var(--text-xs);
+  color: inherit;
+  cursor: pointer;
+}
+
+.pill--button:hover:not(:disabled) {
+  border-color: var(--green-700);
+}
+
+.pill--button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.pill--button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 /* ── the map key ────────────────────────────────────────── */
 
 .map-key {

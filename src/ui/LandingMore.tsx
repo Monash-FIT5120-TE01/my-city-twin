@@ -48,6 +48,7 @@
  */
 
 import { bundled } from '../data/bundled';
+import { CountUp } from './kit/CountUp';
 import '../styles/landing-more.css';
 
 /** Where the "Future plans" link in the header goes. */
@@ -166,7 +167,7 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
           <article className="more__walk">
             <div>
               <p className="more__kicker more__kicker--light">A city on foot</p>
-              <p className="more__big">89%</p>
+              <p className="more__big"><CountUp value={89} suffix="%" /></p>
               <p className="more__walk-words">
                 of trips within the Hoddle Grid are made on foot.
               </p>
@@ -181,7 +182,7 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
           </article>
 
           <article className="more__fact more__fact--street">
-            <p className="more__mid">26%</p>
+            <p className="more__mid"><CountUp value={26} suffix="%" /></p>
             <div>
               <p className="more__fact-words">of street space is allocated to footpaths.</p>
               <p className="more__fact-note">Room to move. Room to belong.</p>
@@ -189,7 +190,7 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
           </article>
 
           <article className="more__fact more__fact--canopy">
-            <p className="more__mid">40%</p>
+            <p className="more__mid"><CountUp value={40} suffix="%" /></p>
             <div>
               <p className="more__fact-words">
                 canopy cover of public streets and parks by 2040, up from 22%.

@@ -61,6 +61,7 @@ import { MapKey } from './kit/MapKey';
 import { Button } from './kit/Button';
 import { CloseButton } from './kit/CloseButton';
 import { DemoNote } from './kit/DemoNote';
+import { Pill } from './kit/Pill';
 import { TextButton } from './kit/TextButton';
 import { SearchField } from './kit/SearchField';
 import { LandingMore } from './LandingMore';
@@ -87,6 +88,9 @@ const CREDIT_ROOM = 72;
 export const HOW_IT_WORKS_ID = 'how-it-works';
 
 /** The front page, over the city, with a window cut in it for the city. */
+/** The streets offered under the search, to start from without an address. */
+const TRY_STREETS = ['Bourke Street', 'Collins Street', 'Swanston Street'];
+
 /** How long a wheel turn takes to glide to the next section, ms (slower than the browser's 'smooth'). */
 const SNAP_GLIDE_MS = 850;
 
@@ -295,12 +299,11 @@ export function LandingPage({
           <SkylineFilm reducedMotion={reducedMotion} />
 
           <h1 className="landing__title" id="landing-title">
-            See Melbourne&rsquo;s next chapter.
+            Your street. A new perspective.
           </h1>
 
           <p className="landing__body">
-            Explore any building and discover how nearby developments could change
-            sunlight on your street.
+            Explore nearby developments. Follow the sunlight.
           </p>
 
           {/*
@@ -321,7 +324,7 @@ export function LandingPage({
               field.current?.focus();
             }}
             onFocus={onSearchFocus}
-            placeholder={loading ? 'The city is loading…' : 'Search a street or address'}
+            placeholder={loading ? 'The city is loading…' : 'Search a landmark, street or address'}
             // Nothing to search until the buildings are here.
             disabled={loading !== null}
             dropdown={results}
@@ -337,6 +340,30 @@ export function LandingPage({
               </div>
             )}
           </SearchField>
+
+          {/*
+            Three streets to start from, for somebody with no address in mind:
+            each searches for itself, and the results open under the field.
+          */}
+          <div className="landing__try">
+            <p className="landing__try-label">Try a street</p>
+            <div className="landing__try-streets">
+              {TRY_STREETS.map((street) => (
+                <Pill
+                  key={street}
+                  as="button"
+                  size="xs"
+                  disabled={loading !== null}
+                  onClick={() => {
+                    onQuery(street);
+                    field.current?.focus();
+                  }}
+                >
+                  {street}
+                </Pill>
+              ))}
+            </div>
+          </div>
 
           <Button size="lg" block arrow className="landing__cta" onClick={sunlight}>
             Explore sunlight
@@ -369,7 +396,7 @@ export function LandingPage({
           )}
 
           <TextButton className="landing__explore" onClick={onExplore}>
-            Explore the city without an address
+            Just explore the map
           </TextButton>
         </div>
 

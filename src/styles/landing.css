@@ -215,6 +215,25 @@
   font-size: var(--text-lg);
 }
 
+/* "Try a street": three streets to start from, under the search. */
+.landing__try {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.landing__try-label {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.landing__try-streets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .landing__hint {
   min-height: 1.4em;
   margin: calc(var(--space-2) * -1) 0 0;
