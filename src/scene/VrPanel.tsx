@@ -63,14 +63,24 @@
  */
 
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useXRInputSourceState } from '@react-three/xr';
-import { Container, Text } from '@react-three/uikit';
-import { Euler, Matrix4, Quaternion, Vector3, type Group } from 'three';
+import { Container, Image, Text } from '@react-three/uikit';
+import {
+  Euler,
+  Matrix4,
+  Quaternion,
+  SRGBColorSpace,
+  TextureLoader,
+  Vector3,
+  type Group,
+  type Texture,
+} from 'three';
 import { worldToEnu } from './frame';
 import { panelPose } from './vrPlacement';
 import type { VrMenu, VrPlaceOption, VrStage } from './vrMenu';
 import { PANEL_RENDER_ORDER } from './vrPointer';
+import { TUTORIAL, tutorialImage } from './vrTutorial';
 
 // ── The 2D sheet's tokens (src/styles/tokens.css) ──────────────────────────
 const PAPER = '#ffffff';
@@ -724,6 +734,197 @@ function SunlightPage({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void }
   );
 }
 
+// ── The controls tutorial ──────────────────────────────────────────────────
+
+/*
+ * What the panel shows first in every session, before Place, When, Measure:
+ * a page per action, with a picture of the controller and the part that does
+ * it lit (see vrTutorial.ts). It replaces the whole card while it is up —
+ * the place list behind it would be one more thing to read before knowing
+ * how to press it.
+ *
+ * Skip on every page, and Controls at the top of the card brings it back.
+ */
+
+/** The picture's height; the card's width is 448 px inside its padding, so 3:2 is 299 — cropped a little. */
+const TUTORIAL_IMAGE_PX = 260;
+
+/** A button name in the legend, on the amber the pictures light it in. */
+function KeyChip({ name }: { name: string }) {
+  return (
+    <Container
+      flexShrink={0}
+      minWidth={96}
+      height={30}
+      paddingX={10}
+      alignItems="center"
+      justifyContent="center"
+      borderRadius={8}
+      borderWidth={2}
+      borderColor={AMBER}
+      backgroundColor={AMBER_SOFT}
+    >
+      <Text fontSize={14} fontWeight="bold" color={AMBER_INK}>
+        {plain(name)}
+      </Text>
+    </Container>
+  );
+}
+
+/**
+ * All seven pictures, fetched and sent to the GPU as soon as the panel exists.
+ *
+ * Not one at a time as each page is reached, which is what handing uikit a
+ * URL does: it fetches the picture when the page appears and throws it away
+ * when the page goes. Every page turn then cost a decode and an upload, a
+ * frame that stalls — and it landed under the next press. A press held
+ * across a stall that long is no longer a click (xrStore.ts), so the reader
+ * pressed Next and nothing happened.
+ *
+ * Held for the session, because Controls can bring the pages back at any time.
+ * Each picture comes in when it is ready; until then its box is the sunken grey.
+ */
+function useTutorialPictures(): (Texture | undefined)[] {
+  const gl = useThree((state) => state.gl);
+  const [pictures, setPictures] = useState<(Texture | undefined)[]>([]);
+  useEffect(() => {
+    let live = true;
+    const loader = new TextureLoader();
+    const held: Texture[] = [];
+    TUTORIAL.forEach((page, index) => {
+      loader
+        .loadAsync(tutorialImage(page))
+        .then((texture) => {
+          // As uikit sets its own: sRGB, and a matrix it owns (it fits the picture to the box).
+          texture.colorSpace = SRGBColorSpace;
+          texture.matrixAutoUpdate = false;
+          if (!live) {
+            texture.dispose();
+            return;
+          }
+          held.push(texture);
+          gl.initTexture(texture);
+          setPictures((now) => {
+            const next = [...now];
+            next[index] = texture;
+            return next;
+          });
+        })
+        .catch((error: unknown) => console.error(`The tutorial picture ${page.image} did not load:`, error));
+    });
+    return () => {
+      live = false;
+      for (const texture of held) texture.dispose();
+    };
+  }, [gl]);
+  return pictures;
+}
+
+function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onDone: () => void }) {
+  const [at, setAt] = useState(0);
+  /** Whether the practice button has been pressed — said back, so the press is felt to have worked. */
+  const [practised, setPractised] = useState(false);
+  const page = TUTORIAL[at];
+  const last = at === TUTORIAL.length - 1;
+  return (
+    <>
+      <Container flexDirection="row" alignItems="center" justifyContent="space-between">
+        <Label size={14} color={INK_2} weight="semi-bold">
+          {`Controls | ${at + 1} of ${TUTORIAL.length}`}
+        </Label>
+        {!last && <Button label="Skip" onClick={onDone} />}
+      </Container>
+
+      <Container flexDirection="column" gap={6}>
+        <Label size={26} weight="bold">
+          {page.title}
+        </Label>
+        <Label size={16} color={INK_2}>
+          {page.body}
+        </Label>
+      </Container>
+
+      <Image
+        src={pictures[at]}
+        width="100%"
+        height={TUTORIAL_IMAGE_PX}
+        objectFit="cover"
+        /*
+         * Off, so the box is the size written here from the first frame. Kept,
+         * the picture resized the card when it arrived — and a button moving
+         * under the laser between the press and the release is a lost click.
+         */
+        keepAspectRatio={false}
+        borderRadius={14}
+        backgroundColor={SUNKEN}
+      />
+
+      {page.legend.length > 0 && (
+        <Container flexDirection="column" gap={8}>
+          {page.legend.map(([key, does]) => (
+            <Container key={key} flexDirection="row" alignItems="center" gap={10}>
+              <KeyChip name={key} />
+              <Container flexShrink={1}>
+                <Label size={15}>{does}</Label>
+              </Container>
+            </Container>
+          ))}
+        </Container>
+      )}
+
+      {page.practice && (
+        <Container
+          onClick={(event) => {
+            event.stopPropagation();
+            setPractised(true);
+          }}
+          cursor="pointer"
+          pointerEventsOrder={CONTROL_ORDER}
+          height={60}
+          alignItems="center"
+          justifyContent="center"
+          borderRadius={14}
+          borderWidth={3}
+          borderColor={GREEN}
+          backgroundColor={practised ? GREEN : GREEN_SOFT}
+          hover={{ borderColor: INK }}
+          active={{ backgroundColor: practised ? GREEN_PRESSED : PRESSED }}
+        >
+          <Text fontSize={17} fontWeight="bold" color={practised ? PAPER : GREEN}>
+            {practised ? 'Well done - that is every button here.' : 'Try it: point here and pull the trigger'}
+          </Text>
+        </Container>
+      )}
+
+      <Container flexDirection="row" gap={10}>
+        {at > 0 && <Button label="Back" leading="<" onClick={() => setAt(at - 1)} />}
+        <Button
+          label={last ? 'Start exploring' : at === 0 ? 'Show me' : 'Next'}
+          trailing={last ? undefined : '>'}
+          tone="primary"
+          grow
+          onClick={() => (last ? onDone() : setAt(at + 1))}
+        />
+      </Container>
+
+      {/* Where the reader is in it, as dots: the current one long and green. */}
+      <Container flexDirection="row" gap={7} justifyContent="center">
+        {TUTORIAL.map((_, index) => (
+          <Container
+            key={index}
+            width={index === at ? 26 : 10}
+            height={10}
+            borderRadius={5}
+            backgroundColor={index === at ? GREEN : TRACK}
+            borderWidth={index === at ? 0 : 2}
+            borderColor={EDGE}
+          />
+        ))}
+      </Container>
+    </>
+  );
+}
+
 // ── Putting the panel away ─────────────────────────────────────────────────
 
 /*
@@ -739,13 +940,22 @@ function SunlightPage({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void }
  *              about X to find the panel again.
  */
 
-function TopBar({ onMinimise, onHide }: { onMinimise: () => void; onHide: () => void }) {
+function TopBar({
+  onControls,
+  onMinimise,
+  onHide,
+}: {
+  onControls: () => void;
+  onMinimise: () => void;
+  onHide: () => void;
+}) {
   return (
     <Container flexDirection="row" alignItems="center" justifyContent="space-between">
       <Label size={13} color={GREEN} weight="bold" spacing={1}>
         MY CITY TWIN
       </Label>
       <Container flexDirection="row" gap={4}>
+        <Button label="Controls" tone="quiet" onClick={onControls} />
         <Button label="Minimise" tone="quiet" onClick={onMinimise} />
         <Button label="Hide" tone="quiet" onClick={onHide} />
       </Container>
@@ -921,6 +1131,14 @@ export function VrPanel({
   /** Made small: see "Putting the panel away". */
   const [mini, setMini] = useState(false);
 
+  /*
+   * The controls tutorial, up first. The panel is mounted afresh for every
+   * session (VrWalk exists only while one runs), so this starts true on
+   * every Enter VR — which is the point: see vrTutorial.ts.
+   */
+  const [tutorial, setTutorial] = useState(true);
+  const pictures = useTutorialPictures();
+
   const firstSummon = useRef(summon);
   useEffect(() => {
     // The first placement is already counting down; later ones are at once.
@@ -937,11 +1155,11 @@ export function VrPanel({
     if (flick.count === lastFlick.current) return;
     lastFlick.current = flick.count;
     // Spent either way, but only turns a page the reader can see.
-    if (!shown || mini || !choosing || flick.direction === 0) return;
+    if (!shown || mini || tutorial || !choosing || flick.direction === 0) return;
     const direction = flick.direction;
     // oxlint-disable-next-line react/set-state-in-effect -- the stick is outside React
     setPage((now) => Math.min(pagesNow - 1, Math.max(0, now + direction)));
-  }, [flick, shown, mini, choosing, pagesNow]);
+  }, [flick, shown, mini, tutorial, choosing, pagesNow]);
 
   useFrame((state) => {
     const group = rig.current;
@@ -985,7 +1203,9 @@ export function VrPanel({
   };
 
   let body: ReactNode;
-  if (mini) {
+  if (tutorial && !mini) {
+    body = <Tutorial pictures={pictures} onDone={() => setTutorial(false)} />;
+  } else if (mini) {
     body = <MiniBar menu={menu} onOpen={() => setMini(false)} onHide={onHide} />;
   } else if (choosing) {
     body = (
@@ -1049,10 +1269,12 @@ export function VrPanel({
         pointerEventsOrder={PANEL_ORDER}
         pointerEvents={shown ? 'auto' : 'none'}
       >
-        {!mini && <TopBar onMinimise={() => setMini(true)} onHide={onHide} />}
+        {!mini && !tutorial && (
+          <TopBar onControls={() => setTutorial(true)} onMinimise={() => setMini(true)} onHide={onHide} />
+        )}
         {body}
 
-        {!mini && (
+        {!mini && !tutorial && (
           <>
         <Container height={2} backgroundColor={TRACK} />
         <Container flexDirection="row" alignItems="center" justifyContent="space-between" gap={10}>

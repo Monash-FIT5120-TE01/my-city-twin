@@ -4,6 +4,14 @@
  *
  *   npm run test:vr              headless, prints a result per task
  *   npm run test:vr -- --headed  the same, in a window you can watch
+ *   npm run test:vr -- --gpu     headless, drawn on the GPU instead of in software
+ *
+ * WHEN TO USE --gpu
+ *   When the machine is busy. The software renderer then falls to a frame
+ *   every second or two, a press held for "two frames" outlasts the two
+ *   seconds a click is allowed (xrStore.ts), and working buttons are reported
+ *   dead — the place list's Next failed that way with nothing changed. On the
+ *   GPU a frame is tens of milliseconds, as it is on the headset.
  *
  * WHY THIS EXISTS
  *   The unit tests cover the sums — where somebody is put down, which way
@@ -44,6 +52,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'test-results', 'vr-check');
 const URL_ = 'http://localhost:5173/';
 const headed = process.argv.includes('--headed');
+const gpu = process.argv.includes('--gpu');
 
 mkdirSync(OUT, { recursive: true });
 
@@ -74,8 +83,12 @@ if (!(await serverRunning())) {
 async function launch() {
   const options = {
     headless: !headed,
-    // Software WebGL, so this runs on a machine with no usable GPU as well.
-    args: headed ? [] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+    // Software WebGL by default, so this runs on a machine with no usable GPU as well.
+    args: headed
+      ? []
+      : gpu
+        ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist']
+        : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
   };
   try {
     return await chromium.launch({ ...options, channel: 'chrome' });
@@ -441,8 +454,43 @@ try {
   check('The fade clears within 2 s of entering VR (1 s limit + render lag)',
     darkFor !== null && darkFor <= 2000, darkFor === null ? 'the fade never cleared' : `${darkFor} ms`);
 
-  let seen = await texts();
-  check('On entering, the place list is in front of the viewer', seen.includes('Choose a place'));
+  // 1a. The controls tutorial comes first, every time, and is walked through
+  // with nothing but the laser and the trigger (vrTutorial.ts).
+  let seen = await textsOnce((s) => s.includes('Welcome to VR'));
+  const frameMs = async () => {
+    const began = Date.now();
+    await frames(5);
+    return Math.round((Date.now() - began) / 5);
+  };
+  check('On entering, the controls tutorial is in front of the viewer', seen.includes('Welcome to VR'),
+    `${await frameMs()} ms a frame here`);
+  await shoot('01a-tutorial');
+  await press('Show me', async () => (await texts()).includes('Point and press'));
+  await press('Try it: point here and pull the trigger', async () =>
+    (await texts()).includes('Well done - that is every button here.'));
+  seen = await texts();
+  check('The tutorial\'s practice button answers the trigger', seen.includes('Well done - that is every button here.'));
+  await shoot('01b-tutorial-practice');
+  for (const title of ['Walk and turn', 'Move the sun', 'Show or hide this panel', 'In the street', 'Leaving VR']) {
+    await press('Next', async () => (await texts()).includes(title));
+    await textsOnce((now) => now.includes(title));
+  }
+  seen = await texts();
+  check('Next goes through every page of the tutorial', seen.includes('Leaving VR') && seen.includes('Start exploring'),
+    seen.find((text) => /^Controls \| /.test(text)) ?? seen.slice(0, 4).join(' / '));
+  await shoot('01c-tutorial-last');
+  await press('Start exploring', async () => (await texts()).includes('Choose a place'));
+
+  seen = await texts();
+  check('After the tutorial, the place list is in front of the viewer', seen.includes('Choose a place'),
+    `${await frameMs()} ms a frame here`);
+
+  // Controls brings it back; Skip puts it away again from any page.
+  await press('Controls', async () => (await texts()).includes('Welcome to VR'));
+  check('Controls opens the tutorial again', (await texts()).includes('Welcome to VR'));
+  await press('Skip', async () => (await texts()).includes('Choose a place'));
+  seen = await texts();
+  check('Skip closes the tutorial', seen.includes('Choose a place'));
   const above = await head();
   check('Standing above the city', above[1] > 300, `head height ${above[1].toFixed(0)} m`);
   await shoot('01-arrive');
@@ -696,6 +744,10 @@ try {
 
   // 10. Re-choosing by pointing forgets the old spot.
   await enterThrough(headerEnter);
+  // Every Enter VR, not only the first: the headset is passed between testers.
+  seen = await textsOnce((now) => now.includes('Welcome to VR'));
+  check('The tutorial is shown again on the next Enter VR', seen.includes('Welcome to VR'));
+  await press('Skip', async () => !(await texts()).includes('Welcome to VR'));
   seen = await textsOnce((now) => now.includes('Measure a spot'));
   const buildingTitle = '206-218 Bourke Street';
   await press('Measure a spot', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
