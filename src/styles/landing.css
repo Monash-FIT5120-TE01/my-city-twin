@@ -71,6 +71,16 @@
   scroll-snap-align: end;
 }
 
+/*
+ * Not on a phone (2026-10-08): there the page is one column read by scrolling freely, and snapping
+ * fought the thumb. The same switch as the stacked layout below, and any touch-first screen.
+ */
+@media (max-width: 900px), (max-height: 640px), (pointer: coarse) {
+  .landing {
+    scroll-snap-type: none;
+  }
+}
+
 /* The first screen: exactly the window's height, laid out as a grid. */
 .landing__screen {
   height: 100%;

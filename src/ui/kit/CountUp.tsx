@@ -20,7 +20,8 @@ export function CountUp({
   durationMs?: number;
 }) {
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const [shown, setShown] = useState(reduced ? value : 0);
+  // nothing to tell it when it comes into view (an old browser): it shows the value from the start
+  const [shown, setShown] = useState(reduced || typeof IntersectionObserver !== 'function' ? value : 0);
   const el = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {

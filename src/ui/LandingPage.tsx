@@ -230,7 +230,7 @@ export function LandingPage({
   useEffect(() => {
     const page = root.current;
     if (!page) return;
-    let busyUntil = 0, frame = 0;
+    let busyUntil = 0, frame = 0, gliding = false;
     /*
      * Our own easing rather than the browser's 'smooth', which is quick and
      * cannot be slowed. The snap is switched off while it runs: the browser
@@ -239,15 +239,21 @@ export function LandingPage({
     const glide = (to: number) => {
       const from = page.scrollTop, start = performance.now();
       cancelAnimationFrame(frame);
-      page.style.scrollSnapType = 'none';
+      page.style.scrollSnapType = 'none'; gliding = true;
       const step = (now: number) => {
         const u = Math.min(1, (now - start) / SNAP_GLIDE_MS);
         const eased = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;   // ease in and out
         page.scrollTop = from + (to - from) * eased;
         if (u < 1) frame = requestAnimationFrame(step);
-        else page.style.scrollSnapType = '';
+        else { page.style.scrollSnapType = ''; gliding = false; }
       };
       frame = requestAnimationFrame(step);
+    };
+    // The visitor takes over (a key, a press on the scroll bar, a finger): the glide stops where it is.
+    const stop = () => {
+      if (!gliding) return;
+      cancelAnimationFrame(frame); gliding = false; busyUntil = 0;
+      page.style.scrollSnapType = '';
     };
     const targets = () => {
       const header = parseFloat(getComputedStyle(page).scrollPaddingTop) || 0;
@@ -260,6 +266,9 @@ export function LandingPage({
       if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       const now = performance.now();
       if (now < busyUntil) { event.preventDefault(); return; }
+      // no snapping here (a phone, a narrow window: landing.css): the wheel scrolls as it always does.
+      // After the check above, which covers a glide's own switching-off of the snap.
+      if (getComputedStyle(page).scrollSnapType === 'none') return;
       const at = page.scrollTop, list = targets();
       const next = event.deltaY > 0 ? list.find((v) => v > at + 2) : [...list].reverse().find((v) => v < at - 2);
       if (next === undefined || Math.abs(next - at) > page.clientHeight) return;
@@ -269,7 +278,12 @@ export function LandingPage({
       glide(next);
     };
     page.addEventListener('wheel', onWheel, { passive: false });
-    return () => { page.removeEventListener('wheel', onWheel); cancelAnimationFrame(frame); page.style.scrollSnapType = ''; };
+    window.addEventListener('keydown', stop); page.addEventListener('pointerdown', stop); page.addEventListener('touchstart', stop, { passive: true });
+    return () => {
+      page.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', stop); page.removeEventListener('pointerdown', stop); page.removeEventListener('touchstart', stop);
+      cancelAnimationFrame(frame); page.style.scrollSnapType = '';
+    };
   }, [reducedMotion]);
 
   /** The main button: on to the sunlight screen, or ask for a place first. */
