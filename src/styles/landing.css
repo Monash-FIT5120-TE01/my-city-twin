@@ -81,6 +81,20 @@
   }
 }
 
+/*
+ * A finger scrolls the page wherever it lands (2026-10-08). Safari on iOS
+ * does not scroll a box that lets touches through (pointer-events: none
+ * above), even from a solid part inside it, so on a touch screen the page
+ * takes the touch itself. The city behind its window is only shown there,
+ * not handled, until "Explore" opens the map.
+ */
+@media (max-width: 900px), (pointer: coarse) {
+  .landing,
+  .landing__screen {
+    pointer-events: auto;
+  }
+}
+
 /* The first screen: exactly the window's height, laid out as a grid. */
 .landing__screen {
   height: 100%;
