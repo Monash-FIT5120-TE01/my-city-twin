@@ -109,7 +109,7 @@ import {
   type WindowProblem,
 } from './ui/screens';
 import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
-import { EARLIEST_MINUTES, LATEST_MINUTES, clock12Label, clockLabel, intoWindow } from './data/now';
+import { EARLIEST_MINUTES, LATEST_MINUTES, clock12Label, clockLabel, intoWindow, outsideWindowNote, presentMoment } from './data/now';
 import { useMapboxConfig } from './data/mapboxConfig';
 import { exitVr, useInVr, useVrSupported, xrStore } from './scene/xrStore';
 import type { VrMenu, VrStage } from './scene/vrMenu';
@@ -1277,6 +1277,22 @@ export default function App() {
         railEnd: LATEST_MINUTES,
         sunrise: daylight.rise,
         sunset: daylight.set,
+        /*
+         * "Now" as the time control can show it: today in Melbourne, the hour
+         * snapped to the control's step and window. Read each render, which in
+         * a headset is often enough for a label.
+         */
+        ...(() => {
+          const present = presentMoment(new Date());
+          return {
+            isNow: JSON.stringify(present.date) === JSON.stringify(date) && present.minutes === minutes,
+            onNow: () => {
+              chooseDate(present.date);
+              chooseMinutes(present.minutes);
+              setNowNote(outsideWindowNote(present));
+            },
+          };
+        })(),
         armed,
         onMeasure: () => {
           // Measuring belongs to the sunlight page; `armed` requires it.

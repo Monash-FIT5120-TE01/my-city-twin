@@ -111,10 +111,10 @@ const TURN_DEAD_ZONE = 0.18;
  *                 of a shadow at one fixed moment is a photograph; being able
  *                 to move the sun while standing under it is what the headset
  *                 adds. It works with the panel put away.
- *   X             the panel, away or back in front of the eyes.
- *   right stick   left and right turn; a firm push up or down turns a page
- *                 of the place list.
- *   grip          out. Held, not tapped — see below.
+ *   X             the panels, away or back in front of the eyes.
+ *   right stick   left and right turn. Up and down scroll whatever list the
+ *                 panel is showing; the panel reads that itself.
+ *   grip          asks to leave. Held, not tapped — see below.
  */
 
 /** Simulated minutes per real second, while A or B is held. */
@@ -132,13 +132,14 @@ const SCRUB_MINUTES_PER_S = 60;
 const SCRUB_STEP_MIN = 10;
 
 /**
- * How long a grip must be held to leave, seconds.
+ * How long a grip must be held to ask to leave, seconds.
  *
  * A tap would do it too often. The grip is squeezed by the act of holding
  * the controller at all, and leaving is not something to do by accident —
  * it ends the session, and getting back means finding a button on a page you
- * can no longer see. A second of deliberate squeeze is unmistakable and
- * still faster than reaching for the controller's system button.
+ * can no longer see. So a second of deliberate squeeze only ASKS: the panel
+ * comes up with the same "Leave VR?" its own button gives, and nothing ends
+ * until that is answered.
  */
 const EXIT_HOLD_S = 1;
 
@@ -179,10 +180,6 @@ const FADE_MS = 200;
  */
 const DARK_AT_MOST_MS = 1000;
 
-/** How far the right stick must go up or down to turn a page, and come back. */
-const FLICK_AT = 0.7;
-const FLICK_REARM = 0.3;
-
 /**
  * Frames to wait, dark, before a placement is applied.
  *
@@ -218,15 +215,10 @@ interface VrWalkProps {
    * time bar uses; the caller clamps to the hours the simulation covers.
    */
   onNudgeMinutes: (minutes: number) => void;
-  /** Leave the session — the grip, held. */
-  onExit: () => void;
+  /** The grip, held: ask whether to leave. Ending the session is the panel's, once answered. */
+  onAskToLeave: () => void;
   /** X on the left controller: call the panel up, or put it away. */
   onTogglePanel: () => void;
-  /**
-   * The right stick pushed up or down and let back: one page of the panel's
-   * list, back (-1) or on (+1). The stick's left and right still turn.
-   */
-  onFlick: (direction: -1 | 1) => void;
   /**
    * A move has landed: the player now stands where it put them. Anything
    * that measures where the player is — the panel's "nearest" list — should
@@ -251,9 +243,8 @@ export function VrWalk({
   timeLabel,
   dateLabel,
   onNudgeMinutes,
-  onExit,
+  onAskToLeave,
   onTogglePanel,
-  onFlick,
   onPlaced,
   children,
 }: VrWalkProps) {
@@ -334,8 +325,6 @@ export function VrWalk({
 
   /** Whether X was down last frame, so one press toggles once. */
   const xWasDown = useRef(false);
-  /** A flick is spent until the stick comes back near the middle. */
-  const flickArmed = useRef(true);
 
   useFrame((state, rawDelta) => {
     const group = origin.current;
@@ -420,24 +409,7 @@ export function VrWalk({
     xWasDown.current = xDown;
 
     /*
-     * ── A PAGE OF THE LIST ──────────────────────────────────────────────
-     *
-     * The right stick's up and down did nothing; now a firm push is one
-     * page. Firm, and once per push, so a stick drifting while the reader
-     * turns does not leaf through the list: past 0.7 it flicks, and it has
-     * to come back inside 0.3 before it can flick again. Up is negative on
-     * the standard mapping.
-     */
-    const flickY = right?.gamepad?.[THUMBSTICK]?.yAxis ?? 0;
-    if (flickArmed.current && Math.abs(flickY) > FLICK_AT) {
-      flickArmed.current = false;
-      onFlick(flickY < 0 ? -1 : 1);
-    } else if (!flickArmed.current && Math.abs(flickY) < FLICK_REARM) {
-      flickArmed.current = true;
-    }
-
-    /*
-     * ── OUT ─────────────────────────────────────────────────────────────
+     * ── ASKING TO LEAVE ──────────────────────────────────────────────────
      *
      * Either grip. Whichever hand is free is the one that gets used, and
      * requiring a specific one means remembering which, from inside a
@@ -450,8 +422,7 @@ export function VrWalk({
       squeezed.current += delta;
       if (squeezed.current >= EXIT_HOLD_S && !hasExited.current) {
         hasExited.current = true;
-        onExit();
-        return;
+        onAskToLeave();
       }
     } else {
       squeezed.current = 0;

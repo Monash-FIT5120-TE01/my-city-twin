@@ -8,6 +8,11 @@ import './styles/global.css';
 import './styles/kit.css';
 import App from './App';
 
+// A temporary log for the headset, only with ?vrdebug in the address — see vrDebug.ts.
+if (new URLSearchParams(location.search).has('vrdebug')) {
+  void import('./vrDebug').then((debug) => debug.installVrDebug());
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

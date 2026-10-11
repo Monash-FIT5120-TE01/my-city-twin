@@ -53,6 +53,8 @@ const OUT = join(root, 'test-results', 'vr-check');
 const URL_ = 'http://localhost:5173/';
 const headed = process.argv.includes('--headed');
 const gpu = process.argv.includes('--gpu');
+/** Records a CPU profile around choosing a place and standing in the street, and prints what took the time. */
+const profile = process.argv.includes('--profile');
 
 mkdirSync(OUT, { recursive: true });
 
@@ -180,6 +182,20 @@ async function instrument() {
       );
       t.setPose(hand, from.toArray(), turn.toArray());
     };
+    /** Where a piece of text is, in the world, or null. */
+    t.worldOf = (text) => {
+      const target = t.findText(text);
+      return target ? new three.Box3().setFromObject(target).getCenter(new three.Vector3()).toArray() : null;
+    };
+    /**
+     * The middle of the white bar under the menu, in the world. See VrPanel: 660 mm cards, 18 mm gap,
+     * the 88 mm navigation, 16 mm gap, the 40 mm bar — 822 mm in all, centred on the rig.
+     */
+    t.windowBar = () => {
+      const rig = t.state().scene.getObjectByName('vr-menu');
+      rig.updateWorldMatrix(true, false);
+      return rig.localToWorld(new three.Vector3(0, -(822 / 2 - 20) / 1000, 0));
+    };
     t.aimAtText = (hand, text) => {
       const target = t.findText(text);
       if (!target) return false;
@@ -195,10 +211,24 @@ async function instrument() {
      * enough to matter.
      */
     t.veilGap = 0;
+    /*
+     * The "Going to …" pill (VrLoader), watched the same way: the furthest it
+     * ever was from the eyes while up, and the text-free fact that it came up.
+     */
+    t.loader = { seen: 0, furthest: 0 };
     let veil = null;
     rootStore.getState().internal.subscribe(
       {
         current: () => {
+          const loader = t.state().scene.getObjectByName('vr-loader');
+          if (loader?.visible) {
+            t.loader.seen += 1;
+            const eyes = t.state().camera.getWorldPosition(new three.Vector3());
+            t.loader.furthest = Math.max(t.loader.furthest, loader.getWorldPosition(new three.Vector3()).distanceTo(eyes));
+            const look = t.state().camera.getWorldDirection(new three.Vector3());
+            const to = loader.getWorldPosition(new three.Vector3()).sub(eyes).normalize();
+            t.loader.offCentreDeg = Math.max(t.loader.offCentreDeg ?? 0, (look.angleTo(to) * 180) / Math.PI);
+          }
           veil ??= (() => {
             let found = null;
             t.state().scene.traverse((o) => {
@@ -219,6 +249,43 @@ async function instrument() {
 }
 
 const call = (fn, ...args) => page.evaluate(fn, ...args);
+
+/**
+ * With --profile: runs `act` under the CPU profiler and prints the functions
+ * that took the most time of their own, and the longest single task.
+ */
+async function profiled(name, act) {
+  if (!profile) return act();
+  const cdp = await page.context().newCDPSession(page);
+  await call(() => {
+    window.__longest = 0;
+    window.__longObserver ??= new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) window.__longest = Math.max(window.__longest, entry.duration);
+    });
+    window.__longObserver.observe({ type: 'longtask' });
+  });
+  await cdp.send('Profiler.enable');
+  await cdp.send('Profiler.setSamplingInterval', { interval: 500 });
+  await cdp.send('Profiler.start');
+  const result = await act();
+  const { profile: cpu } = await cdp.send('Profiler.stop');
+  const longest = await call(() => window.__longest);
+  const dt = new Map();
+  cpu.samples.forEach((id, i) => dt.set(id, (dt.get(id) ?? 0) + (cpu.timeDeltas[i] ?? 0) / 1000));
+  const self = new Map();
+  for (const node of cpu.nodes) {
+    const { functionName, url, lineNumber } = node.callFrame;
+    if (['(idle)', '(program)', '(garbage collector)'].includes(functionName) && !dt.get(node.id)) continue;
+    const key = `${functionName || '(anonymous)'}  ${url.replace(/^.*\/(src|node_modules|\.vite)\//, '$1/').replace(/\?.*$/, '')}:${lineNumber + 1}`;
+    self.set(key, (self.get(key) ?? 0) + (dt.get(node.id) ?? 0));
+  }
+  console.log(`
+── profile: ${name} — longest task ${longest.toFixed(0)} ms`);
+  [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)
+    .forEach(([key, ms]) => console.log(`${ms.toFixed(0).padStart(7)} ms  ${key}`));
+  await cdp.detach();
+  return result;
+}
 const texts = () => call(() => window.__vrCheck.texts());
 const head = () => call(() => window.__vrCheck.head());
 
@@ -456,22 +523,21 @@ try {
 
   // 1a. The controls tutorial comes first, every time, and is walked through
   // with nothing but the laser and the trigger (vrTutorial.ts).
-  let seen = await textsOnce((s) => s.includes('Welcome to VR'));
+  let seen = await textsOnce((s) => s.includes('Welcome to Live Melbourne'));
   const frameMs = async () => {
     const began = Date.now();
     await frames(5);
     return Math.round((Date.now() - began) / 5);
   };
-  check('On entering, the controls tutorial is in front of the viewer', seen.includes('Welcome to VR'),
+  check('On entering, the controls tutorial is in front of the viewer', seen.includes('Welcome to Live Melbourne'),
     `${await frameMs()} ms a frame here`);
   await shoot('01a-tutorial');
-  await press('Show me', async () => (await texts()).includes('Point and press'));
   await press('Try it: point here and pull the trigger', async () =>
     (await texts()).includes('Well done - that is every button here.'));
   seen = await texts();
   check('The tutorial\'s practice button answers the trigger', seen.includes('Well done - that is every button here.'));
   await shoot('01b-tutorial-practice');
-  for (const title of ['Walk and turn', 'Move the sun', 'Show or hide this panel', 'In the street', 'Leaving VR']) {
+  for (const title of ['Walk and turn', 'Move the sun', 'Open or close the menu', 'In the street', 'Leaving VR']) {
     await press('Next', async () => (await texts()).includes(title));
     await textsOnce((now) => now.includes(title));
   }
@@ -479,18 +545,26 @@ try {
   check('Next goes through every page of the tutorial', seen.includes('Leaving VR') && seen.includes('Start exploring'),
     seen.find((text) => /^Controls \| /.test(text)) ?? seen.slice(0, 4).join(' / '));
   await shoot('01c-tutorial-last');
-  await press('Start exploring', async () => (await texts()).includes('Choose a place'));
+  await press('Start exploring', async () => (await texts()).includes('Explore Melbourne'));
 
   seen = await texts();
-  check('After the tutorial, the place list is in front of the viewer', seen.includes('Choose a place'),
+  check('After the tutorial, the place list is in front of the viewer', seen.includes('Explore Melbourne'),
     `${await frameMs()} ms a frame here`);
 
-  // Controls brings it back; Skip puts it away again from any page.
-  await press('Controls', async () => (await texts()).includes('Welcome to VR'));
-  check('Controls opens the tutorial again', (await texts()).includes('Welcome to VR'));
-  await press('Skip', async () => (await texts()).includes('Choose a place'));
+  // One menu of three cards once the tutorial is done: Places, City map, Sun & time.
+  seen = await textsOnce((now) => now.includes('City map') && now.includes('Sun & time'));
+  check('After the tutorial, the menu shows Places, City map and Sun & time together',
+    seen.includes('Places') && seen.includes('City map') && seen.includes('Sun & time'));
+  await shoot('01d-three-panels');
+
+  // Help brings the tutorial back; Skip puts it away again from any page.
+  await press('Help', async () => (await texts()).includes('Show the tutorial again'));
+  await press('Show the tutorial again', async () => (await texts()).includes('Welcome to Live Melbourne'));
+  check('Help opens the tutorial again', (await texts()).includes('Welcome to Live Melbourne'));
+  await press('Skip', async () => !(await texts()).includes('Welcome to Live Melbourne'));
   seen = await texts();
-  check('Skip closes the tutorial', seen.includes('Choose a place'));
+  check('Skip closes the tutorial', !seen.includes('Welcome to Live Melbourne') && seen.includes('Show the tutorial again'));
+  await press('Explore', async () => (await texts()).includes('Explore Melbourne'));
   const above = await head();
   check('Standing above the city', above[1] > 300, `head height ${above[1].toFixed(0)} m`);
   await shoot('01-arrive');
@@ -533,49 +607,58 @@ try {
 
   // 2. Pointing at a proposal in the city, panel put away.
   await pointAtAProposal();
-  seen = await textsOnce((now) => now.includes('Measure a spot'));
+  seen = await textsOnce((now) => now.includes('View place'));
   const addressIn = (now) => now.find((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
-  check('With the panel hidden, pointing at a proposal in the city opens it', seen.includes('Measure a spot'), addressIn(seen));
+  check('With the menu closed, pointing at a proposal in the city chooses it', seen.includes('View place'), addressIn(seen));
   check('Entering VR at night switches to 12:00 and the panel says why',
     hourIn(seen) === '12:00' && seen.some((text) => /^The sun is down/.test(text)),
     `${hourIn(seen)} / ${seen.find((text) => /^The sun is down/.test(text)) ?? 'no explanation'}`);
 
   // 3. The list: back to it, its pages, its order, and choosing from it.
-  await press('Places', async () => (await texts()).includes('Choose a place'));
-  seen = await textsOnce((now) => now.includes('Choose a place'));
-  check('"Places" returns to the place list', seen.includes('Choose a place'));
+  await press('Explore', async () => (await texts()).includes('Explore Melbourne'));
+  seen = await textsOnce((now) => now.includes('Explore Melbourne'));
+  check('"Explore" shows the place list', seen.includes('Explore Melbourne'));
 
-  const pageIn = (now) => now.find((text) => /^\d+ of \d+$/.test(text));
-  const firstPage = pageIn(seen);
-  await press('Next', async () => /^2 of/.test(pageIn(await texts()) ?? ''));
-  seen = await textsOnce((now) => pageIn(now) !== firstPage);
-  const secondPage = pageIn(seen);
-  check('"Next" shows the next page', /^2 of/.test(secondPage ?? ''), `${firstPage} → ${secondPage}`);
-  // The right stick, pushed down and let back.
+  // The list scrolls: the right stick pushed down carries the rows up.
+  const firstRow = seen.find((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
+  const rowBefore = await call((text) => window.__vrCheck.worldOf(text), firstRow);
   await call(() => window.__vrCheck.device().controllers.right.updateAxes('thumbstick', 0, 1));
-  await frames(3);
+  await frames(12);
   await call(() => window.__vrCheck.device().controllers.right.updateAxes('thumbstick', 0, 0));
-  seen = await textsOnce((now) => pageIn(now) !== secondPage);
-  check('Pushing the right stick down turns one more page', /^3 of/.test(pageIn(seen) ?? ''), `${secondPage} → ${pageIn(seen)}`);
-  await press('Previous');
-  await press('Previous');
-  seen = await textsOnce((now) => /^1 of/.test(pageIn(now) ?? ''));
+  await frames(3);
+  const rowAfter = await call((text) => window.__vrCheck.worldOf(text), firstRow);
+  const scrolledM = rowBefore && rowAfter ? rowAfter[1] - rowBefore[1] : 0;
+  check('Pushing the right stick down scrolls the place list', scrolledM > 0.02, `${firstRow} moved ${(scrolledM * 1000).toFixed(0)} mm`);
+  await call(() => window.__vrCheck.device().controllers.right.updateAxes('thumbstick', 0, -1));
+  await frames(20);
+  await call(() => window.__vrCheck.device().controllers.right.updateAxes('thumbstick', 0, 0));
+  seen = await textsOnce((now) => now.includes('Explore Melbourne'));
 
-  // Nearest first: the distances on the first page never go down.
+  // Nearest first: the distances down the list never go down.
+  // A row says "370 m away | 40 m tall": the distance is read from inside the line.
   const away = seen
-    .filter((text) => / away$/.test(text))
-    .map((text) => (/km/.test(text) ? parseFloat(text) * 1000 : parseFloat(text)));
+    .map((text) => /([\d.]+) (k?m) away/.exec(text))
+    .filter(Boolean)
+    .map(([, value, unit]) => (unit === 'km' ? parseFloat(value) * 1000 : parseFloat(value)));
   check('"Nearest" sorts by distance', away.length >= 3 && away.every((d, i) => i === 0 || d >= away[i - 1]),
     away.map((d) => `${d} m`).join(', '));
 
   const rows = seen.filter((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
   const row = rows[1];
-  await press(row, async () => {
+  await call(() => { window.__vrCheck.loader = { seen: 0, furthest: 0 }; });
+  await profiled('choosing a place', () => press(row, async () => {
     const now = await texts();
-    return now.includes(row) && now.includes('Measure a spot');
-  });
-  seen = await textsOnce((now) => now.includes('Measure a spot'));
-  check('Choosing a row opens the sunlight page for that place', seen.includes(row) && seen.includes('Measure a spot'), row);
+    return now.includes(row) && now.includes('View place');
+  }));
+  seen = await textsOnce((now) => now.includes('View place'));
+  check('Choosing a row puts that place on the map card', seen.includes(row) && seen.includes('View place'), row);
+  // Gone again once the move has landed.
+  const loaderUp = () => call(() => window.__vrCheck.state().scene.getObjectByName('vr-loader')?.visible ?? false);
+  const gone = !(await until(loaderUp, (up) => !up, 60));
+  const going = { ...(await call(() => window.__vrCheck.loader)), gone };
+  check('Choosing a place shows "Going to ..." in front of the eyes, then takes it away',
+    going.seen > 0 && going.furthest > 0.9 && going.furthest < 1.5 && going.offCentreDeg < 15 && going.gone,
+    `up for ${going.seen} frames, ${going.furthest.toFixed(2)} m away, ${going.offCentreDeg?.toFixed(0)} deg off centre`);
   const overPlace = await headOnce((at) => Math.hypot(at[0] - above[0], at[2] - above[2]) > 50);
   check('Moves above the chosen place', Math.hypot(overPlace[0] - above[0], overPlace[2] - above[2]) > 50,
     `${Math.hypot(overPlace[0] - above[0], overPlace[2] - above[2]).toFixed(0)} m moved`);
@@ -588,11 +671,11 @@ try {
   const when = seen.find((text) => /December/.test(text));
   const toMinutes = (clock) => (clock ? Number(clock.slice(0, -3)) * 60 + Number(clock.slice(-2)) : NaN);
   const hourBefore = hourIn(seen);
-  await press('+1 h', async () => hourIn(await texts()) !== hourBefore);
+  await press('+10 min', async () => hourIn(await texts()) !== hourBefore);
   seen = await textsOnce((now) => hourIn(now) !== hourBefore);
   const hourAfter = hourIn(seen);
   check('"Summer" sets a December date', /December/.test(when ?? ''), when);
-  check('"+1 h" moves the time exactly one hour', toMinutes(hourAfter) - toMinutes(hourBefore) === 60,
+  check('"+10 min" moves the time exactly ten minutes', toMinutes(hourAfter) - toMinutes(hourBefore) === 10,
     `${hourBefore} → ${hourAfter}`);
 
   // 4b. The laser on a button: can the reader see where it is?
@@ -629,9 +712,9 @@ try {
   await shoot('02b-pointing-at-button');
 
   // 5. Measuring a spot.
-  await press('Measure a spot', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
+  await press('Measure', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
   seen = await textsOnce((now) => now.includes('Point at the ground and pull the trigger.'));
-  check('"Measure a spot" arms the ground', seen.includes('Point at the ground and pull the trigger.'));
+  check('Opening Measure arms the ground straight away', seen.includes('Point at the ground and pull the trigger.'));
   await aimAtGroundAhead(Number(/(\d+) m/.exec(seen.find((text) => /Approved development/.test(text)) ?? '')?.[1] ?? 60));
   await frames(3);
   await pull('right');
@@ -646,12 +729,54 @@ try {
   await call(() => {
     window.__vrCheck.veilGap = 0;
   });
-  await press(seen.includes('Stand at the spot') ? 'Stand at the spot' : 'Stand in the street', async () => (await head())[1] < 80);
+  await profiled('standing in the street', async () => {
+    const stand = seen.includes('Stand at the spot') ? 'Stand at the spot' : 'Stand in the street';
+    // Pressed by hand rather than with pressOnce, so the picture is taken while the pill is up.
+    await call(() => { window.__vrCheck.loader = { seen: 0, furthest: 0 }; });
+    await call(({ text }) => window.__vrCheck.aimAtText('right', text), { text: stand });
+    await frames(3);
+    await call(() => window.__vrCheck.device().controllers.right.updateButtonValue('trigger', 1));
+    await frames(2);
+    await call(() => window.__vrCheck.device().controllers.right.updateButtonValue('trigger', 0));
+    // Best effort: the picture is taken a moment after it is asked for, and the pill may be gone by then.
+    await shoot('04a-going-down');
+    if (!(await until(async () => (await head())[1] < 80, (ok) => ok, 30))) {
+      retried.push(stand);
+      await pressOnce(stand);
+    }
+  });
   seen = await textsOnce((now) => now.includes('Go back up'));
   const street = await headOnce((at) => at[1] < 80);
   check('"Stand at the spot" puts the viewer in the street', street[1] < 80, `head height ${street[1].toFixed(0)} m`);
   check('In the street, "Go back up" is offered', seen.includes('Go back up'));
   await shoot('04-street');
+  // 6b. Walking aids: with the menu away, the street bar over the view, and signs on the corners nearby.
+  await pull('left', 'x-button');
+  const aids = await until(
+    () => call(() => {
+      const scene = window.__vrCheck.state().scene;
+      const signs = scene.getObjectByName('vr-corner-signs');
+      // Each blade stood upright: its text's up is the world's up, and it hangs above the eye.
+      let upright = true;
+      let lowestM = Infinity;
+      signs?.traverse((o) => {
+        if (!o.isMesh || o.geometry.type !== 'PlaneGeometry') return;
+        const up = new window.__vrCheck.three.Vector3(0, 1, 0).transformDirection(o.matrixWorld);
+        if (up.y < 0.99) upright = false;
+        lowestM = Math.min(lowestM, o.getWorldPosition(new window.__vrCheck.three.Vector3()).y);
+      });
+      const eye = window.__vrCheck.state().camera.getWorldPosition(new window.__vrCheck.three.Vector3()).y;
+      return { bar: Boolean(scene.getObjectByName('vr-street-bar')?.visible), signs: signs?.children.length ?? 0, upright, aboveEyeM: lowestM - eye };
+    }),
+    (now) => now.bar && now.signs > 0,
+    40,
+  );
+  check('In the street with the menu away, the street bar shows and nearby corners carry upright signs above head height',
+    aids.bar && aids.signs > 0 && aids.upright && aids.aboveEyeM > 0.5, `${aids.signs} signs, lowest blade ${aids.aboveEyeM?.toFixed(1)} m above the eyes`);
+  await frames(10);
+  await shoot('04-street-bar');
+  await pull('left', 'x-button');
+  await until(() => call(() => window.__vrCheck.panel().visible), (shown) => shown, 40);
   await press('Go back up', async () => (await head())[1] > 100);
   const back = await headOnce((at) => at[1] > 100);
   check('"Go back up" returns above the city', back[1] > 100, `head height ${back[1].toFixed(0)} m`);
@@ -669,19 +794,34 @@ try {
   const shownAgain = await panelShownOnce(true);
   check('X on the left hand hides the panel and brings it back', hidden && shownAgain);
 
-  // 7b. Minimise, and back.
-  await press('Minimise', async () => (await texts()).includes('Open'));
-  seen = await textsOnce((now) => now.includes('Open'));
-  check('"Minimise" shrinks the panel to a bar with the time and place',
-    seen.includes('Open') && !seen.includes('Measure a spot') && !seen.includes('Measure another spot') && Boolean(hourIn(seen)),
-    seen.join(' / '));
-  await shoot('04c-minimised');
-  await press('Open', async () => (await texts()).includes('Minimise'));
-  seen = await textsOnce((now) => now.includes('Minimise'));
-  check('"Open" restores the full panel', seen.includes('Minimise'));
+  // 7b. The white bar under the window carries it with the beam.
+  const windowAt = () => call(() => window.__vrCheck.state().scene.getObjectByName('vr-menu').getWorldPosition(new window.__vrCheck.three.Vector3()).toArray());
+  const before = await windowAt();
+  await call(() => window.__vrCheck.aimAt('right', window.__vrCheck.windowBar()));
+  await frames(3);
+  await call(() => window.__vrCheck.device().controllers.right.updateButtonValue('trigger', 1));
+  await frames(3);
+  await call(() => {
+    const t = window.__vrCheck;
+    const bar = t.windowBar();
+    const side = new t.three.Vector3(0.35, 0, 0).applyQuaternion(t.state().gl.xr.getCamera().getWorldQuaternion(new t.three.Quaternion()));
+    t.aimAt('right', bar.add(side));
+  });
+  await frames(6);
+  await call(() => window.__vrCheck.device().controllers.right.updateButtonValue('trigger', 0));
+  await frames(3);
+  const after = await windowAt();
+  const movedM = Math.hypot(after[0] - before[0], after[2] - before[2]);
+  check('Holding the trigger on the white bar carries the window', movedM > 0.1, `moved ${(movedM * 100).toFixed(0)} cm`);
+  await shoot('04c-window-moved');
+  // Calling the panels up again puts them back on the arc.
+  await pull('left', 'x-button');
+  await panelShownOnce(false);
+  await pull('left', 'x-button');
+  await panelShownOnce(true);
 
   // 7c. Hide, and the Menu button on the left hand brings it back.
-  await press('Hide', async () => !(await call(() => window.__vrCheck.panel().visible)));
+  await press('Close', async () => !(await call(() => window.__vrCheck.panel().visible)));
   const hiddenByButton = !(await panelShownOnce(false));
   const menuShown = await until(
     () => call(() => window.__vrCheck.state().scene.getObjectByName('vr-menu-button')?.visible === true),
@@ -689,8 +829,21 @@ try {
     20,
   );
   await shoot('04d-menu-on-hand');
-  check('"Hide" hides the panel and shows "Menu" on the left hand', hiddenByButton && menuShown,
+  check('"Close" hides the whole menu and shows "Menu" on the left hand', hiddenByButton && menuShown,
     `panel ${hiddenByButton ? 'hidden' : 'still shown'} / Menu ${menuShown ? 'shown' : 'not shown'}`);
+  const miniMap = await call(() => {
+    const t = window.__vrCheck;
+    const map = t.state().scene.getObjectByName('vr-mini-map');
+    if (!map?.visible) return null;
+    // In the head's own frame: +x right, +y up, -z ahead.
+    const camera = t.state().camera;
+    camera.updateMatrixWorld();
+    const at = camera.worldToLocal(map.getWorldPosition(new t.three.Vector3()));
+    return { left: -at.x, up: at.y, ahead: -at.z };
+  });
+  check('With the panels away, a small map rides in the upper left of the view',
+    Boolean(miniMap && miniMap.left > 0.1 && miniMap.up > 0.05 && miniMap.ahead > 0.3),
+    miniMap ? `${(miniMap.left * 100).toFixed(0)} cm left, ${(miniMap.up * 100).toFixed(0)} cm up, ${(miniMap.ahead * 100).toFixed(0)} cm ahead` : 'not shown');
   await press('Menu', async () => call(() => window.__vrCheck.panel().visible));
   const backByMenu = await panelShownOnce(true);
   const menuGone = await until(
@@ -701,7 +854,18 @@ try {
   check('Pressing "Menu" on the left hand brings the panel back and removes Menu', backByMenu && menuGone);
   await shoot('04b-back-from-menu');
 
-  // 8. Leaving, which asks first.
+  // 8. Leaving, which always asks first — the grip held, and the button.
+  await call(() => window.__vrCheck.device().controllers.left.updateButtonValue('squeeze', 1));
+  await page.waitForTimeout(1600);
+  await frames(3);
+  await call(() => window.__vrCheck.device().controllers.left.updateButtonValue('squeeze', 0));
+  seen = await textsOnce((now) => now.includes('Yes, leave VR'));
+  const afterGrip = await call(() => window.__vrCheck.xr().session != null);
+  check('Holding a grip asks before leaving, and does not leave', afterGrip && seen.includes('Yes, leave VR'));
+  await shoot('04e-leave-asked');
+  await press('Stay in VR', async () => !(await texts()).includes('Yes, leave VR'));
+  check('"Stay in VR" closes the question', !(await texts()).includes('Yes, leave VR'));
+  await press('More', async () => (await texts()).includes('Leave VR'));
   await press('Leave VR', async () => (await texts()).includes('Yes, leave VR'));
   seen = await textsOnce((now) => now.includes('Yes, leave VR'));
   const stillIn = await call(() => window.__vrCheck.xr().session != null);
@@ -745,12 +909,12 @@ try {
   // 10. Re-choosing by pointing forgets the old spot.
   await enterThrough(headerEnter);
   // Every Enter VR, not only the first: the headset is passed between testers.
-  seen = await textsOnce((now) => now.includes('Welcome to VR'));
-  check('The tutorial is shown again on the next Enter VR', seen.includes('Welcome to VR'));
-  await press('Skip', async () => !(await texts()).includes('Welcome to VR'));
-  seen = await textsOnce((now) => now.includes('Measure a spot'));
+  seen = await textsOnce((now) => now.includes('Welcome to Live Melbourne'));
+  check('The tutorial is shown again on the next Enter VR', seen.includes('Welcome to Live Melbourne'));
+  await press('Skip', async () => !(await texts()).includes('Welcome to Live Melbourne'));
+  seen = await textsOnce((now) => now.includes('View place'));
   const buildingTitle = '206-218 Bourke Street';
-  await press('Measure a spot', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
+  await press('Measure', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
   await textsOnce((now) => now.includes('Point at the ground and pull the trigger.'));
   await aimAtGroundAhead(Number(/(\d+) m/.exec(seen.find((text) => /Existing building/.test(text)) ?? '')?.[1] ?? 30));
   await frames(3);
@@ -760,7 +924,7 @@ try {
   await pointAtAProposal();
   seen = await textsOnce((now) => !now.includes(buildingTitle));
   check('Pointing at another proposal clears the previous spot',
-    !seen.includes(buildingTitle) && seen.includes('Measure a spot') && !seen.includes('Measure another spot'),
+    !seen.includes(buildingTitle) && seen.includes('Point at the ground and pull the trigger.') && !seen.includes('Measure another spot'),
     `${buildingTitle} → ${addressIn(seen)}`);
   await shoot('06-rechosen');
 } catch (error) {

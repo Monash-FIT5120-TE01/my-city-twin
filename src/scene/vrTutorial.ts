@@ -21,8 +21,8 @@
  *   there is nothing in them to read wrongly.
  *
  * THE PICTURES
- *   Generated for this tutorial (ProjectDoc/vr-tutorial/), drawn as Meta
- *   Quest 3 Touch Plus controllers, 960 x 640 WebP, about 230 KB for all
+ *   Generated for this tutorial (ProjectDoc/vr-tutorial/), drawn as
+ *   a current headset's two controllers, 960 x 640 WebP, about 230 KB for all
  *   seven. They are in public/ and fetched only when the panel draws them,
  *   so a desktop visitor never downloads them.
  *
@@ -44,15 +44,15 @@ export type TutorialPage = {
 };
 
 export const TUTORIAL: TutorialPage[] = [
+  /*
+   * Pressing comes first, on the first page. The first page itself asks to be
+   * pressed — Next, or Skip — and people who had never held a controller did
+   * not know how: a welcome page before the page about pressing was a page
+   * they could not get past.
+   */
   {
-    title: 'Welcome to VR',
-    body: 'A quick look at your controllers first. It takes about a minute. Already know them? Press Skip.',
-    image: 'vr-tutorial/01-welcome.webp',
-    legend: [],
-  },
-  {
-    title: 'Point and press',
-    body: 'A beam comes out of each controller. Point it at a button, then pull the trigger under your index finger.',
+    title: 'Welcome to Live Melbourne',
+    body: 'First, how to press a button: point the beam from either controller at it, then pull the trigger under your index finger. Try it below.',
     image: 'vr-tutorial/02-point-trigger.webp',
     legend: [['Trigger', 'Press what the beam is on (either hand)']],
     practice: true,
@@ -76,12 +76,13 @@ export const TUTORIAL: TutorialPage[] = [
     ],
   },
   {
-    title: 'Show or hide this panel',
-    body: 'Press X on the left controller to put this panel away, and again to bring it back.',
+    title: 'Open or close the menu',
+    body: 'Press X on the left controller to close the menu, and again to open it. A small map stays in the upper left.',
     image: 'vr-tutorial/05-menu-x.webp',
     legend: [
-      ['X', 'Panel away or back'],
-      ['Right stick', 'Up or down: next page of a list'],
+      ['X', 'Menu open or closed'],
+      ['Right stick', 'Up or down: scroll a list'],
+      ['Trigger, held', 'On the white bar under the menu: move it'],
     ],
   },
   {
@@ -92,9 +93,9 @@ export const TUTORIAL: TutorialPage[] = [
   },
   {
     title: 'Leaving VR',
-    body: 'Squeeze and hold a grip for one second to leave VR. Either hand works. Controls, at the top of this panel, shows these pages again.',
+    body: 'Choose Leave VR under More, or squeeze and hold a grip for a second. Either way you are asked first. Help shows these pages again.',
     image: 'vr-tutorial/07-grip-exit.webp',
-    legend: [['Grip, held', 'Leave VR']],
+    legend: [['Grip, held', 'Leave VR (asks first)']],
   },
 ];
 

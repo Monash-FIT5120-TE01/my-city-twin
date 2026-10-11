@@ -8,6 +8,7 @@ import {
   overlookFor,
   panelPose,
   streetPlacement,
+  yawFacing,
   yawToward,
 } from './vrPlacement';
 import { enuToWorld, worldToEnu } from './frame';
@@ -129,6 +130,34 @@ describe('panelPose', () => {
     const pose = panelPose([0, 1.6, 0], [0, -1, 0]);
     expect(Number.isFinite(pose.yawRad)).toBe(true);
     expect(pose.position[2]).toBeCloseTo(-PANEL_DISTANCE_M, 9);
+  });
+
+  it('stands a side panel in the middle panel\'s plane, to the side asked for', () => {
+    const head: [number, number, number] = [0, 1.6, 0];
+    const right = panelPose(head, [0, 0, -1], Math.PI / 6);
+    const left = panelPose(head, [0, 0, -1], -Math.PI / 6);
+    // As far ahead as the middle panel, either side of it.
+    expect(right.position[2]).toBeCloseTo(-PANEL_DISTANCE_M, 9);
+    expect(right.position[0]).toBeCloseTo(PANEL_DISTANCE_M * Math.tan(Math.PI / 6), 9);
+    expect(left.position[0]).toBeCloseTo(-PANEL_DISTANCE_M * Math.tan(Math.PI / 6), 9);
+    // Turned all the way, square to the head.
+    expect(right.yawRad).toBeCloseTo(yawFacing(right.position, head), 9);
+    expect(left.yawRad).toBeCloseTo(yawFacing(left.position, head), 9);
+  });
+
+  it('turns a side panel only part of the way when asked', () => {
+    const head: [number, number, number] = [0, 1.6, 0];
+    const square = panelPose(head, [0, 0, -1], Math.PI / 6);
+    const half = panelPose(head, [0, 0, -1], Math.PI / 6, 0.5);
+    expect(half.position).toEqual(square.position);
+    expect(half.yawRad).toBeCloseTo(square.yawRad / 2, 9);
+  });
+});
+
+describe('yawFacing', () => {
+  it('turns a panel straight ahead of the eyes to face back at them', () => {
+    const pose = panelPose([0.3, 1.6, 0.2], [0.6, 0, -0.8]);
+    expect(yawFacing(pose.position, [0.3, 1.6, 0.2])).toBeCloseTo(pose.yawRad, 9);
   });
 });
 

@@ -137,10 +137,21 @@ export const PANEL_DROP_M = 0.18;
  * them, upright, not lying on the floor.
  *
  * The panel's face points back along the heading, so it is read square-on.
+ *
+ * `asideRad` stands a panel to one side of straight ahead — positive to the
+ * right — in the same plane as the middle one: as far ahead, and as far to
+ * the side as that angle reaches. `turnShare` is how much of the way it is
+ * then turned to face the head: 1 is square-on, 0 is flat in line with the
+ * middle panel. Fully turned, side panels stood at a sharp angle to the one
+ * between them and read as a box around the reader; turned part of the way
+ * they read as one wide, gently curved surface.
  */
 export function panelPose(
   headLocal: [number, number, number],
   headForwardLocal: [number, number, number],
+  asideRad = 0,
+  turnShare = 1,
+  distanceM = PANEL_DISTANCE_M,
 ): { position: [number, number, number]; yawRad: number } {
   let [fx, , fz] = headForwardLocal;
   const flat = Math.hypot(fx, fz);
@@ -153,14 +164,26 @@ export function panelPose(
     fx /= flat;
     fz /= flat;
   }
+  // Ahead, then across: the right of a heading (fx, fz) is (-fz, fx).
+  const across = distanceM * Math.tan(asideRad);
+  // A turn to the right is a negative yaw about +y.
+  const yawRad = Math.atan2(-fx, -fz) - asideRad * turnShare;
   return {
     position: [
-      headLocal[0] + fx * PANEL_DISTANCE_M,
+      headLocal[0] + fx * distanceM - fz * across,
       headLocal[1] - PANEL_DROP_M,
-      headLocal[2] + fz * PANEL_DISTANCE_M,
+      headLocal[2] + fz * distanceM + fx * across,
     ],
-    yawRad: Math.atan2(-fx, -fz),
+    yawRad,
   };
+}
+
+/**
+ * The yaw that turns a panel at `position` to face the head, read square-on.
+ * For a panel the reader has carried somewhere with the beam.
+ */
+export function yawFacing(position: [number, number, number], headLocal: [number, number, number]): number {
+  return Math.atan2(headLocal[0] - position[0], headLocal[2] - position[2]);
 }
 
 /**

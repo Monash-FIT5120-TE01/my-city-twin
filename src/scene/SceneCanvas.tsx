@@ -86,7 +86,11 @@ import { VrWalk } from './VrWalk';
 import { overlookFor, streetPlacement } from './vrPlacement';
 import type { VrMenu, VrStage } from './vrMenu';
 import { ViewControlsBridge, type ViewControlsRef } from './ViewControls';
-import { exitVr, xrStore } from './xrStore';
+import { xrStore } from './xrStore';
+import { VrShadowCache } from './vrShadowCache';
+import { VrLoader, type VrLoading } from './VrLoader';
+import { VrCornerSigns, VrStreetBar } from './VrStreetSigns';
+import { preferFrameRate } from './vrFrameRate';
 import { useReducedMotion } from '../ui/useReducedMotion';
 
 /*
@@ -483,8 +487,23 @@ export function SceneCanvas({
   const [summon, setSummon] = useState(0);
   /** Moves that have landed, counted, so the panel can measure after them. */
   const [placed, setPlaced] = useState(0);
-  /** Right-stick page turns, handed to the panel: a count and a direction. */
-  const [flick, setFlick] = useState({ count: 0, direction: 0 as -1 | 0 | 1 });
+  /*
+   * Moves that can hold the page — a place chosen, down to the street, back
+   * up — go through the "Going to …" pill first, so the view says what is
+   * happening if it stalls. See VrLoader.
+   */
+  const [loading, setLoading] = useState<VrLoading | null>(null);
+  const menuInVr: VrMenu | null = vrMenu && {
+    ...vrMenu,
+    onChoose: (key) => {
+      const label = vrMenu.options.find((option) => option.key === key)?.label;
+      setLoading({ title: label ? `Going to ${label}` : 'Going to the place', detail: 'Loading the place', run: () => vrMenu.onChoose(key) });
+    },
+    onStand: () => setLoading({ title: 'Going down to the street', detail: 'Loading the street', run: vrMenu.onStand }),
+    onRise: () => setLoading({ title: 'Going up above the city', detail: 'Loading the view', run: vrMenu.onRise }),
+  };
+  /** Bumped when the grip is held: the panels ask whether to leave. */
+  const [askToLeave, setAskToLeave] = useState(0);
 
   const [inVr, setInVr] = useState(false);
   /*
@@ -498,7 +517,11 @@ export function SceneCanvas({
         ? undefined
         : xrStore().subscribe((state, previous) => {
             setInVr(state.session != null);
-            if (state.session != null && previous.session == null) setPanelShown(true);
+            if (state.session != null && previous.session == null) {
+              setPanelShown(true);
+              // 72 Hz, where the headset offers it — see vrFrameRate.ts.
+              preferFrameRate(state.session);
+            }
           }),
     [noHeadset],
   );
@@ -662,6 +685,8 @@ export function SceneCanvas({
             arrow back on a proposal while the screen was about a building;
             targetE/targetN are already "the subject", whichever kind it is.
           */}
+          {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={ground} />}
+
           {showSunArrow && !wholeCity && (
             <SunArrow
               sun={sun}
@@ -722,6 +747,26 @@ export function SceneCanvas({
           />
         )}
 
+        {/*
+          In the headset the shadow map is redrawn when something it depends on
+          changes, not every frame (vrShadowCache.tsx) — named here.
+        */}
+        {inVr && (
+          <VrShadowCache
+            shadowKey={[
+              sun.azimuthDeg.toFixed(2),
+              sun.altitudeDeg.toFixed(2),
+              castShadows,
+              showProposed,
+              showAllProposals,
+              highlightedBuildingId,
+              focus?.devKey,
+              placed,
+              vrStage,
+              shadow.extentM.toFixed(0),
+            ].join('|')}
+          />
+        )}
         {inVr && (
           <VrWalk
             placement={vrPlacement}
@@ -734,25 +779,30 @@ export function SceneCanvas({
             dateLabel={dateLabel}
             onNudgeMinutes={onNudgeMinutes}
             /*
-              Ends the session only. Where the page comes back is App's
-              decision: on the footpath if the headset left the reader in the
-              street, rather than two kilometres above it.
+              The grip held only asks. The panels come up with "Leave VR?",
+              and only its own button ends the session (vrMenu's onExit).
             */
-            onExit={exitVr}
+            onAskToLeave={() => {
+              showPanel();
+              setAskToLeave((n) => n + 1);
+            }}
             onTogglePanel={togglePanel}
-            onFlick={(direction) =>
-              setFlick((last) => ({ count: last.count + 1, direction }))
-            }
             onPlaced={() => setPlaced((n) => n + 1)}
           >
-            {vrMenu && (
+            <VrLoader job={loading} placed={placed} onDone={() => setLoading(null)} />
+            {/* In the street: which street, which way, what next — and the names on the corners. See VrStreetSigns. */}
+            <VrStreetBar shown={vrStage === 'street' && !panelShown && !loading} />
+            {menuInVr && (
               <Suspense fallback={null}>
                 <VrFurniture
-                  menu={vrMenu}
+                  menu={menuInVr}
                   stage={vrStage}
                   shown={panelShown}
                   summon={summon}
-                  flick={flick}
+                  askToLeave={askToLeave}
+                  city={model}
+                  subjectKey={focus?.devKey ?? null}
+                  subjectEN={wholeCity ? null : [targetE, targetN]}
                   placed={placed}
                   onHide={() => setPanelShown(false)}
                   onShow={showPanel}

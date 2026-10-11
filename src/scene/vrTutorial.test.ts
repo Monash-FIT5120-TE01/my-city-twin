@@ -22,7 +22,9 @@ describe('the VR controls tutorial', () => {
     }
   });
 
-  it('teaches the trigger by doing it, on the page about the trigger', () => {
-    expect(TUTORIAL.filter((page) => page.practice).map((page) => page.title)).toEqual(['Point and press']);
+  it('teaches pressing on the very first page, by doing it', () => {
+    // Every later page is reached by pressing Next, so pressing has to be taught before it is needed.
+    expect(TUTORIAL.findIndex((page) => page.practice)).toBe(0);
+    expect(TUTORIAL[0].legend.map(([key]) => key)).toContain('Trigger');
   });
 });

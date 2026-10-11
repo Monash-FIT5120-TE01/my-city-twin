@@ -80,6 +80,10 @@ export interface VrMenu {
   railEnd: number;
   sunrise: number | null;
   sunset: number | null;
+  /** Whether the day and hour on show are Melbourne's present ones. Otherwise the panel says "Preview". */
+  isNow: boolean;
+  /** Back to the present day and hour (as near as the time control can show). */
+  onNow: () => void;
 
   /** The ground is waiting for a point. */
   armed: boolean;

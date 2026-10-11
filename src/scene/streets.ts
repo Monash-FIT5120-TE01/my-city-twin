@@ -180,6 +180,14 @@ const STREETS: StreetSpec[] = [
  */
 export const LABEL_RADIUS_M = 340;
 
+/** One street of the grid as stored: its line, and where along it the street runs. */
+export type GridStreet = Readonly<Pick<StreetSpec, 'name' | 'axis' | 'offsetM' | 'fromM' | 'toM'>>;
+
+/** The grid's named streets, for anything that has to ask which one a point is on (vrWayfinding). */
+export function gridStreets(): readonly GridStreet[] {
+  return STREETS;
+}
+
 /**
  * Where a named street runs, along its own axis. Null if there is no such
  * street. Exported for the tests, which check that no label ever leaves the

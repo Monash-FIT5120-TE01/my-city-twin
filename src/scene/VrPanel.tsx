@@ -1,60 +1,56 @@
 /*
  * ─────────────────────────────────────────────────────────────────────────
- * THE PANEL INSIDE THE HEADSET
+ * THE MENU INSIDE THE HEADSET
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT IT IS
- *   The 2D sheet, rebuilt as an object in the room. An immersive session
+ *   The 2D sheet, rebuilt as one object in the room. An immersive session
  *   draws no DOM at all, so nothing on the page — search, panels, the time
- *   bar, the map credit — exists once the headset is on. This is what does
- *   their jobs in there: choose a place, set the season and the hour, switch
- *   the subject off and on, measure a spot, go down to the street and back.
+ *   bar, the map credit — exists once the headset is on. This does their jobs
+ *   in there: choose a place, set the season and the hour, measure a spot, go
+ *   down to the street and back, and see where you are.
  *
  *   It holds no state of the product's. Every button calls a setter App
- *   passes in (see vrMenu.ts), so what the panel says and what the page
- *   would say are the same state read twice.
+ *   passes in (see vrMenu.ts), so what the menu says and what the page would
+ *   say are the same state read twice.
  *
- * WHAT IT LOOKS LIKE, AND WHY
- *   The same paper card as the 2D sheet — white, the product's green for the
- *   one action that moves the reader on, amber for the sun and the hour —
- *   so that somebody who has used the page recognises the headset, and the
- *   other way round. The first version was white text on a black slab, which
- *   read as a debug console; on the headset it was called "not friendly".
+ * ONE MENU OF THREE CARDS
+ *   Three cards side by side, flat, moved and closed as one:
  *
- *   Three steps run across the top (Place, When, Measure), the same three
- *   the page's progress line names, so the reader always knows where they
- *   are and what comes next.
+ *     left     Places — the approved developments, a list that scrolls
+ *     middle   City map — the city as built in the app, the place chosen
+ *              pinned on it, the reader's position and heading
+ *     right    Sun & time — always there, whatever the others show
  *
- * HOW IT IS OPERATED
- *   A laser from either controller, and the trigger — how the headset's own
- *   menus work. Buttons are 54 mm tall, list rows 66 mm, the season and
- *   with/without switches 48 mm (about 3.2° at 85 cm); the Menu button on
- *   the left hand is 40 mm, read from much closer.
- *   What the laser is on says so itself: a dark ring and a lighter or darker
- *   fill; held, it darkens again. Nothing is told by hue alone.
+ *   Under them a navigation bar (Explore, Measure, Help, More) and, beside it,
+ *   Close; under that one white bar that the beam carries the whole menu by
+ *   (vrRig.ts). Measure and More change the left card; Help changes the
+ *   middle one; the time card never changes. Close does what X on the left
+ *   controller does: the whole menu goes, and the small map in the corner of
+ *   the eye stays.
  *
- * THE LIST DOES NOT SCROLL
- *   It used to, by pressing and dragging — and on the headset, letting go of
- *   a drag over the row it began on chose that row. It is pages of five now,
- *   turned by buttons that can never choose anything, or by pushing the
- *   right stick up or down. A place is chosen only by pressing a row.
+ * THE LIST SCROLLS — WITHOUT CHOOSING WHAT IT LANDS ON
+ *   It scrolled once before, by dragging with the beam, and letting go of a
+ *   drag over the row it began on chose that row. So a row remembers how far
+ *   the list had scrolled when it was pressed, and a press that ends with the
+ *   list somewhere else is a scroll, not a choice. The right stick up and
+ *   down scrolls too.
  *
- * PUTTING IT AWAY
- *   Minimise, Hide, and a Menu button on the left hand to bring it back —
- *   see the section of that name below.
+ * MEASURING
+ *   Opening Measure arms the ground straight away — there is no page of
+ *   instructions to press past; the card says what to do and shows the
+ *   answer when there is one. Leaving Measure disarms it. With no building
+ *   chosen, it says so.
  *
- * COLOUR — lightness, measured (WCAG ratios)
- *   ink #16181a on paper            17.9    secondary #5a6169 on paper   6.3
- *   white on green #14624a           7.3    amber ink #8a5e0c on #fcefcc 5.0
- *   edges #7a8087: on paper 4.0, on the sunken fill 3.6, on the track 3.4
- *   panel edge #8a9097 on paper      3.2
+ * LEAVING
+ *   Always asked. "Leave VR" (under More) and the grip held for a second both
+ *   bring up the same question over the menu; only its own button ends the
+ *   session.
  *
  * TEXT
- *   The bundled font carries 104 glyphs — plain ASCII and little else.
- *   Curly quotes, dashes and the middle dot would render as nothing, so every
- *   string goes through `plain`. Separators are drawn as dots, and there are
- *   no icon files at all: a building is two boxes and an arrow is the font's
- *   own `<` or `>` (see "Icons" below for why never SVG).
+ *   The bundled font carries plain ASCII and little else — every string goes
+ *   through `plain`. Icons are drawn into textures, never with the SVG
+ *   component (vrIcons.ts).
  *
  * WHY THIS FILE IS LOADED LATE
  *   It brings a layout engine and a font atlas — several hundred kilobytes —
@@ -65,535 +61,216 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useXRInputSourceState } from '@react-three/xr';
-import { Container, Image, Text } from '@react-three/uikit';
-import {
-  Euler,
-  Matrix4,
-  Quaternion,
-  SRGBColorSpace,
-  TextureLoader,
-  Vector3,
-  type Group,
-  type Texture,
-} from 'three';
+import { Container, Text, type VanillaContainer } from '@react-three/uikit';
+import { Picture } from './vrPicture';
+import { Euler, Matrix4, Quaternion, SRGBColorSpace, TextureLoader, Vector3, type Group, type Texture } from 'three';
 import { worldToEnu } from './frame';
-import { panelPose } from './vrPlacement';
 import type { VrMenu, VrPlaceOption, VrStage } from './vrMenu';
 import { PANEL_RENDER_ORDER } from './vrPointer';
+import { usePanelRig } from './vrRig';
 import { TUTORIAL, tutorialImage } from './vrTutorial';
+import { TimeCard } from './VrTimePanel';
+import { MapCard, MiniMap, type CityForMap, type MapSubject } from './VrMapPanel';
+import { Button, Card, Glass, Grabber, Icon, KeyChip, Label, Segmented } from './vrKit';
+import { AMBER, AMBER_INK, CONTROL_ORDER, EDGE, GLASS_EDGE, GREEN, GREEN_PRESSED, GREEN_SOFT, INK, INK_2, PAPER, PIXEL_M, PRESSED, SUNKEN, TRACK, plain } from './vrTokens';
+import type { IconName } from './vrIcons';
 
-// ── The 2D sheet's tokens (src/styles/tokens.css) ──────────────────────────
-const PAPER = '#ffffff';
-const SUNKEN = '#f3f5f2';
-const TRACK = '#eceeeb';
-const PRESSED = '#e2e4e1';
-const INK = '#16181a';
-const INK_2 = '#5a6169';
-const EDGE = '#7a8087';
-const PANEL_EDGE = '#8a9097';
-const GREEN = '#14624a';
-const GREEN_HOVER = '#176b50';
-const GREEN_PRESSED = '#0f4d3a';
-const GREEN_SOFT = '#d8ebe3';
-const AMBER = '#e89a21';
-const AMBER_RAIL = '#e9a93f';
-const AMBER_SOFT = '#fcefcc';
-const AMBER_INK = '#8a5e0c';
-const NIGHT_RAIL = '#dce1e3';
+/** The cards: the same height, so they line up; the map wider than the two either side. */
+const CARD_HEIGHT = 660;
+const SIDE_WIDTH = 340;
+const MAP_WIDTH = 560;
+const CARD_GAP = 14;
+const ROW_WIDTH = SIDE_WIDTH * 2 + MAP_WIDTH + CARD_GAP * 2;
 
 /**
- * Frames to wait before the panel is first put in front of the eyes.
- *
- * The head's pose only arrives with the first rendered frame; placed on frame
- * one, the panel is placed against a head at the floor's middle, at floor
- * height, and appears at the player's feet. VrWalk waits a similar few
- * frames in the dark before its own first placement, for the same reason.
+ * How far in front of the eyes the menu stands, metres. Further than a single
+ * panel would (0.85 m): the menu is 1.27 m across, and at this distance its
+ * edges are about 32 degrees either side — a turn of the eyes, not the head.
  */
-const FIRST_PLACEMENT_FRAMES = 5;
-
-/** One pixel of layout is one millimetre in the room. */
-const PIXEL_M = 0.001;
-const WIDTH_PX = 500;
-/** The panel made small: time, place and the way back, in a strip. */
-const MINI_WIDTH_PX = 380;
+const MENU_DISTANCE_M = 1.0;
 
 /** Frames to wait after a move lands before measuring where the head is. */
 const HEAD_SETTLE_FRAMES = 2;
 
-/** Rows on a page of the place list. */
-const PAGE_SIZE = 5;
+/** The right stick scrolls a list this fast at full push, mm per second. */
+const STICK_SCROLL_MM_S = 700;
+const STICK_DEAD_ZONE = 0.25;
+/** A press that ends with the list moved further than this is a scroll, mm. */
+const SCROLLED_MM = 6;
 
-/*
- * What the laser is on is said by a dark ring and a change of fill — not by
- * lifting the control toward the reader. A lift (uikit's transformTranslateZ
- * on hover, sinking on press) was tried first and taken out: combined with a
- * panel drawn without a depth test, a control that had been lifted and let
- * go stopped being drawn at all — the green "Measure another spot" vanished
- * after its first press in the emulator, leaving a gap in the row.
- */
+/** The layers that must win the laser over everything else on the menu. */
+const DIALOG_ORDER = CONTROL_ORDER + 2;
 
-/**
- * Whose the laser is when things overlap. The panel as a whole outranks the
- * city (see the note on the panel below); its controls outrank the panel.
- * A control lies in the panel's own plane, and a tie between the two went to
- * the panel often enough that small buttons — "Places" in the corner —
- * sometimes ignored a press. Ranked above it, a control is never a tie.
- */
-const PANEL_ORDER = 10;
-const CONTROL_ORDER = 11;
+// ── A list that scrolls ────────────────────────────────────────────────────
 
-/** Characters the font has, standing in for the ones it does not. */
-function plain(text: string): string {
-  return text
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/[–—]/g, '-')
-    .replace(/·/g, '|')
-    .replace(/…/g, '...')
-    .replace(/©/g, '(c)')
-    .replace(/−/g, '-')
-    .replace(/[^\x20-\x7E°]/g, '');
+type Scrollable = { scrollPosition: { value: [number, number] | undefined }; maxScrollPosition: { value: [number | undefined, number | undefined] } };
+
+function scrollYOf(list: VanillaContainer | null): number {
+  const position = (list as unknown as Scrollable | null)?.scrollPosition?.value;
+  return position?.[1] ?? 0;
 }
 
-// ── Icons: drawn from boxes and the font, never SVG ────────────────────────
-/*
- * NO SVG. uikit's Svg component throws "the svg component can not have any
- * children" if anything attaches to it, and on the Quest something did: the
- * headset's log showed that error the moment the panel appeared, then the
- * scene failing and the WebGL context being lost — which is what went black.
- * The emulator never raised it, and what made the attachment on the device
- * was not found. Rather than keep a component that can take the whole scene
- * down, the icons are boxes and the font's own `<` and `>`.
- */
+/** Moves a scrolling container by `dy` millimetres, kept inside what it can scroll. */
+function scrollListBy(list: VanillaContainer | null, dy: number) {
+  const box = list as unknown as Scrollable | null;
+  if (!box?.scrollPosition) return;
+  const [x, at] = box.scrollPosition.value ?? [0, 0];
+  const max = box.maxScrollPosition.value?.[1] ?? 0;
+  const next = Math.min(max, Math.max(0, at + dy));
+  if (next !== at) box.scrollPosition.value = [x ?? 0, next];
+}
 
-/** Two blocks of different heights, standing side by side: a building. */
-function BuildingMark() {
+/** The right stick, up and down, scrolls the list while it is on show. */
+function useStickScroll(list: { current: VanillaContainer | null }, active: boolean) {
+  const right = useXRInputSourceState('controller', 'right');
+  useFrame((_, delta) => {
+    if (!active) return;
+    const y = right?.gamepad?.['xr-standard-thumbstick']?.yAxis ?? 0;
+    if (Math.abs(y) < STICK_DEAD_ZONE) return;
+    // Down on the stick (positive y on the standard mapping) moves down the list.
+    const beyond = (Math.abs(y) - STICK_DEAD_ZONE) / (1 - STICK_DEAD_ZONE);
+    scrollListBy(list.current, Math.sign(y) * beyond * STICK_SCROLL_MM_S * Math.min(delta, 0.1));
+  });
+}
+
+function ScrollList({ listRef, children }: { listRef: { current: VanillaContainer | null }; children: ReactNode }) {
   return (
-    <Container flexDirection="row" alignItems="flex-end" gap={3} width={26} height={24} flexShrink={0}>
-      <Container width={10} height={22} borderRadius={2} backgroundColor={GREEN} />
-      <Container width={12} height={14} borderRadius={2} backgroundColor={GREEN} />
+    <Container
+      ref={listRef}
+      // Whatever height is left, and no more: the parts above keep theirs.
+      flexGrow={1}
+      flexShrink={1}
+      flexBasis={0}
+      minHeight={0}
+      overflow="scroll"
+      flexDirection="column"
+      gap={10}
+      paddingRight={16}
+      scrollbarWidth={8}
+      scrollbarColor={EDGE}
+      pointerEventsOrder={CONTROL_ORDER}
+    >
+      {children}
     </Container>
   );
 }
 
-/** A `<` or `>` from the font, sized to sit beside a label. */
-function Arrow({ glyph, color, size = 22 }: { glyph: '<' | '>'; color: string; size?: number }) {
-  return (
-    <Text fontSize={size} fontWeight="bold" color={color}>
-      {glyph}
-    </Text>
-  );
-}
+// ── Common parts of a card ─────────────────────────────────────────────────
 
-function Label({
-  children,
-  size = 17,
-  color = INK,
-  weight = 'normal',
-  spacing,
-}: {
-  children: string;
-  size?: number;
-  color?: string;
-  weight?: 'normal' | 'medium' | 'semi-bold' | 'bold';
-  spacing?: number;
-}) {
+function Title({ children }: { children: string }) {
   return (
-    <Text
-      fontSize={size}
-      color={color}
-      fontWeight={weight}
-      lineHeight="135%"
-      letterSpacing={spacing}
-      wordBreak="break-word"
-    >
+    <Text fontSize={30} fontWeight="bold" color={INK} lineHeight="120%" wordBreak="break-word">
       {plain(children)}
     </Text>
   );
 }
 
-/** Parts of a line with a drawn dot between them — the font has no middle dot. */
-function Meta({ parts, color = INK_2, size = 14 }: { parts: string[]; color?: string; size?: number }) {
+function Subtitle({ children }: { children: string }) {
   return (
-    <Container flexDirection="row" alignItems="center" gap={7} flexWrap="wrap">
-      {parts.map((part, index) => (
-        <Container key={part} flexDirection="row" alignItems="center" gap={7}>
-          {index > 0 && <Container width={4} height={4} borderRadius={2} backgroundColor={color} />}
-          <Label size={size} color={color}>
-            {part}
-          </Label>
-        </Container>
-      ))}
-    </Container>
+    <Label size={17} color={INK_2}>
+      {children}
+    </Label>
   );
 }
 
-type Tone = 'primary' | 'secondary' | 'quiet';
-
-/**
- * A button. Primary is the product's green, for the one action that moves
- * the reader on; secondary is paper with an edge; quiet is words only.
- */
-function Button({
-  label,
-  onClick,
-  tone = 'secondary',
-  grow = false,
-  leading,
-  trailing,
-}: {
-  label: string;
-  onClick: () => void;
-  tone?: Tone;
-  grow?: boolean;
-  leading?: '<' | '>';
-  trailing?: '<' | '>';
-}) {
-  const primary = tone === 'primary';
-  const quiet = tone === 'quiet';
-  const ink = primary ? PAPER : quiet ? GREEN : INK;
-  return (
-    <Container
-      onClick={(event) => {
-        // The panel is in front of the city; a press on it is for it alone.
-        event.stopPropagation();
-        onClick();
-      }}
-      cursor="pointer"
-      pointerEventsOrder={CONTROL_ORDER}
-      height={54}
-      // Narrower when sharing a row, so "+10 min" stays on one line.
-      paddingX={quiet ? 8 : grow ? 8 : 18}
-      gap={8}
-      flexDirection="row"
-      flexGrow={grow ? 1 : 0}
-      flexBasis={grow ? 0 : undefined}
-      flexShrink={grow ? 1 : 0}
-      alignItems="center"
-      justifyContent="center"
-      borderRadius={12}
-      borderWidth={2}
-      borderColor={primary ? GREEN : quiet ? PAPER : EDGE}
-      backgroundColor={primary ? GREEN : PAPER}
-      hover={{
-        borderColor: INK,
-        backgroundColor: primary ? GREEN_HOVER : PAPER,
-      }}
-      active={{ backgroundColor: primary ? GREEN_PRESSED : PRESSED }}
-    >
-      {leading && <Arrow glyph={leading} color={ink} size={20} />}
-      <Text fontSize={16} fontWeight={primary ? 'bold' : 'semi-bold'} color={ink}>
-        {plain(label)}
-      </Text>
-      {trailing && <Arrow glyph={trailing} color={ink} size={20} />}
-    </Container>
+function StandButton({ menu, atSpot = false }: { menu: VrMenu; atSpot?: boolean }) {
+  return menu.stage === 'above' ? (
+    <Button label={atSpot ? 'Stand at the spot' : 'Stand in the street'} icon="down" onClick={menu.onStand} />
+  ) : (
+    <Button label="Go back up" icon="up" onClick={menu.onRise} />
   );
 }
 
-/**
- * A strip of choices, one of which is on: the 2D sheet's segmented switch.
- * The chosen face is paper with a dark edge on a grey track — lighter and
- * outlined, so it is found by lightness and by line, not by colour.
- */
-function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T | null;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <Container flexDirection="row" gap={4} padding={4} borderRadius={14} backgroundColor={TRACK}>
-      {options.map((option) => {
-        const on = option.value === value;
-        return (
-          <Container
-            key={option.value}
-            onClick={(event) => {
-              event.stopPropagation();
-              onChange(option.value);
-            }}
-            cursor="pointer"
-            pointerEventsOrder={CONTROL_ORDER}
-            flexGrow={1}
-            flexBasis={0}
-            height={48}
-            alignItems="center"
-            justifyContent="center"
-            borderRadius={10}
-            borderWidth={2}
-            borderColor={on ? INK : TRACK}
-            backgroundColor={on ? PAPER : TRACK}
-            hover={{ borderColor: INK, backgroundColor: PAPER }}
-            active={{ backgroundColor: PRESSED }}
-          >
-            <Text fontSize={16} fontWeight={on ? 'bold' : 'medium'} color={on ? INK : INK_2}>
-              {plain(option.label)}
-            </Text>
-          </Container>
-        );
-      })}
-    </Container>
-  );
-}
-
-/** Place, When, Measure — the page's own three steps. */
-function Steps({ at }: { at: 1 | 2 | 3 }) {
-  const steps = ['Place', 'When', 'Measure'];
-  return (
-    <Container flexDirection="row" alignItems="center" gap={6}>
-      {steps.map((name, index) => {
-        const number = index + 1;
-        const done = number < at;
-        const current = number === at;
-        return (
-          <Container key={name} flexDirection="row" alignItems="center" gap={6}>
-            {index > 0 && <Container width={14} height={2} backgroundColor={EDGE} />}
-            <Container
-              width={24}
-              height={24}
-              borderRadius={12}
-              alignItems="center"
-              justifyContent="center"
-              backgroundColor={current ? INK : done ? GREEN_SOFT : PAPER}
-              borderWidth={current || done ? 0 : 1.5}
-              borderColor={EDGE}
-            >
-              <Text fontSize={13} fontWeight="bold" color={current ? PAPER : done ? GREEN : INK_2}>
-                {String(number)}
-              </Text>
-            </Container>
-            {current && (
-              <Text fontSize={14} fontWeight="bold" color={INK}>
-                {name}
-              </Text>
-            )}
-          </Container>
-        );
-      })}
-    </Container>
-  );
-}
-
-function Header({ at, back, onBack }: { at: 1 | 2 | 3; back?: string; onBack?: () => void }) {
-  return (
-    <Container flexDirection="row" alignItems="center" justifyContent="space-between">
-      {back && onBack ? (
-        <Button label={back} tone="quiet" leading="<" onClick={onBack} />
-      ) : (
-        <Container />
-      )}
-      <Steps at={at} />
-    </Container>
-  );
-}
-
-// ── The time rail ──────────────────────────────────────────────────────────
-
-const clockOf = (minutes: number) =>
-  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-
-/**
- * The day on a rail, as the page draws it: grey for night, amber for the
- * hours the sun is up, a handle for the hour on screen. Where the day starts
- * and ends is written under it in words as well, because amber on grey is a
- * difference of hue more than of lightness.
- */
-function TimeRail({ menu }: { menu: VrMenu }) {
-  const span = Math.max(1, menu.railEnd - menu.railStart);
-  const at = (minutes: number) =>
-    `${Math.min(100, Math.max(0, ((minutes - menu.railStart) / span) * 100))}%` as const;
-  return (
-    <Container flexDirection="column" gap={10} padding={16} borderRadius={14} backgroundColor={SUNKEN}>
-      {menu.note && (
-        <Label size={14} color={AMBER_INK} weight="semi-bold">
-          {menu.note}
-        </Label>
-      )}
-      <Container flexDirection="row" alignItems="center" justifyContent="space-between">
-        <Text fontSize={34} fontWeight="bold" color={INK}>
-          {plain(menu.timeLabel)}
-        </Text>
-        <Label size={15} color={INK_2}>
-          {menu.dateLabel}
-        </Label>
-      </Container>
-      <Container height={30} positionType="relative">
-        <Container
-          positionType="absolute"
-          positionLeft={0}
-          positionRight={0}
-          positionTop={12}
-          height={6}
-          borderRadius={3}
-          backgroundColor={NIGHT_RAIL}
-        />
-        {menu.sunrise !== null && menu.sunset !== null && (
-          <Container
-            positionType="absolute"
-            positionLeft={at(menu.sunrise)}
-            width={`${Math.max(0, ((menu.sunset - menu.sunrise) / span) * 100)}%`}
-            positionTop={12}
-            height={6}
-            borderRadius={3}
-            backgroundColor={AMBER_RAIL}
-          />
-        )}
-        <Container
-          positionType="absolute"
-          positionLeft={at(menu.minutes)}
-          marginLeft={-14}
-          positionTop={1}
-          width={28}
-          height={28}
-          borderRadius={14}
-          borderWidth={3}
-          borderColor={INK}
-          backgroundColor={PAPER}
-        />
-      </Container>
-      <Container flexDirection="row" justifyContent="space-between">
-        <Label size={13} color={INK_2}>
-          {menu.sunrise !== null ? `Sunrise ${clockOf(menu.sunrise)}` : clockOf(menu.railStart)}
-        </Label>
-        <Label size={13} color={INK_2}>
-          {menu.sunset !== null ? `Sunset ${clockOf(menu.sunset)}` : clockOf(menu.railEnd)}
-        </Label>
-      </Container>
-      <Container flexDirection="row" gap={8}>
-        <Button label="-1 h" onClick={() => menu.onNudgeMinutes(-60)} grow />
-        <Button label="-10 min" onClick={() => menu.onNudgeMinutes(-10)} grow />
-        <Button label="+10 min" onClick={() => menu.onNudgeMinutes(10)} grow />
-        <Button label="+1 h" onClick={() => menu.onNudgeMinutes(60)} grow />
-      </Container>
-    </Container>
-  );
-}
-
-// ── The answer ─────────────────────────────────────────────────────────────
-
-/**
- * The measured spot: the figure large, and the two sums it is the difference
- * of drawn as bars — without the subject, and with it — so the loss is seen
- * as a length and not only read as a number. The two bars differ in
- * lightness (L* 70 against 43) and are labelled.
- */
-function Answer({ menu, noun }: { menu: VrMenu; noun: string }) {
-  const measured = menu.measured;
-  if (!measured) return null;
-  const longest = Math.max(1, measured.withoutMin, measured.withMin);
-  const bar = (minutes: number) => `${(minutes / longest) * 100}%` as const;
-  const hours = (minutes: number) => `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
-  return (
-    <Container flexDirection="column" gap={8} padding={16} borderRadius={14} backgroundColor={AMBER_SOFT}>
-      <Label size={13} color={AMBER_INK} weight="bold" spacing={1}>
-        AT THIS SPOT
-      </Label>
-      {measured.none ? (
-        <Label size={20} weight="semi-bold">
-          {measured.none}
-        </Label>
-      ) : (
-        <>
-          <Container flexDirection="row" alignItems="flex-end" gap={10} flexWrap="wrap">
-            <Text fontSize={34} fontWeight="bold" color={INK}>
-              {plain(measured.figure ?? '')}
-            </Text>
-            <Label size={16}>{measured.caption ?? ''}</Label>
-          </Container>
-          {[
-            { name: `Without this ${noun}`, minutes: measured.withoutMin, fill: AMBER },
-            { name: `With it`, minutes: measured.withMin, fill: AMBER_INK },
-          ].map((row) => (
-            <Container key={row.name} flexDirection="row" alignItems="center" gap={10}>
-              <Container width={150} flexShrink={0}>
-                <Label size={13} color={INK_2}>
-                  {row.name}
-                </Label>
-              </Container>
-              <Container flexGrow={1} height={12}>
-                <Container width={bar(row.minutes)} height={12} borderRadius={6} backgroundColor={row.fill} />
-              </Container>
-              <Container width={92} flexShrink={0}>
-                <Label size={13} color={INK_2}>
-                  {hours(row.minutes)}
-                </Label>
-              </Container>
-            </Container>
-          ))}
-          {measured.shadowWindow && (
-            <Label size={13} color={INK_2}>
-              {measured.shadowWindow}
-            </Label>
-          )}
-        </>
-      )}
-    </Container>
-  );
-}
-
-// ── The place list ─────────────────────────────────────────────────────────
+// ── Places (left) ──────────────────────────────────────────────────────────
 
 type Sort = 'nearest' | 'tallest' | 'name';
 
-function PlaceRow({ option, distanceM, onChoose }: { option: VrPlaceOption; distanceM: number | null; onChoose: () => void }) {
-  const parts = [`Approved`, `${option.heightM.toFixed(0)} m`];
+function PlaceRow({
+  option,
+  distanceM,
+  chosen,
+  list,
+  onChoose,
+}: {
+  option: VrPlaceOption;
+  distanceM: number | null;
+  chosen: boolean;
+  list: { current: VanillaContainer | null };
+  onChoose: () => void;
+}) {
+  const pressedAt = useRef<number | null>(null);
+  const parts = [`${option.heightM.toFixed(0)} m tall`];
   if (distanceM !== null) {
-    parts.push(distanceM < 1000 ? `${Math.round(distanceM / 10) * 10} m away` : `${(distanceM / 1000).toFixed(1)} km away`);
+    parts.unshift(distanceM < 1000 ? `${Math.round(distanceM / 10) * 10} m away` : `${(distanceM / 1000).toFixed(1)} km away`);
   }
   return (
     <Container
+      onPointerDown={() => {
+        pressedAt.current = scrollYOf(list.current);
+      }}
       onClick={(event) => {
         event.stopPropagation();
+        // A press that dragged the list is a scroll, not a choice.
+        const from = pressedAt.current;
+        pressedAt.current = null;
+        if (from !== null && Math.abs(scrollYOf(list.current) - from) > SCROLLED_MM) return;
         onChoose();
       }}
       cursor="pointer"
       pointerEventsOrder={CONTROL_ORDER}
       flexDirection="row"
       alignItems="center"
-      gap={14}
-      minHeight={66}
-      paddingX={14}
+      gap={12}
+      minHeight={74}
+      flexShrink={0}
+      paddingX={12}
       paddingY={10}
-      borderRadius={14}
-      borderWidth={2}
-      borderColor={EDGE}
-      backgroundColor={SUNKEN}
-      hover={{ borderColor: INK, backgroundColor: PAPER }}
+      borderRadius={22}
+      borderWidth={3}
+      // The one chosen: a dark green edge and a tick — not the fill's tint alone.
+      borderColor={chosen ? GREEN : SUNKEN}
+      backgroundColor={chosen ? GREEN_SOFT : SUNKEN}
+      hover={{ borderColor: INK, backgroundColor: chosen ? GREEN_SOFT : PAPER }}
       active={{ backgroundColor: PRESSED }}
     >
-      <BuildingMark />
+      {/* Two blocks of different heights: a building. Boxes, not a picture — this lives in a scrolling list (vrPicture.tsx). */}
+      <Container width={46} height={46} borderRadius={14} backgroundColor={PAPER} flexDirection="row" alignItems="flex-end" justifyContent="center" gap={3} paddingBottom={11} flexShrink={0}>
+        <Container width={9} height={16} borderRadius={2} backgroundColor={GREEN} />
+        <Container width={11} height={24} borderRadius={2} backgroundColor={GREEN} />
+      </Container>
       <Container flexDirection="column" gap={3} flexGrow={1} flexShrink={1}>
-        <Label size={17} weight="semi-bold">
+        <Label size={17} weight="bold">
           {option.label}
         </Label>
-        <Meta parts={parts} />
+        <Label size={14} color={INK_2}>
+          {parts.join(' | ')}
+        </Label>
       </Container>
-      <Arrow glyph=">" color={INK_2} />
+      {chosen && (
+        <Container width={30} height={30} borderRadius={15} backgroundColor={GREEN} alignItems="center" justifyContent="center" flexShrink={0}>
+          <Text fontSize={16} fontWeight="bold" color={PAPER}>
+            v
+          </Text>
+        </Container>
+      )}
     </Container>
   );
 }
 
-function PlaceList({
+function PlacesCard({
   menu,
   headEN,
   sort,
   onSort,
-  page,
-  onPage,
-  onBack,
   onChosen,
+  listRef,
 }: {
   menu: VrMenu;
   headEN: [number, number] | null;
   sort: Sort;
   onSort: (sort: Sort) => void;
-  page: number;
-  onPage: (page: number) => void;
-  onBack: (() => void) | null;
   onChosen: (label: string) => void;
+  listRef: { current: VanillaContainer | null };
 }) {
   const distance = (option: VrPlaceOption) =>
     headEN ? Math.hypot(option.en[0] - headEN[0], option.en[1] - headEN[1]) : null;
@@ -604,21 +281,12 @@ function PlaceList({
         ? (distance(a) ?? 0) - (distance(b) ?? 0)
         : 0,
   );
-  const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const shown = sorted.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
   return (
     <>
-      <Header at={1} back={onBack ? menu.place?.label : undefined} onBack={onBack ?? undefined} />
-      <Container flexDirection="column" gap={6}>
-        <Text fontSize={30} fontWeight="bold" color={INK}>
-          Choose a place
-        </Text>
-        <Label size={16} color={INK_2}>
-          Point at a green proposal in the city and pull the trigger, or pick one here.
-        </Label>
-      </Container>
+      <Title>Places</Title>
+      <Subtitle>Explore Melbourne</Subtitle>
       <Segmented<Sort>
+        fixed
         options={[
           { value: 'nearest', label: 'Nearest' },
           { value: 'tallest', label: 'Tallest' },
@@ -627,109 +295,274 @@ function PlaceList({
         value={sort}
         onChange={onSort}
       />
-      <Container flexDirection="column" gap={8}>
-        {shown.map((option) => (
+      <ScrollList listRef={listRef}>
+        {sorted.map((option) => (
           <PlaceRow
             key={option.key}
             option={option}
             distanceM={distance(option)}
+            chosen={option.label === menu.place?.label}
+            list={listRef}
             onChoose={() => {
               onChosen(option.label);
               menu.onChoose(option.key);
             }}
           />
         ))}
-      </Container>
-      <Container flexDirection="row" alignItems="center" gap={10}>
-        <Button label="Previous" leading="<" onClick={() => onPage(Math.max(0, page - 1))} grow />
-        <Container width={84} alignItems="center">
-          <Label size={15} color={INK_2}>
-            {`${page + 1} of ${pages}`}
-          </Label>
-        </Container>
-        <Button
-          label="Next"
-          trailing=">"
-          onClick={() => onPage(Math.min(pages - 1, page + 1))}
-          grow
-        />
-      </Container>
-      <Label size={13} color={INK_2}>
-        The right stick up and down turns the pages too.
-      </Label>
+      </ScrollList>
     </>
   );
 }
 
-// ── The subject's page ─────────────────────────────────────────────────────
+// ── Measure (left) ─────────────────────────────────────────────────────────
 
-function SunlightPage({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void }) {
+/**
+ * The measured spot: the figure large, and the two sums it is the difference
+ * of drawn as bars — without the subject, and with it — so the loss is seen
+ * as a length and not only read as a number.
+ */
+function Answer({ menu, noun }: { menu: VrMenu; noun: string }) {
+  const measured = menu.measured;
+  if (!measured) return null;
+  const longest = Math.max(1, measured.withoutMin, measured.withMin);
+  const bar = (minutes: number) => `${(minutes / longest) * 100}%` as const;
+  const hours = (minutes: number) => `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  return (
+    <Card tone="amber" gap={8}>
+      {measured.none ? (
+        <Label size={19} weight="semi-bold">
+          {measured.none}
+        </Label>
+      ) : (
+        <>
+          <Text fontSize={40} fontWeight="bold" color={INK}>
+            {plain(measured.figure ?? '')}
+          </Text>
+          <Label size={16}>{measured.caption ?? ''}</Label>
+          {[
+            { name: `Without this ${noun}`, minutes: measured.withoutMin, fill: AMBER },
+            { name: 'With it', minutes: measured.withMin, fill: AMBER_INK },
+          ].map((row) => (
+            <Container key={row.name} flexDirection="column" gap={4}>
+              <Label size={14} color={INK_2}>
+                {`${row.name} | ${hours(row.minutes)}`}
+              </Label>
+              <Container height={12}>
+                <Container width={bar(row.minutes)} height={12} borderRadius={6} backgroundColor={row.fill} />
+              </Container>
+            </Container>
+          ))}
+          {measured.shadowWindow && (
+            <Label size={14} color={INK_2}>
+              {measured.shadowWindow}
+            </Label>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void }) {
   const place = menu.place;
-  if (!place) return null;
-  const noun = place.noun;
-  const step: 2 | 3 = menu.armed || menu.measured ? 3 : 2;
+  if (!place) {
+    return (
+      <>
+        <Title>Measure</Title>
+        <Card>
+          <Label size={19} weight="bold">
+            No building selected
+          </Label>
+          <Label size={16} color={INK_2}>
+            Choose a building in Places, or point at a green building in the city and pull the trigger.
+          </Label>
+        </Card>
+        <Container flexGrow={1} />
+        <Button label="Choose a place" tone="primary" icon="places" onClick={onPlaces} />
+      </>
+    );
+  }
   return (
     <>
-      <Header at={step} back="Places" onBack={onPlaces} />
-      <Container flexDirection="column" gap={4}>
-        <Text fontSize={28} fontWeight="bold" color={INK}>
-          {plain(place.label)}
-        </Text>
-        <Label size={15} color={INK_2}>
-          {place.detail}
-        </Label>
-      </Container>
-
-      <Segmented
-        options={menu.seasons.map((season) => ({ value: season.key, label: season.label }))}
-        value={menu.season}
-        onChange={menu.onSeason}
-      />
-      <TimeRail menu={menu} />
-
-      {menu.armed ? (
-        <Container flexDirection="column" gap={10} padding={16} borderRadius={14} backgroundColor={GREEN_SOFT}>
-          <Label size={18} weight="semi-bold">
+      <Title>Measure</Title>
+      <Subtitle>{place.label}</Subtitle>
+      {menu.measured && !menu.armed ? (
+        <>
+          <Answer menu={menu} noun={place.noun} />
+          <Label size={12} color={INK_2}>
+            {menu.finePrint}
+          </Label>
+        </>
+      ) : (
+        <Card tone="amber" gap={8}>
+          <Label size={19} weight="bold">
             Point at the ground and pull the trigger.
           </Label>
-          <Label size={14} color={INK_2}>
-            A ring follows the laser on the ground. The spot you pick is measured for the whole day.
+          <Label size={16} color={INK_2}>
+            A ring follows the beam on the ground. The spot you pick is measured for the whole day.
           </Label>
-          <Container flexDirection="row">
-            <Button label="Cancel" onClick={menu.onCancelMeasure} />
-          </Container>
-        </Container>
-      ) : menu.measured ? (
-        <Answer menu={menu} noun={noun} />
-      ) : (
-        <Label size={15} color={INK_2}>
-          {`Measure how much direct sun a spot on the ground loses to this ${noun} on ${menu.dateLabel}.`}
-        </Label>
+        </Card>
       )}
+      <Container flexGrow={1} />
+      {menu.measured && !menu.armed && <Button label="Measure another spot" tone="primary" icon="measure" onClick={menu.onMeasure} />}
+      <StandButton menu={menu} atSpot={Boolean(menu.measured)} />
+    </>
+  );
+}
 
-      <Container flexDirection="row" gap={10}>
-        {!menu.armed && (
-          <Button
-            label={menu.measured ? 'Measure another spot' : 'Measure a spot'}
-            tone="primary"
-            onClick={menu.onMeasure}
-            grow
-          />
-        )}
-        {menu.stage === 'above' ? (
-          <Button
-            label={menu.measured ? 'Stand at the spot' : 'Stand in the street'}
-            onClick={menu.onStand}
-            grow
-          />
-        ) : (
-          <Button label="Go back up" onClick={menu.onRise} grow />
-        )}
+// ── More (left) ────────────────────────────────────────────────────────────
+
+function MoreCard({ menu, onLeave }: { menu: VrMenu; onLeave: () => void }) {
+  return (
+    <>
+      <Title>More</Title>
+      <Subtitle>{menu.stage === 'above' ? 'You are above the city.' : 'You are on the street.'}</Subtitle>
+      <StandButton menu={menu} />
+      <Container flexGrow={1} />
+      <Container flexDirection="column" gap={2}>
+        {menu.credits.map((line) => (
+          <Label key={line} size={13} color={INK_2}>
+            {line}
+          </Label>
+        ))}
       </Container>
+      <Button label="Leave VR" icon="exit" onClick={onLeave} />
+    </>
+  );
+}
 
-      <Label size={12} color={INK_2}>
-        {menu.finePrint}
-      </Label>
+// ── Help (middle) ──────────────────────────────────────────────────────────
+
+function HelpCard({ onTutorial }: { onTutorial: () => void }) {
+  const rows: [string, string][] = [
+    ['Trigger', 'Press what the beam is on'],
+    ['Trigger, held', 'On the white bar under the menu: move it'],
+    ['Right stick', 'Up or down: scroll a list. Left or right: turn'],
+    ['Left stick', 'Walk. Push further to go faster'],
+    ['A / B, held', 'Time later / earlier'],
+    ['X', 'Open or close the menu'],
+    ['Grip, held', 'Leave VR (asks first)'],
+  ];
+  return (
+    <>
+      <Title>Help</Title>
+      <Subtitle>Your controllers</Subtitle>
+      <Container flexDirection="column" gap={8}>
+        {rows.map(([key, does]) => (
+          <Container key={key} flexDirection="row" gap={14} alignItems="center" minHeight={54} paddingX={12} borderRadius={20} backgroundColor={SUNKEN}>
+            <KeyChip name={key} width={150} />
+            <Container flexShrink={1}>
+              <Label size={16}>{does}</Label>
+            </Container>
+          </Container>
+        ))}
+      </Container>
+      <Container flexGrow={1} />
+      <Button label="Show the tutorial again" tone="primary" onClick={onTutorial} />
+    </>
+  );
+}
+
+// ── The navigation, and Close beside it ────────────────────────────────────
+
+type Tab = 'explore' | 'measure' | 'help' | 'more';
+
+const TABS: { tab: Tab; label: string; icon: IconName }[] = [
+  { tab: 'explore', label: 'Explore', icon: 'map' },
+  { tab: 'measure', label: 'Measure', icon: 'ruler' },
+  { tab: 'help', label: 'Help', icon: 'help' },
+  { tab: 'more', label: 'More', icon: 'more' },
+];
+
+function Navigation({ at, onTab }: { at: Tab; onTab: (tab: Tab) => void }) {
+  return (
+    <Container flexDirection="row" gap={6} padding={8} borderRadius={36} backgroundColor={PAPER} borderWidth={2} borderColor={GLASS_EDGE}>
+      {TABS.map(({ tab, label, icon }) => {
+        const on = tab === at;
+        return (
+          <Container
+            key={tab}
+            onClick={(event) => {
+              event.stopPropagation();
+              onTab(tab);
+            }}
+            cursor="pointer"
+            pointerEventsOrder={CONTROL_ORDER}
+            width={96}
+            height={68}
+            flexDirection="column"
+            alignItems="center"
+            justifyContent="center"
+            gap={4}
+            borderRadius={26}
+            borderWidth={3}
+            borderColor={on ? GREEN : PAPER}
+            backgroundColor={on ? GREEN : PAPER}
+            hover={{ borderColor: on ? GREEN_PRESSED : INK, backgroundColor: on ? GREEN : SUNKEN }}
+            active={{ backgroundColor: on ? GREEN_PRESSED : PRESSED }}
+          >
+            <Icon name={icon} color={on ? PAPER : INK_2} size={26} />
+            <Text fontSize={14} fontWeight="bold" color={on ? PAPER : INK_2}>
+              {label}
+            </Text>
+          </Container>
+        );
+      })}
+    </Container>
+  );
+}
+
+// ── Leaving ────────────────────────────────────────────────────────────────
+
+function LeaveDialog({ width, onLeave, onStay }: { width: number; onLeave: () => void; onStay: () => void }) {
+  return (
+    <>
+      {/* Dims the cards, and takes any press that misses the dialog. */}
+      <Container
+        positionType="absolute"
+        positionLeft={0}
+        positionTop={0}
+        width={width}
+        height={CARD_HEIGHT}
+        borderRadius={40}
+        backgroundColor={INK}
+        opacity={0.35}
+        zIndex={10}
+        pointerEventsOrder={DIALOG_ORDER - 1}
+        onClick={(event) => event.stopPropagation()}
+      />
+      <Container
+        positionType="absolute"
+        positionLeft={(width - 380) / 2}
+        positionTop={150}
+        width={380}
+        padding={28}
+        gap={12}
+        flexDirection="column"
+        alignItems="center"
+        borderRadius={40}
+        backgroundColor={PAPER}
+        borderWidth={2}
+        borderColor={GLASS_EDGE}
+        zIndex={11}
+        pointerEventsOrder={DIALOG_ORDER - 1}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Container width={64} height={64} borderRadius={32} backgroundColor={SUNKEN} alignItems="center" justifyContent="center">
+          <Icon name="exit" color={INK} size={32} />
+        </Container>
+        <Text fontSize={28} fontWeight="bold" color={INK}>
+          Leave VR?
+        </Text>
+        <Label size={17} color={INK_2}>
+          You will go back to the web page, at the place you were looking at.
+        </Label>
+        <Container height={6} />
+        <Container flexDirection="column" gap={10} alignSelf="stretch">
+          <Button label="Yes, leave VR" tone="primary" onClick={onLeave} order={DIALOG_ORDER} />
+          <Button label="Stay in VR" onClick={onStay} order={DIALOG_ORDER} />
+        </Container>
+      </Container>
     </>
   );
 }
@@ -737,42 +570,18 @@ function SunlightPage({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void }
 // ── The controls tutorial ──────────────────────────────────────────────────
 
 /*
- * What the panel shows first in every session, before Place, When, Measure:
- * a page per action, with a picture of the controller and the part that does
- * it lit (see vrTutorial.ts). It replaces the whole card while it is up —
- * the place list behind it would be one more thing to read before knowing
- * how to press it.
- *
- * Skip on every page, and Controls at the top of the card brings it back.
+ * What the menu shows first in every session (vrTutorial.ts): a page per
+ * action, with a picture of the controller and the part that does it lit.
+ * Only its own card shows until it is done — one thing at a time for
+ * somebody who has never held a controller.
  */
 
-/** The picture's height; the card's width is 448 px inside its padding, so 3:2 is 299 — cropped a little. */
-const TUTORIAL_IMAGE_PX = 260;
-
-/** A button name in the legend, on the amber the pictures light it in. */
-function KeyChip({ name }: { name: string }) {
-  return (
-    <Container
-      flexShrink={0}
-      minWidth={96}
-      height={30}
-      paddingX={10}
-      alignItems="center"
-      justifyContent="center"
-      borderRadius={8}
-      borderWidth={2}
-      borderColor={AMBER}
-      backgroundColor={AMBER_SOFT}
-    >
-      <Text fontSize={14} fontWeight="bold" color={AMBER_INK}>
-        {plain(name)}
-      </Text>
-    </Container>
-  );
-}
+/** The picture's size: the tutorial card's width inside its padding, and a band of the picture's height. */
+const TUTORIAL_IMAGE_W = 508;
+const TUTORIAL_IMAGE_PX = 214;
 
 /**
- * All seven pictures, fetched and sent to the GPU as soon as the panel exists.
+ * All the pictures, fetched and sent to the GPU as soon as the menu exists.
  *
  * Not one at a time as each page is reached, which is what handing uikit a
  * URL does: it fetches the picture when the page appears and throws it away
@@ -781,8 +590,7 @@ function KeyChip({ name }: { name: string }) {
  * across a stall that long is no longer a click (xrStore.ts), so the reader
  * pressed Next and nothing happened.
  *
- * Held for the session, because Controls can bring the pages back at any time.
- * Each picture comes in when it is ready; until then its box is the sunken grey.
+ * Held for the session, because Help can bring the pages back at any time.
  */
 function useTutorialPictures(): (Texture | undefined)[] {
   const gl = useThree((state) => state.gl);
@@ -832,32 +640,18 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
         <Label size={14} color={INK_2} weight="semi-bold">
           {`Controls | ${at + 1} of ${TUTORIAL.length}`}
         </Label>
-        {!last && <Button label="Skip" onClick={onDone} />}
+        {!last && <Button label="Skip" height={52} onClick={onDone} />}
       </Container>
 
       <Container flexDirection="column" gap={6}>
-        <Label size={26} weight="bold">
-          {page.title}
-        </Label>
-        <Label size={16} color={INK_2}>
+        <Title>{page.title}</Title>
+        <Label size={17} color={INK_2}>
           {page.body}
         </Label>
       </Container>
 
-      <Image
-        src={pictures[at]}
-        width="100%"
-        height={TUTORIAL_IMAGE_PX}
-        objectFit="cover"
-        /*
-         * Off, so the box is the size written here from the first frame. Kept,
-         * the picture resized the card when it arrived — and a button moving
-         * under the laser between the press and the release is a lost click.
-         */
-        keepAspectRatio={false}
-        borderRadius={14}
-        backgroundColor={SUNKEN}
-      />
+      {/* 3:2 pictures, cropped to the band the box shows (vrPicture.tsx). */}
+      <Picture texture={pictures[at]} width={TUTORIAL_IMAGE_W} height={TUTORIAL_IMAGE_PX} radius={24} aspect={1.5} />
 
       {page.legend.length > 0 && (
         <Container flexDirection="column" gap={8}>
@@ -865,7 +659,7 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
             <Container key={key} flexDirection="row" alignItems="center" gap={10}>
               <KeyChip name={key} />
               <Container flexShrink={1}>
-                <Label size={15}>{does}</Label>
+                <Label size={16}>{does}</Label>
               </Container>
             </Container>
           ))}
@@ -881,9 +675,10 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
           cursor="pointer"
           pointerEventsOrder={CONTROL_ORDER}
           height={60}
+          flexShrink={0}
           alignItems="center"
           justifyContent="center"
-          borderRadius={14}
+          borderRadius={30}
           borderWidth={3}
           borderColor={GREEN}
           backgroundColor={practised ? GREEN : GREEN_SOFT}
@@ -896,12 +691,13 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
         </Container>
       )}
 
+      <Container flexGrow={1} />
       <Container flexDirection="row" gap={10}>
-        {at > 0 && <Button label="Back" leading="<" onClick={() => setAt(at - 1)} />}
+        {at > 0 && <Button label="Back" onClick={() => setAt(at - 1)} />}
         <Button
-          label={last ? 'Start exploring' : at === 0 ? 'Show me' : 'Next'}
-          trailing={last ? undefined : '>'}
+          label={last ? 'Start exploring' : 'Next'}
           tone="primary"
+          icon={last ? undefined : 'chevron'}
           grow
           onClick={() => (last ? onDone() : setAt(at + 1))}
         />
@@ -925,60 +721,166 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
   );
 }
 
-// ── Putting the panel away ─────────────────────────────────────────────────
+// ── The menu ───────────────────────────────────────────────────────────────
 
-/*
- * Three ways, because the panel stands between the reader and the city and
- * they will want it gone for different lengths of time:
- *
- *   Minimise   a strip with the hour and the place, for watching a shadow
- *              move — A and B still move the hour — without a card in the
- *              way. "Open" brings the card back where it was.
- *   Hide       gone altogether (X on the left controller does the same).
- *   Menu       while it is gone, a small button rides on the left hand and
- *              brings it back in front of the eyes, so nobody has to know
- *              about X to find the panel again.
- */
-
-function TopBar({
-  onControls,
-  onMinimise,
-  onHide,
+function Menu({
+  menu,
+  shown,
+  summon,
+  placed,
+  tutorial,
+  onTutorial,
+  leaving,
+  onLeaving,
+  onClose,
+  pictures,
+  city,
+  subjectKey,
+  subjectEN,
 }: {
-  onControls: () => void;
-  onMinimise: () => void;
-  onHide: () => void;
+  menu: VrMenu;
+  shown: boolean;
+  summon: number;
+  placed: number;
+  tutorial: boolean;
+  onTutorial: (on: boolean) => void;
+  leaving: boolean;
+  onLeaving: (on: boolean) => void;
+  onClose: () => void;
+  pictures: (Texture | undefined)[];
+  city: CityForMap | null;
+  subjectKey: string | null;
+  subjectEN: [number, number] | null;
 }) {
+  const { rig, startGrab } = usePanelRig({ asideRad: 0, summon, distanceM: MENU_DISTANCE_M });
+  const head = useRef(new Vector3());
+  const listRef = useRef<VanillaContainer | null>(null);
+  const [tab, setTab] = useState<Tab>('explore');
+  const [sort, setSort] = useState<Sort>('nearest');
+
+  /*
+   * Where the reader is standing, for "nearest" — taken when the list opens
+   * or is re-sorted, and after every move lands, not continuously, so the
+   * rows never reorder under a laser that is lining one of them up.
+   */
+  const [headEN, setHeadEN] = useState<[number, number] | null>(null);
+  const measureIn = useRef(HEAD_SETTLE_FRAMES);
+  useEffect(() => {
+    measureIn.current = HEAD_SETTLE_FRAMES;
+  }, [placed]);
+  useFrame((state) => {
+    if (measureIn.current > 0 && --measureIn.current === 0) {
+      state.camera.getWorldPosition(head.current);
+      const [east, north] = worldToEnu([head.current.x, head.current.y, head.current.z]);
+      setHeadEN([east, north]);
+    }
+  });
+  /** Measure where the head is on the next frame. */
+  const remeasure = () => {
+    measureIn.current = 1;
+  };
+
+  /*
+   * Opening Measure arms the ground; leaving it disarms it. Arming again once
+   * a spot is measured would hide the answer, so it waits for "Measure
+   * another spot".
+   */
+  const placeLabel = menu.place?.label ?? null;
+  const wantsArming = shown && !tutorial && tab === 'measure' && placeLabel !== null && !menu.armed && !menu.measured;
+  const onMeasure = menu.onMeasure;
+  useEffect(() => {
+    if (wantsArming) onMeasure();
+  }, [wantsArming, onMeasure]);
+  const openTab = (next: Tab) => {
+    if (tab === 'measure' && next !== 'measure' && menu.armed) menu.onCancelMeasure();
+    if (next === 'explore' || next === 'help') remeasure();
+    setTab(next);
+  };
+
+
+  const placesShown = tab === 'explore' || tab === 'help';
+  useStickScroll(listRef, shown && !tutorial && !leaving && placesShown);
+
+  const subject: MapSubject | null =
+    menu.place && subjectEN ? { key: subjectKey ?? menu.place.label, label: menu.place.label, detail: menu.place.detail, en: subjectEN } : null;
+
+  const left =
+    tab === 'measure' ? (
+      <MeasureCard menu={menu} onPlaces={() => openTab('explore')} />
+    ) : tab === 'more' ? (
+      <MoreCard menu={menu} onLeave={() => onLeaving(true)} />
+    ) : (
+      <PlacesCard
+        menu={menu}
+        headEN={headEN}
+        sort={sort}
+        onSort={(next) => {
+          setSort(next);
+          remeasure();
+        }}
+        listRef={listRef}
+        onChosen={() => undefined}
+      />
+    );
+  const middle =
+    tab === 'help' ? (
+      <HelpCard onTutorial={() => onTutorial(true)} />
+    ) : (
+      <MapCard city={city} subject={subject} shown={shown && !tutorial} onViewPlace={() => openTab('measure')} />
+    );
+
+  const width = tutorial ? MAP_WIDTH : ROW_WIDTH;
   return (
-    <Container flexDirection="row" alignItems="center" justifyContent="space-between">
-      <Label size={13} color={GREEN} weight="bold" spacing={1}>
-        MY CITY TWIN
-      </Label>
-      <Container flexDirection="row" gap={4}>
-        <Button label="Controls" tone="quiet" onClick={onControls} />
-        <Button label="Minimise" tone="quiet" onClick={onMinimise} />
-        <Button label="Hide" tone="quiet" onClick={onHide} />
+    <group ref={rig} name="vr-menu" visible={shown}>
+      <Container
+        pixelSize={PIXEL_M}
+        anchorY="center"
+        flexDirection="column"
+        alignItems="center"
+        gap={16}
+        /*
+         * Drawn over the city, whatever is between it and the eyes. At street
+         * level a wall can be nearer than the menu, and a menu that vanishes
+         * into a building is a menu nobody can close.
+         */
+        depthTest={false}
+        renderOrder={PANEL_RENDER_ORDER}
+        pointerEvents={shown ? 'auto' : 'none'}
+      >
+        <Container positionType="relative" flexDirection="column" alignItems="center" gap={18} width={width}>
+          {tutorial ? (
+            <Glass width={MAP_WIDTH} height={CARD_HEIGHT} padding={26} gap={14}>
+              <Tutorial pictures={pictures} onDone={() => onTutorial(false)} />
+            </Glass>
+          ) : (
+            <>
+              <Container flexDirection="row" gap={CARD_GAP}>
+                <Glass width={SIDE_WIDTH} height={CARD_HEIGHT} padding={24} gap={12}>
+                  {left}
+                </Glass>
+                <Glass width={MAP_WIDTH} height={CARD_HEIGHT} padding={24} gap={14}>
+                  {middle}
+                </Glass>
+                <Glass width={SIDE_WIDTH} height={CARD_HEIGHT} padding={24} gap={10}>
+                  <TimeCard menu={menu} />
+                </Glass>
+              </Container>
+              <Container flexDirection="row" alignItems="center" gap={14}>
+                <Navigation at={tab} onTab={openTab} />
+                {/* The whole menu at once — the same as X on the left controller. */}
+                <Button label="Close" icon="close" tone="quiet" height={84} onClick={onClose} />
+              </Container>
+            </>
+          )}
+          {leaving && <LeaveDialog width={width} onLeave={menu.onExit} onStay={() => onLeaving(false)} />}
+        </Container>
+        <Grabber width={170} onGrab={startGrab} />
       </Container>
-    </Container>
+    </group>
   );
 }
 
-function MiniBar({ menu, onOpen, onHide }: { menu: VrMenu; onOpen: () => void; onHide: () => void }) {
-  return (
-    <Container flexDirection="row" alignItems="center" gap={12}>
-      <Container flexDirection="column" gap={2} flexGrow={1} flexShrink={1}>
-        <Text fontSize={28} fontWeight="bold" color={INK}>
-          {plain(menu.timeLabel)}
-        </Text>
-        <Label size={13} color={INK_2}>
-          {menu.place ? `${menu.place.label} | ${menu.dateLabel}` : menu.dateLabel}
-        </Label>
-      </Container>
-      <Button label="Open" tone="primary" onClick={onOpen} />
-      <Button label="Hide" tone="quiet" onClick={onHide} />
-    </Container>
-  );
-}
+// ── The way back to a closed menu ──────────────────────────────────────────
 
 /** Where the Menu button sits on the left controller, and how it is tilted to face the eyes. */
 const MENU_ON_HAND = new Matrix4().compose(
@@ -988,11 +890,11 @@ const MENU_ON_HAND = new Matrix4().compose(
 );
 
 /**
- * The way back to a hidden panel: a small button riding on the left hand,
- * just ahead of the wrist clock, pressed with the right hand's laser. Shown
- * only while the panel is away.
+ * A small button riding on the left hand, just ahead of the wrist clock,
+ * pressed with the right hand's laser. Shown only while the menu is closed,
+ * so nobody has to know about X to find it again.
  *
- * It lives in the player's floor like the panel, so the controller's pose is
+ * It lives in the player's floor like the menu, so the controller's pose is
  * brought from the world into that space every frame.
  */
 export function VrMenuButton({ shown, onOpen }: { shown: boolean; onOpen: () => void }) {
@@ -1033,277 +935,20 @@ export function VrMenuButton({ shown, onOpen }: { shown: boolean; onOpen: () => 
           onOpen();
         }}
         cursor="pointer"
-        height={40}
-        paddingX={16}
+        height={44}
+        paddingX={20}
         alignItems="center"
         justifyContent="center"
-        borderRadius={20}
-        borderWidth={2}
+        borderRadius={22}
+        borderWidth={3}
         borderColor={PAPER}
         backgroundColor={GREEN}
-        hover={{ borderColor: INK, backgroundColor: GREEN_HOVER }}
+        hover={{ borderColor: INK }}
         active={{ backgroundColor: GREEN_PRESSED }}
       >
-        <Text fontSize={17} fontWeight="bold" color={PAPER}>
+        <Text fontSize={18} fontWeight="bold" color={PAPER}>
           Menu
         </Text>
-      </Container>
-    </group>
-  );
-}
-
-// ── The panel ──────────────────────────────────────────────────────────────
-
-export function VrPanel({
-  menu,
-  shown,
-  summon,
-  flick,
-  placed,
-  onHide,
-}: {
-  menu: VrMenu;
-  /** Whether the panel is up at all. */
-  shown: boolean;
-  /** Changes whenever a move has landed (see VrWalk's onPlaced). */
-  placed: number;
-  /** Put it away — the Hide button; X on the left controller does the same. */
-  onHide: () => void;
-  /** Changes whenever the panel should be brought in front of the eyes again. */
-  summon: number;
-  /** A right-stick page turn: a count, and which way. */
-  flick: { count: number; direction: -1 | 0 | 1 };
-}) {
-  const rig = useRef<Group>(null);
-  /** Frames until the panel is placed; 0 when there is nothing to do. */
-  const placeIn = useRef(FIRST_PLACEMENT_FRAMES);
-  const head = useRef(new Vector3());
-  const facing = useRef(new Quaternion());
-  const forward = useRef(new Vector3());
-  const originTurn = useRef(new Quaternion());
-
-  /*
-   * The panel's own state: whether the list is open over a place already
-   * chosen (held as that place's name, so choosing another closes it without
-   * an effect to tidy up), how it is sorted, and which page is showing.
-   */
-  const [pickingOver, setPickingOver] = useState<string | null>(null);
-  const picking = pickingOver !== null && pickingOver === menu.place?.label;
-  const choosing = !menu.place || picking;
-  const [sort, setSort] = useState<Sort>('nearest');
-  const [page, setPage] = useState(0);
-
-  /*
-   * Where the reader is standing, for "nearest" — taken when the list opens
-   * or is re-sorted, not continuously, so the rows never reorder under a
-   * laser that is lining one of them up.
-   */
-  const [headEN, setHeadEN] = useState<[number, number] | null>(null);
-  /**
-   * Frames until the head is measured; 0 when it is not wanted. Not at once
-   * after a move: the player is put down in the dark a few frames after the
-   * move is asked for (see VrWalk), and a head measured before that is the
-   * head at the place being left.
-   */
-  const measureIn = useRef(0);
-  const measureHead = () => {
-    measureIn.current = 1;
-  };
-  /*
-   * And again whenever a move LANDS — VrWalk says so. Keyed on the landing
-   * rather than on the stage, because choosing another place while already
-   * above the city moves the player without changing the stage, and a list
-   * opened during that move's fade would otherwise keep measuring from the
-   * place being left.
-   */
-  useEffect(() => {
-    measureIn.current = HEAD_SETTLE_FRAMES;
-  }, [placed]);
-
-  /*
-   * Leaving asks once more. The panel stands between the eyes and the city,
-   * so a laser aimed down at a building can cross the panel on its way;
-   * being thrown out of the headset by accident is the most expensive
-   * mistake the panel can make, and a second press is cheap by comparison.
-   */
-  const [leaving, setLeaving] = useState(false);
-
-  /** Made small: see "Putting the panel away". */
-  const [mini, setMini] = useState(false);
-
-  /*
-   * The controls tutorial, up first. The panel is mounted afresh for every
-   * session (VrWalk exists only while one runs), so this starts true on
-   * every Enter VR — which is the point: see vrTutorial.ts.
-   */
-  const [tutorial, setTutorial] = useState(true);
-  const pictures = useTutorialPictures();
-
-  const firstSummon = useRef(summon);
-  useEffect(() => {
-    // The first placement is already counting down; later ones are at once.
-    if (summon !== firstSummon.current) placeIn.current = 1;
-  }, [summon]);
-
-  /*
-   * The right stick turns the list's pages — only while the list is what is
-   * showing; everywhere else the push does nothing.
-   */
-  const pagesNow = Math.max(1, Math.ceil(menu.options.length / PAGE_SIZE));
-  const lastFlick = useRef(flick.count);
-  useEffect(() => {
-    if (flick.count === lastFlick.current) return;
-    lastFlick.current = flick.count;
-    // Spent either way, but only turns a page the reader can see.
-    if (!shown || mini || tutorial || !choosing || flick.direction === 0) return;
-    const direction = flick.direction;
-    // oxlint-disable-next-line react/set-state-in-effect -- the stick is outside React
-    setPage((now) => Math.min(pagesNow - 1, Math.max(0, now + direction)));
-  }, [flick, shown, mini, tutorial, choosing, pagesNow]);
-
-  useFrame((state) => {
-    const group = rig.current;
-    const origin = group?.parent;
-
-    if (measureIn.current > 0 && --measureIn.current === 0) {
-      state.camera.getWorldPosition(head.current);
-      const [east, north] = worldToEnu([head.current.x, head.current.y, head.current.z]);
-      setHeadEN([east, north]);
-    }
-
-    /*
-     * Placed on the next frame rather than now, because the head's pose is
-     * only known inside a frame. Read in world space and brought into the
-     * origin's, which is where this panel lives.
-     */
-    if (!group || !origin || placeIn.current === 0) return;
-    if (--placeIn.current > 0) return;
-
-    state.camera.getWorldPosition(head.current);
-    state.camera.getWorldQuaternion(facing.current);
-    forward.current.set(0, 0, -1).applyQuaternion(facing.current);
-
-    origin.updateWorldMatrix(true, false);
-    origin.worldToLocal(head.current);
-    origin.getWorldQuaternion(originTurn.current).invert();
-    forward.current.applyQuaternion(originTurn.current);
-
-    const pose = panelPose(
-      [head.current.x, head.current.y, head.current.z],
-      [forward.current.x, forward.current.y, forward.current.z],
-    );
-    group.position.set(...pose.position);
-    group.rotation.set(0, pose.yawRad, 0);
-  });
-
-  const openList = () => {
-    setPickingOver(menu.place?.label ?? null);
-    setPage(0);
-    measureHead();
-  };
-
-  let body: ReactNode;
-  if (tutorial && !mini) {
-    body = <Tutorial pictures={pictures} onDone={() => setTutorial(false)} />;
-  } else if (mini) {
-    body = <MiniBar menu={menu} onOpen={() => setMini(false)} onHide={onHide} />;
-  } else if (choosing) {
-    body = (
-      <PlaceList
-        menu={menu}
-        headEN={headEN}
-        sort={sort}
-        onSort={(next) => {
-          setSort(next);
-          setPage(0);
-          measureHead();
-        }}
-        page={Math.min(page, pagesNow - 1)}
-        onPage={setPage}
-        onBack={menu.place ? () => setPickingOver(null) : null}
-        /*
-         * Choosing the place already chosen leaves its name unchanged, so the
-         * list — which closes itself when the name changes — would stay open.
-         * Closed here for that case only: closing it for every choice showed
-         * the previous place's page for the frames before the new one arrived.
-         */
-        onChosen={(label) => {
-          if (label === menu.place?.label) setPickingOver(null);
-        }}
-      />
-    );
-  } else {
-    body = <SunlightPage menu={menu} onPlaces={openList} />;
-  }
-
-  return (
-    <group ref={rig} name="vr-panel" visible={shown}>
-      <Container
-        pixelSize={PIXEL_M}
-        width={mini ? MINI_WIDTH_PX : WIDTH_PX}
-        anchorY="center"
-        flexDirection="column"
-        gap={16}
-        paddingX={mini ? 18 : 26}
-        paddingY={mini ? 14 : 24}
-        borderRadius={22}
-        borderWidth={2}
-        borderColor={PANEL_EDGE}
-        backgroundColor={PAPER}
-        /*
-         * Drawn over the city, whatever is between it and the eyes. At street
-         * level a wall can be nearer than the panel, and a panel that
-         * vanishes into a building is a panel nobody can close.
-         */
-        depthTest={false}
-        renderOrder={PANEL_RENDER_ORDER}
-        /*
-         * And AIMED at first, for the same reason. Drawing on top is a render
-         * setting and does nothing for the laser, which by default takes the
-         * NEAREST thing it hits: at street level a proposal's wall nearer
-         * than the panel took the press meant for the button drawn over it.
-         * A higher order wins whatever the distance. The panel's own controls
-         * rank higher still (CONTROL_ORDER), so the panel behind a button
-         * never wins a tie with it.
-         */
-        pointerEventsOrder={PANEL_ORDER}
-        pointerEvents={shown ? 'auto' : 'none'}
-      >
-        {!mini && !tutorial && (
-          <TopBar onControls={() => setTutorial(true)} onMinimise={() => setMini(true)} onHide={onHide} />
-        )}
-        {body}
-
-        {!mini && !tutorial && (
-          <>
-        <Container height={2} backgroundColor={TRACK} />
-        <Container flexDirection="row" alignItems="center" justifyContent="space-between" gap={10}>
-          <Container flexShrink={1}>
-            <Label size={13} color={INK_2}>
-              Hidden, it waits behind the Menu button on your left hand (or X).
-            </Label>
-          </Container>
-          {leaving ? (
-            <Container flexDirection="row" gap={8}>
-              <Button label="Stay" onClick={() => setLeaving(false)} />
-              <Button label="Yes, leave VR" tone="primary" onClick={menu.onExit} />
-            </Container>
-          ) : (
-            <Button label="Leave VR" tone="quiet" onClick={() => setLeaving(true)} />
-          )}
-        </Container>
-        {menu.stage === 'street' && choosing && (
-          <Button label="Go back up" onClick={menu.onRise} />
-        )}
-        <Container flexDirection="column" gap={2}>
-          {menu.credits.map((line) => (
-            <Label key={line} size={11} color={INK_2}>
-              {line}
-            </Label>
-          ))}
-        </Container>
-          </>
-        )}
       </Container>
     </group>
   );
@@ -1331,12 +976,14 @@ export function VrPlatform() {
 }
 
 /**
- * A failure in the panel stays in the panel.
+ * A failure in the menu stays in the menu.
  *
- * Without this, one error inside it — the SVG icons on the Quest — went up
- * through the whole canvas: the scene failed, the WebGL context was lost, and
- * the headset showed black. With it, the city stays; only the panel is gone,
- * and the error goes to the console.
+ * Without this, one error inside it went up through the whole canvas: the
+ * scene failed, the WebGL context was lost, and the headset showed black.
+ * With it, the city stays; only the menu is gone, and the error goes to the
+ * console. (The black screens of September and October were one cause — two
+ * uikit classes given the same name by the minifier; see vite.config.ts —
+ * and some of that failure happens outside React, where no boundary reaches.)
  */
 class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -1346,7 +993,7 @@ class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 
   componentDidCatch(error: unknown) {
-    console.error('The headset panel failed and was taken down:', error);
+    console.error('The headset menu failed and was taken down:', error);
   }
 
   render() {
@@ -1355,17 +1002,21 @@ class PanelBoundary extends Component<{ children: ReactNode }, { failed: boolean
 }
 
 /**
- * Everything the player carries: the panel, and — above the city — the
- * platform under their feet. The default export, so SceneCanvas can load this
- * whole file lazily with one `lazy(() => import(...))`.
+ * Everything the player carries: the menu, the small map and the Menu button
+ * for while it is closed, and — above the city — the platform under their
+ * feet. The default export, so SceneCanvas can load this whole file lazily
+ * with one `lazy(() => import(...))`.
  */
 export default function VrFurniture({
   menu,
   stage,
   shown,
   summon,
-  flick,
   placed,
+  askToLeave,
+  city,
+  subjectKey,
+  subjectEN,
   onHide,
   onShow,
 }: {
@@ -1373,24 +1024,57 @@ export default function VrFurniture({
   stage: VrStage;
   shown: boolean;
   summon: number;
-  flick: { count: number; direction: -1 | 0 | 1 };
   placed: number;
+  /** Bumped when the grip is held: ask whether to leave. */
+  askToLeave: number;
+  city: CityForMap | null;
+  /** The development being looked at, for the map. */
+  subjectKey: string | null;
+  /** Where the subject stands, east/north metres; null when the whole city is on show. */
+  subjectEN: [number, number] | null;
   onHide: () => void;
-  /** Bring the panel back in front of the eyes. */
+  /** Bring the menu back in front of the eyes. */
   onShow: () => void;
 }) {
+  /*
+   * The controls tutorial, up first. The menu is mounted afresh for every
+   * session (VrWalk exists only while one runs), so this starts true on
+   * every Enter VR — which is the point: see vrTutorial.ts.
+   */
+  const [tutorial, setTutorial] = useState(true);
+  const pictures = useTutorialPictures();
+  const [leaving, setLeaving] = useState(false);
+
+  const firstAsk = useRef(askToLeave);
+  useEffect(() => {
+    if (askToLeave === firstAsk.current) return;
+    firstAsk.current = askToLeave;
+    // oxlint-disable-next-line react/set-state-in-effect -- the grip is outside React
+    setLeaving(true);
+  }, [askToLeave]);
+
   return (
     <>
       {stage === 'above' && <VrPlatform />}
       <PanelBoundary>
-        <VrPanel
-          menu={menu}
-          shown={shown}
-          summon={summon}
-          flick={flick}
-          placed={placed}
-          onHide={onHide}
-        />
+        <group name="vr-panel" visible={shown}>
+          <Menu
+            menu={menu}
+            shown={shown}
+            summon={summon}
+            placed={placed}
+            tutorial={tutorial}
+            onTutorial={setTutorial}
+            leaving={leaving}
+            onLeaving={setLeaving}
+            onClose={onHide}
+            pictures={pictures}
+            city={city}
+            subjectKey={subjectKey}
+            subjectEN={subjectEN}
+          />
+        </group>
+        <MiniMap city={city} subjectKey={subjectKey} shown={!shown} />
         <VrMenuButton shown={!shown} onOpen={onShow} />
       </PanelBoundary>
     </>
