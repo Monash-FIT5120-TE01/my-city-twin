@@ -47,9 +47,11 @@ export type ViewName =
   /** The sunlight, today and after, side by side. */
   | 'compare'
   /** How the app is used, in three steps. */
-  | 'how';
+  | 'how'
+  /** What solar panels on an existing building's roof could do. */
+  | 'solar';
 
-const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight', 'compare', 'how'];
+const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight', 'compare', 'how', 'solar'];
 
 export interface UrlState {
   view: ViewName;

@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { Group, Mesh } from 'three';
 import type { CityModel, Development } from '../data/model';
 import { groundElevationOf, mergeMassingsOwned } from './massing';
+import { RoofCheck } from './RoofCheck';
+import { SolarOnRoof } from './SolarOnRoof';
+import type { SolarScene } from './useSolarComparison';
+import { roofCheckOn } from './roofParts';
 import { buildingCentres, buildingsUnder } from '../data/replaces';
 import { groundPlacement } from './basemap';
 import { useBasemapTexture } from './useBasemap';
@@ -44,6 +48,8 @@ interface CityMassingProps {
   onPickReceptor?: (point: [number, number]) => void;
   /** A building found by searching, drawn in pink. */
   highlightedBuildingId: string | null;
+  /** The solar panel check for that building, drawn on its roof. */
+  solar?: SolarScene | null;
   /**
    * Whether that building is standing.
    *
@@ -89,6 +95,7 @@ export function CityMassing({
   onPickReceptor,
   interactive,
   highlightedBuildingId,
+  solar = null,
   showHighlighted,
   haze,
   walking,
@@ -96,6 +103,7 @@ export function CityMassing({
   clock,
   streetTrams,
 }: CityMassingProps) {
+  const roofCheck = useMemo(() => roofCheckOn(), []);
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
     [model.buildings],
@@ -149,6 +157,13 @@ export function CityMassing({
       ),
     );
   }, [showProposed, showAllProposals, model.developments, focus, centres]);
+
+  // the development check's roofs (?roofs): the buildings standing, and the planned ones on show
+  const roofBuildings = useMemo(() => model.buildings.filter((b) => !replaced.has(b.parentId)), [model.buildings, replaced]);
+  const roofDevelopments = useMemo(
+    () => (showProposed ? (showAllProposals ? model.developments : focus ? [focus] : []).flatMap((d) => d.parts) : []),
+    [showProposed, showAllProposals, model.developments, focus],
+  );
 
   const { built, unresolved } = useMemo(() => {
     /*
@@ -249,6 +264,10 @@ export function CityMassing({
       {windowAt && (
         <WindowMarker en={windowAt.en} ahdM={windowAt.ahdM} facingDeg={windowAt.facingDeg} />
       )}
+
+      {/* development only: the solar study's roofs in red (?roofs) */}
+      {roofCheck && <RoofCheck buildings={roofBuildings} developments={roofDevelopments} />}
+      {solar && <SolarOnRoof view={solar} />}
 
       {built && (
         <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry}>

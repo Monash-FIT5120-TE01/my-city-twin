@@ -17,7 +17,9 @@
  *     office". The words carry it; the dot is a shortcut.
  *   - Up to three figures, large, each with what it counts under it — see
  *     placeFacts.ts for which, and why a missing one is left out.
- *   - "Explore sunlight →", and a cross that goes back to the map.
+ *   - "Explore sunlight →", and a cross that goes back to the map. For a
+ *     building standing today, also "Check solar panels →": its own screen,
+ *     because it asks a different question (what panels on this roof would do).
  *
  * WHERE IT SITS
  *   Two copies are drawn and CSS shows one. On a wide screen it stands in
@@ -42,6 +44,7 @@ export function PlaceCard({
   tone,
   variant,
   onSunlight,
+  onSolar,
   onClose,
 }: {
   title: string;
@@ -53,6 +56,8 @@ export function PlaceCard({
   tone: 'searched' | 'approved' | 'progress';
   variant: 'anchored' | 'docked';
   onSunlight: () => void;
+  /** The solar panel check; only for a building standing today. */
+  onSolar?: () => void;
   /** Back to the map. */
   onClose: () => void;
 }) {
@@ -113,6 +118,11 @@ export function PlaceCard({
       <TextButton className="place-card__go" onClick={onSunlight}>
         Explore sunlight
       </TextButton>
+      {onSolar && (
+        <TextButton className="place-card__go place-card__go--solar" onClick={onSolar}>
+          Check solar panels
+        </TextButton>
+      )}
       <DemoNote className="place-card__fine" />
     </Card>
   );

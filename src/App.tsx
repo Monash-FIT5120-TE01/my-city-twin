@@ -116,7 +116,10 @@ import type { VrMenu, VrStage } from './scene/vrMenu';
 import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './ui/words';
 import type { Development, SearchableBuilding } from './data/model';
 import { shortAddress, type SearchHit } from './data/search';
+import { useSolarComparison, type PlannedDevelopment, type SolarScene } from './scene/useSolarComparison';
+import { SolarSheet } from './ui/SolarSheet';
 import './styles/ui.css';
+import './styles/solar.css';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
@@ -516,8 +519,11 @@ export default function App() {
         /*
          * The comparison too: its second view is a page-only canvas with no
          * headset in it, and the headset panel operates the sunlight screen.
+         * And the solar check: the headset has nothing to show it with, and
+         * left on its screen it would go on measuring the roof's shade in its
+         * workers, and drawing the roof, through the whole session.
          */
-        if (view === 'development' || view === 'building' || view === 'compare') {
+        if (view === 'development' || view === 'building' || view === 'compare' || view === 'solar') {
           setView('sunlight');
         }
       },
@@ -577,6 +583,7 @@ export default function App() {
     // subject, and a searched building is one.
     if (view === 'development' && !focus) setView('explore');
     if (view === 'building' && !foundBuilding) setView('explore');
+    if (view === 'solar' && !foundBuilding) setView('explore');
     if (view === 'sunlight' && !focus && !foundBuilding) setView('explore');
     if (view === 'compare' && !focus && !foundBuilding) setView('explore');
   }, [model, view, focus, foundBuilding]);
@@ -618,7 +625,7 @@ export default function App() {
    * Above the loading guard with every other hook; see the note below.
    */
   const { detail: buildingDetail } = useBuildingDetail(
-    view === 'building' || view === 'sunlight' ? (foundBuilding?.buildingId ?? null) : null,
+    view === 'building' || view === 'sunlight' || view === 'solar' ? (foundBuilding?.buildingId ?? null) : null,
   );
 
   const groundAhdM = useMemo(
@@ -661,6 +668,40 @@ export default function App() {
    * blocks everything behind the window, which is correct.
    */
   const standingCity = useMemo(() => model?.buildings ?? [], [model]);
+
+  /*
+   * ── THE SOLAR PANEL CHECK ──────────────────────────────────────────────
+   * Only on its own screen: the roof a panel could go on, then a year of the
+   * city's shade over it, worked out while the screen draws.
+   */
+  const solarParts = useMemo(
+    () => (view === 'solar' && model && foundBuilding ? model.buildings.filter((p) => p.parentId === foundBuilding.buildingId) : null),
+    [view, model, foundBuilding],
+  );
+  /*
+   * The roof's sun as the city stands and once the approved developments are built, each with the
+   * buildings it stands on taken down (as on the sunlight screen and in the scene): the second only
+   * when one of them could shade the roof (useSolarComparison.ts). When the chosen building is
+   * itself replaced there is nothing to compare.
+   */
+  const [solarWithPlans, setSolarWithPlans] = useState(false);
+  /** On the roof: the panels laid out, or the light each part of it keeps. */
+  const [solarShowPanels, setSolarShowPanels] = useState(true);
+  const solarDevelopments = useMemo<PlannedDevelopment[]>(() => {
+    if (!model) return [];
+    const centres = buildingCentres(model.buildings);
+    return model.developments.map((development) => ({
+      address: development.streetAddress,
+      parts: development.parts,
+      replaces: buildingsUnder(development.parts.map((part) => part.footprint).flat(), centres),
+    }));
+  }, [model]);
+  const solar = useSolarComparison(solarParts, standingCity, solarDevelopments, date.year, solarWithPlans);
+  const solarUsesPlans = solar.usesPlans;
+  const solarScene = useMemo<SolarScene | null>(
+    () => (view === 'solar' && solar.check ? { check: solar.check, lost: solar.lost, showPanels: solarShowPanels } : null),
+    [view, solar.check, solar.lost, solarShowPanels],
+  );
 
   /** The parts of the building the window is in. */
   const homeParts = useMemo(() => {
@@ -1358,6 +1399,14 @@ export default function App() {
           // The card had the keyboard; the sunlight column's heading takes it.
           window.requestAnimationFrame(() => document.getElementById('subject-title')?.focus());
         }}
+        onSolar={
+          view === 'building'
+            ? () => {
+                setView('solar');
+                window.requestAnimationFrame(() => document.getElementById('solar-title')?.focus());
+              }
+            : undefined
+        }
         onClose={() => setView('explore')}
       />
     );
@@ -1414,7 +1463,8 @@ export default function App() {
           inset={inset}
           insetOn={frontShown}
           // On the comparison screen this is "today": no approved project.
-          showProposed={compareShown ? false : layers.developments}
+          // on the solar screen, the developments are on show exactly when the shade counts them
+          showProposed={compareShown ? false : view === 'solar' ? solarUsesPlans : layers.developments}
           castShadows={layers.shadows}
           streetLights={layers.streetLights}
           clock={tramClock}
@@ -1476,6 +1526,7 @@ export default function App() {
           }
           highlightedBuildingId={foundBuilding?.buildingId ?? null}
           showHighlighted
+          solar={solarScene}
           /*
             The pin and the name follow the chosen place, whatever kind it
             is.
@@ -1842,6 +1893,21 @@ export default function App() {
                 }
               : undefined
           }
+        />
+      )}
+
+      {!chromeHidden && view === 'solar' && foundBuilding && (
+        <SolarSheet
+          title={buildingDetail?.buildingName ?? place?.label ?? foundBuilding.streetAddress}
+          check={solar.check}
+          compare={{ now: solar.now, planned: solar.planned, nearby: solar.nearby, named: solar.named, lostShown: solar.lost.length > 0 }}
+          withPlans={solarUsesPlans}
+          plansBlocked={solar.plansBlocked}
+          onWithPlans={setSolarWithPlans}
+          showPanels={solarShowPanels}
+          onShowPanels={setSolarShowPanels}
+          onBack={() => setView('building')}
+          onClose={() => setView('explore')}
         />
       )}
 

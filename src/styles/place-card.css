@@ -158,3 +158,8 @@
     animation: slideUp var(--dur-panel) var(--ease) both;
   }
 }
+
+/* The solar panel check: a second way out of the card, under the first. */
+.place-card__go--solar {
+  margin-top: 4px;
+}

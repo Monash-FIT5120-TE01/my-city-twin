@@ -53,6 +53,7 @@
  *   rotation. Each converts its own position instead; see StreetLabels.
  */
 
+import type { SolarScene } from './useSolarComparison';
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR } from '@react-three/xr';
@@ -151,6 +152,8 @@ interface SceneCanvasProps {
   onStandMoved: (metres: number) => void;
   /** A building found by searching, drawn in pink. */
   highlightedBuildingId: string | null;
+  /** The solar panel check for that building, drawn on its roof (its own screen only). */
+  solar?: SolarScene | null;
   /** False to take that building out of the city — the "before" of a search. */
   showHighlighted: boolean;
   /** The one place that carries a pin and a name, or none. */
@@ -236,6 +239,7 @@ export function SceneCanvas({
   onPickReceptor,
   interactive,
   highlightedBuildingId,
+  solar = null,
   showHighlighted,
   marker,
   markerCard,
@@ -676,6 +680,7 @@ export function SceneCanvas({
             interactive={interactive}
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
+            solar={solar}
           />
 
           {/*
