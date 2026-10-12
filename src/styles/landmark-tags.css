@@ -20,22 +20,13 @@
   user-select: none;
 }
 
-/*
- * The dot on the roof, and the whole thing's button when there is no card.
- * 11 px of dot inside a 24 px target, so it can be pressed without aiming.
- */
+/* The dot on the roof, under the card's point. Drawn only with its card. */
 .landmark__dot {
   position: absolute;
   left: -12px;
   top: -12px;
   width: 24px;
   height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  pointer-events: auto;
-  cursor: pointer;
 }
 
 .landmark__dot::before {
@@ -106,8 +97,13 @@
   max-width: 220px;
 }
 
-.landmark__tag:focus-visible,
-.landmark__dot:focus-visible {
+/* The comparison screen: read, not pressed. */
+.landmark--still .landmark__tag {
+  pointer-events: none;
+  cursor: default;
+}
+
+.landmark__tag:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }

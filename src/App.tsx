@@ -1647,6 +1647,10 @@ export default function App() {
               label: place.label,
               kind: place.kind,
             }}
+            // The same tags as the left window: the views move together, so
+            // the same names come up in both.
+            landmarks={layers.landmarks ? landmarks : []}
+            openLandmark={openLandmark}
             lookAt={lookAt}
             interactive={false}
             walking={false}

@@ -749,6 +749,7 @@ export function SceneCanvas({
             open={openLandmark}
             onOpen={onOpenLandmark}
             onPickBuilding={onPickLandmarkBuilding}
+            interactive={interactive}
           />
         )}
 

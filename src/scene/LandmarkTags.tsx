@@ -10,10 +10,11 @@
  *   you are; these say what you are looking at.
  *
  * WHAT IT SHOWS, AND WHEN
- *   From above, pulled right back, every landmark is a dot on its roof and
- *   nothing more: fifty-one names over a two-kilometre grid is a thicket.
- *   Closer in, the ones near the point the camera is orbiting get their
- *   name on a card. Pressing a card on a building opens that building's
+ *   From above, pulled right back, nothing: fifty-one names over a
+ *   two-kilometre grid is a thicket, and fifty-one white dots without names
+ *   were worse — specks over the whole city that said nothing (2026-10-13).
+ *   Closer in, the ones near the point the camera is orbiting get a card
+ *   with their name, and the dot under it marks the roof. Pressing a card on a building opens that building's
  *   page, the one a search opens; pressing one on open ground (a square, a
  *   park) opens the card out to show its address, since there is no page.
  *
@@ -100,6 +101,11 @@ interface LandmarkTagsProps {
   onOpen: (name: string | null) => void;
   /** A tag on a building was pressed: that building's page. */
   onPickBuilding: (buildingId: string) => void;
+  /**
+   * False where nothing may be opened — the comparison screen. The tags are
+   * still read there; pressing one would leave the page.
+   */
+  interactive?: boolean;
 }
 
 /** What is named right now: each landmark's label, or nothing for a dot alone. */
@@ -107,7 +113,15 @@ type Named = Map<string, string | null>;
 
 const scratch = new Vector3();
 
-export function LandmarkTags({ landmarks, groundAhdM, walking, open, onOpen, onPickBuilding }: LandmarkTagsProps) {
+export function LandmarkTags({
+  landmarks,
+  groundAhdM,
+  walking,
+  open,
+  onOpen,
+  onPickBuilding,
+  interactive = true,
+}: LandmarkTagsProps) {
   const controls = useThree((state) => state.controls) as { target?: Vector3 } | null;
   const camera = useThree((state) => state.camera);
 
@@ -172,10 +186,10 @@ export function LandmarkTags({ landmarks, groundAhdM, walking, open, onOpen, onP
       {landmarks.map((landmark) => {
         const label = named.get(landmark.name);
         const opened = open === landmark.name;
-        // In the street a dot with no name is a white speck in the sky, and a
-        // card opened from above and left behind the walker is a floating
-        // one: only the named few are drawn, opened or not.
-        if (walking && label === undefined) return null;
+        // Only the named are drawn. From above, a card opened from the search
+        // stays until it is closed; in the street even that one goes once it
+        // is behind the walker or too far, as a floating card would.
+        if (label === undefined && (walking || !opened)) return null;
         const up = landmark.topAhdM !== null ? landmark.topAhdM + ROOF_LIFT_M : groundAhdM + GROUND_LIFT_M;
 
         const press = () => {
@@ -191,28 +205,23 @@ export function LandmarkTags({ landmarks, groundAhdM, walking, open, onOpen, onP
             // An opened card over the others; the rest under the header (6) and the panels.
             zIndexRange={opened ? [2, 2] : [1, 0]}
           >
-            <div className="landmark">
+            <div className={`landmark${interactive ? '' : ' landmark--still'}`}>
+              {/* The roof it stands on. Part of the card, not a control of its own. */}
+              <span className="landmark__dot" aria-hidden="true" />
               <button
                 type="button"
-                className="landmark__dot"
-                aria-label={landmark.buildingId ? `${landmark.name}: open this building` : landmark.name}
-                onClick={press}
-              />
-              {(label !== undefined || opened) && (
-                <button
-                  type="button"
-                  className={`landmark__tag${opened ? ' landmark__tag--open' : ''}`}
-                  aria-expanded={landmark.buildingId ? undefined : opened}
-                  onClick={press}
-                >
-                  {landmark.name}
-                  {opened ? (
-                    <span className="landmark__meta">{landmark.address}</span>
-                  ) : label ? (
-                    <span className="landmark__meta">{label}</span>
-                  ) : null}
-                </button>
-              )}
+                className={`landmark__tag${opened ? ' landmark__tag--open' : ''}`}
+                aria-expanded={landmark.buildingId ? undefined : opened}
+                tabIndex={interactive ? undefined : -1}
+                onClick={interactive ? press : undefined}
+              >
+                {landmark.name}
+                {opened ? (
+                  <span className="landmark__meta">{landmark.address}</span>
+                ) : label ? (
+                  <span className="landmark__meta">{label}</span>
+                ) : null}
+              </button>
             </div>
           </Html>
         );
