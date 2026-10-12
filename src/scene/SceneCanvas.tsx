@@ -757,8 +757,14 @@ export function SceneCanvas({
           One marker, on whatever is chosen. A proposal only carries one while
           the approved massing is actually being shown; a searched building
           always does, because it is there either way.
+
+          Except on the comparison screen (`link`), where both views mark the
+          place: the "today" view is where the reader looks for the site
+          before the tower is built, and a pin on only one side made the two
+          views look like two different places (2026-10-13). Same pin, same
+          height in both, so the eye can go straight across.
         */}
-        {marker && (marker.kind === 'building' || showProposed || markerCard) && (
+        {marker && (marker.kind === 'building' || showProposed || markerCard || link !== null) && (
           <SiteMarker subject={marker} groundAhdM={ground} card={markerCard} />
         )}
 
