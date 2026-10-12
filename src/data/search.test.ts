@@ -3,7 +3,13 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildCityModel } from './adapter';
 import { searchCity, shortAddress } from './search';
-import type { ApiBuildingPart, ApiDevelopmentPart, ApiFeatureCollection } from './api-types';
+import { placeLandmarks } from './landmarks';
+import type {
+  ApiBuildingPart,
+  ApiDevelopmentPart,
+  ApiFeatureCollection,
+  ApiLandmark,
+} from './api-types';
 
 /*
  * Search runs against the real snapshot, not a fixture, because the things
@@ -89,12 +95,43 @@ describe('what a person types', () => {
   it('gives every hit a place to fly to', () => {
     for (const hit of searchCity(model, 'bourke')) {
       const [east, north] =
-        hit.kind === 'building' ? hit.building.anchorEN : hit.development.anchorEN;
+        hit.kind === 'building'
+          ? hit.building.anchorEN
+          : hit.kind === 'landmark'
+            ? hit.landmark.en
+            : hit.development.anchorEN;
       expect(Number.isFinite(east)).toBe(true);
       expect(Number.isFinite(north)).toBe(true);
       expect(Math.abs(east)).toBeLessThan(2500);
       expect(Math.abs(north)).toBeLessThan(2500);
     }
+  });
+});
+
+describe('the landmarks, by name', () => {
+  const landmarks = placeLandmarks(load<ApiLandmark[]>('landmarks.json'), model);
+
+  it('finds a place by its name, ahead of the addresses on its street', () => {
+    const hits = searchCity(model, 'town hall', landmarks);
+    expect(hits[0].kind).toBe('landmark');
+    expect(hits[0].label).toBe('Melbourne Town Hall');
+    expect(hits[0].detail).toBe('Landmark · 90-130 Swanston Street');
+  });
+
+  it('matches inside a name, the way "319 swanston" matches an address', () => {
+    const labels = searchCity(model, 'cathedral', landmarks).map((hit) => hit.label);
+    expect(labels).toContain('St Pauls Cathedral');
+  });
+
+  it('does not match a landmark by its address', () => {
+    // Every landmark is on Collins or Swanston Street like everything else;
+    // matching addresses would put the Town Hall in every search for its street.
+    const hits = searchCity(model, 'swanston', landmarks);
+    expect(hits.some((hit) => hit.kind === 'landmark')).toBe(false);
+  });
+
+  it('is unchanged when no landmarks are given', () => {
+    expect(searchCity(model, 'town hall')).toEqual(searchCity(model, 'town hall', []));
   });
 });
 

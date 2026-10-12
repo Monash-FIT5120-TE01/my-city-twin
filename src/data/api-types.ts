@@ -122,3 +122,18 @@ export interface ApiDevelopmentDetail {
   bikeSpaces: NumericString;
   landUses: ApiLandUse[];
 }
+
+/**
+ * GET /api/building/landmarks — the places a visitor steers by.
+ *
+ * Fifty-one of them (2026-10-12). Flat, not GeoJSON: a name, a point and an
+ * address, nothing else — no kind, no height, no description. The point is
+ * the place rather than an entrance, and the spelling is the source's own
+ * ("Athanaeum Theatre"), which the interface keeps rather than correcting.
+ */
+export interface ApiLandmark {
+  landmark_name: string;
+  longitude: NumericString;
+  latitude: NumericString;
+  address: string;
+}

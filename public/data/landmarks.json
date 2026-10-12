@@ -1,0 +1,308 @@
+[
+  {
+    "landmark_name": "ANZ 'Gothic' Bank",
+    "longitude": "144.96167372",
+    "latitude": "-37.81615807",
+    "address": "380 Collins Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Athanaeum Theatre",
+    "longitude": "144.96732254",
+    "latitude": "-37.81495435",
+    "address": "188 Collins Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Australian Centre For The Moving Image (ACMI)",
+    "longitude": "144.96907043",
+    "latitude": "-37.81761073",
+    "address": "Federation Square, Flinders Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Batman Park",
+    "longitude": "144.95666581",
+    "latitude": "-37.82184609",
+    "address": "32 Rebecca Walk, Melbourne VIC 3004"
+  },
+  {
+    "landmark_name": "Church of Christ",
+    "longitude": "144.96388920",
+    "latitude": "-37.81045241",
+    "address": "333 Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "City Baths",
+    "longitude": "144.96318979",
+    "latitude": "-37.80715854",
+    "address": "420 Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Collins Street Baptist Church",
+    "longitude": "144.96807249",
+    "latitude": "-37.81470119",
+    "address": "174 Collins Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Comedy Theatre",
+    "longitude": "144.97013312",
+    "latitude": "-37.81020539",
+    "address": "240 Exhibition Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Commonwealth Law Courts",
+    "longitude": "144.95582383",
+    "latitude": "-37.81239617",
+    "address": "305 William Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Council House 2 (CH2)",
+    "longitude": "144.96663843",
+    "latitude": "-37.81425914",
+    "address": "240 Little Collins Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "County Court Melbourne",
+    "longitude": "144.95773425",
+    "latitude": "-37.81320116",
+    "address": "250 William Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "David Jones",
+    "longitude": "144.96437349",
+    "latitude": "-37.81331273",
+    "address": "310 Bourke Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Enterprize Park",
+    "longitude": "144.95927686",
+    "latitude": "-37.82021027",
+    "address": "North bank of the Yarra River, near Queens Bridge, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Federation Square",
+    "longitude": "144.96896360",
+    "latitude": "-37.81785166",
+    "address": "2-20 Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Flagstaff Railway Station",
+    "longitude": "144.95611868",
+    "latitude": "-37.81163844",
+    "address": "Corner William Street and La Trobe Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Flinders Street Railway Station",
+    "longitude": "144.96706482",
+    "latitude": "-37.81790630",
+    "address": "Corner Flinders Street and Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Former Royal Mint",
+    "longitude": "144.95705545",
+    "latitude": "-37.81218387",
+    "address": "280 William Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Forum Theatre",
+    "longitude": "144.96938656",
+    "latitude": "-37.81648541",
+    "address": "154 Flinders Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Her Majesty's Theatre",
+    "longitude": "144.96952018",
+    "latitude": "-37.81099756",
+    "address": "219 Exhibition Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Immigration Museum",
+    "longitude": "144.96042678",
+    "latitude": "-37.81917988",
+    "address": "400 Flinders Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Koorie Heritage Trust Inc",
+    "longitude": "144.95402791",
+    "latitude": "-37.81338543",
+    "address": "295 King Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Aquarium",
+    "longitude": "144.95842570",
+    "latitude": "-37.82096278",
+    "address": "503 Flinders Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Central",
+    "longitude": "144.96274973",
+    "latitude": "-37.81053718",
+    "address": "Corner La Trobe Street and Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Central Railway Station",
+    "longitude": "144.96310073",
+    "latitude": "-37.81089300",
+    "address": "La Trobe Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Childrens Court",
+    "longitude": "144.95829887",
+    "latitude": "-37.81250776",
+    "address": "477 Little Lonsdale Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Magistrates Court",
+    "longitude": "144.95684619",
+    "latitude": "-37.81361477",
+    "address": "233 William Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Town Hall",
+    "longitude": "144.96654272",
+    "latitude": "-37.81507548",
+    "address": "90-130 Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Visitor Booth",
+    "longitude": "144.96442588",
+    "latitude": "-37.81395251",
+    "address": "335 Bourke Street Mall, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Melbourne Visitor Centre",
+    "longitude": "144.96793714",
+    "latitude": "-37.81773524",
+    "address": "Federation Square, Corner Flinders Street and Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Myer",
+    "longitude": "144.96385509",
+    "latitude": "-37.81359120",
+    "address": "314-336 Bourke Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Old Melbourne Gaol Crime & Justice Experience",
+    "longitude": "144.96546385",
+    "latitude": "-37.80776441",
+    "address": "377 Russell Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Parliament Railway Station",
+    "longitude": "144.97374201",
+    "latitude": "-37.81215728",
+    "address": "Spring Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Princess Theatre",
+    "longitude": "144.97232660",
+    "latitude": "-37.81072571",
+    "address": "163 Spring Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "QV Village",
+    "longitude": "144.96571457",
+    "latitude": "-37.81068919",
+    "address": "Corner Swanston Street and Lonsdale Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Queen Victoria Market",
+    "longitude": "144.95715852",
+    "latitude": "-37.80750020",
+    "address": "Queen Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "RMIT University",
+    "longitude": "144.96445297",
+    "latitude": "-37.80807954",
+    "address": "124 La Trobe Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Regent Theatre",
+    "longitude": "144.96791674",
+    "latitude": "-37.81600147",
+    "address": "191 Collins Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "SBS (Special Broadcasting Service)",
+    "longitude": "144.96874060",
+    "latitude": "-37.81769212",
+    "address": "Level 3, Alfred Deakin Building, Federation Square, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Scots Church",
+    "longitude": "144.96855105",
+    "latitude": "-37.81456878",
+    "address": "Corner Collins Street and Russell Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "St Augustines Church",
+    "longitude": "144.95486200",
+    "latitude": "-37.81697414",
+    "address": "631 Bourke Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "St Francis Church",
+    "longitude": "144.96242261",
+    "latitude": "-37.81188478",
+    "address": "326 Lonsdale Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "St Michael's Uniting Church",
+    "longitude": "144.96917404",
+    "latitude": "-37.81438513",
+    "address": "120 Collins Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "St Pauls Cathedral",
+    "longitude": "144.96768165",
+    "latitude": "-37.81695490",
+    "address": "Corner Flinders Street and Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "State Library Victoria",
+    "longitude": "144.96433032",
+    "latitude": "-37.80998522",
+    "address": "328 Swanston Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Supreme Court",
+    "longitude": "144.95789402",
+    "latitude": "-37.81414942",
+    "address": "210 William Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "The Ian Potter Centre: NGV Australia",
+    "longitude": "144.96989905",
+    "latitude": "-37.81748314",
+    "address": "Federation Square, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "The Melbourne Athenaeum Library",
+    "longitude": "144.96729129",
+    "latitude": "-37.81488558",
+    "address": "Level 1, 188 Collins Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "The Museum Of Australian Chinese History",
+    "longitude": "144.96923385",
+    "latitude": "-37.81076861",
+    "address": "22 Cohen Place, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Victoria Police",
+    "longitude": "144.95469745",
+    "latitude": "-37.80031213",
+    "address": "637 Flinders Street, Docklands VIC 3008"
+  },
+  {
+    "landmark_name": "Welsh Presbyterian Church",
+    "longitude": "144.95987326",
+    "latitude": "-37.81044788",
+    "address": "320-330 La Trobe Street, Melbourne VIC 3000"
+  },
+  {
+    "landmark_name": "Wesley Church",
+    "longitude": "144.96816822",
+    "latitude": "-37.81015764",
+    "address": "136 Lonsdale Street, Melbourne VIC 3000"
+  }
+]

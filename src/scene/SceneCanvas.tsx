@@ -80,6 +80,8 @@ import { ScaleFigure } from './ScaleFigure';
 import { skyAppearance } from './sky';
 import { CityMassing } from './CityMassing';
 import { StreetLabels } from './StreetLabels';
+import { LandmarkTags } from './LandmarkTags';
+import type { Landmark } from '../data/landmarks';
 import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
 import { SunArrow } from './SunArrow';
 import { CameraRig } from './CameraRig';
@@ -160,6 +162,13 @@ interface SceneCanvasProps {
   marker: SiteMarkerSubject | null;
   /** The place card, drawn beside the marked building instead of its pin. */
   markerCard?: ReactNode;
+  /** The named places, tagged on their buildings. Empty when the layer is off. See LandmarkTags. */
+  landmarks?: readonly Landmark[];
+  /** The landmark whose address is open, by name — one on open ground, with no page to go to. */
+  openLandmark?: string | null;
+  onOpenLandmark?: (name: string | null) => void;
+  /** A landmark's tag on a building was pressed: that building, as a double click opens it. */
+  onPickLandmarkBuilding?: (buildingId: string) => void;
   /**
    * Where to point the camera, if not at the focused development — used when
    * a search result is an existing building rather than a proposal.
@@ -243,6 +252,10 @@ export function SceneCanvas({
   showHighlighted,
   marker,
   markerCard,
+  landmarks = [],
+  openLandmark = null,
+  onOpenLandmark = () => undefined,
+  onPickLandmarkBuilding = () => undefined,
   lookAt,
   walking,
   onLeaveStreet,
@@ -719,6 +732,24 @@ export function SceneCanvas({
         */}
         {!walking && !insetOn && !lensShifted && (
           <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
+        )}
+
+        {/*
+          The landmarks' tags — outside the frame for the same reason, and
+          shown in the street too, where the street names are not: they face
+          the screen rather than lying on the ground, and in the street they
+          are the point. Not in the headset, which names its landmarks its
+          own way (VrStreetSigns).
+        */}
+        {landmarks.length > 0 && !inVr && !insetOn && !lensShifted && (
+          <LandmarkTags
+            landmarks={landmarks}
+            groundAhdM={ground}
+            walking={walking}
+            open={openLandmark}
+            onOpen={onOpenLandmark}
+            onPickBuilding={onPickLandmarkBuilding}
+          />
         )}
 
         {/*

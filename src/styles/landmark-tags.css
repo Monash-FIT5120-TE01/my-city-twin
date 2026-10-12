@@ -1,0 +1,113 @@
+/*
+ * The landmark tags: a white card over the building, a dot on its roof.
+ *
+ * Chosen from ProjectDoc/landmarks/tag-designs.html (option B, 2026-10-12):
+ * the same white chip the searched building's name uses, so the two read as
+ * the same kind of thing. Nothing here carries meaning by colour alone — a
+ * landmark is a shape (the dot, the card with its point) against the grey of
+ * the massing, and the words on the card say what it is.
+ *
+ * Colours, for the record: card #ffffff at 94% (L* 100), name #16181a
+ * (L* 8), second line #5a6169 (L* 42), dot white with a #16181a ring.
+ */
+
+/* The anchor drei centres on the point. Children hang off it; it takes no clicks itself. */
+.landmark {
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/*
+ * The dot on the roof, and the whole thing's button when there is no card.
+ * 11 px of dot inside a 24 px target, so it can be pressed without aiming.
+ */
+.landmark__dot {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.landmark__dot::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.5px solid var(--ink);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* The card, standing above the dot with a point down to it. */
+.landmark__tag {
+  position: absolute;
+  left: 0;
+  bottom: 14px;
+  transform: translateX(-50%);
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  white-space: nowrap;
+  box-shadow: var(--shadow-chip);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.landmark__tag::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* The second line: a distance while walking, the address when opened. */
+.landmark__meta {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+/*
+ * An opened card wraps its address rather than running off the screen.
+ * `max-content` first: the card hangs off a zero-width anchor, and without
+ * it the browser shrinks the card to that width and breaks every word.
+ */
+.landmark__tag--open {
+  white-space: normal;
+  width: max-content;
+  max-width: 220px;
+}
+
+.landmark__tag:focus-visible,
+.landmark__dot:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}

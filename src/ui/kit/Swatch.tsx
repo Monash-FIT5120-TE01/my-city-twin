@@ -6,7 +6,7 @@
  * words beside it say what it is. Styles: kit.css.
  */
 
-export type SwatchTone = 'existing' | 'approved' | 'progress' | 'searched' | 'selected';
+export type SwatchTone = 'existing' | 'approved' | 'progress' | 'searched' | 'selected' | 'landmark';
 
 export function Swatch({ tone, size = 'md' }: { tone: SwatchTone; size?: 'sm' | 'md' }) {
   return <span className={`swatch swatch--${tone} swatch--${size}`} aria-hidden="true" />;

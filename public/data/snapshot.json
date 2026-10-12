@@ -4,6 +4,7 @@
   "note": "Offline snapshot of the team API. The app renders from this immediately, then refreshes from the live API in the background, so a slow or unreachable backend never blocks first paint. Re-taken from api.mycitytwin.com when the backend moved there: the shapes and figures were unchanged, but every buildingId and devId had been reissued, and the snapshot has to carry the same ids as the live API.",
   "endpoints": {
     "building-footprints.json": "/api/building/footprints",
-    "development-footprints.json": "/api/development/footprints"
+    "development-footprints.json": "/api/development/footprints",
+    "landmarks.json": "/api/building/landmarks (taken 2026-10-12)"
   }
 }

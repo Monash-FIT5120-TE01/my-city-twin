@@ -423,4 +423,7 @@
   --key-searched-edge: #a8406f;
   /* The chosen building's outline (SelectionEdges). */
   --key-selected: #1f3a32;
+  /* The landmark tags' dot (landmark-tags.css): white with an ink ring. */
+  --key-landmark: #ffffff;
+  --key-landmark-edge: #16181a;
 }

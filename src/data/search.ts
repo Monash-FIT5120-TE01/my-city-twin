@@ -22,10 +22,13 @@
  */
 
 import type { CityModel, Development, SearchableBuilding } from './model';
+import type { Landmark } from './landmarks';
 
 export type SearchHit =
   | { kind: 'development'; development: Development; label: string; detail: string }
-  | { kind: 'building'; building: SearchableBuilding; label: string; detail: string };
+  | { kind: 'building'; building: SearchableBuilding; label: string; detail: string }
+  /** A named place — found by its name, never by its address. */
+  | { kind: 'landmark'; landmark: Landmark; label: string; detail: string };
 
 /** Below this a query matches half the city and the list is meaningless. */
 const MIN_QUERY_LENGTH = 2;
@@ -68,11 +71,35 @@ function score(haystack: string, needle: string): number {
   return haystack[at - 1] === ' ' ? 80 : 60;
 }
 
-export function searchCity(model: CityModel, query: string): SearchHit[] {
+export function searchCity(
+  model: CityModel,
+  query: string,
+  landmarks: readonly Landmark[] = [],
+): SearchHit[] {
   const needle = normalise(query);
   if (needle.length < MIN_QUERY_LENGTH) return [];
 
   const hits: { hit: SearchHit; score: number }[] = [];
+
+  /*
+   * Landmarks by NAME only. Their addresses are on Collins and Swanston
+   * Street like everything else, and matching them would put the Town Hall
+   * in every search for its street. Somebody typing "town hall" means the
+   * place, so these rank with the proposals, above the plain addresses.
+   */
+  for (const landmark of landmarks) {
+    const points = score(normalise(landmark.name), needle);
+    if (points < 0) continue;
+    hits.push({
+      score: points + 10,
+      hit: {
+        kind: 'landmark',
+        landmark,
+        label: landmark.name,
+        detail: `Landmark · ${shortAddress(landmark.address)}`,
+      },
+    });
+  }
 
   // Approved projects first at equal score: somebody searching an address
   // that has a proposal on it almost certainly means the proposal.

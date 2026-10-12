@@ -75,6 +75,8 @@ import {
 } from './scene/solar';
 import { SITE } from './scene/frame';
 import { useCityModel } from './data/useCityModel';
+import { useLandmarks } from './data/useLandmarks';
+import type { Landmark } from './data/landmarks';
 import { useDevelopmentDetail } from './data/useDevelopmentDetail';
 import { useBuildingDetail } from './data/useBuildingDetail';
 import { clearOfBuildings, facadesOf, floorAhdM, windowPlace } from './scene/facades';
@@ -127,13 +129,26 @@ const MIDDAY_MINUTES = 12 * 60;
 
 export default function App() {
   const { model, error, progress } = useCityModel();
+  /** The named places, placed on whichever city model is up. Empty until they arrive. */
+  const landmarks = useLandmarks(model);
 
   // Read once, on the first render: the address bar is the initial state.
   const [initial] = useState(() => readUrlState());
 
   const [view, setView] = useState<ViewName>(initial.view);
   const [selectedKey, setSelectedKey] = useState<string | null>(initial.devKey);
-  const [layers, setLayers] = useState<Layers>({ developments: true, shadows: true, streetLights: true });
+  const [layers, setLayers] = useState<Layers>({
+    developments: true,
+    shadows: true,
+    streetLights: true,
+    landmarks: true,
+  });
+  /**
+   * The landmark whose address is open on its tag, by name. Only ones on
+   * open ground (a square, a park) open this way; one on a building opens
+   * the building's page instead. See LandmarkTags.
+   */
+  const [openLandmark, setOpenLandmark] = useState<string | null>(null);
   const [date, setDate] = useState<SimulationDate>(initial.date);
   const [minutes, setMinutes] = useState(initial.minutes);
   // the trams' timetable day and start (streetscape/trams); one object per change, not per render
@@ -997,7 +1012,30 @@ export default function App() {
       open(hit.development, 'development');
       return;
     }
+    if (hit.kind === 'landmark') {
+      openLandmarkHit(hit.landmark, 'open');
+      return;
+    }
     openBuilding(hit.building);
+  };
+
+  /**
+   * A landmark from the search. On a building it IS that building — opened
+   * or chosen as the building would be. On open ground there is no page, so
+   * the camera goes to it and its tag opens to show the address.
+   */
+  const openLandmarkHit = (landmark: Landmark, how: 'open' | 'choose') => {
+    const building = landmark.buildingId && model ? buildingEntry(model, landmark.buildingId) : null;
+    if (building) {
+      if (how === 'open') openBuilding(building);
+      else chooseOnFront({ kind: 'building', building, label: '', detail: '' });
+      return;
+    }
+    setSelectedKey(null);
+    setSelectedBuildingId(null);
+    setLookAt({ east: landmark.en[0], north: landmark.en[1], heightM: 30 });
+    setOpenLandmark(landmark.name);
+    if (how === 'open') setView('explore');
   };
 
   /**
@@ -1030,6 +1068,10 @@ export default function App() {
    */
   const chooseOnFront = (hit: SearchHit) => {
     setQuery('');
+    if (hit.kind === 'landmark') {
+      openLandmarkHit(hit.landmark, 'choose');
+      return;
+    }
     if (hit.kind === 'development') {
       setSelectedKey(hit.development.devKey);
       setSelectedBuildingId(null);
@@ -1424,7 +1466,7 @@ export default function App() {
           {...frontProps}
           results={
             searchAt === 'front' ? (
-              <SearchResults model={model} query={query} onPick={chooseOnFront} />
+              <SearchResults model={model} query={query} landmarks={landmarks} onPick={chooseOnFront} />
             ) : null
           }
           chosen={place ? { label: place.label, detail: place.detail } : null}
@@ -1542,6 +1584,13 @@ export default function App() {
               : null
           }
           markerCard={placeCard('anchored')}
+          landmarks={layers.landmarks ? landmarks : []}
+          openLandmark={openLandmark}
+          onOpenLandmark={setOpenLandmark}
+          onPickLandmarkBuilding={(buildingId) => {
+            const building = buildingEntry(model, buildingId);
+            if (building) openBuilding(building);
+          }}
           lookAt={lookAt}
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
@@ -1793,6 +1842,7 @@ export default function App() {
             <SearchResults
               model={model}
               query={query}
+              landmarks={landmarks}
               onPick={(hit) => {
                 setQuery('');
                 if (frontShown) chooseOnFront(hit);

@@ -45,6 +45,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CityModel, Development } from '../data/model';
+import type { Landmark } from '../data/landmarks';
 import { clock12Label } from '../data/now';
 import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './words';
 import {
@@ -88,13 +89,16 @@ import { searchCity, type SearchHit } from '../data/search';
 export function SearchResults({
   model,
   query,
+  landmarks = [],
   onPick,
 }: {
   model: CityModel;
   query: string;
+  /** The named places, searchable by name. */
+  landmarks?: readonly Landmark[];
   onPick: (hit: SearchHit) => void;
 }) {
-  const matches = useMemo(() => searchCity(model, query), [query, model]);
+  const matches = useMemo(() => searchCity(model, query, landmarks), [query, model, landmarks]);
   if (query.trim().length < 2) return null;
 
   if (matches.length === 0) {
@@ -102,7 +106,8 @@ export function SearchResults({
       <p className="results__none">
         Nothing matches that. {model.searchable.length.toLocaleString()} buildings
         and {model.developments.length} approved projects can be searched by
-        address; some older buildings have no address on record.
+        address{landmarks.length > 0 ? `, and ${landmarks.length} landmarks by name` : ''};
+        some older buildings have no address on record.
       </p>
     );
   }
@@ -111,7 +116,13 @@ export function SearchResults({
     <div className="results" role="listbox" aria-label="Search results">
       {matches.map((hit, index) => (
         <button
-          key={hit.kind === 'building' ? hit.building.buildingId : hit.development.devId}
+          key={
+            hit.kind === 'building'
+              ? hit.building.buildingId
+              : hit.kind === 'landmark'
+                ? hit.landmark.name
+                : hit.development.devId
+          }
           type="button"
           /*
             Its place in the list, for the stagger. A custom property rather
@@ -125,15 +136,18 @@ export function SearchResults({
         >
           {/*
             The colour it will be in the city: pink for a building, teal for an
-            approved project, orange for one under construction.
+            approved project, orange for one under construction — and a
+            landmark's white dot, as it sits on its roof.
           */}
           <Swatch
             tone={
               hit.kind === 'building'
                 ? 'searched'
-                : hit.development.status === 'UNDER CONSTRUCTION'
-                  ? 'progress'
-                  : 'approved'
+                : hit.kind === 'landmark'
+                  ? 'landmark'
+                  : hit.development.status === 'UNDER CONSTRUCTION'
+                    ? 'progress'
+                    : 'approved'
             }
             size="sm"
           />
@@ -411,6 +425,8 @@ export interface Layers {
   shadows: boolean;
   /** Street and feature lights glow once the sun is fully down. Off keeps the night street unlit. */
   streetLights: boolean;
+  /** The named places — Town Hall, the market — tagged on their buildings. */
+  landmarks: boolean;
 }
 
 /**
@@ -472,6 +488,11 @@ export function MapLayers({
               key: 'streetLights',
               name: 'Street lights',
               note: 'Lit once the sun has fully set',
+            },
+            {
+              key: 'landmarks',
+              name: 'Landmarks',
+              note: 'Named places, tagged on their buildings',
             },
           ] as const
         ).map((layer) => (
