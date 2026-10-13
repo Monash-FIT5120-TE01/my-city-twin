@@ -55,6 +55,9 @@ const headed = process.argv.includes('--headed');
 const gpu = process.argv.includes('--gpu');
 /** Records a CPU profile around choosing a place and standing in the street, and prints what took the time. */
 const profile = process.argv.includes('--profile');
+/** Opens the first page with ?vrdebug, and prints what its log noted about moves and stalls at the end. */
+const vrdebug = process.argv.includes('--vrdebug');
+let debugLines = [];
 
 mkdirSync(OUT, { recursive: true });
 
@@ -114,6 +117,8 @@ const check = (name, ok, detail = '') => {
 };
 
 async function shoot(name) {
+  // A screenshot holds the page for most of a second, which the stall log would count as the app's.
+  if (vrdebug) return;
   await page.screenshot({ path: join(OUT, `${name}.png`) });
 }
 
@@ -501,7 +506,9 @@ try {
    * what the Melbourne clock happens to read, and so the headset has to deal
    * with night on the way in (see enterVr in App.tsx).
    */
-  await page.goto(`${URL_}?d=2026-06-21&t=1200#vr-sim`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${URL_}?d=2026-06-21&t=1200${vrdebug ? '&vrdebug' : ''}#vr-sim`, { waitUntil: 'domcontentloaded' });
+  // The log's panel sits over the page's buttons; it keeps writing while hidden.
+  if (vrdebug) await page.addStyleTag({ content: '#vrdebug-panel { display: none !important; }' });
 
   // 0. From the front door.
   const enter = page.getByRole('button', { name: 'Enter in VR' });
@@ -646,10 +653,14 @@ try {
   const rows = seen.filter((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
   const row = rows[1];
   await call(() => { window.__vrCheck.loader = { seen: 0, furthest: 0 }; });
-  await profiled('choosing a place', () => press(row, async () => {
-    const now = await texts();
-    return now.includes(row) && now.includes('View place');
-  }));
+  await profiled('choosing a place, until the move has landed', async () => {
+    await press(row, async () => {
+      const now = await texts();
+      return now.includes(row) && now.includes('View place');
+    });
+    // The move itself comes a few frames after the press and its work after that; held for long enough to see it.
+    if (profile) await page.waitForTimeout(1500);
+  });
   seen = await textsOnce((now) => now.includes('View place'));
   check('Choosing a row puts that place on the map card', seen.includes(row) && seen.includes('View place'), row);
   // Gone again once the move has landed.
@@ -758,6 +769,8 @@ try {
   check('"Stand at the spot" puts the viewer in the street', street[1] < 80, `head height ${street[1].toFixed(0)} m`);
   check('In the street, "Go back up" is offered', seen.includes('Go back up'));
   await shoot('04-street');
+  // With --profile: what a frame in the street costs when nothing is being asked for.
+  if (profile) await profiled('standing still in the street for 3 s', () => page.waitForTimeout(3000));
   // 6b. Walking aids: with the menu away, the street bar over the view, and signs on the corners nearby.
   await pull('left', 'x-button');
   const aids = await until(
@@ -938,6 +951,7 @@ try {
 } catch (error) {
   check('Runs to the end without stopping', false, error.message.split('\n')[0]);
 } finally {
+  if (vrdebug) debugLines = await page.evaluate(() => JSON.parse(localStorage.getItem('vrdebug-log') ?? '[]')).catch(() => []);
   await browser.close();
   await ownServer?.close();
 }
@@ -946,6 +960,11 @@ try {
 const failed = results.filter((result) => !result.ok);
 console.log('');
 console.log(`${results.length - failed.length} / ${results.length} passed. Screenshots: ${OUT}`);
+if (vrdebug) {
+  console.log('');
+  console.log('?vrdebug — moves and stalls:');
+  for (const line of debugLines.filter((text) => /move|STALL|long task|taken away/.test(text))) console.log(`  ${line}`);
+}
 if (retried.length) console.log(`Presses that needed a second go (the emulator renders slowly): ${retried.join(', ')}`);
 if (pageErrors.length) {
   console.log(`Page errors: ${pageErrors.length}`);

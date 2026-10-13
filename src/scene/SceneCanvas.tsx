@@ -91,6 +91,7 @@ import type { VrMenu, VrStage } from './vrMenu';
 import { ViewControlsBridge, type ViewControlsRef } from './ViewControls';
 import { xrStore } from './xrStore';
 import { VrShadowCache } from './vrShadowCache';
+import { VrStallProbe } from './VrStallProbe';
 import { VrLoader, type VrLoading } from './VrLoader';
 import { VrCornerSigns, VrStreetBar } from './VrStreetSigns';
 import { preferFrameRate } from './vrFrameRate';
@@ -794,6 +795,8 @@ export function SceneCanvas({
           In the headset the shadow map is redrawn when something it depends on
           changes, not every frame (vrShadowCache.tsx) — named here.
         */}
+        {/* Writes down where the headset stops, for ?vrdebug only. See VrStallProbe. */}
+        {inVr && <VrStallProbe />}
         {inVr && (
           <VrShadowCache
             shadowKey={[

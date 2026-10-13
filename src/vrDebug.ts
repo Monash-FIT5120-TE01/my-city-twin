@@ -11,6 +11,10 @@
  *   session starting and ending, whether frames were drawn — and shows it on
  *   the page once the reader is back out of VR.
  *
+ *   Since 2026-10-14 it also writes where the headset stops: each move
+ *   asked for and landed, every frame that came late and what the time went
+ *   on, and the browser's own long tasks (scene/VrStallProbe.tsx).
+ *
  *   It is how the black screen of 2026-09-28 was found (an SVG component
  *   that threw only on the headset), and it is meant to be removed again once
  *   the cause is known — it is not a feature.
@@ -22,6 +26,7 @@
  */
 
 import { xrStore } from './scene/xrStore';
+import { listenVrMarks } from './scene/vrMarks';
 
 const KEY = 'vrdebug-log';
 const MAX = 400;
@@ -60,6 +65,7 @@ function describe(value: unknown): string {
 
 function overlay() {
   const panel = document.createElement('div');
+  panel.id = 'vrdebug-panel';
   panel.style.cssText =
     'position:fixed;left:8px;bottom:8px;z-index:2147483647;width:min(720px,calc(100vw - 16px));max-height:45vh;display:flex;flex-direction:column;' +
     'background:#16181a;color:#f3f5f2;border-radius:10px;font:12px/1.4 ui-monospace,Consolas,monospace;box-shadow:0 8px 24px rgba(0,0,0,.4)';
@@ -185,4 +191,18 @@ export function installVrDebug() {
   if (document.body) start();
   else window.addEventListener('DOMContentLoaded', start);
   watchSessions();
+  // What the scene notes: each move asked for and landed, and every frame that came late (VrStallProbe).
+  listenVrMarks(log);
+  watchLongTasks();
+}
+
+/** Work that held the page for more than 50 ms, as the browser itself counts it. */
+function watchLongTasks() {
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) log(`long task ${entry.duration.toFixed(0)} ms`);
+    }).observe({ type: 'longtask', buffered: false });
+  } catch {
+    log('long tasks are not reported by this browser');
+  }
 }

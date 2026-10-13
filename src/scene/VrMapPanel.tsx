@@ -34,10 +34,10 @@ import { Container, Text } from '@react-three/uikit';
 import { Picture } from './vrPicture';
 import { DoubleSide, Matrix4, Vector3, type Group } from 'three';
 import { canvasTexture, paintTexture } from './vrIcons';
-import type { BuildingMassing, Development } from '../data/model';
+import type { BuildingMassing, Development, PolygonEN } from '../data/model';
 import { worldToEnu } from './frame';
 import { LANDMARKS } from './vrLandmarks';
-import { drawBase, drawMap, drawMarks, makeMapArt, toPixel, withSubject, type MapArt } from './vrMapDraw';
+import { artNear, drawBase, drawMap, drawMarks, startCityTiles, subjectPath, toPixel, type CityTiles } from './vrMapDraw';
 import { Button, Label } from './vrKit';
 import { GLASS_EDGE, INK, INK_2, PAPER } from './vrTokens';
 import { PANEL_RENDER_ORDER } from './vrPointer';
@@ -56,44 +56,38 @@ const DENSITY = 2;
 
 const DEG = Math.PI / 180;
 
+/** Milliseconds a frame may spend turning footprints into paths, until the whole city is in. */
+const BUILD_MS_PER_FRAME = 4;
+
+/** Each city's squares of paths and its developments' footprints — made once, kept for every card made after. */
+const madeFor = new WeakMap<CityForMap, { tiles: CityTiles; footprints: { key: string; footprints: PolygonEN[] }[] }>();
+
+function cityPaths(city: CityForMap) {
+  let made = madeFor.get(city);
+  if (!made) {
+    const footprints = city.developments.map((development) => ({
+      key: development.devKey,
+      footprints: development.parts.flatMap((part) => part.footprint),
+    }));
+    made = { tiles: startCityTiles(city.buildings, footprints), footprints };
+    madeFor.set(city, made);
+  }
+  return made;
+}
+
 /**
- * The city's paths for the part of it near a point, rebuilt only when the
- * reader has gone a good way from where they were last built. Filling all
- * 4,445 footprints for a view of a few hundred metres was most of the cost of
- * a redraw.
+ * The city's paths (vrMapDraw: THE CITY IN SQUARES) and the place being
+ * looked at. Each frame it is used it adds a few milliseconds' worth more
+ * until the city is in; `art` then picks the squares a picture reaches.
  */
-function useNearArt(city: CityForMap | null, subjectKey: string | null) {
-  const footprints = useFootprints(city);
-  const held = useRef<{ art: MapArt; centre: [number, number]; radiusM: number } | null>(null);
-  return (centre: [number, number], radiusM: number): MapArt | null => {
-    if (!city || !footprints) return null;
-    let near = held.current;
-    // The place chosen is not part of the key: choosing one adds its own path, not the city's again.
-    if (!near || near.radiusM !== radiusM || Math.hypot(centre[0] - near.centre[0], centre[1] - near.centre[1]) >= radiusM / 3) {
-      near = { art: makeMapArt(city.buildings, footprints, { centre, radiusM }), centre, radiusM };
-      held.current = near;
-    }
-    return withSubject(near.art, footprints, subjectKey);
+function useCityArt(city: CityForMap | null, subjectKey: string | null) {
+  const made = city ? cityPaths(city) : null;
+  const subject = useMemo(() => (made ? subjectPath(made.footprints, subjectKey) : null), [made, subjectKey]);
+  return {
+    /** Call once a frame: builds a little more. Returns whether the city is all in. */
+    build: () => (made ? made.tiles.done() || made.tiles.step(BUILD_MS_PER_FRAME) : false),
+    art: (centre: [number, number] | null, radiusM: number) => (made ? artNear(made.tiles, centre, radiusM, subject) : null),
   };
-}
-
-/** Each development's footprints, once per city. */
-function useFootprints(city: CityForMap | null) {
-  return useMemo(
-    () =>
-      city?.developments.map((development) => ({
-        key: development.devKey,
-        footprints: development.parts.flatMap((part) => part.footprint),
-      })) ?? null,
-    [city],
-  );
-}
-
-function useMapArt(city: CityForMap | null, subjectKey: string | null): MapArt | null {
-  const footprints = useFootprints(city);
-  // The whole city once; the place chosen on top of it, which is cheap.
-  const whole = useMemo(() => (city && footprints ? makeMapArt(city.buildings, footprints) : null), [city, footprints]);
-  return useMemo(() => (whole && footprints ? withSubject(whole, footprints, subjectKey) : null), [whole, footprints, subjectKey]);
 }
 
 /** A canvas texture made once and thrown away with the component. */
@@ -159,8 +153,7 @@ export function MapCard({
   /** "View place": what the reader can do with it — the Measure section. */
   onViewPlace: () => void;
 }) {
-  const art = useMapArt(city, subject?.key ?? null);
-  const nearArt = useNearArt(city, subject?.key ?? null);
+  const paths = useCityArt(city, subject?.key ?? null);
   const texture = useCanvasTexture(FRAME_W * DENSITY, FRAME_H * DENSITY, true);
   /*
    * The footprints are drawn once into a canvas of their own and only drawn
@@ -182,21 +175,24 @@ export function MapCard({
   const look = useRef(new Vector3());
 
   useFrame((state) => {
-    if (!shown || !art || !city) return;
+    // Built while hidden too, so the map is ready when the card first shows.
+    const whole = paths.build();
+    if (!shown || !city) return;
     const you = readReader(state.camera, at.current, look.current);
-    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, `${step}:${subject?.key}:${onMe}`)) return;
+    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, `${step}:${subject?.key}:${onMe}:${whole}`)) return;
     const { minE, minN, maxE, maxN } = city.extent;
     // The widest step frames the whole city; the others centre on the place, or on the reader.
     const centre: [number, number] = step === 0 ? [(minE + maxE) / 2, (minN + maxN) / 2] : onMe || !subject ? you.en : subject.en;
     const view = { width: FRAME_W * DENSITY, height: FRAME_H * DENSITY, centreEN: centre, metresPerPx: ZOOM_STEPS[step], upHeadingRad: 0 };
-    const baseKey = `${step}|${centre[0].toFixed(1)}|${centre[1].toFixed(1)}|${subject?.key}`;
+    // Drawn again once the city is all in: until then it holds what was built so far.
+    const baseKey = `${step}|${centre[0].toFixed(1)}|${centre[1].toFixed(1)}|${subject?.key}|${whole}`;
     if (!base.current || base.current.key !== baseKey) {
       const canvas = base.current?.canvas ?? document.createElement('canvas');
       canvas.width = view.width;
       canvas.height = view.height;
       const ctx = canvas.getContext('2d');
       // The whole city for the widest step; otherwise only what the view and a margin can reach.
-      const drawn = step === 0 ? art : nearArt(centre, Math.hypot(view.width, view.height) * ZOOM_STEPS[step] + 300);
+      const drawn = paths.art(step === 0 ? null : centre, (Math.hypot(view.width, view.height) / 2) * ZOOM_STEPS[step]);
       if (ctx && drawn) drawBase(ctx, drawn, view);
       base.current = { canvas, key: baseKey };
     }
@@ -277,7 +273,7 @@ const FOLLOW_PER_S = 14;
 const MINI_METRES_PER_PX = 0.8;
 
 export function MiniMap({ city, subjectKey, shown }: { city: CityForMap | null; subjectKey: string | null; shown: boolean }) {
-  const nearArt = useNearArt(city, subjectKey);
+  const paths = useCityArt(city, subjectKey);
   const texture = useCanvasTexture(MINI_PX, MINI_PX, false);
   const rig = useRef<Group>(null);
   const gate = useRedrawGate(1 / 3, 2, 8 * DEG);
@@ -294,6 +290,7 @@ export function MiniMap({ city, subjectKey, shown }: { city: CityForMap | null; 
     const parent = group?.parent;
     if (!group || !parent) return;
     group.visible = shown;
+    const whole = paths.build();
     if (!shown || !city) {
       aim.current = null;
       return;
@@ -327,10 +324,10 @@ export function MiniMap({ city, subjectKey, shown }: { city: CityForMap | null; 
     // The picture: ahead is up.
     if (!city) return;
     const you = readReader(state.camera, at.current, look.current);
-    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, String(subjectKey))) return;
+    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, `${subjectKey}:${whole}`)) return;
     const view = { width: MINI_PX, height: MINI_PX, centreEN: you.en, metresPerPx: MINI_METRES_PER_PX, upHeadingRad: you.headingRad };
-    // The disc shows about 200 m either way; the paths reach a little further, and are rebuilt as the reader goes.
-    const art = nearArt(you.en, 600);
+    // The disc shows about 200 m either way; the squares within reach of it.
+    const art = paths.art(you.en, 300);
     if (!art) return;
     paintTexture(texture, (ctx) => {
     drawMap(ctx, art, view, { you, landmarks: LANDMARKS, labelPx: 30 });

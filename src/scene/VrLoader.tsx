@@ -34,6 +34,7 @@ import { useFrame } from '@react-three/fiber';
 import { BackSide, type Group, type Mesh, type MeshBasicMaterial, Vector3 } from 'three';
 import { canvasTexture, paintTexture } from './vrIcons';
 import { GREEN, INK, INK_2, PAPER, TRACK } from './vrTokens';
+import { vrMark } from './vrMarks';
 
 export interface VrLoading {
   /** Where they are going, e.g. "Going to 9-29 Swanston Street". ASCII or not: drawn on a canvas. */
@@ -112,7 +113,7 @@ function drawPill(ctx: CanvasRenderingContext2D, title: string, detail: string) 
 
 /** Where one job is: frames drawn, when it came up, the moves landed when it ran, when one landed after. */
 function fresh(job: VrLoading | null, since = 0) {
-  return { job, frames: 0, since, ran: false, placedAtRun: 0, landedAt: 0, leavingAt: 0, place: true };
+  return { job, frames: 0, since, ran: false, ranAt: 0, placedAtRun: 0, landedAt: 0, leavingAt: 0, place: true };
 }
 
 export function VrLoader({
@@ -192,12 +193,21 @@ export function VrLoader({
     if (!s.ran && s.frames >= SHOWN_FRAMES) {
       s.ran = true;
       s.placedAtRun = latestPlaced.current;
+      s.ranAt = now;
+      // For the ?vrdebug log (VrStallProbe): which move the stalls after this belong to.
+      vrMark(`move asked: ${job.title}`);
       job.run();
     }
-    if (s.ran && !s.landedAt && latestPlaced.current > s.placedAtRun) s.landedAt = now;
+    if (s.ran && !s.landedAt && latestPlaced.current > s.placedAtRun) {
+      s.landedAt = now;
+      vrMark(`move landed ${(now - s.ranAt).toFixed(0)} ms after it was asked`);
+    }
     const finished =
       (s.landedAt > 0 && now - s.landedAt >= AFTER_LANDING_MS && now - s.since >= AT_LEAST_MS) || now - s.since > AT_MOST_MS;
-    if (finished && !s.leavingAt) s.leavingAt = now;
+    if (finished && !s.leavingAt) {
+      s.leavingAt = now;
+      vrMark(`"${job.title}" taken away ${(now - s.since).toFixed(0)} ms after it came up`);
+    }
 
     const shown = s.leavingAt ? Math.max(0, 1 - (now - s.leavingAt) / FADE_OUT_MS) : 1;
     if (dim.current) (dim.current.material as MeshBasicMaterial).opacity = DIM * shown;

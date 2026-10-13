@@ -30,11 +30,16 @@
 import type { PolygonEN } from '../data/model';
 import type { Landmark } from './vrLandmarks';
 
-export interface MapArt {
+/** One square of the city, as two paths in metres: what stands, and what is approved. */
+export interface MapLayer {
   buildings: Path2D;
-  /** Approved developments, other than the one being looked at. */
   developments: Path2D;
-  /** The one being looked at, if any. */
+}
+
+/** What one picture fills: the squares it reaches, and the place being looked at over them. */
+export interface MapArt {
+  layers: MapLayer[];
+  /** The one being looked at, if any — filled last, over its own square's developments. */
   subject: Path2D | null;
 }
 
@@ -47,47 +52,94 @@ function addPolygons(path: Path2D, polygons: PolygonEN[]) {
   }
 }
 
-/** Whether a footprint starts within `radiusM` of a point — near enough to draw. */
-function startsNear(polygons: PolygonEN[], [e, n]: [number, number], radiusM: number): boolean {
-  const first = polygons[0]?.[0]?.[0];
-  return first !== undefined && Math.hypot(first[0] - e, first[1] - n) <= radiusM;
-}
-
-/**
- * The city as paths, once. With `near`, only what stands within that reach
- * of a point — the small map shows a few hundred metres, and filling every
- * one of the city's 4,445 footprints for it, several times a second while the
- * reader turned, cost the headset a frame each time.
+/*
+ * ── THE CITY IN SQUARES, BUILT A LITTLE AT A TIME ───────────────────────
  *
- * Without the place being looked at: that is `withSubject`'s, so choosing a
- * place does not build the whole city again. It did, and building these
- * paths is most of a second even on a desktop (2026-10-09) — the freeze
- * after choosing a place in the headset. Every development is in
- * `developments`, the chosen one included; its own colour is filled over it.
+ * Turning the city's 4,445 footprints into paths takes most of a second even
+ * on a desktop, and the page draws nothing while it does. On the headset
+ * that was the freeze after choosing a place, after the tutorial and on
+ * opening the menu again (2026-10-14, the ?vrdebug log): the map rebuilt its
+ * paths whenever its card was made afresh or its centre moved far.
+ *
+ * So the paths are made once per city and kept, in squares of TILE_M, and
+ * made a few milliseconds per frame (`step`) rather than all at once. A
+ * picture of part of the city takes the squares it reaches; the whole city
+ * takes them all. Nothing is ever rebuilt.
+ *
+ * A footprint goes in the square its first corner falls in, so a building
+ * can reach past its square's edge by its own size: `artNear` reaches one
+ * square further than asked for that.
  */
-export function makeMapArt(
-  buildings: { footprint: PolygonEN[] }[],
-  developments: { key: string; footprints: PolygonEN[] }[],
-  near?: { centre: [number, number]; radiusM: number },
-): MapArt {
-  const art: MapArt = { buildings: new Path2D(), developments: new Path2D(), subject: null };
-  const keep = (polygons: PolygonEN[]) => !near || startsNear(polygons, near.centre, near.radiusM);
-  for (const building of buildings) if (keep(building.footprint)) addPolygons(art.buildings, building.footprint);
-  for (const development of developments) if (keep(development.footprints)) addPolygons(art.developments, development.footprints);
-  return art;
+export const TILE_M = 250;
+
+export interface CityTiles {
+  /** By square, "column,row". */
+  tiles: Map<string, MapLayer & { centre: [number, number] }>;
+  /** True once every footprint is in. */
+  done: () => boolean;
+  /** Adds footprints for up to `budgetMs`; returns whether all are in. */
+  step: (budgetMs: number) => boolean;
 }
 
-/** The same paths with the place being looked at on top: one footprint's worth of work. */
-export function withSubject(
-  art: MapArt,
-  developments: { key: string; footprints: PolygonEN[] }[],
-  subjectKey: string | null,
-): MapArt {
+export function startCityTiles(
+  buildings: { footprint: PolygonEN[] }[],
+  developments: { footprints: PolygonEN[] }[],
+): CityTiles {
+  const tiles: CityTiles['tiles'] = new Map();
+  const squareOf = (polygons: PolygonEN[]) => {
+    const first = polygons[0]?.[0]?.[0];
+    if (!first) return null;
+    const column = Math.floor(first[0] / TILE_M);
+    const row = Math.floor(first[1] / TILE_M);
+    const key = `${column},${row}`;
+    let tile = tiles.get(key);
+    if (!tile) {
+      tile = { buildings: new Path2D(), developments: new Path2D(), centre: [(column + 0.5) * TILE_M, (row + 0.5) * TILE_M] };
+      tiles.set(key, tile);
+    }
+    return tile;
+  };
+  let nextBuilding = 0;
+  let nextDevelopment = 0;
+  const done = () => nextBuilding >= buildings.length && nextDevelopment >= developments.length;
+  const step = (budgetMs: number) => {
+    const until = performance.now() + budgetMs;
+    // The clock is read every few footprints, not after each: reading it costs too.
+    while (!done() && performance.now() < until) {
+      for (let i = 0; i < 40 && !done(); i++) {
+        if (nextBuilding < buildings.length) {
+          const polygons = buildings[nextBuilding++].footprint;
+          const tile = squareOf(polygons);
+          if (tile) addPolygons(tile.buildings, polygons);
+        } else {
+          const polygons = developments[nextDevelopment++].footprints;
+          const tile = squareOf(polygons);
+          if (tile) addPolygons(tile.developments, polygons);
+        }
+      }
+    }
+    return done();
+  };
+  return { tiles, done, step };
+}
+
+/** The squares within `radiusM` of a point (and one square more), or every square with no point. */
+export function artNear(city: CityTiles, centre: [number, number] | null, radiusM: number, subject: Path2D | null): MapArt {
+  const reach = radiusM + TILE_M * 1.5;
+  const layers: MapLayer[] = [];
+  for (const tile of city.tiles.values()) {
+    if (!centre || Math.hypot(tile.centre[0] - centre[0], tile.centre[1] - centre[1]) <= reach) layers.push(tile);
+  }
+  return { layers, subject };
+}
+
+/** The place being looked at, as a path of its own: one footprint's worth of work. */
+export function subjectPath(developments: { key: string; footprints: PolygonEN[] }[], subjectKey: string | null): Path2D | null {
   const chosen = subjectKey === null ? undefined : developments.find((development) => development.key === subjectKey);
-  if (!chosen) return { ...art, subject: null };
-  const subject = new Path2D();
-  addPolygons(subject, chosen.footprints);
-  return { ...art, subject };
+  if (!chosen) return null;
+  const path = new Path2D();
+  addPolygons(path, chosen.footprints);
+  return path;
 }
 
 export interface MapView {
@@ -152,10 +204,11 @@ export function drawBase(ctx: CanvasRenderingContext2D, art: MapArt, view: MapVi
   ctx.rotate(-view.upHeadingRad);
   ctx.scale(1 / view.metresPerPx, -1 / view.metresPerPx);
   ctx.translate(-view.centreEN[0], -view.centreEN[1]);
+  // All the buildings before any development, so a development is never under the next square's buildings.
   ctx.fillStyle = COLOURS.building;
-  ctx.fill(art.buildings);
+  for (const layer of art.layers) ctx.fill(layer.buildings);
   ctx.fillStyle = COLOURS.development;
-  ctx.fill(art.developments);
+  for (const layer of art.layers) ctx.fill(layer.developments);
   if (art.subject) {
     ctx.fillStyle = COLOURS.subject;
     ctx.fill(art.subject);
