@@ -37,6 +37,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from './kit/Icon';
 import {
   MONTH_NAMES,
   dateLabel,
@@ -216,25 +217,7 @@ export function DateField({
           setOpen((was) => !was);
         }}
       >
-        <svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true">
-          <rect
-            x="2.2"
-            y="3.4"
-            width="13.6"
-            height="12.4"
-            rx="2.4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <path
-            d="M2.2 7.4h13.6M5.8 1.8v3M12.2 1.8v3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
+        <Icon name="calendar_month" size={18} />
         <span className="daypick__value">
           {dateLabel(date)} {date.year}
         </span>
@@ -255,16 +238,7 @@ export function DateField({
               onClick={() => month(-1)}
               aria-label="The month before"
             >
-              <svg width="14" height="14" viewBox="0 0 15 15" aria-hidden="true">
-                <path
-                  d="M9.2 2.5 4.4 7.5l4.8 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <Icon name="chevron_left" size={18} />
             </button>
             {/*
               Announced when the month changes, so somebody arrowing off the
@@ -275,16 +249,7 @@ export function DateField({
               {MONTH_NAMES[cursor.month - 1]} {cursor.year}
             </p>
             <button type="button" onClick={() => month(1)} aria-label="The month after">
-              <svg width="14" height="14" viewBox="0 0 15 15" aria-hidden="true">
-                <path
-                  d="M5.8 2.5l4.8 5-4.8 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <Icon name="chevron_right" size={18} />
             </button>
           </div>
 

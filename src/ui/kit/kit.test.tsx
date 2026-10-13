@@ -29,7 +29,8 @@ import { Pill } from './Pill';
 import { SearchField } from './SearchField';
 
 const noop = () => undefined;
-const ARROW = 'M0 5h15M11 1l4 4-4 4';
+// The forward arrow, found by the icon it is drawn with (kit/Icon.tsx).
+const ARROW = 'icon--arrow_forward';
 
 describe('Button', () => {
   it('is a primary, medium button by default, of type button', () => {

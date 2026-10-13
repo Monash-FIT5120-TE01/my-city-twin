@@ -48,6 +48,7 @@
  */
 
 import { bundled } from '../data/bundled';
+import { Icon } from './kit/Icon';
 import { CountUp } from './kit/CountUp';
 import '../styles/landing-more.css';
 
@@ -122,16 +123,7 @@ function CityBlock() {
 /** The arrow on the last button, at the design's weight. */
 function Arrow() {
   return (
-    <svg width="22" height="16" viewBox="0 0 22 16" aria-hidden="true">
-      <path
-        d="M1 8h19M13 1.5 20 8l-7 6.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Icon name="arrow_forward" size={24} />
   );
 }
 

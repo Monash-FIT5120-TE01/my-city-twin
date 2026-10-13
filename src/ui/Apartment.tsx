@@ -23,6 +23,7 @@
  */
 
 import type { Facade } from '../scene/facades';
+import { Icon } from './kit/Icon';
 import type { WindowSunlight } from '../scene/windowSunlight';
 
 /** "4 h 20 min", "50 min" — the same shape the ground result uses. */
@@ -89,9 +90,7 @@ export function ApartmentControls({
             disabled={floor <= 1}
             aria-label="One floor down"
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-              <path d="M3.5 7.5h8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
+            <Icon name="remove" size={18} />
           </button>
 
           <label className="stepper__value">
@@ -115,15 +114,7 @@ export function ApartmentControls({
             disabled={atTop}
             aria-label="One floor up"
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-              <path
-                d="M7.5 3.5v8M3.5 7.5h8"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
+            <Icon name="add" size={18} />
           </button>
         </div>
 

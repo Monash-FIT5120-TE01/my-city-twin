@@ -24,6 +24,7 @@
 
 import type { ReactNode, Ref } from 'react';
 import { CloseButton } from './CloseButton';
+import { Icon } from './Icon';
 
 export function SearchField({
   ref,
@@ -60,18 +61,7 @@ export function SearchField({
     <div className={`search search--${size}${className ? ` ${className}` : ''}`}>
       <div className="search__box">
         <label className="search__field">
-          <svg className="search__icon" width="17" height="17" viewBox="0 0 17 17" aria-hidden="true">
-            <circle cx="7" cy="7" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.7" />
-            <line
-              x1="11"
-              y1="11"
-              x2="15.4"
-              y2="15.4"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Icon name="search" size={20} className="search__icon" />
           <input
             ref={ref}
             data-search-field

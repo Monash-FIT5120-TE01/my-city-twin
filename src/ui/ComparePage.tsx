@@ -28,6 +28,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { SEASONS, matchingSeason, sameDayInMonth, type SimulationDate } from '../scene/solar';
 import { MapKey } from './kit/MapKey';
+import { Icon } from './kit/Icon';
 import { Button } from './kit/Button';
 import { Card } from './kit/Card';
 import { DemoNote } from './kit/DemoNote';
@@ -160,15 +161,7 @@ export function ComparePage({
         />
         <div className="compare__aside">
           <p className="compare__together">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <path
-                d="M6.6 9.4a3 3 0 0 0 4.2 0l2.3-2.3a3 3 0 0 0-4.2-4.2l-1 1M9.4 6.6a3 3 0 0 0-4.2 0L2.9 8.9a3 3 0 0 0 4.2 4.2l1-1"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            <Icon name="link" size={18} />
             Views move together
           </p>
           <MapKey />
@@ -200,10 +193,7 @@ export function ComparePage({
           one of the four presets is offered as itself, so it can stay.
         */}
         <label className="compare__when">
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-            <rect x="2.5" y="3.5" width="13" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M2.5 7.5h13M6 2v3M12 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+          <Icon name="calendar_month" size={18} />
           <span className="visually-hidden">Date</span>
           <select
             value={preset?.key ?? 'custom'}

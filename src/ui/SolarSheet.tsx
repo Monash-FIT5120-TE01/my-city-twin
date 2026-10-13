@@ -11,6 +11,7 @@
  */
 import { useId, useState, type ReactNode } from 'react';
 import { BackLink } from './kit/BackLink';
+import { Icon } from './kit/Icon';
 import { CloseButton } from './kit/CloseButton';
 import { SOLAR_LEVELS } from '../scene/SolarRoof';
 import { KWH_PER_KW, LEVEL_FLOORS, PANEL_W, type SolarCheck } from '../scene/useSolarCheck';
@@ -43,25 +44,13 @@ const LEVELS = [
 
 function PanelSunIcon() {
   return (
-    <svg className="solar-icon" width="46" height="36" viewBox="0 0 46 36" aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="37" cy="8" r="4" />
-        <path d="M37 0.8v1.6M37 13.6v1.6M29.8 8h1.6M42.6 8h1.6M31.9 2.9l1.1 1.1M41 12l1.1 1.1M42.1 2.9L41 4M33 12l-1.1 1.1" />
-        <path d="M4 34l4-18h22l4 18z" />
-        <path d="M6 25h26M19 16v18M13.5 16l-2 18M24.5 16l2 18" />
-      </g>
-    </svg>
+    <Icon name="solar_power" size={40} className="solar-icon" />
   );
 }
 
 function SunMeterIcon() {
   return (
-    <svg className="solar-icon solar-icon--small" width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-        <circle cx="13" cy="14" r="5" />
-        <path d="M13 3.5v2M13 22.5v2M2.5 14h2M21.5 14h2M5.6 6.6l1.4 1.4M19 20l1.4 1.4M20.4 6.6L19 8M7 20l-1.4 1.4" />
-      </g>
-    </svg>
+    <Icon name="light_mode" size={26} className="solar-icon solar-icon--small" />
   );
 }
 
@@ -234,7 +223,7 @@ export function SolarSheet({ title, check, compare, withPlans, plansBlocked, onW
           <h3 className="solar-details__heading">
             <button type="button" className="solar-details__toggle" aria-expanded={details} aria-controls={detailsId} onClick={() => setDetails((d) => !d)}>
               {details ? 'Hide details' : 'See details'}
-              <svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d={details ? 'M1 7l5-5 5 5' : 'M1 1l5 5 5-5'} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <Icon name={details ? 'expand_less' : 'expand_more'} size={18} />
             </button>
           </h3>
           <div id={detailsId} className="solar-details__body" hidden={!details}>

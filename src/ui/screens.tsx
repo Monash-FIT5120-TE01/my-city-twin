@@ -58,6 +58,7 @@ import type { SunlightAtPoint } from '../scene/sunlightAt';
 import { StatusBadge } from './chrome';
 import { SourcesLink } from './Sources';
 import { MapKey } from './kit/MapKey';
+import { Icon } from './kit/Icon';
 import { BackLink } from './kit/BackLink';
 import { Button } from './kit/Button';
 import { CloseButton } from './kit/CloseButton';
@@ -294,49 +295,17 @@ export function ViewControls({
 
       <div className="viewctl__stack">
         <button type="button" onClick={() => onOrbit(-STEP)} aria-label="Turn the city left">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              d="M12.5 13.2A6 6 0 1 0 2.4 8.9M2 5v4h4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <Icon name="rotate_left" size={18} />
         </button>
         <button type="button" onClick={() => onOrbit(STEP)} aria-label="Turn the city right">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              d="M3.5 13.2A6 6 0 1 1 13.6 8.9M14 5v4h-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <Icon name="rotate_right" size={18} />
         </button>
 
         <button type="button" onClick={() => onZoom(0.7)} aria-label="Zoom in">
-          <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M7.5 1.6v11.8M1.6 7.5h11.8"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Icon name="add" size={18} />
         </button>
         <button type="button" onClick={() => onZoom(1 / 0.7)} aria-label="Zoom out">
-          <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M1.6 7.5h11.8"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Icon name="remove" size={18} />
         </button>
 
         {/*
@@ -347,17 +316,7 @@ export function ViewControls({
           hides the whole interface.
         */}
         <button type="button" onClick={onReset} aria-label="Frame the whole city">
-          <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M1.6 5V1.6h3.4M10 1.6h3.4V5M13.4 10v3.4H10M5 13.4H1.6V10"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="7.5" cy="7.5" r="1.7" fill="currentColor" />
-          </svg>
+          <Icon name="center_focus_strong" size={18} />
         </button>
 
         {/*
@@ -382,16 +341,7 @@ export function ViewControls({
             and a closed shape among open ones is the difference that
             survives being small.
           */}
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              d="M1.3 8S3.9 3.4 8 3.4 14.7 8 14.7 8 12.1 12.6 8 12.6 1.3 8 1.3 8Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-            <circle cx="8" cy="8" r="2.1" fill="currentColor" />
-          </svg>
+          <Icon name="visibility" size={18} />
         </button>
 
         <button
@@ -401,16 +351,7 @@ export function ViewControls({
           aria-label="How to move around the map"
           onClick={() => setShowHelp((open) => !open)}
         >
-          <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
-            <path
-              d="M5.4 5.4a2.3 2.3 0 1 1 2.9 2.2c-.5.2-.8.6-.8 1.1v.6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-            <circle cx="7.5" cy="11.6" r="0.9" fill="currentColor" />
-          </svg>
+          <Icon name="question_mark" size={18} />
         </button>
       </div>
     </div>
@@ -1395,14 +1336,9 @@ export function TimeBar({
           aria-label={playing ? 'Pause the day' : 'Play the day'}
         >
           {playing ? (
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <rect x="3.5" y="2.5" width="3" height="11" rx="1" fill="currentColor" />
-              <rect x="9.5" y="2.5" width="3" height="11" rx="1" fill="currentColor" />
-            </svg>
+            <Icon name="pause" size={20} />
           ) : (
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M4.5 2.6v10.8L13 8 4.5 2.6Z" fill="currentColor" />
-            </svg>
+            <Icon name="play_arrow" size={20} />
           )}
         </button>
         )}
@@ -1478,43 +1414,16 @@ export function TimeBar({
   );
 }
 
-/** "Stand here": a figure's footprint with an arrow down into it. */
+/** "Stand here": a person on a map pin. */
 function StandIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
-      <ellipse
-        cx="9"
-        cy="13.6"
-        rx="6.2"
-        ry="2.6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M9 1.4v8.2M5.9 6.6 9 9.8l3.1-3.2"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Icon name="person_pin_circle" size={18} />
   );
 }
 
 /** "Choose a spot": a map pin. */
 function PinIcon() {
   return (
-    <svg width="15" height="19" viewBox="0 0 14 18" aria-hidden="true">
-      <path
-        d="M7 17s5.6-5.6 5.6-10A5.6 5.6 0 0 0 1.4 7C1.4 11.4 7 17 7 17Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <circle cx="7" cy="7" r="2" fill="currentColor" />
-    </svg>
+    <Icon name="location_on" size={18} />
   );
 }

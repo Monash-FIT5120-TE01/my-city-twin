@@ -32,6 +32,7 @@
 import { bundled } from '../data/bundled';
 import { SkylineFilm } from './LandingPage';
 import { Button } from './kit/Button';
+import { Icon } from './kit/Icon';
 import { Card } from './kit/Card';
 import { DemoNote } from './kit/DemoNote';
 import { MapKey } from './kit/MapKey';
@@ -168,9 +169,6 @@ export function HowItWorksPage({
 
 function SearchIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-      <circle cx="6" cy="6" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
+    <Icon name="search" size={16} />
   );
 }

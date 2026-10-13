@@ -18,6 +18,7 @@ import { useEffect, useRef } from 'react';
 import { bundled } from '../data/bundled';
 import type { Development } from '../data/model';
 import { SearchField } from './kit/SearchField';
+import { Icon } from './kit/Icon';
 
 /**
  * The credit Mapbox is owed for the map under the city.
@@ -266,16 +267,7 @@ export function Header({
            * awaited or confirmed in front of it, or the session never opens.
            */
           <button type="button" className="chip chip--icon" onClick={onEnterVr}>
-            <svg width="18" height="17" viewBox="0 0 18 17" aria-hidden="true">
-              {/* A headset seen from the front: the visor and the two lenses. */}
-              <path
-                d="M2 5.2c0-1 .8-1.7 1.7-1.7h10.6c1 0 1.7.8 1.7 1.7v5.3c0 1-.8 1.7-1.7 1.7h-2.9L9.9 10.4a1.1 1.1 0 0 0-1.8 0L6.6 12.2H3.7c-1 0-1.7-.8-1.7-1.7V5.2Z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <Icon name="head_mounted_device" size={20} />
             Enter VR
           </button>
         )}
@@ -286,24 +278,7 @@ export function Header({
           aria-pressed={layersOpen}
           onClick={onLayers}
         >
-          <svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true">
-            {/* Three sheets seen edge-on: what the word means. */}
-            <path
-              d="M9 1.9 16.2 5.6 9 9.3 1.8 5.6 9 1.9Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-            <path
-              d="m2.6 9 6.4 3.3L15.4 9M2.6 12.4l6.4 3.3 6.4-3.3"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <Icon name="layers" size={20} />
           Map layers
           {/*
             Said in words as well as drawn, because a dot on a button is a

@@ -54,6 +54,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Icon } from './kit/Icon';
 import { bundled } from '../data/bundled';
 import type { LoadProgress } from '../data/useCityModel';
 import type { ScreenInset } from '../scene/ViewInset';
@@ -557,15 +558,6 @@ function Loading({ progress, error }: { progress: LoadProgress; error: string | 
 
 function Pin() {
   return (
-    <svg className="landing__pin" width="14" height="18" viewBox="0 0 14 18" aria-hidden="true">
-      <path
-        d="M7 17s5.6-5.6 5.6-10A5.6 5.6 0 0 0 1.4 7C1.4 11.4 7 17 7 17Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <circle cx="7" cy="7" r="2" fill="currentColor" />
-    </svg>
+    <Icon name="location_on" size={18} className="landing__pin" />
   );
 }
