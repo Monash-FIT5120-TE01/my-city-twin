@@ -47,15 +47,29 @@ const outDir = `releases/${version}`;
 
 console.log(`building ${version}; frozen up to ver-${frozen}`);
 
-for (const step of [
+function run(command, args) {
+  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
+  return result.status ?? 1;
+}
+
+let failed = 0;
+for (const [command, args] of [
   ['node', ['scripts/mapbox-config.mjs', 'public']],
   ['npx', ['tsc', '-b']],
   ['npx', ['vite', 'build', `--base=/${version}/`, '--outDir', outDir, '--emptyOutDir']],
-  // Last, so the version directory cannot keep the copy Vite inherits from
-  // public/ — a frozen release must not carry deployment configuration.
-  ['node', ['scripts/mapbox-config.mjs', 'releases']],
 ]) {
-  const [command, args] = step;
-  const run = spawnSync(command, args, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
-  if (run.status !== 0) process.exit(run.status ?? 1);
+  failed = run(command, args);
+  if (failed !== 0) break;
 }
+
+/*
+ * Last, and whatever happened above, so the version directory cannot keep the
+ * copy Vite inherits from public/ — a frozen release must not carry deployment
+ * configuration. It used to be one more step in the loop, skipped whenever an
+ * earlier one failed. Vite can fail after writing every file: on 2026-10-13 a
+ * build piped into `grep -m1` lost its output pipe, Vite exited on its last
+ * log line, the sweep never ran, and the copy was deployed as
+ * /ver-3/mapbox.json.
+ */
+const swept = run('node', ['scripts/mapbox-config.mjs', 'releases']);
+process.exit(failed || swept);

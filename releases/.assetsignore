@@ -1,0 +1,9 @@
+# Read by wrangler: files here are never uploaded, whatever is on disk.
+#
+# The Mapbox configuration belongs at the root of releases/, shared by every
+# version. scripts/build-release.mjs sweeps the copy Vite inherits from
+# public/ out of the version directory, but a build cut short before that
+# step (a failed step, or output piped into `grep -m1`) leaves it behind, and
+# on 2026-10-13 that copy was deployed as /ver-3/mapbox.json. This makes the
+# deploy refuse it even then.
+ver-*/mapbox.json
