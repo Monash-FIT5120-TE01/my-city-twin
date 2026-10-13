@@ -120,6 +120,7 @@ import type { Development, SearchableBuilding } from './data/model';
 import { shortAddress, type SearchHit } from './data/search';
 import { useSolarComparison, type PlannedDevelopment, type SolarScene } from './scene/useSolarComparison';
 import { SolarSheet } from './ui/SolarSheet';
+import { StandPrompt } from './ui/StandPrompt';
 import './styles/ui.css';
 import './styles/solar.css';
 
@@ -177,6 +178,11 @@ export default function App() {
    * fourteen places.
    */
   const [walking, setWalking] = useState(false);
+  /**
+   * "Stand here?" over the map: asked once, right after a spot is chosen on
+   * the ground. See StandPrompt.
+   */
+  const [standAsk, setStandAsk] = useState(false);
   /*
    * A bare arrival: the front page, with nothing chosen in the address bar.
    *
@@ -302,6 +308,12 @@ export default function App() {
    * measurement therefore never moves anybody.
    */
   const inVr = useInVr();
+
+  // "Stand here?" ends with the sunlight screen, in the street, and in the
+  // headset — whose menu asks the same question itself (VrPanel's StandAsk).
+  useEffect(() => {
+    if (view !== 'sunlight' || walking || inVr) setStandAsk(false);
+  }, [view, walking, inVr]);
   const [vrStage, setVrStage] = useState<VrStage>('above');
   const [vrTrip, setVrTrip] = useState(0);
   const moveInVr = (stage: VrStage) => {
@@ -1281,8 +1293,11 @@ export default function App() {
   /** The How it works page is up, over the city. */
   const howShown = !chromeHidden && view === 'how';
 
-  /** The Future plans page is up, over the city. */
-  const futureShown = !chromeHidden && view === 'future';
+  /**
+   * The Future plans page is up, over the city. Not in the headset: the page
+   * would go on loading behind it and move the keyboard when it finished.
+   */
+  const futureShown = !chromeHidden && !inVr && view === 'future';
 
   /** A full cream page covers the city: no map controls, no map credit. */
   const pageShown = howShown || futureShown;
@@ -1564,6 +1579,8 @@ export default function App() {
               ? (point) => {
                   setReceptor(point);
                   setChoosing(false);
+                  // Not in the headset: its menu asks this itself (VrPanel's StandAsk).
+                  if (!inVr) setStandAsk(true);
                 }
               : undefined
           }
@@ -1978,6 +1995,18 @@ export default function App() {
         />
       )}
 
+      {/* "Stand here?" — over the map, once, after a spot is chosen. */}
+      {!chromeHidden && !inVr && view === 'sunlight' && standAsk && receptor && !armed && !walking && (
+        <StandPrompt
+          onStand={() => {
+            setStandAsk(false);
+            setChoosing(false);
+            setWalking(true);
+          }}
+          onDismiss={() => setStandAsk(false)}
+        />
+      )}
+
       {!chromeHidden && view === 'sunlight' && place && (
         <>
           <SunlightSheet
@@ -1997,6 +2026,7 @@ export default function App() {
             onClearPoint={() => {
               setReceptor(null);
               setChoosing(false);
+              setStandAsk(false);
             }}
             choosing={armed}
             onChoose={() => setChoosing(true)}
@@ -2004,6 +2034,7 @@ export default function App() {
             onStand={() => {
               // Put the ground down before going to stand on it.
               setChoosing(false);
+              setStandAsk(false);
               setWalking(true);
             }}
             subjectKind={place.kind}

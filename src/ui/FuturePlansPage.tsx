@@ -32,7 +32,7 @@ import {
   type FuturePlan,
   type FuturePlanQuestion,
 } from '../data/useFuturePlans';
-import { nth, PlanFinder, ThemeMark } from './FuturePlanList';
+import { NO_FILTERS, nth, PlanFinder, ThemeMark, type PlanFilters } from './FuturePlanList';
 import { Button } from './kit/Button';
 import { Icon } from './kit/Icon';
 import { ChevronLeft } from './kit/icons';
@@ -84,6 +84,8 @@ export function FuturePlansPage({
 }) {
   const plans = useFuturePlans();
   const page = useRef<HTMLElement>(null);
+  /** The list's search and filters, kept while a plan is open. */
+  const [filters, setFilters] = useState<PlanFilters>(NO_FILTERS);
   const setOpenId = onOpen;
 
   const open = plans.status === 'ready' ? (plans.data.find((p) => p.id === openId) ?? null) : null;
@@ -107,7 +109,7 @@ export function FuturePlansPage({
         ) : (
           <div className="future__state">
             {plans.status === 'ready' ? (
-              <PlanFinder plans={plans.data} onOpen={setOpenId} />
+              <PlanFinder plans={plans.data} onOpen={setOpenId} filters={filters} onFilters={setFilters} />
             ) : (
               <div className="future__head">
                 <p className="future__eyebrow">Melbourne CBD · Future plans</p>
@@ -216,6 +218,10 @@ function Conversation({
   const restart = () => {
     setAsked([]);
     setThinking(null);
+    // The button pressed goes with the composer: the first question takes the keyboard.
+    window.requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>('.future__opening .future__reply')?.focus(),
+    );
   };
 
   /** The questions, as replies to press. */

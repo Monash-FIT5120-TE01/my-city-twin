@@ -159,8 +159,10 @@ export function readUrlState(now: Date = new Date()): UrlState {
 
 /** "plan=3" — a positive whole number or nothing. */
 function readPlanId(raw: string | null): number | null {
+  // Digits only: Number() would also take "1e3" or " 7", and write back another id.
+  if (!raw || !/^[1-9]\d*$/.test(raw)) return null;
   const id = Number(raw);
-  return raw && Number.isInteger(id) && id > 0 ? id : null;
+  return Number.isSafeInteger(id) ? id : null;
 }
 
 /** "at=-532.4,-198.1" — two finite numbers or nothing. */

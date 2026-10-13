@@ -28,7 +28,7 @@
  *   aria-pressed as well as their filled ground.
  */
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 import type { FuturePlan } from '../data/useFuturePlans';
 import { CloseButton } from './kit/CloseButton';
 import { Icon, type IconName } from './kit/Icon';
@@ -40,6 +40,19 @@ export const nth = (i: number) => ({ '--i': i }) as CSSProperties;
 export const isProgramme = (plan: FuturePlan) => /programmes|watchlist/i.test(plan.topic);
 
 type Kind = 'all' | 'projects' | 'programmes';
+
+/**
+ * What the list is narrowed to. Kept by FuturePlansPage rather than here, so
+ * opening a plan and coming back with "Choose another plan" finds the list
+ * as it was left.
+ */
+export interface PlanFilters {
+  query: string;
+  kind: Kind;
+  theme: Family | null;
+}
+
+export const NO_FILTERS: PlanFilters = { query: '', kind: 'all', theme: null };
 
 const KINDS: { kind: Kind; label: string; short: string }[] = [
   { kind: 'all', label: 'All plans', short: 'All' },
@@ -65,15 +78,34 @@ const matches = (plan: FuturePlan, words: string[]) => {
   return words.every((word) => hay.includes(word));
 };
 
-export function PlanFinder({ plans, onOpen }: { plans: FuturePlan[]; onOpen: (id: number) => void }) {
-  const [query, setQuery] = useState('');
-  const [kind, setKind] = useState<Kind>('all');
-  const [theme, setTheme] = useState<Family | null>(null);
+export function PlanFinder({
+  plans,
+  onOpen,
+  filters,
+  onFilters,
+}: {
+  plans: FuturePlan[];
+  onOpen: (id: number) => void;
+  filters: PlanFilters;
+  onFilters: (next: PlanFilters) => void;
+}) {
+  const { query, kind, theme } = filters;
+  const setQuery = (next: string) => onFilters({ ...filters, query: next });
+  const setTheme = (next: Family | null) => onFilters({ ...filters, theme: next });
 
-  // The heading takes the keyboard on arrival, as PageHead does elsewhere.
+  /*
+   * The heading takes the keyboard on arrival, as PageHead does elsewhere —
+   * but only if nothing else has it. The list appears when the plans have
+   * loaded, and somebody who moved to the header meanwhile must not be
+   * pulled back. Coming back from a plan, the button that was pressed has
+   * gone, so the heading takes it then.
+   */
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    heading.current?.focus({ preventScroll: true });
+    const active = document.activeElement;
+    if (!active || active === document.body || active.id === 'future-page-title') {
+      heading.current?.focus({ preventScroll: true });
+    }
   }, []);
 
   const words = useMemo(() => wordsOf(query), [query]);
@@ -105,11 +137,7 @@ export function PlanFinder({ plans, onOpen }: { plans: FuturePlan[]; onOpen: (id
   );
   const narrowed = words.length > 0 || kind !== 'all' || theme !== null;
 
-  const clear = () => {
-    setQuery('');
-    setKind('all');
-    setTheme(null);
-  };
+  const clear = () => onFilters(NO_FILTERS);
 
   /*
    * With every kind showing, the two kinds are still two groups, so the
@@ -181,10 +209,7 @@ export function PlanFinder({ plans, onOpen }: { plans: FuturePlan[]; onOpen: (id
                   type="button"
                   className={`future__kind${on ? ' future__kind--on' : ''}`}
                   aria-pressed={on}
-                  onClick={() => {
-                    setKind(k);
-                    setTheme(null);
-                  }}
+                  onClick={() => onFilters({ ...filters, kind: k, theme: null })}
                 >
                   {on && <Tick />}
                   <span className="future__wide">{label}</span>

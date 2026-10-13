@@ -20,6 +20,7 @@
  *   - The two actions: "Choose a spot" and "Compare side by side".
  *   - The fine print along the foot of the map, and what changes on a
  *     phone.
+ *   - "Stand here?" over the map once a spot is chosen (StandPrompt).
  *   The time bar itself is drawn in ui.css (.timebar, .timebar--sun).
  *
  * NOTHING HERE IS SAID BY HUE ALONE. The chosen season is white on
@@ -245,3 +246,117 @@
     display: none;
   }
 }
+
+/* ── "Stand here?" over the map (StandPrompt) ───────────── */
+
+/*
+ * A card at the top of the map, centred on the map rather than the window
+ * (the column takes the left). White, raised, with the mark in mint and the
+ * two answers side by side: "Stand here" filled, "Not now" quiet. Which is
+ * which is said by fill and by words, not by hue.
+ */
+.stand-prompt {
+  position: absolute;
+  top: calc(var(--h-header) + var(--space-4));
+  left: calc(50% + var(--w-sun-column) / 2);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  width: max-content;
+  max-width: min(36rem, calc(100% - var(--w-sun-column) - 2 * var(--gutter)));
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: var(--shadow-panel);
+  transform: translateX(-50%);
+  animation: stand-prompt-in var(--dur-panel) var(--ease-spring) both;
+}
+
+@keyframes stand-prompt-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+
+.stand-prompt__mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--mint-100);
+  color: var(--ink-green-900);
+}
+
+.stand-prompt__words {
+  min-width: 0;
+}
+
+.stand-prompt__title,
+.stand-prompt__text {
+  margin: 0;
+}
+
+.stand-prompt__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  color: var(--ink-green-900);
+}
+
+.stand-prompt__text {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.stand-prompt__actions {
+  flex: none;
+  display: flex;
+  gap: var(--space-2);
+}
+
+/*
+ * A phone: the bar is two rows and the time bar sits under it, and the
+ * column is a bottom sheet — so the card spans the width in the middle of
+ * the map, between the two.
+ */
+@media (max-width: 900px) {
+  .stand-prompt {
+    top: 38vh;
+    left: var(--space-4);
+    right: var(--space-4);
+    flex-wrap: wrap;
+    width: auto;
+    max-width: none;
+    transform: none;
+    animation-name: stand-prompt-in-phone;
+  }
+
+  .stand-prompt__actions {
+    flex: 1 1 100%;
+  }
+
+  .stand-prompt__actions .button {
+    flex: 1;
+  }
+
+  @keyframes stand-prompt-in-phone {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
