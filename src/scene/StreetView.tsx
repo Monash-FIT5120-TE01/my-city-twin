@@ -53,25 +53,40 @@ import { enuToWorld } from './frame';
 import { slide, type ObstacleIndex } from './obstacles';
 import { ride } from './streetscape/trams/ride';
 import { touchWalk, walksByTouch } from './touchWalk';
+import { walkPace } from './walkPace';
 
 /** Standing height, metres. */
 export const EYE_HEIGHT_M = 1.7;
 
-/**
- * Walking pace, and a way to hurry.
+/*
+ * Walking pace, and a way to hurry: walkPace.ts.
  *
- * 1.4 m/s is what a person actually does. It was 3.6 to make crossing the
- * grid bearable, and that is the wrong trade: moving faster than a body can
- * move is one of the things that made the street read as a camera flying
- * through a model rather than as somewhere you are standing. Crossing the
- * city quickly is a convenience, so it goes on a key you have to hold.
+ * 1.4 m/s is what a person actually does, and every walk starts there. It
+ * was 3.6 to make crossing the grid bearable, and that is the wrong trade:
+ * moving faster than a body can move is one of the things that made the
+ * street read as a camera flying through a model rather than as somewhere
+ * you are standing. Crossing the city quickly is a convenience, so it is
+ * something you ask for — the wheel, or a key you have to hold.
  */
-const WALK_MS = 1.4;
-const RUN_MS = 5.5;
+/**
+ * How much wheel makes one step of pace. A mouse notch is about 100; a
+ * trackpad sends a stream of small deltas, and stepping on each of them
+ * would run through every pace in one stroke.
+ */
+const WHEEL_STEP = 100;
 /** On a phone, a full push of the stick: a brisk walk, as there is no key to hurry with. */
 const TOUCH_WALK_MS = 2.5;
 /** Radians the view turns per pixel dragged. */
 const TOUCH_TURN = 0.005;
+
+/**
+ * A jump: about half a metre, which is what a person standing still manages.
+ * Only height — nothing is climbed onto and no wall is cleared, because the
+ * walls (obstacles.ts) are tested at standing height whatever the eye does.
+ */
+const GRAVITY_MS2 = 9.8;
+const JUMP_M = 0.5;
+const JUMP_MS = Math.sqrt(2 * GRAVITY_MS2 * JUMP_M);
 
 /**
  * A wider lens for walking.
@@ -138,6 +153,10 @@ export function StreetView({
   const sideways = useRef(new Vector3());
   /** The tram's heading last frame while riding, so the view turns with it; null on foot. */
   const rideHeading = useRef<number | null>(null);
+  /** Height of the eye above standing height, and how fast it is rising (m, m/s); zero on the ground. */
+  const lift = useRef({ height: 0, rise: 0 });
+  /** Space pressed and not yet taken by a frame. */
+  const jumpAsked = useRef(false);
 
   /*
    * Down into the street on entry, and back where we came from on the way
@@ -207,7 +226,18 @@ export function StreetView({
     // cleanup runs the ref may point somewhere else, and the set that would
     // be cleared is not the set the listeners were filling.
     const keys = held.current;
-    const down = (event: KeyboardEvent) => keys.add(event.code);
+    const down = (event: KeyboardEvent) => {
+      keys.add(event.code);
+      if (event.code === 'Space') {
+        /*
+         * Space is also the browser's own key: it presses whatever button has
+         * focus — which, just after entering, is the "Stand here" that was
+         * clicked — and scrolls the page. Down here it is only a jump.
+         */
+        event.preventDefault();
+        if (!event.repeat) jumpAsked.current = true;
+      }
+    };
     const up = (event: KeyboardEvent) => keys.delete(event.code);
     // Held keys must not survive the tab losing focus, or the walker keeps
     // going while nobody is pressing anything.
@@ -238,6 +268,27 @@ export function StreetView({
       keys.clear();
     };
   }, [onExit]);
+
+  /*
+   * The wheel sets the pace on a desktop: away from you is faster. Every
+   * walk starts at a person's pace (walkPace.ts). The orbit controls that
+   * own the wheel from above are off while walking (SceneCanvas).
+   */
+  useEffect(() => {
+    if (touch) return;
+    walkPace.reset();
+    let banked = 0;
+    const wheel = (event: WheelEvent) => {
+      // a line or a page of scrolling, as some mice report it, counts as a notch
+      banked += event.deltaMode === 0 ? event.deltaY : Math.sign(event.deltaY) * WHEEL_STEP;
+      while (Math.abs(banked) >= WHEEL_STEP) {
+        walkPace.step(banked < 0 ? 1 : -1);
+        banked -= Math.sign(banked) * WHEEL_STEP;
+      }
+    };
+    window.addEventListener('wheel', wheel, { passive: true });
+    return () => window.removeEventListener('wheel', wheel);
+  }, [touch]);
 
   /*
    * Looking round by touch: a drag on the city turns the view (left and right, and up and down within
@@ -289,6 +340,8 @@ export function StreetView({
       camera.position.set(x, y, z);
       if (rideHeading.current !== null) camera.rotateOnWorldAxis(UP, ride.heading - rideHeading.current);
       rideHeading.current = ride.heading;
+      // no jump carried onto the tram, or saved up for stepping off it
+      lift.current.height = 0; lift.current.rise = 0; jumpAsked.current = false;
       return;
     }
     rideHeading.current = null;
@@ -299,6 +352,23 @@ export function StreetView({
     }
 
     const delta = Math.min(rawDelta, MAX_STEP_S);
+
+    /*
+     * Up and down, before anything to do with walking: a jump on the spot is
+     * still a jump, and the walking below stops early when no key is held.
+     */
+    const air = lift.current;
+    if (jumpAsked.current) {
+      jumpAsked.current = false;
+      if (air.height === 0) air.rise = JUMP_MS;
+    }
+    if (air.height > 0 || air.rise > 0) {
+      air.height += air.rise * delta - 0.5 * GRAVITY_MS2 * delta * delta;
+      air.rise -= GRAVITY_MS2 * delta;
+      if (air.height <= 0) { air.height = 0; air.rise = 0; }
+    }
+    // Feet on the ground, whatever the view is doing — or off it, mid-jump.
+    camera.position.y = groundAhdM + EYE_HEIGHT_M + air.height;
     const keys = held.current;
     // keys, or the on-screen stick (touchWalk.ts), which also says how far: a little push is a slow walk
     const keyAhead = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
@@ -318,8 +388,10 @@ export function StreetView({
     forward.current.normalize();
     sideways.current.crossVectors(forward.current, camera.up).normalize();
 
-    // a full push of the stick walks briskly; Shift (keys) hurries
-    const pace = keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN_MS : keyAhead || keyAcross ? WALK_MS : TOUCH_WALK_MS;
+    // keys walk at the wheel's pace and Shift hurries; a full push of the stick walks briskly
+    const pace = keyAhead || keyAcross
+      ? keys.has('ShiftLeft') || keys.has('ShiftRight') ? walkPace.hurry() : walkPace.walk()
+      : TOUCH_WALK_MS;
     const speed = pace * delta * push;
     // Normalised, so pressing two keys (or pushing the stick corner-wise) does not walk faster diagonally.
     const scale = 1 / Math.hypot(ahead, across);
@@ -354,9 +426,6 @@ export function StreetView({
       camera.position.x = cx + (dx / distance) * boundsRadiusM;
       camera.position.z = cz + (dz / distance) * boundsRadiusM;
     }
-
-    // Feet on the ground, whatever the view is doing.
-    camera.position.y = groundAhdM + EYE_HEIGHT_M;
   });
 
   // a locked pointer turns the view on a desktop; a phone has none, and is turned by the drag above

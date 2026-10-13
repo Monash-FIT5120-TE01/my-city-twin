@@ -92,6 +92,7 @@ import { ComparePage, type FrameRect } from './ui/ComparePage';
 import { HowItWorksPage } from './ui/HowItWorksPage';
 import { FuturePlansPage } from './ui/FuturePlansPage';
 import { TramHint } from './ui/TramHint';
+import { WalkPaceHint } from './ui/WalkPaceHint';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
 import { PlaceCard } from './ui/PlaceCard';
@@ -1758,7 +1759,8 @@ export default function App() {
           ) : (
             <>
               <strong>W A S D</strong> to walk · <strong>Shift</strong> to hurry ·{' '}
-              <strong>Esc</strong> to come back up
+              <strong>Space</strong> to jump · <strong>Esc</strong> to come back up
+              <WalkPaceHint />
             </>
           )}
           <TramHint />
