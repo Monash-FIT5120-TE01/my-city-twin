@@ -319,3 +319,60 @@
   color: var(--green-700);
   font-weight: var(--weight-label);
 }
+
+/*
+ * ── THE COLUMN, AS ON THE SUNLIGHT SCREEN ───────────────────────────────
+ *
+ * On a wide screen the check is the same column as the sunlight screen's:
+ * from under the header to the foot of the window, flush left, cream, and
+ * scrolling inside itself. As a floating card it stopped short of both
+ * edges and cut its own last section off. The sizes are sunlight.css's
+ * (.panel.sheet--sun); two classes, so ui.css's .panel--left does not win
+ * on source order. A phone keeps the bottom sheet every panel is.
+ */
+@media (min-width: 901px) {
+  .panel.solar-sheet {
+    top: var(--h-header);
+    bottom: 0;
+    left: 0;
+    width: var(--w-sun-column);
+    max-height: none;
+    border-radius: 0;
+    border-right: 1px solid var(--cream-edge);
+    background: var(--cream);
+    box-shadow: none;
+    padding: var(--space-4) var(--space-5) var(--space-3);
+  }
+
+  /* The map's credit starts where the column ends. */
+  .app:has(.solar-sheet) .attribution {
+    left: calc(var(--w-sun-column) + var(--gutter));
+  }
+}
+
+/*
+ * The section's heading at the size "Explore sunlight" has, so the two
+ * screens read as the same kind of page.
+ */
+.solar-sheet .solar-sheet__lede {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+  color: var(--ink);
+}
+
+.solar-sheet .solar-sheet__lede:focus {
+  outline: none;
+}
+
+@media (min-width: 901px) {
+  /*
+   * The panel's own spacing down to the switch, as on the sunlight column,
+   * so the switch is at the same height on both and does not move when it
+   * is pressed. The cards below keep their tighter rhythm.
+   */
+  .panel.solar-sheet {
+    gap: 16px;
+  }
+}

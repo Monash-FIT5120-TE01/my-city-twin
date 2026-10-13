@@ -1818,9 +1818,9 @@ export default function App() {
             drop the layer button: there is no map on screen to layer.
             See hideLayers.
           */
-          front={frontShown || view === 'sunlight' || compareShown || pageShown}
+          front={frontShown || view === 'sunlight' || view === 'solar' || compareShown || pageShown}
           hideLayers={frontShown || pageShown}
-          nav={frontShown || view === 'sunlight' || compareShown || pageShown ? frontNav : undefined}
+          nav={frontShown || view === 'sunlight' || view === 'solar' || compareShown || pageShown ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,
@@ -1958,7 +1958,9 @@ export default function App() {
 
       {!chromeHidden && view === 'solar' && foundBuilding && (
         <SolarSheet
-          title={buildingDetail?.buildingName ?? place?.label ?? foundBuilding.streetAddress}
+          title={place?.label ?? foundBuilding.streetAddress}
+          locality={place?.locality}
+          meta={place?.detail ?? ''}
           check={solar.check}
           compare={{ now: solar.now, planned: solar.planned, nearby: solar.nearby, named: solar.named, lostShown: solar.lost.length > 0 }}
           withPlans={solarUsesPlans}
@@ -1966,8 +1968,13 @@ export default function App() {
           onWithPlans={setSolarWithPlans}
           showPanels={solarShowPanels}
           onShowPanels={setSolarShowPanels}
-          onBack={() => setView('building')}
-          onClose={() => setView('explore')}
+          onDetails={() => setView('building')}
+          onExplore={() => setView('explore')}
+          // The same building's sunlight: the other half of the switch at the top.
+          onSunlight={() => {
+            setView('sunlight');
+            window.requestAnimationFrame(() => document.getElementById('subject-title')?.focus());
+          }}
         />
       )}
 
@@ -2042,6 +2049,16 @@ export default function App() {
               setChoosing(false);
               setView('explore');
             }}
+            // The solar check, for a building that is standing; a proposal has no roof yet.
+            onSolar={
+              place.kind === 'building' && foundBuilding
+                ? () => {
+                    setChoosing(false);
+                    setView('solar');
+                    window.requestAnimationFrame(() => document.getElementById('solar-title')?.focus());
+                  }
+                : undefined
+            }
           />
           <TimeBar
             minutes={minutes}

@@ -59,6 +59,7 @@ import { StatusBadge } from './chrome';
 import { SourcesLink } from './Sources';
 import { MapKey } from './kit/MapKey';
 import { Icon } from './kit/Icon';
+import { AnalysisSwitch } from './kit/AnalysisSwitch';
 import { BackLink } from './kit/BackLink';
 import { Button } from './kit/Button';
 import { CloseButton } from './kit/CloseButton';
@@ -483,15 +484,17 @@ export function MapLayers({
   );
 }
 
-/* ── 03 The subject's head, on the sunlight column ──────── */
+/* ── 03 The subject's head, on the sunlight and solar columns ── */
 
 /**
  * The top of the sunlight column: the way back, what the subject is, and a
- * "Details" link to its place card. (It once also headed the project and
- * building panels, with Overview / Sunlight tabs; those panels became the
- * place card — see PlaceCard.)
+ * "Details" link to its place card. The solar check's column uses it too
+ * (SolarSheet), so the two screens start the same way and the switch
+ * between them (AnalysisSwitch) sits at the same height on both. (It once
+ * also headed the project and building panels, with Overview / Sunlight
+ * tabs; those panels became the place card — see PlaceCard.)
  */
-function SubjectHead({
+export function SubjectHead({
   status,
   existing,
   title,
@@ -687,6 +690,7 @@ export function SunlightSheet({
   apartment,
   onDetails,
   onBack,
+  onSolar,
 }: {
   status?: Development['status'];
   title: string;
@@ -750,6 +754,12 @@ export function SunlightSheet({
   onDetails: () => void;
   /** "Explore the city": the explore screen. */
   onBack: () => void;
+  /**
+   * The solar panel check for the same building. Only for one that is
+   * standing: a proposal has no roof to put panels on yet, and without it
+   * the switch is not drawn.
+   */
+  onSolar?: () => void;
 }) {
   /*
    * Which question the action area is answering.
@@ -833,6 +843,8 @@ export function SunlightSheet({
         onBack={onBack}
         onDetails={onDetails}
       />
+
+      {onSolar && <AnalysisSwitch current="sunlight" onSunlight={() => undefined} onSolar={onSolar} />}
 
       <div className="sheet__tabpanel sheet__tabpanel--flow">
         <h3 className="sheet__lede">Explore sunlight</h3>

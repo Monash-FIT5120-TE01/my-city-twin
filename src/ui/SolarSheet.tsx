@@ -1,5 +1,10 @@
 /*
- * The solar panel check's column, numbers first: how many panels the roof
+ * The solar panel check's column. It starts as the sunlight column does —
+ * the way back, the address, "Details" (SubjectHead), then the "Sunlight |
+ * Solar panels" switch — and is the same full-height column on a wide
+ * screen (solar.css).
+ *
+ * Then numbers first: how many panels the roof
  * takes and what they would generate, in homes and the grid's CO2 as well as
  * kWh; what the approved developments would do to that; the roof's space and
  * how much light each part of it keeps; then, behind "See details", what is
@@ -10,9 +15,9 @@
  * swatches only repeat what the words say.
  */
 import { useId, useState, type ReactNode } from 'react';
-import { BackLink } from './kit/BackLink';
 import { Icon } from './kit/Icon';
-import { CloseButton } from './kit/CloseButton';
+import { AnalysisSwitch } from './kit/AnalysisSwitch';
+import { SubjectHead } from './screens';
 import { SOLAR_LEVELS } from '../scene/SolarRoof';
 import { KWH_PER_KW, LEVEL_FLOORS, PANEL_W, type SolarCheck } from '../scene/useSolarCheck';
 import { EDGE_SETBACK_M, LIGHT_MIN } from '../scene/panelLayout';
@@ -109,8 +114,13 @@ function PlansCard({ compare, plansBlocked, withPlans, onWithPlans }: {
   );
 }
 
-export function SolarSheet({ title, check, compare, withPlans, plansBlocked, onWithPlans, showPanels, onShowPanels, onBack, onClose }: {
+export function SolarSheet({ title, locality, meta, check, compare, withPlans, plansBlocked, onWithPlans, showPanels, onShowPanels, onDetails, onExplore, onSunlight }: {
+  /** The street line of the address, as the sunlight screen heads it. */
   title: string;
+  /** Suburb, state and postcode, when the address had them. */
+  locality?: string;
+  /** What the building is: the line under the address. */
+  meta: string;
   /** The check shown: with the approved developments when they are switched on and change the roof. */
   check: SolarCheck | null;
   compare: PlansCompare;
@@ -121,8 +131,12 @@ export function SolarSheet({ title, check, compare, withPlans, plansBlocked, onW
   /** On the roof: the panels laid out, or the light each part keeps. */
   showPanels: boolean;
   onShowPanels: (on: boolean) => void;
-  onBack: () => void;
-  onClose: () => void;
+  /** "Details": the building's place card. */
+  onDetails: () => void;
+  /** "Explore the city": the explore screen. */
+  onExplore: () => void;
+  /** The sunlight screen for the same building: the other half of the switch. */
+  onSunlight?: () => void;
 }) {
   const [details, setDetails] = useState(false);
   const detailsId = useId();
@@ -132,14 +146,14 @@ export function SolarSheet({ title, check, compare, withPlans, plansBlocked, onW
 
   return (
     <aside className="panel panel--left sheet solar-sheet" aria-labelledby="solar-title">
-      <div className="sheet__head">
-        <BackLink onClick={onBack}>Back</BackLink>
-        <CloseButton label="Close the solar panel check" onClick={onClose} />
-      </div>
-      <div>
-        <h2 className="panel-title sheet__title" id="solar-title" tabIndex={-1}>Solar panels</h2>
-        <p className="sheet__meta">{title}</p>
-      </div>
+      {/*
+        The same head as the sunlight screen — the way back, the address,
+        "Details" — so the switch below it sits at the same height on both
+        screens and does not jump when it is pressed.
+      */}
+      <SubjectHead existing title={title} locality={locality} meta={meta} backLabel="Explore the city" onBack={onExplore} onDetails={onDetails} />
+      {onSunlight && <AnalysisSwitch current="solar" onSunlight={onSunlight} onSolar={() => undefined} />}
+      <h3 className="sheet__lede solar-sheet__lede" id="solar-title" tabIndex={-1}>Solar panels</h3>
       <p className="visually-hidden" role="status" aria-live="polite">{status}</p>
 
       {noRoof && <p className="solar-card solar-card__note">This building has no roof that a panel fits on.</p>}

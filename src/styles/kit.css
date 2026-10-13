@@ -17,6 +17,7 @@
  *   - The demo note.
  *   - The search field and its results.
  *   - A full page: its shell, head, title and lede.
+ *   - The "Sunlight | Solar panels" switch (AnalysisSwitch).
  */
 
 /* ── marks ──────────────────────────────────────────────── */
@@ -628,4 +629,64 @@
   margin: var(--space-1) 0 0;
   font-size: var(--text-lg);
   color: var(--ink-2);
+}
+
+/* ── the analysis switch (AnalysisSwitch) ──────────────── */
+
+/*
+ * One track, the screen showing lifted out of it: white on the sunken
+ * ground, a shadow, the heavier weight — the same shape as the kind switch
+ * on Future plans. The other half is a plain button to the other screen.
+ */
+.analysis-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.analysis-switch__half {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--h-control);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-quick) var(--ease),
+    color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease);
+}
+
+.analysis-switch__half:hover:not(.analysis-switch__half--on) {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.analysis-switch__half--on {
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  font-weight: var(--weight-title);
+  color: var(--ink-green-900);
+  cursor: default;
+}
+
+.analysis-switch__half--on .icon {
+  color: var(--green-700);
+}
+
+.analysis-switch__half:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
 }
