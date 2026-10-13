@@ -137,3 +137,74 @@ export interface ApiLandmark {
   latitude: NumericString;
   address: string;
 }
+
+/*
+ * ── STREET ACTIVITY ─────────────────────────────────────────────────────
+ *
+ * The pedestrian counters, from the City of Melbourne's open data by way of
+ * the team's backend. Four calls, none with parameters (2026-10-14).
+ */
+
+/** GET /api/pedestrian-activities/sensors — 46 counters, every one "A". */
+export interface ApiActivitySensor {
+  id: number;
+  name: string;
+  lat: number;
+  lon: number;
+  status: string;
+}
+
+/**
+ * One counter's hour, from /recent (the last two hours) or /history (the
+ * last twenty-five). The timestamp is the hour's start in UTC.
+ */
+export interface ApiActivityCount {
+  locationId: number;
+  timestamp: string;
+  /** A string: "10.0". */
+  count: NumericString;
+}
+
+export type ApiActivityLevel = 'quiet' | 'moderate' | 'busy';
+
+export interface ApiActivityHour {
+  /** The hour's start, Melbourne time with its offset: "2026-10-14T07:00:00+11:00". */
+  time: string;
+  movements_per_hour: number;
+  activity: ApiActivityLevel;
+  weather: { temperature_2m: number; precipitation: number; wind_speed_10m: number };
+}
+
+/**
+ * One counter's next twenty-four hours.
+ *
+ * The thresholds are the counter's own: quiet up to quiet_max, busy from
+ * busy_min, moderate between. Every forecast hour on 2026-10-14 obeyed that
+ * rule, ends included.
+ */
+export interface ApiAvailableForecast {
+  status: 'available';
+  sensor: ApiActivitySensor;
+  model: string;
+  fallback_reason?: string | null;
+  weather_source: string;
+  activity_thresholds: { quiet_max: number; busy_min: number };
+  warnings: string[];
+  hourly: ApiActivityHour[];
+}
+
+/** A counter with no trained model: "model_missing", and no thresholds. */
+export interface ApiUnavailableForecast {
+  status: 'unavailable';
+  sensor: ApiActivitySensor;
+  code: string;
+  reason: string;
+  hourly: [];
+}
+
+/** GET /api/pedestrian-activities/forecast */
+export interface ApiActivityForecast {
+  generated_at: string;
+  timezone: string;
+  forecasts: (ApiAvailableForecast | ApiUnavailableForecast)[];
+}
