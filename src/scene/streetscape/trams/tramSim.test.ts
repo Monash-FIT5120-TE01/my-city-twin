@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { TramSim, type DayKey, type Tram, type TramsDoc } from './tramSim';
+import { TramPath, TramSim, type DayKey, type Tram, type TramsDoc } from './tramSim';
 import { phaseOf, planFor } from '../signalPlan';
 
 /*
@@ -80,4 +80,29 @@ describe('calling at a stop', () => {
     expect(behind).toBe(true);
     expect(done.size).toBe(2);
   });
+});
+
+describe('the shortcuts in the simulation', () => {
+  /*
+   * obstacle() skips trams on paths that never run along this one (sharesTrack), and projects through a segment
+   * grid (projectNear) rather than every segment in reach: both are only faster ways to the same answer. Two
+   * simulations, one with the shortcuts and one without, must end with every tram in the same place.
+   */
+  it('change no tram\'s position or speed', () => {
+    const make = () => new TramSim(docs.monThu, 'monThu', 8 * 3600, (s, t) => phaseOf(plans[s], t));
+    const fast = make();
+    for (let k = 0; k < 600; k++) fast.step(1 / 15);
+    const near = TramPath.prototype.projectNear;
+    TramPath.prototype.projectNear = TramPath.prototype.project;
+    try {
+      const slow = make();
+      (slow as unknown as { sharesTrack: () => boolean }).sharesTrack = () => true;
+      for (let k = 0; k < 600; k++) slow.step(1 / 15);
+      const state = (sim: TramSim) => sim.trams.map((t) => [t.id, t.s.toFixed(6), t.v.toFixed(6)]);
+      expect(fast.trams.length).toBeGreaterThan(20);
+      expect(state(fast)).toEqual(state(slow));
+    } finally {
+      TramPath.prototype.projectNear = near;
+    }
+  }, 60_000);
 });

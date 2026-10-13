@@ -23,6 +23,14 @@ const RAIL_Z = 0.042;
 const DRAW_M = 320;
 const PER_CLASS = 18;
 const EYE_M = 1.7;
+/*
+ * The simulation's step, seconds: 15 a second, whatever the display runs at. Each step checks every tram
+ * against every other (tramSim.ts), and at the headset's 72 a second that was about a seventh of a frame in
+ * the street (2026-10-14). The trams are drawn between the last two steps, so they still move smoothly; the
+ * picture runs one step (67 ms) behind the simulation, which nobody can see in a tram.
+ */
+const SIM_DT = 1 / 15;
+const STEP_REACH_M = 2;
 
 interface ClassMeshes { kit: TramKit; meshes: { mesh: InstancedMesh; section: number }[] }
 
@@ -31,6 +39,9 @@ export class TramLayer {
   readonly sim: TramSim;
   private classes = new Map<ClassKey, ClassMeshes>();
   private riding: { tram: Tram; door: number; group: Group } | null = null;
+  /** Seconds of the display not yet simulated, and where each tram's front was before the last step. */
+  private owed = 0;
+  private before = new Map<Tram, number>();
   private m = new Matrix4(); private q = new Quaternion(); private v = new Vector3(); private one = new Vector3(1, 1, 1); private z = new Vector3(0, 0, 1);
 
   constructor(doc: TramsDoc, day: DayKey, time: number, phase: (site: number, t: number) => Phase, before?: { doc: TramsDoc; day: DayKey }) {
@@ -52,9 +63,18 @@ export class TramLayer {
     return c;
   }
 
+  /** Where tram `t` is drawn: between where its front was before the last step and where it is now. */
+  private shownS(t: Tram): number {
+    const was = this.before.get(t);
+    // Further than a step can carry a tram (40 km/h for 1/15 s is under a metre) means the simulation was run on
+    // without drawing — the warm-up (Streetscape) — and the old place is stale: drawn where it is now.
+    if (was === undefined || Math.abs(t.s - was) > STEP_REACH_M) return t.s;
+    return was + (t.s - was) * Math.min(1, this.owed / SIM_DT);
+  }
+
   /** The matrix of section `i` of tram `t` (east, north, up). */
   private sectionMatrix(t: Tram, kit: TramKit, i: number, out: Matrix4): Matrix4 {
-    const sec = kit.sections[i], centre = t.s - (kit.cls.L / 2 - sec.centre);
+    const sec = kit.sections[i], centre = this.shownS(t) - (kit.cls.L / 2 - sec.centre);
     const a = t.path.at(centre - sec.len / 2), b = t.path.at(centre + sec.len / 2);
     this.q.setFromAxisAngle(this.z, Math.atan2(b[1] - a[1], b[0] - a[0]));
     return out.compose(this.v.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, RAIL_Z), this.q, this.one);
@@ -65,7 +85,12 @@ export class TramLayer {
    * @param reach the device's distance scale (lod.ts)
    */
   update(dt: number, cam: Vector3, reach: number): void {
-    this.sim.step(Math.min(dt, 0.25));
+    this.owed += Math.min(dt, 0.25);
+    while (this.owed >= SIM_DT) {
+      this.before = new Map(this.sim.trams.map((t) => [t, t.s]));
+      this.sim.step(SIM_DT);
+      this.owed -= SIM_DT;
+    }
     // nearest first, per class, up to PER_CLASS each
     const lim = DRAW_M * reach, near = new Map<ClassKey, Tram[]>();
     for (const t of this.sim.trams) {
@@ -150,7 +175,8 @@ export class TramLayer {
     const r = this.riding; if (!r) return;
     const kit = kitFor(r.tram.trip.cls);
     for (const sg of r.group.children) { this.sectionMatrix(r.tram, kit, sg.userData.section as number, this.m); this.m.decompose(sg.position, sg.quaternion, sg.scale); }
-    const d = kit.doors[r.door], s = r.tram.s - (kit.cls.L / 2 - d.x), p = r.tram.path.at(s), dir = r.tram.path.dir(s);
+    // where the tram is drawn, not where the simulation has it, so the rider and the tram move together
+    const d = kit.doors[r.door], s = this.shownS(r.tram) - (kit.cls.L / 2 - d.x), p = r.tram.path.at(s), dir = r.tram.path.dir(s);
     ride.eye = [p[0], p[1], RAIL_Z + kit.cls.floor + EYE_M];
     ride.heading = Math.atan2(dir[1], dir[0]);
   }

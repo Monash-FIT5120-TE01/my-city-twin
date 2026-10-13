@@ -52,6 +52,13 @@ const MERGE_LOOK_M = 40;       // how near a join two trams start deciding who g
 const MAX_HOLD_S = 60;         // the longest a tram waits at a stop for its timetabled time
 const ENTRY_SHORT_M = 8;       // how far short of its first stop a tram comes into the model, at most
 const BOX_M = 25;              // an intersection's depth past its stop line (EST): room needed to clear it
+const GRID_M = 10;             // cell of a path's segment grid (segmentsNear)
+const SHARE_STEP_M = 1;        // how densely one path is sampled against another (sharesTrack)
+const SHARE_OFF_M = 2;         // nearer than this, and heading the same way, is the same track (obstacle allows 1.2)
+const SHARE_PAST_END_M = 45;  // longer than any tram (tramClasses)
+const NONE: readonly number[] = [];
+/** A grid cell as one number (a string key cost more than the lookup it named); cells span ±5,000 km. */
+const cellKey = (gx: number, gy: number) => (gx + 500_000) * 1_000_000 + (gy + 500_000);
 
 /** A path through the CBD, with distance along it. */
 export class TramPath {
@@ -91,6 +98,42 @@ export class TramPath {
     }
     return best;
   }
+  /**
+   * project(), looking only at the segments near (x, y) (segmentsNear) rather than at every one between d0 and
+   * d1: the same answer whenever the nearest point is within GRID_M — which is all the simulation asks
+   * (it uses a projection only when it is within a metre or so) — and Infinity off beyond that.
+   */
+  projectNear(x: number, y: number, d0: number, d1: number): { s: number; d: number } {
+    let best = { s: 0, d: Infinity };
+    const i0 = this.seg(Math.max(0, d0)), i1 = this.seg(Math.min(this.len, d1));
+    for (const i of this.segmentsNear(x, y)) {
+      if (i < i0 || i > i1) continue;
+      const a = this.pts[i], b = this.pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1;
+      const u = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2)), dd = Math.hypot(x - a[0] - u * dx, y - a[1] - u * dy);
+      if (dd < best.d) best = { s: this.s[i] + u * Math.sqrt(L2), d: dd };
+    }
+    return best;
+  }
+
+  /** The segments (indices into pts) passing within GRID_M of (x, y), from a grid made on first use. */
+  segmentsNear(x: number, y: number): readonly number[] {
+    if (!this.grid) {
+      const grid = new Map<number, number[]>();
+      for (let i = 0; i < this.pts.length - 1; i++) {
+        const a = this.pts[i], b = this.pts[i + 1];
+        const x0 = Math.floor((Math.min(a[0], b[0]) - GRID_M) / GRID_M), x1 = Math.floor((Math.max(a[0], b[0]) + GRID_M) / GRID_M);
+        const y0 = Math.floor((Math.min(a[1], b[1]) - GRID_M) / GRID_M), y1 = Math.floor((Math.max(a[1], b[1]) + GRID_M) / GRID_M);
+        for (let gx = x0; gx <= x1; gx++) for (let gy = y0; gy <= y1; gy++) {
+          const key = cellKey(gx, gy), list = grid.get(key);
+          if (list) list.push(i); else grid.set(key, [i]);
+        }
+      }
+      this.grid = grid;
+    }
+    return this.grid.get(cellKey(Math.floor(x / GRID_M), Math.floor(y / GRID_M))) ?? NONE;
+  }
+  private grid: Map<number, number[]> | null = null;
+
   /** Speed limit at distance d. */
   limit(d: number): number {
     let v = LIMIT_MS;
@@ -217,11 +260,13 @@ export class TramSim {
     const here = path.at(Math.max(0, from)), dirHere: XY = [0, 0];
     for (const o of this.trams) {
       if (o === self) continue;
+      // a tram on a path that never runs along this one, the same way, can never be in front: skipped whole
+      if (!this.sharesTrack(path, o.path)) continue;
       const mid = o.body[o.body.length >> 1];
       if (Math.hypot(mid[0] - here[0], mid[1] - here[1]) > ahead + o.L) continue;
       for (let i = 0; i < o.body.length; i++) {
         const p = o.body[i], pd = o.bodyDir[i];
-        const pr = path.project(p[0], p[1], from - 1, from + ahead);
+        const pr = path.projectNear(p[0], p[1], from - 1, from + ahead);
         if (pr.d > 1.2 || pr.s < from - 0.5) continue;
         path.dir(pr.s, dirHere);
         if (pd[0] * dirHere[0] + pd[1] * dirHere[1] < 0.5) continue;   // crossing: the signals keep those apart
@@ -229,6 +274,44 @@ export class TramSim {
       }
     }
     return best;
+  }
+
+  /*
+   * Whether any stretch of `other` runs along `path`, the same way: worked out once per pair, by sampling
+   * `other` every SHARE_STEP_M against `path`'s segment grid. obstacle() looks at every other tram for every
+   * tram, every step, and almost all of those pairs are on tracks that only cross or never meet; it was most
+   * of the simulation's time (2026-10-14). The test is looser than obstacle's own (SHARE_OFF_M against
+   * 1.2 m, a wider angle), so a pair it lets through is checked as before and none it drops could have counted.
+   */
+  private shared = new Map<TramPath, Map<TramPath, boolean>>();
+  private sharesTrack(path: TramPath, other: TramPath): boolean {
+    if (path === other) return true;
+    let row = this.shared.get(path);
+    if (!row) { row = new Map(); this.shared.set(path, row); }
+    let answer = row.get(other);
+    if (answer === undefined) {
+      answer = false;
+      // along each segment of `other` (and the straights past its ends), every SHARE_STEP_M
+      const pts = other.pts, last = pts.length - 1, p: XY = [0, 0];
+      for (let j = -1; j <= last && !answer; j++) {
+        const a = pts[Math.max(0, Math.min(last - 1, j))], b = pts[Math.max(1, Math.min(last, j + 1))];
+        const sx = b[0] - a[0], sy = b[1] - a[1], len = Math.hypot(sx, sy) || 1, ux = sx / len, uy = sy / len;
+        // the segment itself; before the first and after the last, the straight on beyond the end
+        const [ox, oy, run] = j === -1 ? [a[0] - ux * SHARE_PAST_END_M, a[1] - uy * SHARE_PAST_END_M, SHARE_PAST_END_M]
+          : j === last ? [b[0], b[1], SHARE_PAST_END_M] : [a[0], a[1], len];
+        for (let t = 0; t <= run && !answer; t += SHARE_STEP_M) {
+          p[0] = ox + ux * t; p[1] = oy + uy * t;
+          for (const i of path.segmentsNear(p[0], p[1])) {
+            const c = path.pts[i], e = path.pts[i + 1], dx = e[0] - c[0], dy = e[1] - c[1], L2 = dx * dx + dy * dy || 1;
+            const u = Math.max(0, Math.min(1, ((p[0] - c[0]) * dx + (p[1] - c[1]) * dy) / L2));
+            if (Math.hypot(p[0] - c[0] - u * dx, p[1] - c[1] - u * dy) > SHARE_OFF_M) continue;
+            if ((ux * dx + uy * dy) / Math.sqrt(L2) >= 0.4) { answer = true; break; }
+          }
+        }
+      }
+      row.set(other, answer);
+    }
+    return answer;
   }
 
   /**
@@ -258,7 +341,7 @@ export class TramSim {
     for (const o of this.trams) {
       if (o === t) continue;
       const back = o.body[o.body.length - 1];
-      const pr = t.path.project(back[0], back[1], t.s - 1, t.s + within);
+      const pr = t.path.projectNear(back[0], back[1], t.s - 1, t.s + within);
       if (pr.d < 1.2 && pr.s >= t.s - 0.5 && pr.s < bestS) { bestS = pr.s; best = o; }
     }
     return best;

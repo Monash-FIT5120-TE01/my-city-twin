@@ -39,6 +39,7 @@ import { PedestrianAudio } from './pedestrianAudio';
 import { Lighting } from './lights';
 import { setSlicer } from './kit';
 import { TramLayer } from './trams/TramLayer';
+import { keepStill } from './still';
 import { ride } from './trams/ride';
 import type { DayKey, TramsDoc } from './trams/tramSim';
 import type { SimulationDate } from '../solar';
@@ -175,6 +176,8 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
   // The per-frame work changes materials and visibility on these objects; it reads them through a ref.
   const live = useRef<Built | null>(null);
   useEffect(() => { live.current = built; return () => { live.current = null; if (built) { disposeAll(built.root); built.textures.dispose(); } }; }, [built]);
+  // Nothing built at load moves: its matrices are worked out once, not every frame (still.ts).
+  useEffect(() => (built ? keepStill(built.root) : undefined), [built]);
 
   const { camera, gl } = useThree();
   const baseDevice = useMemo(() => detectDevice(), []);
@@ -263,5 +266,9 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
     audio.current?.update(cam, built.signals.buttons, (i) => { const b = built.signals.buttons[i]; return built.signals.phase(b.site, t).walk === b.crosses; });
   });
 
-  return <group position={[0, 0, groundAhdM]}>{built && <primitive object={built.root} />}</group>;
+  /*
+   * The headset's laser need not look inside: nothing here answers a pointer (trams are boarded from the
+   * laser's own ray, ride.ts), and walking ~3,600 objects for it every frame was a few per cent of a frame.
+   */
+  return <group position={[0, 0, groundAhdM]}>{built && <primitive object={built.root} intersectChildren={false} />}</group>;
 }

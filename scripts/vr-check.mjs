@@ -771,6 +771,56 @@ try {
   await shoot('04-street');
   // With --profile: what a frame in the street costs when nothing is being asked for.
   if (profile) await profiled('standing still in the street for 3 s', () => page.waitForTimeout(3000));
+  if (profile) {
+    // What the scene graph holds: every object is walked each frame to update its matrix.
+    const counts = await call(() => {
+      const scene = window.__vrCheck.state().scene;
+      const tally = (root) => { let n = 0, auto = 0; root.traverse((o) => { n++; if (o.matrixAutoUpdate) auto++; }); return { n, auto }; };
+      const named = (o, depth) => (o.name || o.type) + (depth && o.children.length === 1 ? ` > ${named(o.children[0], depth - 1)}` : '');
+      // Down through the biggest branch until it splits into many small ones.
+      const parts = [];
+      const open = (o, path, depth) => {
+        const big = [...o.children].sort((a, b) => tally(b).n - tally(a).n);
+        if (depth < 6 && big.length && tally(big[0]).n > 0.6 * tally(o).n) {
+          for (const c of big.slice(1, 4)) parts.push({ name: `${path} > ${named(c, 2)}`, ...tally(c) });
+          return open(big[0], `${path} > ${c0(big[0])}`, depth + 1);
+        }
+        parts.push({ name: `${path} (${o.children.length} children, e.g. ${[...new Set(o.children.slice(0, 50).map((c) => c.name || c.type))].slice(0, 5).join(', ')})`, ...tally(o) });
+      };
+      const c0 = (o) => o.name || o.type;
+      for (const c of scene.children) if (tally(c).n > 50) open(c, c0(c), 0); else parts.push({ name: named(c, 3), ...tally(c) });
+      return { all: tally(scene), parts: parts.sort((a, b) => b.n - a.n).slice(0, 14) };
+    });
+    console.log(`
+── scene objects in the street: ${counts.all.n} (${counts.all.auto} update their matrix every frame)`);
+    for (const part of counts.parts) console.log(`${String(part.n).padStart(7)}  ${part.name}`);
+    const street = await call(() => {
+      let root = null;
+      window.__vrCheck.state().scene.traverse((o) => { if (!root && o.name === 'streetscape') root = o; });
+      const tally = (r) => { let n = 0, meshes = 0, inst = 0; r.traverse((o) => { n++; if (o.isMesh) meshes++; if (o.isInstancedMesh) inst++; }); return { n, meshes, inst }; };
+      return root ? root.children.map((c) => ({ name: c.name || c.type, ...tally(c) })).sort((a, b) => b.n - a.n) : [];
+    });
+    for (const part of street) console.log(`${String(part.n).padStart(7)}  streetscape > ${part.name} (${part.meshes} meshes, ${part.inst} instanced)`);
+  }
+  // 6a. The trams in the street: stepped 15 times a second but drawn every frame between steps (TramLayer),
+  // so a moving tram's drawn front never runs backwards and never jumps.
+  const tramTrack = [];
+  for (let k = 0; k < 40; k++) {
+    tramTrack.push(await call(() => {
+      const layer = window.__trams;
+      const moving = layer?.sim.trams.find((t) => t.v > 3);
+      return moving ? { id: moving.id, s: layer.shownS(moving), v: moving.v, time: layer.sim.time } : null;
+    }));
+    await frames(1);
+  }
+  const runs = tramTrack.filter(Boolean);
+  const followed = runs.filter((r) => r.id === runs[0]?.id);
+  // Pairs across the warm-up (the timetable run on fast, undrawn, when the street is first entered) are left out.
+  const steps = followed.slice(1).filter((r, i) => r.time - followed[i].time < 0.5).map((r, i, list) => r.s - (followed[followed.indexOf(r) - 1].s));
+  check('Trams in the street move smoothly between simulation steps',
+    followed.length >= 10 && steps.every((d) => d >= -0.01 && d < 3),
+    followed.length ? `${followed.length} frames, steps ${Math.min(...steps).toFixed(2)}..${Math.max(...steps).toFixed(2)} m` : 'no moving tram');
+
   // 6b. Walking aids: with the menu away, the street bar over the view, and signs on the corners nearby.
   await pull('left', 'x-button');
   const aids = await until(
