@@ -1,0 +1,637 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * STREET ACTIVITY: THE COLUMN
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The left column of the street activity screen, the same full-height cream
+ * column as the sunlight and solar screens. From the top:
+ *
+ *   - the CBD's weather for the hour on the map — forecast hours only; for
+ *     a recorded hour, the next forecast hour, said as such;
+ *   - with no counter chosen: the whole CBD at this hour (how many report,
+ *     how many are quiet, moderate and busy), the counters ranked, and the
+ *     counters with no level of their own, listed by name;
+ *   - with one chosen: its count and level, its day as bars, and "Plan a
+ *     visit" — the forecast's best hours for a walk there;
+ *   - what the data is, where it comes from, and whether this is the live
+ *     answer or the copy that ships with the app.
+ *
+ * Every level is said in words beside the count. The swatches and the bars'
+ * shades only repeat the words (activityPalette.ts), and a forecast bar is
+ * told from a recorded one by its outline, not its colour.
+ */
+import { useId, useMemo, useState, type KeyboardEvent } from 'react';
+import { Icon } from './kit/Icon';
+import { BackLink } from './kit/BackLink';
+import {
+  dayCurve,
+  melbourneClock,
+  modeAt,
+  nextForecastHour,
+  OUTDOOR_LIMITS,
+  ranked,
+  readingsAt,
+  searchSensors,
+  suggestHours,
+  summarise,
+  weatherAt,
+  type ActivityLevel,
+  type ActivitySensor,
+  type Reading,
+  type StreetActivity,
+} from '../data/streetActivity';
+import type { StreetActivityState } from '../data/useStreetActivity';
+import { ACTIVITY_COLOURS, ACTIVITY_LEVELS, ACTIVITY_WORDS } from '../scene/activityPalette';
+import { countLabel, dayLabel, hourLabel, whenLabel } from './activityFormat';
+
+/** How many of the ranking show before "View all locations". */
+const TOP = 3;
+
+const MODE_WORDS = { recorded: 'Recorded', forecast: 'Forecast' } as const;
+
+function Swatch({ level }: { level: ActivityLevel }) {
+  return <span className="activity-swatch" style={{ background: ACTIVITY_COLOURS[level] }} aria-hidden="true" />;
+}
+
+/** "Busy", or "No level yet" for a counter the backend has no thresholds for. */
+function LevelWord({ level, sensor }: { level: ActivityLevel | null; sensor: ActivitySensor }) {
+  if (level) {
+    return (
+      <span className={`activity-level activity-level--${level}`}>
+        <Swatch level={level} />
+        {ACTIVITY_WORDS[level]}
+      </span>
+    );
+  }
+  return <span className="activity-level activity-level--none">{sensor.thresholds ? '—' : 'No level yet'}</span>;
+}
+
+/* ── the weather ───────────────────────────────────────────────────────── */
+
+function WeatherCard({ activity, at }: { activity: StreetActivity; at: number }) {
+  const exact = weatherAt(activity, at);
+  const shownAt = exact ? at : nextForecastHour(activity, at);
+  const weather = shownAt === null ? null : weatherAt(activity, shownAt);
+  return (
+    <section className="activity-card activity-weather" aria-labelledby="activity-weather-title">
+      <div className="activity-card__head">
+        <h3 className="activity-card__title" id="activity-weather-title">CBD weather</h3>
+        <span className="activity-tag">Forecast</span>
+      </div>
+      {weather && shownAt !== null ? (
+        <>
+          <p className="activity-card__meta">{whenLabel(shownAt)}</p>
+          <ul className="activity-weather__figures">
+            <li>
+              <Icon name="thermostat" size={20} />
+              <strong>{weather.temperatureC.toFixed(1)}°C</strong>
+              <span>Temperature</span>
+            </li>
+            <li>
+              <Icon name="water_drop" size={20} />
+              <strong>{weather.rainMm.toFixed(1)} mm</strong>
+              <span>Rain / hour</span>
+            </li>
+            <li>
+              <Icon name="air" size={20} />
+              <strong>{Math.round(weather.windKmh)} km/h</strong>
+              <span>Wind</span>
+            </li>
+          </ul>
+          {!exact && (
+            <p className="activity-card__note">
+              Next available forecast · map {whenLabel(at)}. There is no weather for recorded hours.
+            </p>
+          )}
+          {exact && modeAt(activity, at) === 'recorded' && (
+            <p className="activity-card__note">The forecast weather for this hour; the counts on the map are recorded.</p>
+          )}
+        </>
+      ) : (
+        <p className="activity-card__note">No forecast weather for this hour or after it.</p>
+      )}
+    </section>
+  );
+}
+
+/* ── the whole CBD ─────────────────────────────────────────────────────── */
+
+function RankRow({ rank, reading, onSelect }: { rank: number; reading: Reading; onSelect: (id: number) => void }) {
+  const { sensor, count, level } = reading;
+  const levelWords = level ? ACTIVITY_WORDS[level] : sensor.thresholds ? '' : 'no level yet';
+  return (
+    <li>
+      <button
+        type="button"
+        className="activity-rank"
+        onClick={() => onSelect(sensor.id)}
+        aria-label={`${sensor.name}, ${countLabel(count ?? 0)} movements per hour${levelWords ? `, ${levelWords}` : ''}, open details`}
+      >
+        <span className="activity-rank__n">{rank}</span>
+        <span className="activity-rank__name">{sensor.name}</span>
+        <span className="activity-rank__count">{countLabel(count ?? 0)}</span>
+        <LevelWord level={level} sensor={sensor} />
+      </button>
+    </li>
+  );
+}
+
+function Overview({
+  activity,
+  at,
+  onSelect,
+}: {
+  activity: StreetActivity;
+  at: number;
+  onSelect: (id: number) => void;
+}) {
+  const [order, setOrder] = useState<'higher' | 'lower'>('higher');
+  const [all, setAll] = useState(false);
+  const mode = modeAt(activity, at);
+  const readings = useMemo(() => (mode ? readingsAt(activity, mode, at) : []), [activity, mode, at]);
+  const summary = summarise(readings);
+  const list = ranked(readings, order);
+  const shown = all ? list : list.slice(0, TOP);
+  /*
+   * Every counter with no thresholds of its own, whether or not it has a
+   * count this hour: the list is how they are on the screen at all.
+   */
+  const noLevel = readings.filter((r) => !r.sensor.thresholds);
+
+  return (
+    <>
+      <section className="activity-section" aria-labelledby="activity-cbd-title">
+        <div className="activity-card__head">
+          <h3 className="activity-section__title" id="activity-cbd-title">Across the CBD</h3>
+          {mode && <span className="activity-tag activity-tag--plain">{MODE_WORDS[mode]}</span>}
+        </div>
+        <p className="activity-reporting">
+          <strong>
+            {summary.reporting} / {summary.total}
+          </strong>{' '}
+          locations reporting
+        </p>
+        <dl className="activity-counts" aria-label="Locations by level">
+          {ACTIVITY_LEVELS.map((level) => (
+            <div key={level}>
+              <dt>
+                <Swatch level={level} />
+                {ACTIVITY_WORDS[level]}
+              </dt>
+              <dd>{summary[level]}</dd>
+            </div>
+          ))}
+          {summary.unrated > 0 && (
+            <div>
+              <dt>
+                <span className="activity-swatch activity-swatch--none" aria-hidden="true" />
+                No level yet
+              </dt>
+              <dd>{summary.unrated}</dd>
+            </div>
+          )}
+        </dl>
+        <p className="activity-card__note">Each level is measured against that location's own usual traffic.</p>
+      </section>
+
+      <section className="activity-section" aria-labelledby="activity-compare-title">
+        <div className="activity-card__head">
+          <h3 className="activity-section__title" id="activity-compare-title">Compare locations</h3>
+          <span className="activity-card__meta">/ hour</span>
+        </div>
+        <div className="activity-switch" role="group" aria-label="Order">
+          <button type="button" aria-pressed={order === 'higher'} onClick={() => setOrder('higher')}>
+            Higher
+          </button>
+          <button type="button" aria-pressed={order === 'lower'} onClick={() => setOrder('lower')}>
+            Lower
+          </button>
+        </div>
+        {shown.length > 0 ? (
+          <ol className="activity-ranks">
+            {shown.map((r, i) => (
+              <RankRow key={r.sensor.id} rank={i + 1} reading={r} onSelect={onSelect} />
+            ))}
+          </ol>
+        ) : (
+          <p className="activity-card__note">No location has a count for this hour.</p>
+        )}
+        {list.length > TOP && (
+          <button type="button" className="activity-more" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+            {all ? 'Show the top three' : `View all ${list.length} locations`}
+            <Icon name={all ? 'expand_less' : 'expand_more'} size={18} />
+          </button>
+        )}
+      </section>
+
+      {noLevel.length > 0 && (
+        <section className="activity-section" aria-labelledby="activity-unrated-title">
+          <h3 className="activity-section__title" id="activity-unrated-title">
+            {mode === 'forecast' ? 'No forecast' : 'No level yet'}
+          </h3>
+          <p className="activity-card__note">
+            {mode === 'forecast'
+              ? 'These locations have no forecast model yet, so they are not on the map for forecast hours.'
+              : 'These locations have no thresholds of their own yet, so they show a count but no level, and are not on the map.'}
+          </p>
+          <ul className="activity-plain-list">
+            {noLevel.map((r) => (
+              <li key={r.sensor.id}>
+                <button type="button" className="activity-plain-list__item" onClick={() => onSelect(r.sensor.id)}>
+                  <span>{r.sensor.name}</span>
+                  <span className="activity-rank__count">
+                    {r.count !== null ? countLabel(r.count) : mode === 'forecast' ? 'No forecast' : 'No count'}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  );
+}
+
+/* ── one counter ───────────────────────────────────────────────────────── */
+
+function DayBars({ activity, sensor, at }: { activity: StreetActivity; sensor: ActivitySensor; at: number }) {
+  const date = melbourneClock(at).date;
+  const curve = dayCurve(activity, sensor.id, date);
+  const top = Math.max(1, ...curve.map((p) => p.count ?? 0));
+  return (
+    <figure className="activity-day">
+      <figcaption className="activity-card__head">
+        <span className="activity-section__title">Throughout the day</span>
+        <span className="activity-card__meta">{dayLabel(at)}</span>
+      </figcaption>
+      <div className="activity-day__bars" aria-hidden="true">
+        {curve.map((p) => (
+          <span
+            key={p.at}
+            className={`activity-day__bar${p.mode === 'forecast' ? ' activity-day__bar--forecast' : ''}${p.at === at ? ' activity-day__bar--now' : ''}`}
+            style={{
+              height: p.count === null ? 0 : `${Math.max(3, (p.count / top) * 100)}%`,
+              ['--bar' as string]: p.level ? ACTIVITY_COLOURS[p.level] : 'var(--activity-unrated)',
+            }}
+          />
+        ))}
+      </div>
+      <div className="activity-day__scale" aria-hidden="true">
+        <span>{hourLabel(curve[0].at)}</span>
+        <span>12:00</span>
+        <span>{hourLabel(curve[curve.length - 1].at)}</span>
+      </div>
+      {/* The same day for a screen reader: every hour, its count, level and kind. */}
+      <p className="visually-hidden">{dayDescription(curve, sensor)}</p>
+      <ul className="visually-hidden">
+        {curve.map((p) => (
+          <li key={p.at}>
+            {hourLabel(p.at)}:{' '}
+            {p.count === null
+              ? 'no count'
+              : `${countLabel(p.count)}${p.level ? `, ${ACTIVITY_WORDS[p.level]}` : ''}, ${p.mode === 'forecast' ? 'forecast' : 'recorded'}`}
+          </li>
+        ))}
+      </ul>
+      <p className="activity-day__key" aria-hidden="true">
+        <span className="activity-day__keybar" /> Recorded
+        <span className="activity-day__keybar activity-day__keybar--forecast" /> Forecast
+        <span className="activity-day__keybar activity-day__keybar--now" /> On the map
+      </p>
+    </figure>
+  );
+}
+
+function dayDescription(curve: ReturnType<typeof dayCurve>, sensor: ActivitySensor): string {
+  const counted = curve.filter((p) => p.count !== null);
+  if (counted.length === 0) return `${sensor.name}: no counts on this day.`;
+  const peak = counted.reduce((a, b) => ((b.count ?? 0) > (a.count ?? 0) ? b : a));
+  return `${sensor.name}, movements per hour through the day. Busiest hour ${hourLabel(peak.at)}, ${countLabel(peak.count ?? 0)}.`;
+}
+
+function PlanVisit({
+  activity,
+  sensor,
+  now,
+  onJump,
+}: {
+  activity: StreetActivity;
+  sensor: ActivitySensor;
+  now: number;
+  onJump: (at: number) => void;
+}) {
+  const [prefer, setPrefer] = useState<'quieter' | 'livelier'>('quieter');
+  const hours = suggestHours(activity, sensor.id, prefer, now);
+  const L = OUTDOOR_LIMITS;
+  if (!sensor.thresholds) {
+    return <p className="activity-card__note">There is no forecast for this location yet, so no hours to suggest.</p>;
+  }
+  return (
+    <>
+      <p className="activity-section__title">I prefer</p>
+      <div className="activity-switch" role="group" aria-label="I prefer">
+        <button type="button" aria-pressed={prefer === 'quieter'} onClick={() => setPrefer('quieter')}>
+          Quieter streets
+        </button>
+        <button type="button" aria-pressed={prefer === 'livelier'} onClick={() => setPrefer('livelier')}>
+          Livelier streets
+        </button>
+      </div>
+      <div className="activity-card__head">
+        <p className="activity-section__title">Suggested hours</p>
+        <span className="activity-tag">Forecast</span>
+      </div>
+      {hours.length > 0 ? (
+        <ol className="activity-suggest">
+          {hours.map((h) => (
+            <li key={h.at}>
+              <button type="button" className="activity-suggest__item" onClick={() => onJump(h.at)}>
+                <span className="activity-suggest__when">{whenLabel(h.at)}</span>
+                <span className="activity-suggest__what">
+                  {countLabel(h.count)} / h · {h.weather.temperatureC.toFixed(1)}°C
+                  {h.level && <> · {ACTIVITY_WORDS[h.level]}</>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="activity-card__note">No forecast hour ahead is within the weather limits below.</p>
+      )}
+      <p className="activity-card__note">
+        Outdoor weather limits: {String(L.firstHour).padStart(2, '0')}:00–{L.endHour}:00 · {L.minTempC}–{L.maxTempC}°C ·
+        rain ≤{L.maxRainMm} mm/h · wind ≤{L.maxWindKmh} km/h. Suggestions use the forecast hours still ahead within these
+        limits.
+      </p>
+    </>
+  );
+}
+
+type Tab = 'overview' | 'plan';
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'plan', label: 'Plan a visit' },
+];
+
+function Detail({
+  activity,
+  sensor,
+  at,
+  now,
+  onBack,
+  onJump,
+}: {
+  activity: StreetActivity;
+  sensor: ActivitySensor;
+  at: number;
+  now: number;
+  onBack: () => void;
+  onJump: (at: number) => void;
+}) {
+  const [tab, setTab] = useState<Tab>('overview');
+  const tabsId = useId();
+  /** Left and right move between the tabs, Home and End to the ends: the tabs pattern. */
+  const onTabKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    const i = TABS.findIndex((t) => t.key === tab);
+    const next =
+      event.key === 'ArrowRight' ? (i + 1) % TABS.length
+      : event.key === 'ArrowLeft' ? (i - 1 + TABS.length) % TABS.length
+      : event.key === 'Home' ? 0
+      : event.key === 'End' ? TABS.length - 1
+      : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    setTab(TABS[next].key);
+    document.getElementById(`${tabsId}-t${next}`)?.focus();
+  };
+  const mode = modeAt(activity, at);
+  const reading = mode ? readingsAt(activity, mode, at).find((r) => r.sensor.id === sensor.id) : undefined;
+  const count = reading?.count ?? null;
+  const level = reading?.level ?? null;
+
+  return (
+    <>
+      <BackLink onClick={onBack}>CBD overview</BackLink>
+      <section className="activity-section" aria-labelledby={`${tabsId}-name`}>
+        <p className="activity-card__meta">Location</p>
+        <h3 className="activity-detail__name" id={`${tabsId}-name`} tabIndex={-1}>
+          {sensor.name}
+        </h3>
+        <div className="activity-tabs" role="tablist" aria-label="Location" onKeyDown={onTabKey}>
+          {TABS.map(({ key, label }, i) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              id={`${tabsId}-t${i}`}
+              aria-controls={`${tabsId}-p${i}`}
+              aria-selected={tab === key}
+              tabIndex={tab === key ? 0 : -1}
+              onClick={() => setTab(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="activity-section" role="tabpanel" id={`${tabsId}-p0`} aria-labelledby={`${tabsId}-t0`} hidden={tab !== 'overview'}>
+        <div className="activity-card activity-hero">
+          <p className="activity-hero__figure">
+            {count === null ? (
+              <span className="activity-hero__none">{mode === 'forecast' ? 'No forecast' : 'No count'}</span>
+            ) : (
+              <strong>{countLabel(count)}</strong>
+            )}
+            {count !== null && <LevelWord level={level} sensor={sensor} />}
+          </p>
+          <p className="activity-card__meta">
+            movements / hour · {whenLabel(at)}
+            {mode && ` · ${MODE_WORDS[mode]}`}
+          </p>
+          {sensor.thresholds ? (
+            <p className="activity-card__note">
+              Here, quiet is up to {countLabel(sensor.thresholds.quietMax)} an hour and busy from{' '}
+              {countLabel(sensor.thresholds.busyMin)}.
+            </p>
+          ) : (
+            <p className="activity-card__note">This location has no thresholds yet, so its count has no level.</p>
+          )}
+        </div>
+        <DayBars activity={activity} sensor={sensor} at={at} />
+      </section>
+      <section className="activity-section" role="tabpanel" id={`${tabsId}-p1`} aria-labelledby={`${tabsId}-t1`} hidden={tab !== 'plan'}>
+        <PlanVisit activity={activity} sensor={sensor} now={now} onJump={onJump} />
+      </section>
+    </>
+  );
+}
+
+/* ── about the data ────────────────────────────────────────────────────── */
+
+function About({ activity }: { activity: StreetActivity }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const unrated = activity.sensors.filter((s) => !s.thresholds).length;
+  return (
+    <section className="activity-about">
+      <h3 className="activity-about__heading">
+        <button type="button" className="activity-about__toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+          About the data
+          <Icon name={open ? 'expand_less' : 'expand_more'} size={18} />
+        </button>
+      </h3>
+      <div id={id} className="activity-about__body" hidden={!open}>
+        <p>
+          Counts are pedestrian movements per hour from the City of Melbourne's pedestrian counting system (CC BY 4.0),
+          through the My City Twin backend. A deeper, wider glow on the map is a busier street.
+        </p>
+        <p>
+          Quiet, moderate and busy are the backend's own levels, set for each location against its usual traffic: a busy
+          hour in a lane can be fewer people than a quiet one at Town Hall. The same levels are applied to the recorded
+          hours. {unrated} {unrated === 1 ? 'location has' : 'locations have'} no levels yet and {unrated === 1 ? 'is' : 'are'}{' '}
+          listed instead of drawn.
+        </p>
+        {activity.fallbackCount > 0 && (
+          <p>
+            {activity.fallbackCount === activity.forecastCount
+              ? 'No forecast here is from the trained model yet: each'
+              : `${activity.fallbackCount} of the ${activity.forecastCount} forecasts are not from the trained model yet: each`}{' '}
+            is estimated from past counts on the same weekday and hour, and weather and events do not change it.
+          </p>
+        )}
+        {activity.weatherSource && (
+          <p>Weather: {activity.weatherSource.replace(/\s*\(.*\)\s*$/, '')} — not official Bureau of Meteorology forecasts.</p>
+        )}
+        {activity.generatedAt !== null && <p>Forecast generated {whenLabel(activity.generatedAt)} (Melbourne time).</p>}
+      </div>
+    </section>
+  );
+}
+
+/* ── the column ────────────────────────────────────────────────────────── */
+
+export function StreetActivitySheet({
+  state,
+  at,
+  sensorId,
+  now,
+  onSelect,
+  onJump,
+  onExplore,
+}: {
+  state: StreetActivityState;
+  /** The hour on the map. Null until the data has arrived. */
+  at: number | null;
+  sensorId: number | null;
+  /** The present, for which forecast hours are still ahead. */
+  now: number;
+  onSelect: (id: number | null) => void;
+  /** Move the map to an hour: a suggested visit. */
+  onJump: (at: number) => void;
+  onExplore: () => void;
+}) {
+  const { activity, source, takenAt, refreshing, failed, refresh } = state;
+  const sensor = activity && sensorId !== null ? (activity.sensors.find((s) => s.id === sensorId) ?? null) : null;
+
+  return (
+    <aside className="panel panel--left sheet activity-sheet" aria-labelledby="activity-title">
+      <BackLink onClick={onExplore}>Explore the city</BackLink>
+      <div>
+        <p className="panel__eyebrow">Melbourne CBD</p>
+        <h2 className="activity-sheet__lede" id="activity-title" tabIndex={-1}>
+          Street activity
+        </h2>
+      </div>
+
+      {!activity && (
+        <p className="activity-card activity-card__note" role="status">
+          {failed ? 'The street activity could not be reached. Try again in a moment.' : 'Loading the street activity…'}
+        </p>
+      )}
+
+      {activity && at !== null && (
+        <>
+          <WeatherCard activity={activity} at={at} />
+          {sensor ? (
+            <Detail
+              key={sensor.id}
+              activity={activity}
+              sensor={sensor}
+              at={at}
+              now={now}
+              onBack={() => onSelect(null)}
+              onJump={onJump}
+            />
+          ) : (
+            <Overview activity={activity} at={at} onSelect={onSelect} />
+          )}
+          <About activity={activity} />
+        </>
+      )}
+
+      <p className="activity-source">
+        <span className={`activity-source__dot${source === 'live' ? ' activity-source__dot--live' : ''}`} aria-hidden="true" />
+        <span role="status">
+          {refreshing
+            ? 'Checking for new counts…'
+            : source === 'live'
+              ? 'Live data'
+              : source === 'snapshot'
+                ? `Saved copy${takenAt !== null ? ` from ${whenLabel(takenAt)}` : ''} — live data could not be reached`
+                : failed
+                  ? 'Not connected'
+                  : ''}
+        </span>
+        <button type="button" className="activity-source__refresh" onClick={refresh} disabled={refreshing} aria-label="Refresh data">
+          <Icon name="refresh" size={18} />
+        </button>
+      </p>
+    </aside>
+  );
+}
+
+/**
+ * The header's search on this screen: the counting locations by name, in
+ * the same list the city search draws (.results). A pick opens the
+ * location here rather than leaving for a building's page — and before the
+ * data is in, it says so rather than offering buildings instead.
+ */
+export function ActivitySearchResults({
+  activity,
+  query,
+  onPick,
+}: {
+  activity: StreetActivity | null;
+  query: string;
+  onPick: (sensorId: number) => void;
+}) {
+  const hits = useMemo(() => (activity ? searchSensors(activity, query) : []), [activity, query]);
+  if (query.trim().length < 2) return null;
+  if (!activity) return <p className="results__none">The counting locations are still loading.</p>;
+  if (hits.length === 0) {
+    return (
+      <p className="results__none">
+        No counting location matches that. {activity.sensors.length} locations can be searched by name.
+      </p>
+    );
+  }
+  return (
+    <div className="results" role="listbox" aria-label="Counting locations">
+      {hits.map((sensor, index) => (
+        <button
+          key={sensor.id}
+          type="button"
+          style={{ '--i': index } as React.CSSProperties}
+          role="option"
+          aria-selected="false"
+          onClick={() => onPick(sensor.id)}
+        >
+          <Icon name="directions_walk" size={16} />
+          {sensor.name}
+          <small>{sensor.thresholds ? 'Counting location' : 'Counting location · no level yet'}</small>
+        </button>
+      ))}
+    </div>
+  );
+}

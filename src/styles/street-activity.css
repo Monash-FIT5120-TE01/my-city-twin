@@ -1,0 +1,838 @@
+/* ── street activity (StreetActivitySheet, ActivityTimeBar) ─────────────── */
+/*
+ * The column is the sunlight and solar screens' column; the bar under the
+ * map is the sunlight screen's bar with its own contents. The three levels'
+ * colours are activityPalette.ts's, set inline where they are used; every
+ * one is beside its word.
+ */
+:root {
+  /* A count with no level: mid grey, L* 61, apart from the three reds by lightness and by having no hue. */
+  --activity-unrated: #8d9399;
+}
+
+.activity-sheet {
+  gap: var(--space-3);
+}
+
+@media (min-width: 901px) {
+  .panel.activity-sheet {
+    top: var(--h-header);
+    bottom: 0;
+    left: 0;
+    width: var(--w-sun-column);
+    max-height: none;
+    border-radius: 0;
+    border-right: 1px solid var(--cream-edge);
+    background: var(--cream);
+    box-shadow: none;
+    padding: var(--space-4) var(--space-5) var(--space-3);
+  }
+
+  .app:has(.panel.activity-sheet) .attribution {
+    left: calc(var(--w-sun-column) + var(--gutter));
+    bottom: calc((var(--h-mapfoot) - 26px) / 2);
+  }
+
+  /* Above the bar rather than beside it, as on the sunlight screen. */
+  .app:has(.activity-timebar) .viewctl {
+    bottom: calc(var(--h-mapfoot) + 11rem);
+  }
+}
+
+.activity-sheet .activity-sheet__lede {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+  color: var(--ink);
+}
+
+.activity-sheet__lede:focus,
+.activity-detail__name:focus {
+  outline: none;
+}
+
+/* ── cards and sections ── */
+
+.activity-card {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--green-050);
+  color: var(--ink-green-900);
+}
+
+.activity-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.activity-card__title,
+.activity-section__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  color: var(--ink);
+}
+
+.activity-card__meta {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.activity-card__note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.activity-tag {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.activity-tag--plain {
+  border-color: transparent;
+}
+
+.activity-section[hidden] {
+  display: none;
+}
+
+.activity-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--cream-edge);
+}
+
+/* ── the weather ── */
+
+.activity-weather__figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-weather__figures li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activity-weather__figures .icon {
+  color: var(--green-700);
+}
+
+.activity-weather__figures strong {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  font-variant-numeric: var(--numeric);
+}
+
+.activity-weather__figures span {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* ── levels ── */
+
+.activity-swatch {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+/* No level: an empty ring, told from the three by having no fill at all. */
+.activity-swatch--none {
+  border: 2px solid var(--activity-unrated);
+  background: transparent;
+}
+
+.activity-level {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.activity-level--none {
+  color: var(--ink-3);
+  font-weight: var(--weight-body);
+}
+
+.activity-reporting {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.activity-reporting strong {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: var(--weight-title);
+  font-variant-numeric: var(--numeric);
+  color: var(--ink);
+}
+
+.activity-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.activity-counts div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.activity-counts dt {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.activity-counts dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  font-variant-numeric: var(--numeric);
+}
+
+/* ── switches ── */
+
+.activity-switch {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 3px;
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+  border: 1px solid var(--cream-edge);
+}
+
+.activity-switch button {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-control) - 3px);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+/* Chosen: paper and heavier type — lightness and weight, not hue. */
+.activity-switch button[aria-pressed='true'] {
+  background: var(--paper);
+  color: var(--ink-green-900);
+  font-weight: var(--weight-title);
+  box-shadow: var(--shadow-chip);
+}
+
+.activity-switch--dark button[aria-pressed='true'] {
+  background: var(--green-700);
+  color: var(--paper);
+}
+
+.activity-switch button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.activity-switch button:focus-visible,
+.activity-rank:focus-visible,
+.activity-more:focus-visible,
+.activity-plain-list__item:focus-visible,
+.activity-suggest__item:focus-visible,
+.activity-tabs button:focus-visible,
+.activity-about__toggle:focus-visible,
+.activity-latest:focus-visible,
+.activity-source__refresh:focus-visible,
+.activity-timebar__date select:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+/* ── the ranking ── */
+
+.activity-ranks,
+.activity-plain-list,
+.activity-suggest {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-rank,
+.activity-plain-list__item,
+.activity-suggest__item {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--cream-edge);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.activity-rank {
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    'n name count'
+    'n level level';
+  row-gap: 0;
+}
+
+.activity-rank:hover,
+.activity-plain-list__item:hover,
+.activity-suggest__item:hover {
+  background: var(--green-050);
+}
+
+.activity-rank__n {
+  grid-area: n;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-variant-numeric: var(--numeric);
+}
+
+.activity-rank__name {
+  grid-area: name;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.activity-rank__count {
+  grid-area: count;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  font-variant-numeric: var(--numeric);
+  white-space: nowrap;
+}
+
+.activity-rank .activity-level {
+  grid-area: level;
+}
+
+.activity-plain-list__item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  font-size: var(--text-sm);
+}
+
+.activity-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+/* ── one location ── */
+
+.activity-detail__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  color: var(--ink);
+}
+
+.activity-tabs {
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--cream-edge);
+}
+
+.activity-tabs button {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+/* The open tab: a dark underline and heavier type. */
+.activity-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--ink-green-900);
+  color: var(--ink);
+  font-weight: var(--weight-title);
+}
+
+.activity-hero__figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.activity-hero__figure strong {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1.05;
+  font-variant-numeric: var(--numeric);
+}
+
+.activity-hero__figure .activity-level {
+  font-size: var(--text-sm);
+}
+
+.activity-hero__none {
+  font-size: var(--text-lg);
+  color: var(--ink-2);
+}
+
+.activity-day {
+  margin: var(--space-2) 0 0;
+}
+
+.activity-day__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 96px;
+  margin-top: var(--space-2);
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--edge-strong);
+}
+
+.activity-day__bar {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 2px 2px 0 0;
+  background: var(--bar);
+}
+
+/* Forecast: the same shade, striped and outlined, so it is told by its pattern, not its colour. */
+.activity-day__bar--forecast {
+  background: repeating-linear-gradient(135deg, var(--bar) 0 3px, transparent 3px 6px);
+  box-shadow: inset 0 0 0 1px var(--bar);
+}
+
+/* The hour on the map: a dark mark beneath its bar. */
+.activity-day__bar--now {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.activity-day__scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric);
+  color: var(--ink-3);
+}
+
+.activity-day__key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.activity-day__keybar {
+  display: inline-block;
+  width: 10px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--ink-2);
+}
+
+.activity-day__keybar--forecast {
+  background: repeating-linear-gradient(135deg, var(--ink-2) 0 2px, transparent 2px 4px);
+  box-shadow: inset 0 0 0 1px var(--ink-2);
+}
+
+.activity-day__keybar--now {
+  background: transparent;
+  outline: 2px solid var(--ink);
+}
+
+.activity-suggest__item {
+  grid-template-columns: 1fr;
+  row-gap: 2px;
+}
+
+.activity-suggest__when {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+}
+
+.activity-suggest__what {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  font-variant-numeric: var(--numeric);
+}
+
+/* ── about, and where the data came from ── */
+
+.activity-about {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--cream-edge);
+}
+
+.activity-about__heading {
+  margin: 0;
+}
+
+.activity-about__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.activity-about__body p {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.activity-source {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: auto 0 0;
+  padding-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.activity-source > span[role='status'] {
+  flex: 1;
+}
+
+/* Live: filled. A saved copy: an empty ring. */
+.activity-source__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--ink-2);
+  border-radius: 50%;
+}
+
+.activity-source__dot--live {
+  border-color: var(--green-700);
+  background: var(--green-700);
+}
+
+.activity-source__refresh {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--cream-edge);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink-green-900);
+  cursor: pointer;
+}
+
+.activity-source__refresh:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* ── the bar under the map ── */
+
+.activity-timebar__dock {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'left right'
+    'line line'
+    'key key';
+  row-gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.activity-timebar__left {
+  grid-area: left;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.activity-timebar__right {
+  grid-area: right;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.activity-timebar__timeline {
+  grid-area: line;
+}
+
+.activity-timebar__date select {
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.activity-timebar__now {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.activity-timebar__now strong {
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+  font-variant-numeric: var(--numeric);
+}
+
+.activity-timebar__now span {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.activity-latest {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.activity-latest:disabled {
+  cursor: default;
+  color: var(--ink-3);
+}
+
+/*
+ * The rail: solid where counted, dashed where forecast, nothing where the
+ * API has no hour. Inset by the handle's radius, as the sunlight rail is.
+ */
+.activity-rail {
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  height: 4px;
+}
+
+.activity-rail__run {
+  position: absolute;
+  top: 0;
+  height: 4px;
+}
+
+.activity-rail__run--recorded {
+  border-radius: 4px;
+  background: var(--ink-green-900);
+}
+
+.activity-rail__run--forecast {
+  background: repeating-linear-gradient(90deg, var(--ink-2) 0 6px, transparent 6px 10px);
+}
+
+.activity-rail__run--none {
+  height: 0;
+  border-top: 1px dotted var(--edge-strong);
+  top: 2px;
+}
+
+.activity-key {
+  grid-area: key;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink);
+}
+
+.activity-key__title {
+  font-weight: var(--weight-title);
+}
+
+.activity-key__item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.activity-key__item--muted {
+  color: var(--ink-2);
+}
+
+.activity-key__line {
+  display: inline-block;
+  width: 18px;
+  height: 4px;
+  margin: 0 6px 0 0;
+  border-radius: 4px;
+  background: var(--ink-green-900);
+}
+
+.activity-key__line--forecast {
+  margin-left: var(--space-3);
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--ink-2) 0 6px, transparent 6px 10px);
+}
+
+/*
+ * ── ON A PHONE ───────────────────────────────────────────────────────────
+ *
+ * The sunlight screen's stack (sunlight.css): the column is a bottom sheet
+ * whose height is one number, the map credit sits on it and the bar on the
+ * credit, under the two-row header (6.75rem). The bar is packed tighter to
+ * fit: Recorded / Forecast with Play and Latest on one row, the date and the
+ * hour on the next, then the rail. The key goes — the column's "Across the
+ * CBD" names the same three levels with the same swatches.
+ */
+@media (max-width: 900px) {
+  .app:has(.activity-sheet) {
+    /* header 6.75rem + bar about 12.5rem + credit 2.75rem */
+    --activity-sheet: max(6rem, min(48vh, calc(100% - 22rem)));
+  }
+
+  .panel.activity-sheet {
+    max-height: var(--activity-sheet);
+  }
+
+  .app:has(.panel.activity-sheet) .attribution {
+    bottom: calc(var(--activity-sheet) + var(--space-2));
+  }
+
+  .timebar.activity-timebar {
+    bottom: calc(var(--activity-sheet) + var(--space-2) + 2.25rem);
+  }
+
+  .activity-timebar__dock {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'mode . play latest'
+      'date now now now'
+      'line line line line';
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .activity-timebar__left,
+  .activity-timebar__right {
+    display: contents;
+  }
+
+  .activity-timebar .activity-switch {
+    grid-area: mode;
+  }
+
+  .activity-timebar__date {
+    grid-area: date;
+  }
+
+  .activity-timebar__now {
+    grid-area: now;
+    align-self: center;
+  }
+
+  .activity-timebar .timebar__play {
+    grid-area: play;
+  }
+
+  .activity-latest {
+    grid-area: latest;
+    align-self: center;
+  }
+
+  .activity-timebar__now strong {
+    font-size: var(--text-lg);
+  }
+
+  .activity-key {
+    display: none;
+  }
+
+  /* No room for the zoom stack between the bar and the header; the map still pinches and drags. */
+  .app:has(.activity-timebar) .viewctl {
+    display: none;
+  }
+}
+
+/* On its side: the controls in one row, and the rail without its scale (the hour is written beside it). */
+@media (max-width: 900px) and (max-height: 560px) {
+  .app:has(.activity-sheet) {
+    /* header 6.75rem + bar about 7.75rem + credit 2.75rem */
+    --activity-sheet: max(5rem, calc(100% - 17.25rem));
+  }
+
+  .activity-timebar__dock {
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'mode date now play latest'
+      'line line line line line';
+    row-gap: 0;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .activity-timebar .timebar__scale {
+    display: none;
+  }
+}

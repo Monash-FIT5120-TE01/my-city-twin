@@ -51,9 +51,11 @@ export type ViewName =
   /** The future plans and a guided conversation about each. */
   | 'future'
   /** What solar panels on an existing building's roof could do. */
-  | 'solar';
+  | 'solar'
+  /** How busy the streets are: the pedestrian counters, recorded and forecast. */
+  | 'activity';
 
-const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight', 'compare', 'how', 'future', 'solar'];
+const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight', 'compare', 'how', 'future', 'solar', 'activity'];
 
 export interface UrlState {
   view: ViewName;
@@ -68,6 +70,14 @@ export interface UrlState {
   receptor: [number, number] | null;
   /** The future plan whose conversation is open (?view=future&plan=3). */
   planId: number | null;
+  /**
+   * The street activity's hour, as the instant it starts
+   * (?view=activity&hour=2026-10-14T07:00:00.000Z). Not `at`, which is the
+   * sunlight screen's measured spot. Null: the latest recorded hour.
+   */
+  activityHour?: number | null;
+  /** The pedestrian counter whose details are open (&sensor=4). */
+  sensorId?: number | null;
 }
 
 /**
@@ -154,7 +164,17 @@ export function readUrlState(now: Date = new Date()): UrlState {
     nowNote: statedTime ? null : outsideWindowNote(moment),
     receptor: readReceptor(params.get('at')),
     planId: resolved === 'future' ? readPlanId(params.get('plan')) : null,
+    activityHour: resolved === 'activity' ? readHour(params.get('hour')) : null,
+    // The same digits-only rule as a plan's id.
+    sensorId: resolved === 'activity' ? readPlanId(params.get('sensor')) : null,
   };
+}
+
+/** "hour=2026-10-14T07:00:00.000Z" — an instant on the hour, or nothing. */
+function readHour(raw: string | null): number | null {
+  if (!raw) return null;
+  const at = Date.parse(raw);
+  return Number.isFinite(at) && at % (60 * 60 * 1000) === 0 ? at : null;
 }
 
 /** "plan=3" — a positive whole number or nothing. */
@@ -200,6 +220,10 @@ export function writeUrlState(state: Omit<UrlState, 'nowNote'>): void {
   }
 
   if (state.view === 'future' && state.planId !== null) params.set('plan', String(state.planId));
+  if (state.view === 'activity') {
+    if (state.activityHour != null) params.set('hour', new Date(state.activityHour).toISOString());
+    if (state.sensorId != null) params.set('sensor', String(state.sensorId));
+  }
 
   const query = params.toString();
   // Keep the fragment: rebuilding from pathname alone silently dropped it.

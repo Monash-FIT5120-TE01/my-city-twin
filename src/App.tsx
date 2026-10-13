@@ -121,9 +121,15 @@ import type { Development, SearchableBuilding } from './data/model';
 import { shortAddress, type SearchHit } from './data/search';
 import { useSolarComparison, type PlannedDevelopment, type SolarScene } from './scene/useSolarComparison';
 import { SolarSheet } from './ui/SolarSheet';
+import { ActivitySearchResults, StreetActivitySheet } from './ui/StreetActivitySheet';
+import { ActivityTimeBar } from './ui/ActivityTimeBar';
+import { useStreetActivity } from './data/useStreetActivity';
+import { modeAt, nearestHour, readingsAt, timeline } from './data/streetActivity';
+import type { Glow } from './scene/ActivityGlow';
 import { StandPrompt } from './ui/StandPrompt';
 import './styles/ui.css';
 import './styles/solar.css';
+import './styles/street-activity.css';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
@@ -160,6 +166,58 @@ export default function App() {
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
   /** The future plan whose conversation is open, on the Future plans page. */
   const [planId, setPlanId] = useState<number | null>(initial.planId);
+
+  /*
+   * ── STREET ACTIVITY ─────────────────────────────────────────────────────
+   *
+   * The hour on the map and the counter open in the column. Null hour: the
+   * latest recorded one, once the data is in. The data is asked for only
+   * when the screen first opens (useStreetActivity).
+   */
+  const [activityHour, setActivityHour] = useState<number | null>(initial.activityHour ?? null);
+  const [sensorId, setSensorId] = useState<number | null>(initial.sensorId ?? null);
+  const [activityPlaying, setActivityPlaying] = useState(false);
+  const streetActivity = useStreetActivity(view === 'activity');
+  const activityData = streetActivity.activity;
+  /** The hour asked for if the data has it, else the nearest that it does: a stale link, or a refresh. */
+  const activityAt = useMemo(() => {
+    if (!activityData) return null;
+    if (activityHour !== null && modeAt(activityData, activityHour)) return activityHour;
+    return activityHour !== null ? nearestHour(activityData, activityHour) : (activityData.latest ?? nearestHour(activityData, Date.now()));
+  }, [activityData, activityHour]);
+  /** The present, for which forecast hours are still ahead: read each minute while the screen is open. */
+  const [activityNow, setActivityNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (view !== 'activity') return;
+    setActivityNow(Date.now());
+    const timer = setInterval(() => setActivityNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [view, activityData]);
+  /** One glow per rated counter at the hour on the map; none off the screen. */
+  const activityGlows = useMemo<Glow[]>(() => {
+    if (view !== 'activity' || !activityData || activityAt === null) return [];
+    const mode = modeAt(activityData, activityAt);
+    if (!mode) return [];
+    return readingsAt(activityData, mode, activityAt).flatMap((r) =>
+      r.level ? [{ id: r.sensor.id, en: r.sensor.en, level: r.level }] : [],
+    );
+  }, [view, activityData, activityAt]);
+  // Play: one hour a little under every second, to the end of the timeline.
+  useEffect(() => {
+    if (!activityPlaying) return;
+    if (view !== 'activity' || !activityData || activityAt === null) {
+      setActivityPlaying(false);
+      return;
+    }
+    const hours = timeline(activityData);
+    const i = hours.indexOf(activityAt);
+    if (i < 0 || i >= hours.length - 1) {
+      setActivityPlaying(false);
+      return;
+    }
+    const timer = setTimeout(() => setActivityHour(hours[i + 1]), 900);
+    return () => clearTimeout(timer);
+  }, [activityPlaying, view, activityData, activityAt]);
 
   /*
    * Which flat, for the window measurement.
@@ -639,8 +697,11 @@ export default function App() {
       minutes,
       receptor,
       planId,
+      // Written once there is an hour to write; until then the link's own stays.
+      activityHour: activityAt ?? activityHour,
+      sensorId,
     });
-  }, [view, focus, foundBuilding, hasChosen, date, minutes, receptor, planId]);
+  }, [view, focus, foundBuilding, hasChosen, date, minutes, receptor, planId, activityAt, activityHour, sensorId]);
 
   // Only requested once a project is actually open, so the landing screen
   // never waits on a sleeping API.
@@ -1137,6 +1198,24 @@ export default function App() {
     setView('future');
   };
 
+  /*
+   * "Street activity": how busy the streets are, over the whole CBD. A
+   * screen about the city rather than one place, so whatever was chosen is
+   * let go and the camera takes in the whole grid.
+   */
+  const showStreetActivity = () => {
+    setLayersOpen(false);
+    setQuery('');
+    setSelectedKey(null);
+    setSelectedBuildingId(null);
+    setSensorId(null);
+    setActivityPlaying(false);
+    setLookAt(null);
+    setRefit((n) => n + 1);
+    setView('activity');
+    window.requestAnimationFrame(() => document.getElementById('activity-title')?.focus());
+  };
+
   /** The links the header carries on the front page and the sunlight screen. */
   const frontNav = (
     <>
@@ -1146,6 +1225,14 @@ export default function App() {
         onClick={showFuturePlans}
       >
         Future plans
+      </button>
+      <button
+        type="button"
+        className="header__link"
+        aria-current={view === 'activity' ? 'page' : undefined}
+        onClick={showStreetActivity}
+      >
+        Street activity
       </button>
       <button type="button" className="header__link" onClick={() => setView('explore')}>
         Explore the city
@@ -1525,7 +1612,8 @@ export default function App() {
           insetOn={frontShown}
           // On the comparison screen this is "today": no approved project.
           // on the solar screen, the developments are on show exactly when the shade counts them
-          showProposed={compareShown ? false : view === 'solar' ? solarUsesPlans : layers.developments}
+          // Not on the street activity screen: teal and peach massings beside the red glows read as more levels.
+          showProposed={compareShown || view === 'activity' ? false : view === 'solar' ? solarUsesPlans : layers.developments}
           castShadows={layers.shadows}
           streetLights={layers.streetLights}
           clock={tramClock}
@@ -1606,6 +1694,9 @@ export default function App() {
           }
           markerCard={placeCard('anchored')}
           landmarks={layers.landmarks ? landmarks : []}
+          activityGlows={activityGlows}
+          onPickActivity={setSensorId}
+          overhead={view === 'activity'}
           openLandmark={openLandmark}
           onOpenLandmark={setOpenLandmark}
           onPickLandmarkBuilding={(buildingId) => {
@@ -1839,9 +1930,9 @@ export default function App() {
             drop the layer button: there is no map on screen to layer.
             See hideLayers.
           */
-          front={frontShown || view === 'sunlight' || view === 'solar' || compareShown || pageShown}
+          front={frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown}
           hideLayers={frontShown || pageShown}
-          nav={frontShown || view === 'sunlight' || view === 'solar' || compareShown || pageShown ? frontNav : undefined}
+          nav={frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,
@@ -1866,7 +1957,19 @@ export default function App() {
             pick there chooses rather than opens — the same as the page's own
             field, so the two fields on one page do not do two things.
           */}
-          {(!frontShown || searchAt === 'header') && (
+          {/* On the street activity screen the search finds counting locations. */}
+          {view === 'activity' ? (
+            <ActivitySearchResults
+              activity={activityData}
+              query={query}
+              onPick={(id) => {
+                setQuery('');
+                setSensorId(id);
+                const sensor = activityData?.sensors.find((s) => s.id === id);
+                if (sensor) setLookAt({ east: sensor.en[0], north: sensor.en[1], heightM: 30 });
+              }}
+            />
+          ) : (!frontShown || searchAt === 'header') && (
             <SearchResults
               model={model}
               query={query}
@@ -1995,6 +2098,44 @@ export default function App() {
           onSunlight={() => {
             setView('sunlight');
             window.requestAnimationFrame(() => document.getElementById('subject-title')?.focus());
+          }}
+        />
+      )}
+
+      {/* ── STREET ACTIVITY: the column, and the hour under the map. ── */}
+      {!chromeHidden && !inVr && view === 'activity' && (
+        <StreetActivitySheet
+          state={streetActivity}
+          at={activityAt}
+          sensorId={sensorId}
+          now={activityNow}
+          onSelect={setSensorId}
+          onJump={(at) => {
+            setActivityPlaying(false);
+            setActivityHour(at);
+          }}
+          onExplore={() => setView('explore')}
+        />
+      )}
+      {!chromeHidden && !inVr && view === 'activity' && activityData && activityAt !== null && (
+        <ActivityTimeBar
+          activity={activityData}
+          at={activityAt}
+          onChange={(at) => {
+            // Dragging or choosing an hour stops Play, as on the sunlight screen.
+            setActivityPlaying(false);
+            setActivityHour(at);
+          }}
+          playing={activityPlaying}
+          onPlay={() => {
+            if (activityPlaying) {
+              setActivityPlaying(false);
+              return;
+            }
+            // From the end, Play starts the timeline again.
+            const hours = timeline(activityData);
+            if (hours.indexOf(activityAt) >= hours.length - 1) setActivityHour(hours[0]);
+            setActivityPlaying(true);
           }}
         />
       )}
