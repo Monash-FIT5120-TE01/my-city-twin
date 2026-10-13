@@ -567,6 +567,63 @@ function LeaveDialog({ width, onLeave, onStay }: { width: number; onLeave: () =>
   );
 }
 
+// ── Standing at the spot just measured ─────────────────────────────────────
+
+const STAND_ASK_W = 420;
+
+/*
+ * "Stand here?" — asked once, straight after a spot is measured, as the page
+ * asks it (ui/StandPrompt.tsx, the same words). Over the CITY MAP card, not
+ * over the Measure card: the figure just measured is what the question is
+ * about, so it stays in sight beside it; and low on that card, under the
+ * map's pin for the place. Not modal — nothing is dimmed, and
+ * the rest of the menu still works; it goes when answered, when another tab
+ * is opened, when the menu is put away, and under "Leave VR?". The laser
+ * draws over it like any other control (vrPointer), and it is part of the
+ * menu, so it moves and hides with it and never floats over the map on the
+ * hand, the wrist clock or the street bar.
+ */
+function StandAsk({ left, onStand, onNotNow }: { left: number; onStand: () => void; onNotNow: () => void }) {
+  return (
+    <Container
+      positionType="absolute"
+      positionLeft={left}
+      positionTop={CARD_HEIGHT - 280}
+      width={STAND_ASK_W}
+      padding={26}
+      gap={10}
+      flexDirection="column"
+      alignItems="center"
+      borderRadius={36}
+      backgroundColor={PAPER}
+      borderWidth={2}
+      borderColor={GLASS_EDGE}
+      zIndex={11}
+      pointerEventsOrder={DIALOG_ORDER - 1}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <Container width={56} height={56} borderRadius={28} backgroundColor={SUNKEN} alignItems="center" justifyContent="center">
+        <Icon name="down" color={INK} size={28} />
+      </Container>
+      <Text fontSize={26} fontWeight="bold" color={INK}>
+        Stand here?
+      </Text>
+      <Label size={17} color={INK_2}>
+        See this spot from the footpath, at eye level.
+      </Label>
+      <Container height={4} />
+      <Container flexDirection="row" gap={10} alignSelf="stretch">
+        <Container flexGrow={1} flexBasis={0}>
+          <Button label="Not now" onClick={onNotNow} order={DIALOG_ORDER} />
+        </Container>
+        <Container flexGrow={1} flexBasis={0}>
+          <Button label="Stand here" tone="primary" icon="down" onClick={onStand} order={DIALOG_ORDER} />
+        </Container>
+      </Container>
+    </Container>
+  );
+}
+
 // ── The controls tutorial ──────────────────────────────────────────────────
 
 /*
@@ -791,7 +848,30 @@ function Menu({
   useEffect(() => {
     if (wantsArming) onMeasure();
   }, [wantsArming, onMeasure]);
+  /*
+   * Asking "Stand here?": once for each spot measured, by the spot itself
+   * (VrMeasurement.spotKey) rather than by watching the ground disarm — that
+   * relied on the figure arriving on the same render, and a figure arriving
+   * a render later was never asked about. A spot already measured when the
+   * menu mounts is not asked about; nor is one measured with the menu away.
+   */
+  const [standAsk, setStandAsk] = useState(false);
+  const spotKey = menu.measured?.spotKey || null;
+  const askedFor = useRef(spotKey);
+  useEffect(() => {
+    if (!spotKey || spotKey === askedFor.current) return;
+    askedFor.current = spotKey;
+    // oxlint-disable-next-line react/set-state-in-effect -- the spot arrives from the ground, outside the menu
+    if (shown && tab === 'measure') setStandAsk(true);
+  }, [spotKey, shown, tab]);
+  useEffect(() => {
+    // Put away, or measuring again: the question was about the last spot.
+    // oxlint-disable-next-line react/set-state-in-effect -- follows the menu and the ground
+    if (!shown || menu.armed) setStandAsk(false);
+  }, [shown, menu.armed]);
+
   const openTab = (next: Tab) => {
+    setStandAsk(false);
     if (tab === 'measure' && next !== 'measure' && menu.armed) menu.onCancelMeasure();
     if (next === 'explore' || next === 'help') remeasure();
     setTab(next);
@@ -871,6 +951,16 @@ function Menu({
                 <Button label="Close" icon="close" tone="quiet" height={84} onClick={onClose} />
               </Container>
             </>
+          )}
+          {standAsk && !leaving && !tutorial && menu.measured && (
+            <StandAsk
+              left={SIDE_WIDTH + CARD_GAP + (MAP_WIDTH - STAND_ASK_W) / 2}
+              onNotNow={() => setStandAsk(false)}
+              onStand={() => {
+                setStandAsk(false);
+                menu.onStand();
+              }}
+            />
           )}
           {leaving && <LeaveDialog width={width} onLeave={menu.onExit} onStay={() => onLeaving(false)} />}
         </Container>

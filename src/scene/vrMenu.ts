@@ -47,6 +47,8 @@ export interface VrMeasurement {
   /** The two sums the figure is the difference of, for drawing them. */
   withoutMin: number;
   withMin: number;
+  /** The spot itself, as text: new for every spot measured, so "Stand here?" is asked once per spot. */
+  spotKey: string;
 }
 
 export interface VrMenu {

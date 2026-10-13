@@ -1404,6 +1404,8 @@ export default function App() {
               ...spotWords(measured, noun),
               withoutMin: measured.withoutSubjectMin,
               withMin: measured.withSubjectMin,
+              // New for every spot, so the headset asks "Stand here?" once per spot.
+              spotKey: receptor ? `${receptor[0].toFixed(2)},${receptor[1].toFixed(2)}` : '',
             }
           : null,
         finePrint: `${measured ? spotFinePrint(measured.stepMinutes) : ''}${NOT_AN_ASSESSMENT}`,

@@ -724,6 +724,14 @@ try {
     : null;
   check('Pointing at the ground and pulling the trigger gives a sunlight figure', Boolean(figure), figure ?? '');
   await shoot('03-measured');
+  // 5b. Straight after measuring, the menu asks "Stand here?" beside the figure; "Not now" puts it away.
+  const asked = (await texts()).includes('Stand here?');
+  check('After measuring, the menu asks "Stand here?" with the figure still on show', asked && Boolean(figure));
+  if (asked) {
+    await shoot('03b-stand-here-asked');
+    await press('Not now', async () => !(await texts()).includes('Stand here?'));
+    check('"Not now" puts the question away', !(await texts()).includes('Stand here?'));
+  }
 
   // 6. Down to the street, and back up — with the veil watched throughout.
   await call(() => {
