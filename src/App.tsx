@@ -86,11 +86,11 @@ import { buildSkyline } from './scene/skyline';
 import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { LandingPage } from './ui/LandingPage';
-import { FUTURE_PLANS_ID } from './ui/LandingMore';
 import { DemoNote } from './ui/kit/DemoNote';
 import { Pill } from './ui/kit/Pill';
 import { ComparePage, type FrameRect } from './ui/ComparePage';
 import { HowItWorksPage } from './ui/HowItWorksPage';
+import { FuturePlansPage } from './ui/FuturePlansPage';
 import { TramHint } from './ui/TramHint';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
@@ -156,6 +156,8 @@ export default function App() {
   /** A phone or tablet: walked with a stick and buttons, not keys (TouchWalk). */
   const byTouch = useMemo(() => walksByTouch(), []);
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
+  /** The future plan whose conversation is open, on the Future plans page. */
+  const [planId, setPlanId] = useState<number | null>(initial.planId);
 
   /*
    * Which flat, for the window measurement.
@@ -623,8 +625,9 @@ export default function App() {
       date,
       minutes,
       receptor,
+      planId,
     });
-  }, [view, focus, foundBuilding, hasChosen, date, minutes, receptor]);
+  }, [view, focus, foundBuilding, hasChosen, date, minutes, receptor, planId]);
 
   // Only requested once a project is actually open, so the landing screen
   // never waits on a sleeping API.
@@ -1112,21 +1115,13 @@ export default function App() {
   };
 
   /*
-   * "Future plans": the section near the foot of the front page. From any
-   * other screen the front page has to come back first, and the section
-   * exists only once it has been drawn, so the scroll waits a moment.
+   * "Future plans": its own page (FuturePlansPage) — the plans from the API
+   * and a guided conversation for each.
    */
   const showFuturePlans = () => {
-    const go = () => {
-      const section = document.getElementById(FUTURE_PLANS_ID);
-      section?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-      section?.focus({ preventScroll: true });
-    };
-    if (view === 'landing') go();
-    else {
-      setView('landing');
-      window.setTimeout(go, 60);
-    }
+    setLayersOpen(false);
+    setPlanId(null);
+    setView('future');
   };
 
   /** The links the header carries on the front page and the sunlight screen. */
@@ -1285,6 +1280,12 @@ export default function App() {
 
   /** The How it works page is up, over the city. */
   const howShown = !chromeHidden && view === 'how';
+
+  /** The Future plans page is up, over the city. */
+  const futureShown = !chromeHidden && view === 'future';
+
+  /** A full cream page covers the city: no map controls, no map credit. */
+  const pageShown = howShown || futureShown;
 
   /** The front page is up — and with it the window the city is framed in. */
   const frontShown = !chromeHidden && view === 'landing';
@@ -1678,7 +1679,7 @@ export default function App() {
 
         Not on the front page either, which frames the city itself.
       */}
-      {!chromeHidden && !frontShown && !compareShown && !howShown && (
+      {!chromeHidden && !frontShown && !compareShown && !pageShown && (
         <ViewControls
           onZoom={(factor) => viewCommands.current?.dolly(factor)}
           onOrbit={(radians) => viewCommands.current?.orbit(radians)}
@@ -1710,7 +1711,7 @@ export default function App() {
         The layer panel, opened from "Map layers" in the plain header — the
         front page and the sunlight screen do not carry that button.
       */}
-      {!chromeHidden && layersOpen && !howShown && (
+      {!chromeHidden && layersOpen && !pageShown && (
         <MapLayers
           layers={layers}
           onChange={setLayers}
@@ -1724,7 +1725,7 @@ export default function App() {
         see MapAttribution. On the front page it sits in the page's own
         window onto the map instead.
       */}
-      {mapbox && !frontShown && !compareShown && !howShown && <MapAttribution />}
+      {mapbox && !frontShown && !compareShown && !pageShown && <MapAttribution />}
 
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
       {/* On a phone the keys are a stick and buttons (TouchWalk) */}
@@ -1813,11 +1814,13 @@ export default function App() {
           /*
             The front page and the sunlight screen share the page's look and
             its three links (Future plans, Explore the city, How it works).
-            Only the front page drops the layer button — see hideLayers.
+            The front page and the full pages (How it works, Future plans)
+            drop the layer button: there is no map on screen to layer.
+            See hideLayers.
           */
-          front={frontShown || view === 'sunlight' || compareShown || howShown}
-          hideLayers={frontShown}
-          nav={frontShown || view === 'sunlight' || compareShown || howShown ? frontNav : undefined}
+          front={frontShown || view === 'sunlight' || compareShown || pageShown}
+          hideLayers={frontShown || pageShown}
+          nav={frontShown || view === 'sunlight' || compareShown || pageShown ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,
@@ -1918,6 +1921,9 @@ export default function App() {
           onFrames={setCompareFrames}
         />
       )}
+
+      {/* ── FUTURE PLANS: the plans and their guided questions ──────────── */}
+      {futureShown && <FuturePlansPage openId={planId} onOpen={setPlanId} />}
 
       {/* ── HOW IT WORKS: the three steps, over the city ─────────────────── */}
       {howShown && (

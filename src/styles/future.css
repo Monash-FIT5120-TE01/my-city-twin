@@ -1,0 +1,1299 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * FUTURE PLANS
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The plans and their conversations. See FuturePlansPage.tsx. The shell,
+ * the head, the cards, the pills and the buttons are kit pieces (kit.css);
+ * this file lays them out and moves them.
+ *
+ * Nothing here means anything by colour alone: a question already asked
+ * leaves the row of replies for a row of its own, each with the undo mark
+ * (and "revisit answer" for a screen reader); the two voices of the thread
+ * are named ("You", "My City Twin") as well as placed left and right; a
+ * chosen filter carries a tick.
+ *
+ * THE MOVEMENT
+ *   Each state rises in; the cards, the connected plans and the questions
+ *   follow one another (--i, set inline, times --stagger); a question
+ *   arrives from the right, its answer after three dots. Every one of these
+ *   is removed for somebody who asked for less motion — the block at the
+ *   end of ui.css takes every animation and transition to nothing.
+ */
+
+@keyframes future-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes future-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes future-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+/* One list item after another, the first dozen staggered and the rest together. */
+.future__grid > li,
+.future__related-list > li {
+  animation: future-rise var(--dur-panel) var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 12) * var(--stagger) * 1.5);
+}
+
+/* ── the page ───────────────────────────────────────────── */
+
+.future__inner {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter-page) var(--space-4);
+}
+
+.future__state {
+  display: grid;
+  gap: var(--space-5);
+  animation: future-rise var(--dur-panel) var(--ease) both;
+}
+
+.future__head {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.future__eyebrow {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green-500);
+}
+
+.future__choose {
+  margin-top: var(--space-2);
+}
+
+.future__lead {
+  margin: 0 0 var(--space-3);
+  color: var(--ink-2);
+}
+
+.future__status {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/* ── the head: the title and the search ─────────────────── */
+
+.future__hero {
+  display: grid;
+  gap: var(--space-5);
+  padding: clamp(var(--space-5), 4vw, 3rem);
+  border: 1px solid var(--mint-200);
+  border-radius: var(--radius-panel);
+  background:
+    radial-gradient(120% 140% at 100% 0%, var(--mint-100) 0%, transparent 55%),
+    linear-gradient(160deg, var(--green-050) 0%, var(--paper) 70%);
+  animation: future-rise var(--dur-panel) var(--ease) both;
+}
+
+.future__hero-words {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.future__hero .page-title:focus {
+  outline: none;
+}
+
+.future__hero .page-lede {
+  margin: 0;
+}
+
+.future__find {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 40rem;
+  min-height: var(--h-field-lg);
+  padding: 0 var(--space-2) 0 var(--space-4);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  transition:
+    border-color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease);
+}
+
+.future__find:focus-within {
+  border-color: var(--green-700);
+  box-shadow: var(--shadow-chip), var(--ring);
+}
+
+.future__find-mark {
+  flex: none;
+  color: var(--ink-2);
+}
+
+.future__find input {
+  flex: 1;
+  min-width: 0;
+  height: var(--h-field-lg);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--ink);
+  outline: none;
+}
+
+.future__find input::placeholder {
+  color: var(--ink-3);
+}
+
+/* The field's own cross is replaced by the kit's. */
+.future__find input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* ── browsing: the bar and the cards ────────────────────── */
+
+.future__browse {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.future__browse-head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/*
+ * The bar stays at the top of the page while the cards scroll under it, so
+ * the filters are always one look away. The page itself is the scroller
+ * (.page), so top: 0 is the top of the page, under the header.
+ */
+.future__bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'kinds result'
+    'themes themes';
+  align-items: center;
+  gap: var(--space-3);
+  margin-inline: calc(var(--space-2) * -1);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--cream-edge);
+  background: var(--cream);
+}
+
+.future__kinds {
+  grid-area: kinds;
+}
+
+.future__themes {
+  grid-area: themes;
+}
+
+.future__result {
+  grid-area: result;
+  justify-content: flex-end;
+}
+
+/* The kind: one track, the chosen one lifted out of it. */
+.future__kinds {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-self: start;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.future__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 2.5rem;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-quick) var(--ease),
+    color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease);
+}
+
+.future__kind:hover {
+  color: var(--ink);
+}
+
+.future__kind--on {
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  color: var(--ink-green-900);
+}
+
+.future__kind:focus-visible,
+.future__theme:focus-visible,
+.future__reset:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.future__narrow {
+  display: none;
+}
+
+.future__n {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+  color: var(--ink-3);
+  font-variant-numeric: var(--numeric);
+}
+
+/* The themes: one row of chips, each with its mark. */
+.future__themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.future__theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 2.25rem;
+  padding: 0 var(--space-3) 0 10px;
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    transform var(--dur-quick) var(--ease),
+    border-color var(--dur-quick) var(--ease),
+    background-color var(--dur-quick) var(--ease);
+}
+
+.future__theme .future__mark {
+  color: var(--green-700);
+}
+
+.future__theme:hover {
+  transform: translateY(-1px);
+  border-color: var(--green-700);
+}
+
+/* Chosen: dark ground, white words, and the tick in place of the mark. */
+.future__theme--on {
+  border-color: var(--ink-green-900);
+  background: var(--ink-green-900);
+  font-weight: var(--weight-label);
+  color: var(--paper);
+}
+
+.future__theme--on .future__n {
+  color: var(--mint-200);
+}
+
+.future__tick {
+  flex: none;
+  animation: future-pop var(--dur-quick) var(--ease-spring) both;
+}
+
+@keyframes future-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.future__result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.future__result p {
+  margin: 0;
+}
+
+.future__result strong {
+  color: var(--ink);
+}
+
+.future__reset {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.future__none {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  padding: var(--space-6) var(--space-5);
+  border: 1px dashed var(--edge-strong);
+  border-radius: var(--radius-card);
+  color: var(--ink-2);
+  animation: future-rise var(--dur-panel) var(--ease) both;
+}
+
+.future__none p {
+  margin: 0;
+}
+
+.future__groups {
+  display: grid;
+  gap: var(--space-6);
+  padding-top: var(--space-2);
+}
+
+.future__group {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.future__group-head {
+  display: grid;
+  gap: 2px;
+}
+
+.future__group-head .card-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.future__group-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* ── the cards ──────────────────────────────────────────── */
+
+.future__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.future__grid > li {
+  display: grid;
+}
+
+/*
+ * The tint behind each mark. Pale, all near L* 92, and decoration only: the
+ * mark and the theme's name say which theme it is.
+ */
+.future__plan {
+  --tint: #ecece7;
+}
+.future__plan[data-family='trees'] { --tint: #dcefe7; }
+.future__plan[data-family='water'] { --tint: #dceaf2; }
+.future__plan[data-family='transport'] { --tint: #e7e4f2; }
+.future__plan[data-family='bridges'] { --tint: #f0e7da; }
+.future__plan[data-family='walking'] { --tint: #fcefcc; }
+.future__plan[data-family='parks'] { --tint: #e3f0d6; }
+.future__plan[data-family='tech'] { --tint: #e1e7ea; }
+.future__plan[data-family='planning'] { --tint: #f2e6ee; }
+
+.future__plan {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: var(--paper);
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    transform var(--dur-quick) var(--ease),
+    border-color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease);
+}
+
+.future__plan:hover {
+  transform: translateY(-4px);
+  border-color: var(--green-700);
+  box-shadow: var(--shadow-panel);
+}
+
+.future__plan:active {
+  transform: translateY(-1px);
+  transition-duration: var(--dur-press);
+}
+
+.future__plan:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.future__plan-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.future__plan-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-control);
+  background: var(--tint);
+  color: var(--ink-green-900);
+  transition: transform var(--dur-quick) var(--ease-spring);
+}
+
+.future__plan:hover .future__plan-mark {
+  transform: rotate(-6deg) scale(1.06);
+}
+
+.future__plan-topic {
+  min-width: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.future__plan-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  line-height: 1.3;
+  color: var(--ink-green-900);
+}
+
+/* A word that was searched for: underlined as well as tinted. */
+.future__plan-name mark {
+  border-radius: 3px;
+  background: var(--amber-050);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.future__plan-go {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--green-700);
+}
+
+.future__plan-arrow {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--green-050);
+  color: var(--green-700);
+  transition:
+    transform var(--dur-quick) var(--ease),
+    background-color var(--dur-quick) var(--ease),
+    color var(--dur-quick) var(--ease);
+}
+
+.future__plan:hover .future__plan-arrow {
+  transform: translateX(3px);
+  background: var(--green-700);
+  color: var(--paper);
+}
+
+/* ── connected topics ───────────────────────────────────── */
+
+.future__related {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.future__related-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.future__related-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.future__related-link {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  align-items: center;
+  min-height: var(--h-control);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--green-050);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--dur-quick) var(--ease),
+    border-color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease);
+}
+
+.future__related-link:hover {
+  transform: translateY(-2px);
+  border-color: var(--green-700);
+  box-shadow: var(--shadow-chip);
+}
+
+.future__related-link:hover .future__related-name {
+  text-decoration: underline;
+}
+
+.future__related-link:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.future__related-mark {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink-green-900);
+}
+
+.future__related-name {
+  font-weight: var(--weight-label);
+  color: var(--ink-green-900);
+}
+
+.future__related-topic {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* ── the conversation and the questions, side by side ──── */
+
+.future__talk-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.future__talk {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.future__talk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 2.25rem;
+}
+
+.future__talk-kind {
+  box-shadow: none;
+  font-weight: var(--weight-body);
+  color: var(--ink-2);
+}
+
+.future__thread {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-height: 28rem;
+  margin: 0;
+  padding: var(--space-5);
+  list-style: none;
+}
+
+.future__pair {
+  display: grid;
+  gap: var(--space-4);
+  scroll-margin: var(--space-4);
+}
+
+.future__msg {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 44rem;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+}
+
+.future__msg p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* The app: on the left, a pale green ground. */
+.future__msg--app {
+  justify-self: stretch;
+  border: 1px solid var(--mint-100);
+  background: var(--green-050);
+}
+
+.future__greeting {
+  font-size: var(--text-lg);
+  color: var(--ink-green-900);
+}
+
+/* The reader: on the right, white with an edge, arriving from the right. */
+.future__msg--you {
+  justify-self: end;
+  border: 1px solid var(--cream-edge);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+  animation: future-from-right var(--dur-panel) var(--ease) both;
+}
+
+.future__answer {
+  animation: future-rise var(--dur-panel) var(--ease) both;
+}
+
+.future__answer:focus {
+  outline: none;
+}
+
+.future__answer:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+/* Three dots while the answer is "being written". */
+.future__typing {
+  display: flex;
+  justify-self: start;
+  gap: 6px;
+  padding: var(--space-4);
+  animation: future-rise var(--dur-quick) var(--ease) both;
+}
+
+.future__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-700);
+  animation: future-dot 1s var(--ease) infinite;
+}
+
+.future__dot:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.future__dot:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.future__who {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.future__answer-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: var(--weight-title);
+  color: var(--ink-green-900);
+}
+
+.future__limit {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--amber-ink);
+  border-radius: 4px;
+  background: var(--amber-050);
+  font-size: var(--text-sm);
+  color: var(--amber-ink);
+}
+
+.future__basis {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.future__sources {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--mint-200);
+  font-size: var(--text-sm);
+}
+
+.future__sources-title {
+  font-weight: var(--weight-label);
+  color: var(--ink);
+}
+
+.future__sources ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.future__sources a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--green-700);
+  text-decoration: underline;
+}
+
+.future__out {
+  flex: none;
+}
+
+/* ── the questions to choose from ───────────────────────── */
+
+.future__restart {
+  margin-top: var(--space-2);
+}
+
+/* ── the fine print ─────────────────────────────────────── */
+
+.future__foot {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--cream-edge);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.future__foot p {
+  margin: 0;
+}
+
+.future__foot-title {
+  font-weight: var(--weight-title);
+  color: var(--ink);
+}
+
+.future__foot-fine {
+  font-size: var(--text-xs);
+}
+
+/* ── narrower: the questions go under the thread ───────── */
+
+@media (max-width: 900px) {
+  .future__themes {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: calc(var(--space-2) * -1);
+    padding: 2px var(--space-2);
+    scrollbar-width: none;
+  }
+
+  .future__bar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'kinds'
+      'themes'
+      'result';
+  }
+
+  .future__result {
+    justify-content: flex-start;
+  }
+
+  .future__kinds {
+    justify-self: stretch;
+  }
+
+  .future__kind {
+    flex: 1;
+    justify-content: center;
+    padding: 0 var(--space-2);
+  }
+
+  .future__kind .future__wide {
+    display: none;
+  }
+
+  .future__kind .future__narrow {
+    display: inline;
+  }
+
+  .future__talk-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .future__thread {
+    min-height: 0;
+    padding: var(--space-4);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * READABILITY AND REACH (second design pass)
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/* The search says what it is and what it looks in. */
+.future__search {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 40rem;
+}
+
+.future__search-label {
+  font-weight: var(--weight-title);
+  color: var(--ink);
+}
+
+.future__search-help {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* Every filter is a full 44px target. */
+.future__kind,
+.future__theme,
+.future__reset {
+  min-height: var(--h-control);
+}
+
+/* --ink-3 was 4.4:1 on the track; --ink-2 is 5.7:1. */
+.future__kind .future__n {
+  color: var(--ink-2);
+}
+
+/* Cards: bigger words, sentence-case theme, one column on a phone. */
+.future__grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18.5rem), 1fr));
+}
+
+.future__plan-topic {
+  font-size: 0.875rem;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.future__plan-name {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Answers: a reading measure and a clear heading. */
+.future__answer {
+  max-width: min(100%, 68ch);
+  gap: var(--space-3);
+}
+
+.future__answer-title {
+  font-size: 1.125rem;
+  line-height: 1.35;
+}
+
+.future__answer > p:not(.future__limit):not(.future__basis) {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.future__answer :is(p, a) {
+  overflow-wrap: anywhere;
+}
+
+.future__limit,
+.future__basis,
+.future__sources {
+  line-height: 1.5;
+}
+
+/* Each source with its own date, and a full-height link. */
+.future__sources li {
+  display: grid;
+  justify-items: start;
+}
+
+.future__sources a {
+  min-height: var(--h-control);
+}
+
+.future__source-date {
+  color: var(--ink-2);
+}
+
+/* The answer is focused when it arrives; show where the keyboard went. */
+.future__answer:focus {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .future__thread {
+    min-height: 28rem;
+  }
+
+  .future__themes {
+    min-width: 0;
+    max-width: 100%;
+    scrollbar-width: thin;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * THE QUESTIONS INSIDE THE CONVERSATION (third design pass)
+ *
+ * The replies hang under the greeting at first, then sit at the foot of the
+ * card where a message box would be. See "WHERE THE QUESTIONS ARE" in
+ * FuturePlansPage.tsx.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/* The thread and the related plans beside it; the thread alone when there are none. */
+.future__talk-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+}
+
+.future__talk-layout--solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The card: the thread above, the replies at its foot. */
+.future__chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 28rem;
+}
+
+.future__chat .future__thread {
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  background: none;
+}
+
+.future__pair {
+  scroll-margin-top: var(--space-4);
+}
+
+/* Before the first question: the replies under the greeting. */
+.future__opening {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--green-700);
+  animation: future-rise var(--dur-panel) var(--ease) both;
+  animation-delay: 120ms;
+}
+
+.future__opening-title,
+.future__composer-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--weight-title);
+  color: var(--ink-green-900);
+}
+
+.future__opening-title {
+  font-size: var(--text-h2);
+}
+
+.future__opening-sub {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.future__tap {
+  flex: none;
+  color: var(--green-700);
+}
+
+/* The replies: rounded buttons with a plus, the shape of a quick reply. */
+.future__replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.future__replies > li {
+  animation: future-rise var(--dur-panel) var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 12) * var(--stagger) * 2 + 160ms);
+}
+
+.future__reply {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--h-control);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
+  border: 1.5px solid var(--green-700);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-label);
+  text-align: left;
+  color: var(--ink-green-900);
+  cursor: pointer;
+  transition:
+    transform var(--dur-quick) var(--ease),
+    background-color var(--dur-quick) var(--ease),
+    color var(--dur-quick) var(--ease),
+    box-shadow var(--dur-quick) var(--ease);
+}
+
+.future__reply-plus {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--green-700);
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--paper);
+  transition: transform var(--dur-quick) var(--ease-spring);
+}
+
+/* Hover: the reply fills, as a message about to be sent. */
+.future__reply:hover {
+  transform: translateY(-2px);
+  background: var(--green-700);
+  box-shadow: var(--shadow-chip);
+  color: var(--paper);
+}
+
+.future__reply:hover .future__reply-plus {
+  transform: rotate(90deg);
+  background: var(--paper);
+  color: var(--green-700);
+}
+
+.future__reply:active {
+  transform: none;
+  transition-duration: var(--dur-press);
+}
+
+.future__reply:focus-visible,
+.future__revisit:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+/* After the first question: the foot of the card, held on screen. */
+.future__composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--cream-edge);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  background: var(--paper);
+  box-shadow: 0 -10px 24px rgba(16, 24, 20, 0.06);
+  animation: future-rise var(--dur-panel) var(--ease) both;
+}
+
+.future__composer-title {
+  font-size: var(--text-lg);
+}
+
+.future__composer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.future__revisits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.future__revisit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.future__revisit:hover {
+  border-color: var(--green-700);
+  color: var(--ink);
+}
+
+.future__composer .future__restart {
+  margin: 0;
+}
+
+/* Connected topics: a column beside the thread, held in view. */
+.future__talk-layout > .future__related {
+  position: sticky;
+  top: var(--space-4);
+  align-self: start;
+  padding: var(--space-4);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+
+.future__talk-layout > .future__related .future__related-list {
+  display: grid;
+}
+
+.future__talk-layout > .future__related .future__related-link {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .future__talk-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .future__talk-layout > .future__related {
+    position: static;
+  }
+
+  .future__chat {
+    min-height: 28rem;
+  }
+
+  .future__opening {
+    padding-left: var(--space-3);
+  }
+
+  /* One row that scrolls sideways, so the foot does not cover the answer. */
+  .future__composer .future__replies {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: calc(var(--space-4) * -1);
+    padding: 2px var(--space-4) var(--space-2);
+    scrollbar-width: thin;
+  }
+
+  /* Each reply keeps its own width; the row scrolls instead of squeezing them. */
+  .future__composer .future__replies > li {
+    flex: 0 0 auto;
+  }
+
+  .future__composer .future__reply {
+    width: max-content;
+    max-width: 15rem;
+    font-size: var(--text-sm);
+  }
+
+  .future__composer-title {
+    font-size: var(--text-body);
+  }
+
+  .future__composer {
+    gap: var(--space-2);
+  }
+
+  .future__composer {
+    padding: var(--space-3) var(--space-4);
+  }
+}

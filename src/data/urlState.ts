@@ -48,10 +48,12 @@ export type ViewName =
   | 'compare'
   /** How the app is used, in three steps. */
   | 'how'
+  /** The future plans and a guided conversation about each. */
+  | 'future'
   /** What solar panels on an existing building's roof could do. */
   | 'solar';
 
-const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight', 'compare', 'how', 'solar'];
+const VIEWS: ViewName[] = ['landing', 'explore', 'development', 'building', 'sunlight', 'compare', 'how', 'future', 'solar'];
 
 export interface UrlState {
   view: ViewName;
@@ -64,6 +66,8 @@ export interface UrlState {
   nowNote: string | null;
   /** The measured spot, east/north metres, to one decimal place. */
   receptor: [number, number] | null;
+  /** The future plan whose conversation is open (?view=future&plan=3). */
+  planId: number | null;
 }
 
 /**
@@ -149,7 +153,14 @@ export function readUrlState(now: Date = new Date()): UrlState {
      */
     nowNote: statedTime ? null : outsideWindowNote(moment),
     receptor: readReceptor(params.get('at')),
+    planId: resolved === 'future' ? readPlanId(params.get('plan')) : null,
   };
+}
+
+/** "plan=3" — a positive whole number or nothing. */
+function readPlanId(raw: string | null): number | null {
+  const id = Number(raw);
+  return raw && Number.isInteger(id) && id > 0 ? id : null;
 }
 
 /** "at=-532.4,-198.1" — two finite numbers or nothing. */
@@ -185,6 +196,8 @@ export function writeUrlState(state: Omit<UrlState, 'nowNote'>): void {
       params.set('at', `${state.receptor[0].toFixed(1)},${state.receptor[1].toFixed(1)}`);
     }
   }
+
+  if (state.view === 'future' && state.planId !== null) params.set('plan', String(state.planId));
 
   const query = params.toString();
   // Keep the fragment: rebuilding from pathname alone silently dropped it.

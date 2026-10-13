@@ -739,18 +739,20 @@
    */
   .app:has(.landing) .header.header--front,
   .app:has(.compare) .header.header--front,
-  .app:has(.how) .header.header--front {
+  .app:has(.how) .header.header--front,
+  .app:has(.future) .header.header--front {
     height: var(--h-header);
   }
 
   /*
    * The comparison page too: it starts directly under a one-row bar, and a
    * second row of bar covered its way back. Search is one press back away.
-   * The How it works page likewise.
+   * The How it works and Future plans pages likewise.
    */
   .app:has(.landing) .header--front .header__search,
   .app:has(.compare) .header--front .header__search,
-  .app:has(.how) .header--front .header__search {
+  .app:has(.how) .header--front .header__search,
+  .app:has(.future) .header--front .header__search {
     display: none;
   }
 }
