@@ -943,6 +943,25 @@
   top: 2px;
 }
 
+/* A single missing hour, too short for the words: a heavier dotted line, so it is still seen. */
+.activity-rail__run--narrow {
+  top: 1px;
+  border-top: 2px dotted var(--ink-3);
+}
+
+/* "No data", written over a stretch long enough to hold it. */
+.activity-rail__nodata {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--ink-3);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .activity-key {
   grid-area: key;
   display: flex;

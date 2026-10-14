@@ -22,7 +22,7 @@
  * without. App resolves anything else — a stale link — to the nearest hour
  * with data before passing it here.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from './kit/Icon';
 import {
   datesCovered,
@@ -34,6 +34,9 @@ import {
 import type { SimulationDate } from '../scene/solar';
 import { RAMP_GRADIENT } from '../scene/activityPalette';
 import { countLabel, dateKey, dateLabelOf, hourLabel, offsetLabel, whenLabel } from './activityFormat';
+
+/** How wide a stretch with no data must be for "No data" to be written on it, pixels. */
+const NO_DATA_LABEL_PX = 56;
 
 /** "Fri 16": a day's button, short enough for a row of eight or nine. */
 function dayChip({ year, month, day }: SimulationDate): string {
@@ -78,6 +81,17 @@ export function ActivityTimeBar({
 
   const today = melbourneClock(now).date;
   const dayIndex = dates.findIndex((d) => sameDay(d, date));
+
+  // The rail's width in pixels, to know which stretches with no data have room for the words.
+  const rail = useRef<HTMLSpanElement>(null);
+  const [railWidth, setRailWidth] = useState(0);
+  useEffect(() => {
+    const el = rail.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setRailWidth(el.getBoundingClientRect().width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // The chosen day kept in view in its own row (a phone scrolls the row): only the row moves, never the page.
   const dayList = useRef<HTMLDivElement>(null);
@@ -226,14 +240,25 @@ export function ActivityTimeBar({
 
         <div className="timebar__timeline activity-timebar__timeline">
           <div className="timebar__track">
-            <span className="activity-rail" aria-hidden="true">
-              {runs.map((r) => (
-                <span
-                  key={`${r.kind}-${r.from}`}
-                  className={`activity-rail__run activity-rail__run--${r.kind}`}
-                  style={{ left: `${r.from}%`, width: `${r.to - r.from}%` }}
-                />
-              ))}
+            <span className="activity-rail" aria-hidden="true" ref={rail}>
+              {runs.map((r) => {
+                /*
+                 * A stretch with no data says so on the rail when the words
+                 * fit; a narrower one (a single missing hour) is drawn a
+                 * shade darker instead, and the handle on it says "No data".
+                 */
+                const wide = r.kind === 'none' && ((r.to - r.from) / 100) * railWidth >= NO_DATA_LABEL_PX;
+                const narrow = r.kind === 'none' && !wide;
+                return (
+                  <span
+                    key={`${r.kind}-${r.from}`}
+                    className={`activity-rail__run activity-rail__run--${r.kind}${narrow ? ' activity-rail__run--narrow' : ''}`}
+                    style={{ left: `${r.from}%`, width: `${r.to - r.from}%` }}
+                  >
+                    {wide && <span className="activity-rail__nodata">No data</span>}
+                  </span>
+                );
+              })}
             </span>
             <input
               type="range"
