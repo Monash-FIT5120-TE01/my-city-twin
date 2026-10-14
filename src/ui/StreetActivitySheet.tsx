@@ -200,7 +200,12 @@ function Overview({
             </div>
           ))}
         </dl>
-        <p className="activity-card__note">Each level is measured against that location's own usual traffic.</p>
+        <p className="activity-card__note">
+          Each level is measured against that location's own usual traffic.
+          {/* So the three counts above need not add up to the number reporting: say what is left out. */}
+          {summary.unrated > 0 &&
+            ` ${summary.unrated} ${summary.unrated === 1 ? 'location has' : 'locations have'} no level of ${summary.unrated === 1 ? 'its' : 'their'} own.`}
+        </p>
       </section>
 
       <section className="activity-section" aria-labelledby="activity-compare-title">
