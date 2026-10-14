@@ -348,6 +348,15 @@
   font-size: var(--text-sm);
 }
 
+/*
+ * The name and its count on one row. The count shares the ranking's class
+ * for its weight, and with it `grid-area: count` — an area this grid does
+ * not have, which put every count on a row of its own (2026-10-15).
+ */
+.activity-plain-list__item .activity-rank__count {
+  grid-area: auto;
+}
+
 .activity-nodata strong {
   color: var(--ink);
   font-weight: var(--weight-title);
