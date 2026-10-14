@@ -171,6 +171,8 @@ interface SceneCanvasProps {
   onPickActivity?: (sensorId: number) => void;
   /** Look down more steeply (about 68° rather than 38°): for glows on the ground, which the towers hide from low. */
   overhead?: boolean;
+  /** False: leave the street level out (CityMassing) — the street activity screen, where trees and dark road slabs hide the glows. */
+  streetscape?: boolean;
   /** The landmark whose address is open, by name — one on open ground, with no page to go to. */
   openLandmark?: string | null;
   onOpenLandmark?: (name: string | null) => void;
@@ -263,6 +265,7 @@ export function SceneCanvas({
   activityGlows = [],
   onPickActivity,
   overhead = false,
+  streetscape = true,
   openLandmark = null,
   onOpenLandmark = () => undefined,
   onPickLandmarkBuilding = () => undefined,
@@ -704,6 +707,7 @@ export function SceneCanvas({
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
             solar={solar}
+            streetscape={streetscape}
           />
 
           {/*

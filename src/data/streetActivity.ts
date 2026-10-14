@@ -427,6 +427,23 @@ export function timeline(activity: StreetActivity): number[] {
   return [...new Set([...activity.recordedHours, ...activity.forecastHours])].sort((a, b) => a - b);
 }
 
+/**
+ * Whether an hour is a place on the rail: on the hour, on one of the dates
+ * the data covers — with data or not. The backend can leave a gap between
+ * the record and the forecast (2026-10-15: nothing for 06:00); the handle
+ * stops on it and says there is no data, rather than jumping past it.
+ */
+export function onRail(activity: StreetActivity, at: number): boolean {
+  if (at % HOUR_MS !== 0) return false;
+  const { date } = melbourneClock(at);
+  return datesCovered(activity).some((d) => sameDate(d, date));
+}
+
+/** The next hour with data after this one, for Play; null at the end. */
+export function nextHourWithData(activity: StreetActivity, at: number): number | null {
+  return timeline(activity).find((h) => h > at) ?? null;
+}
+
 /** The hour with data nearest the one asked for: a stale link, or a date changed. */
 export function nearestHour(activity: StreetActivity, at: number): number | null {
   let best: number | null = null;

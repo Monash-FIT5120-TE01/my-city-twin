@@ -18,8 +18,9 @@
  * The dates offered are only those the data touches (datesCovered), so the
  * picker never offers a day with nothing on it.
  *
- * `at` must be an hour the data has: App resolves a stale link or an hour a
- * refresh dropped to the nearest one (nearestHour) before passing it here.
+ * `at` must be on the rail (onRail): an hour of a covered date, with data or
+ * without. App resolves anything else — a stale link — to the nearest hour
+ * with data before passing it here.
  */
 import { Icon } from './kit/Icon';
 import {
@@ -174,20 +175,9 @@ export function ActivityTimeBar({
               step={1}
               value={index}
               onChange={(e) => {
-                /*
-                 * An hour with no data would be resolved back to the nearest
-                 * one (App), so an arrow key pressed before a gap would never
-                 * get past it. Step on in the direction of travel instead, to
-                 * the next hour that has something; at the end, stay.
-                 */
-                const to = Number(e.target.value);
-                const step = to >= index ? 1 : -1;
-                for (let i = to; i >= 0 && i < slots.length; i += step) {
-                  if (slots[i].recorded || slots[i].forecast) {
-                    onChange(slots[i].at);
-                    return;
-                  }
-                }
+                // Every slot is a stop, an empty one too: it says "No data" (onRail), so the handle never jumps.
+                const slot = slots[Number(e.target.value)];
+                if (slot) onChange(slot.at);
               }}
               aria-label="Hour"
               aria-valuetext={`${whenLabel(at)}${repeated ? ` ${offsetLabel(at)}` : ''}, ${mode ? (mode === 'recorded' ? 'recorded' : 'forecast') : 'no data'}`}

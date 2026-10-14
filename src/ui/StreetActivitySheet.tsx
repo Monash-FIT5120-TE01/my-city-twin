@@ -20,7 +20,8 @@
  * shades only repeat the words (activityPalette.ts), and a forecast bar is
  * told from a recorded one by its outline, not its colour.
  */
-import { useId, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './kit/Icon';
 import { BackLink } from './kit/BackLink';
 import {
@@ -100,7 +101,8 @@ function WeatherCard({ activity, at }: { activity: StreetActivity; at: number })
           </ul>
           {!exact && (
             <p className="activity-card__note">
-              Next available forecast · map {whenLabel(at)}. There is no weather for recorded hours.
+              Next available forecast · map {whenLabel(at)}.
+              {modeAt(activity, at) === 'recorded' ? ' There is no weather for recorded hours.' : ''}
             </p>
           )}
           {exact && modeAt(activity, at) === 'recorded' && (
@@ -147,6 +149,7 @@ function Overview({
 }) {
   const [order, setOrder] = useState<'higher' | 'lower'>('higher');
   const [all, setAll] = useState(false);
+  const moreButton = useRef<HTMLButtonElement>(null);
   const mode = modeAt(activity, at);
   const readings = useMemo(() => (mode ? readingsAt(activity, mode, at) : []), [activity, mode, at]);
   const summary = summarise(readings);
@@ -157,6 +160,16 @@ function Overview({
    * count this hour: the list is how they are on the screen at all.
    */
   const noLevel = readings.filter((r) => !r.sensor.thresholds);
+
+  // An hour on the rail the backend has nothing for: said, not shown as an empty city.
+  if (!mode) {
+    return (
+      <p className="activity-card activity-card__note activity-nodata" role="status">
+        <strong>No data for {hourLabel(at)}</strong> on {dayLabel(at)}. The backend has no recorded count or forecast
+        for this hour. Move to another hour to see the streets.
+      </p>
+    );
+  }
 
   return (
     <>
@@ -197,7 +210,28 @@ function Overview({
       <section className="activity-section" aria-labelledby="activity-compare-title">
         <div className="activity-card__head">
           <h3 className="activity-section__title" id="activity-compare-title">Compare locations</h3>
-          <span className="activity-card__meta">/ hour</span>
+          {/*
+            While the whole list is open, the way to fold it is here, beside
+            where it was opened — not only at its foot, forty rows down.
+          */}
+          {all ? (
+            <button
+              type="button"
+              className="activity-fold"
+              onClick={() => {
+                setAll(false);
+                // The button goes with the long list; the keyboard goes to the one that opens it again.
+                window.requestAnimationFrame(() => moreButton.current?.focus());
+              }}
+              aria-expanded="true"
+              aria-controls="activity-ranks"
+            >
+              Show fewer
+              <Icon name="expand_less" size={16} />
+            </button>
+          ) : (
+            <span className="activity-card__meta">/ hour</span>
+          )}
         </div>
         <div className="activity-switch" role="group" aria-label="Order">
           <button type="button" aria-pressed={order === 'higher'} onClick={() => setOrder('higher')}>
@@ -208,7 +242,7 @@ function Overview({
           </button>
         </div>
         {shown.length > 0 ? (
-          <ol className="activity-ranks">
+          <ol className="activity-ranks" id="activity-ranks">
             {shown.map((r, i) => (
               <RankRow key={r.sensor.id} rank={i + 1} reading={r} onSelect={onSelect} />
             ))}
@@ -217,7 +251,14 @@ function Overview({
           <p className="activity-card__note">No location has a count for this hour.</p>
         )}
         {list.length > TOP && (
-          <button type="button" className="activity-more" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+          <button
+            type="button"
+            ref={moreButton}
+            className="activity-more"
+            onClick={() => setAll((v) => !v)}
+            aria-expanded={all}
+            aria-controls="activity-ranks"
+          >
             {all ? 'Show the top three' : `View all ${list.length} locations`}
             <Icon name={all ? 'expand_less' : 'expand_more'} size={18} />
           </button>
@@ -439,7 +480,9 @@ function Detail({
         <div className="activity-card activity-hero">
           <p className="activity-hero__figure">
             {count === null ? (
-              <span className="activity-hero__none">{mode === 'forecast' ? 'No forecast' : 'No count'}</span>
+              <span className="activity-hero__none">
+                {mode === 'forecast' ? 'No forecast' : mode === 'recorded' ? 'No count' : 'No data for this hour'}
+              </span>
             ) : (
               <strong>{countLabel(count)}</strong>
             )}
@@ -469,22 +512,50 @@ function Detail({
 
 /* ── about the data ────────────────────────────────────────────────────── */
 
-function About({ activity }: { activity: StreetActivity }) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
+/**
+ * "About the data", as the design has it: a button at the foot of the
+ * column that opens a card over the map's lower left, beside the column
+ * and above the time bar. Not modal — the map stays usable — but it takes
+ * the keyboard when it opens, gives it back to the button when it closes,
+ * and closes with Escape as well as its cross.
+ *
+ * Drawn into the page's body rather than the column: the column scrolls,
+ * and its entrance animation would carry a fixed card with it.
+ */
+function AboutPanel({ activity, at, onClose }: { activity: StreetActivity; at: number | null; onClose: () => void }) {
+  const titleId = useId();
   const unrated = activity.sensors.filter((s) => !s.thresholds).length;
-  return (
-    <section className="activity-about">
-      <h3 className="activity-about__heading">
-        <button type="button" className="activity-about__toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+  const mode = at === null ? null : modeAt(activity, at);
+  const reporting = mode && at !== null ? summarise(readingsAt(activity, mode, at)).reporting : 0;
+  useEffect(() => {
+    document.getElementById(titleId)?.focus();
+  }, [titleId]);
+
+  return createPortal(
+    /*
+     * Escape on the card only: it is not modal, and an Escape meant for the
+     * search or another control must not close it and pull the keyboard here.
+     */
+    <section
+      className="activity-about-panel"
+      role="dialog"
+      aria-labelledby={titleId}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose();
+      }}
+    >
+      <div className="activity-about-panel__head">
+        <h2 className="activity-about-panel__title" id={titleId} tabIndex={-1}>
           About the data
-          <Icon name={open ? 'expand_less' : 'expand_more'} size={18} />
+        </h2>
+        <button type="button" className="activity-about-panel__close" onClick={onClose} aria-label="Close About the data">
+          <Icon name="close" size={18} />
         </button>
-      </h3>
-      <div id={id} className="activity-about__body" hidden={!open}>
+      </div>
+      <div className="activity-about-panel__body">
         <p>
-          Counts are pedestrian movements per hour from the City of Melbourne's pedestrian counting system (CC BY 4.0),
-          through the My City Twin backend. A deeper, wider glow on the map is a busier street.
+          A deeper, wider glow on the map is a busier street. Every counting location with a level is shown, without
+          choosing a spot.
         </p>
         <p>
           Quiet, moderate and busy are the backend's own levels, set for each location against its usual traffic: a busy
@@ -492,6 +563,14 @@ function About({ activity }: { activity: StreetActivity }) {
           hours. {unrated} {unrated === 1 ? 'location has' : 'locations have'} no levels yet and {unrated === 1 ? 'is' : 'are'}{' '}
           listed instead of drawn.
         </p>
+        {at !== null && (
+          <p>
+            {mode
+              ? `${reporting} of ${activity.sensors.length} locations have ${mode === 'recorded' ? 'recorded counts' : 'a forecast'} at ${hourLabel(at)} on ${dayLabel(at)}.`
+              : `There is no data at ${hourLabel(at)} on ${dayLabel(at)}.`}
+          </p>
+        )}
+        <p>CBD weather is the forecast for the hour shown; recorded hours have none, so the next forecast hour is shown and labelled.</p>
         {activity.fallbackCount > 0 && (
           <p>
             {activity.fallbackCount === activity.forecastCount
@@ -504,8 +583,12 @@ function About({ activity }: { activity: StreetActivity }) {
           <p>Weather: {activity.weatherSource.replace(/\s*\(.*\)\s*$/, '')} — not official Bureau of Meteorology forecasts.</p>
         )}
         {activity.generatedAt !== null && <p>Forecast generated {whenLabel(activity.generatedAt)} (Melbourne time).</p>}
+        <p className="activity-about-panel__credit">
+          Pedestrian counts: City of Melbourne pedestrian counting system, CC BY 4.0, through the My City Twin backend.
+        </p>
       </div>
-    </section>
+    </section>,
+    document.body,
   );
 }
 
@@ -532,6 +615,13 @@ export function StreetActivitySheet({
   onExplore: () => void;
 }) {
   const { activity, source, takenAt, refreshing, failed, refresh } = state;
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const aboutButton = useRef<HTMLButtonElement>(null);
+  // Closing hands the keyboard back to the button that opened it.
+  const closeAbout = useCallback(() => {
+    setAboutOpen(false);
+    aboutButton.current?.focus();
+  }, []);
   const sensor = activity && sensorId !== null ? (activity.sensors.find((s) => s.id === sensorId) ?? null) : null;
 
   return (
@@ -566,8 +656,27 @@ export function StreetActivitySheet({
           ) : (
             <Overview activity={activity} at={at} onSelect={onSelect} />
           )}
-          <About activity={activity} />
         </>
+      )}
+
+      {activity && (
+        <button
+          type="button"
+          ref={aboutButton}
+          className="activity-about-button"
+          aria-expanded={aboutOpen}
+          onClick={() => setAboutOpen((v) => !v)}
+        >
+          <Icon name="info" size={18} />
+          About the data
+        </button>
+      )}
+      {activity && aboutOpen && (
+        <AboutPanel
+          activity={activity}
+          at={at}
+          onClose={closeAbout}
+        />
       )}
 
       <p className="activity-source">

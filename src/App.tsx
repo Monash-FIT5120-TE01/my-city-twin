@@ -124,7 +124,7 @@ import { SolarSheet } from './ui/SolarSheet';
 import { ActivitySearchResults, StreetActivitySheet } from './ui/StreetActivitySheet';
 import { ActivityTimeBar } from './ui/ActivityTimeBar';
 import { useStreetActivity } from './data/useStreetActivity';
-import { modeAt, nearestHour, readingsAt, timeline } from './data/streetActivity';
+import { modeAt, nearestHour, nextHourWithData, onRail, readingsAt, timeline } from './data/streetActivity';
 import type { Glow } from './scene/ActivityGlow';
 import { StandPrompt } from './ui/StandPrompt';
 import './styles/ui.css';
@@ -182,7 +182,8 @@ export default function App() {
   /** The hour asked for if the data has it, else the nearest that it does: a stale link, or a refresh. */
   const activityAt = useMemo(() => {
     if (!activityData) return null;
-    if (activityHour !== null && modeAt(activityData, activityHour)) return activityHour;
+    // Any hour on the rail stands, an empty one included: it shows "No data" rather than jumping.
+    if (activityHour !== null && onRail(activityData, activityHour)) return activityHour;
     return activityHour !== null ? nearestHour(activityData, activityHour) : (activityData.latest ?? nearestHour(activityData, Date.now()));
   }, [activityData, activityHour]);
   /** The present, for which forecast hours are still ahead: read each minute while the screen is open. */
@@ -209,13 +210,13 @@ export default function App() {
       setActivityPlaying(false);
       return;
     }
-    const hours = timeline(activityData);
-    const i = hours.indexOf(activityAt);
-    if (i < 0 || i >= hours.length - 1) {
+    // From an empty hour too: on to the next one that has something.
+    const next = nextHourWithData(activityData, activityAt);
+    if (next === null) {
       setActivityPlaying(false);
       return;
     }
-    const timer = setTimeout(() => setActivityHour(hours[i + 1]), 900);
+    const timer = setTimeout(() => setActivityHour(next), 900);
     return () => clearTimeout(timer);
   }, [activityPlaying, view, activityData, activityAt]);
 
@@ -1697,6 +1698,7 @@ export default function App() {
           activityGlows={activityGlows}
           onPickActivity={setSensorId}
           overhead={view === 'activity'}
+          streetscape={view !== 'activity'}
           openLandmark={openLandmark}
           onOpenLandmark={setOpenLandmark}
           onPickLandmarkBuilding={(buildingId) => {
@@ -2133,8 +2135,7 @@ export default function App() {
               return;
             }
             // From the end, Play starts the timeline again.
-            const hours = timeline(activityData);
-            if (hours.indexOf(activityAt) >= hours.length - 1) setActivityHour(hours[0]);
+            if (nextHourWithData(activityData, activityAt) === null) setActivityHour(timeline(activityData)[0]);
             setActivityPlaying(true);
           }}
         />

@@ -17,6 +17,10 @@ import {
   slotsOn,
   suggestHours,
   summarise,
+  onRail,
+  nextHourWithData,
+  modeAt,
+  timeline,
   searchSensors,
   type StreetActivityAnswers,
 } from './streetActivity';
@@ -232,5 +236,27 @@ describe('finding a counter by name', () => {
     expect(() => searchSensors(activity, '(north')).not.toThrow();
     expect(() => searchSensors(activity, '[(*+?')).not.toThrow();
     expect(searchSensors(activity, '(north').length).toBeGreaterThan(0);
+  });
+});
+
+describe('the rail, gaps included', () => {
+  it('holds every hour of a covered date, with data or without, and nothing else', () => {
+    const [first] = datesCovered(activity);
+    const midnight = slotsOn(activity, first)[0].at;
+    expect(onRail(activity, midnight)).toBe(true);
+    expect(onRail(activity, midnight + 30 * 60 * 1000)).toBe(false);
+    expect(onRail(activity, Date.parse('2020-01-01T00:00:00Z'))).toBe(false);
+  });
+
+  it('plays on from an empty hour to the next one with data, and stops at the end', () => {
+    const [first] = datesCovered(activity);
+    const empty = slotsOn(activity, first).find((s) => !s.recorded && !s.forecast);
+    if (empty) {
+      const next = nextHourWithData(activity, empty.at);
+      expect(next).not.toBeNull();
+      expect(next as number).toBeGreaterThan(empty.at);
+      expect(modeAt(activity, next as number)).not.toBeNull();
+    }
+    expect(nextHourWithData(activity, timeline(activity).at(-1) as number)).toBeNull();
   });
 });
