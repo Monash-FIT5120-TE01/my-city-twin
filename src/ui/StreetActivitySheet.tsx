@@ -584,7 +584,9 @@ function AboutPanel({ activity, at, onClose }: { activity: StreetActivity; at: n
         )}
         {activity.generatedAt !== null && <p>Forecast generated {whenLabel(activity.generatedAt)} (Melbourne time).</p>}
         <p className="activity-about-panel__credit">
-          Pedestrian counts: City of Melbourne pedestrian counting system, CC BY 4.0, through the My City Twin backend.
+          Pedestrian counts: City of Melbourne pedestrian counting system, through the My City Twin backend. Map:
+          building footprints and road surfaces, City of Melbourne; open space, Victorian Planning Authority. All CC BY
+          4.0.
         </p>
       </div>
     </section>,

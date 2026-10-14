@@ -33,10 +33,6 @@
     bottom: calc((var(--h-mapfoot) - 26px) / 2);
   }
 
-  /* Above the bar rather than beside it, as on the sunlight screen. */
-  .app:has(.activity-timebar) .viewctl {
-    bottom: calc(var(--h-mapfoot) + 11rem);
-  }
 }
 
 .activity-sheet .activity-sheet__lede {
@@ -50,6 +46,84 @@
 .activity-sheet__lede:focus,
 .activity-detail__name:focus {
   outline: none;
+}
+
+/* ── the flat map (ActivityMap) ── */
+
+.activity-map {
+  position: absolute;
+  inset: 0;
+  /* Over the sleeping city (.app__scene, 0), under every panel. */
+  z-index: 1;
+  background: #e9ebe4;
+}
+
+.activity-map__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.activity-map__canvas:active {
+  cursor: grabbing;
+}
+
+.activity-map__canvas--pointer {
+  cursor: pointer;
+}
+
+.activity-map__canvas:focus-visible {
+  outline: 3px solid var(--green-700);
+  outline-offset: -3px;
+}
+
+/* Zoom in, out, and "show all", in the top right corner as the design has them. */
+.activity-mapctl {
+  position: absolute;
+  top: calc(var(--h-header) + var(--gutter));
+  right: var(--gutter);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-chip);
+}
+
+.activity-mapctl button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.activity-mapctl button:last-child {
+  border-bottom: 0;
+}
+
+.activity-mapctl button:hover {
+  background: var(--surface-sunken);
+}
+
+.activity-mapctl button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -2px;
+}
+
+/* The map's own credit, where the shared credit sits (the .attribution rules place it). */
+.activity-credit {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
 }
 
 /* ── cards and sections ── */
@@ -845,16 +919,19 @@
  *
  * The sunlight screen's stack (sunlight.css): the column is a bottom sheet
  * whose height is one number, the map credit sits on it and the bar on the
- * credit, under the two-row header (6.75rem). The bar is packed tighter to
- * fit: Recorded / Forecast with Play and Latest on one row, the date and the
- * hour on the next, then the rail. The key goes — the column's "Across the
- * CBD" names the same three levels with the same swatches.
+ * credit, under the two-row header (6.75rem). With the flat map the middle
+ * of the screen has to stay map, so the sheet is held to about a third of
+ * it and the bar is packed: Recorded / Forecast, the date and Play on one
+ * row, the hour under them, then the rail without its scale. Latest goes
+ * ("Recorded" goes to the latest hour too) and so does the key — the
+ * column's "Across the CBD" names the same three levels with the same
+ * swatches.
  */
 @media (max-width: 900px) {
   /* On the root, not .app: the About card is drawn in the body and reads this too. */
   :root:has(.activity-sheet) {
-    /* header 6.75rem + bar about 12.5rem + credit 2.75rem */
-    --activity-sheet: max(6rem, min(48vh, calc(100% - 22rem)));
+    /* header 6.75rem + bar about 9.25rem + credit 2.75rem, and room left for the map */
+    --activity-sheet: max(6rem, min(36vh, calc(100% - 19rem)));
   }
 
   .panel.activity-sheet {
@@ -865,17 +942,19 @@
     bottom: calc(var(--activity-sheet) + var(--space-2));
   }
 
+  /* Under the header, so the map is the space between the bar and the credit. */
   .timebar.activity-timebar {
-    bottom: calc(var(--activity-sheet) + var(--space-2) + 2.25rem);
+    top: calc(6.75rem + var(--space-2));
+    bottom: auto;
   }
 
   .activity-timebar__dock {
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      'mode . play latest'
-      'date now now now'
-      'line line line line';
-    gap: var(--space-2);
+      'mode date play'
+      'now now now'
+      'line line line';
+    gap: var(--space-1) var(--space-2);
     padding: var(--space-3);
   }
 
@@ -901,22 +980,47 @@
     grid-area: play;
   }
 
-  .activity-latest {
-    grid-area: latest;
-    align-self: center;
+  .activity-latest,
+  .activity-timebar .timebar__scale {
+    display: none;
+  }
+
+  .activity-timebar__date select {
+    width: 100%;
+  }
+
+  /* Room for the whole date beside them: "Thu, 15 Oct". */
+  .activity-timebar .activity-switch button {
+    padding: 0 var(--space-2);
   }
 
   .activity-timebar__now strong {
-    font-size: var(--text-lg);
+    font-size: var(--text-body);
   }
 
   .activity-key {
     display: none;
   }
 
-  /* No room for the zoom stack between the bar and the header; the map still pinches and drags. */
-  .app:has(.activity-timebar) .viewctl {
-    display: none;
+  /*
+   * The zoom and "show all" buttons stay — not everyone can pinch — in a
+   * row at the map's lower right, a row above the credit so the two never
+   * meet on the narrowest phone.
+   */
+  .activity-mapctl {
+    top: auto;
+    right: var(--space-2);
+    bottom: calc(var(--activity-sheet) + var(--space-2) + 2.25rem);
+    flex-direction: row;
+  }
+
+  .activity-mapctl button {
+    border-bottom: 0;
+    border-right: 1px solid var(--hairline);
+  }
+
+  .activity-mapctl button:last-child {
+    border-right: 0;
   }
 
   /* Over the bar and the map, under the header, clear of the sheet. */
@@ -931,23 +1035,79 @@
 }
 
 /* On its side: the controls in one row, and the rail without its scale (the hour is written beside it). */
+/*
+ * On its side there is no height for a sheet under the map, so the column
+ * goes back to the left, full height, as on a wide screen, and the map, its
+ * credit and a one-row bar share the right.
+ */
 @media (max-width: 900px) and (max-height: 560px) {
-  /* On the root, not .app: the About card is drawn in the body and reads this too. */
   :root:has(.activity-sheet) {
-    /* header 6.75rem + bar about 7.75rem + credit 2.75rem */
-    --activity-sheet: max(5rem, calc(100% - 17.25rem));
+    --activity-side: 42vw;
+  }
+
+  .panel.activity-sheet {
+    /* The two-row header is a little over 6.9rem tall at this size. */
+    top: 7rem;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    width: var(--activity-side);
+    max-height: none;
+    border-radius: 0;
+    padding: var(--space-3) var(--space-4) var(--space-3);
+  }
+
+  .timebar.activity-timebar {
+    left: calc(var(--activity-side) + var(--space-2));
+    right: var(--space-2);
+    top: auto;
+    bottom: var(--space-2);
+  }
+
+  /* The zoom buttons above the bar's right end. */
+  .activity-mapctl {
+    bottom: calc(var(--space-2) + 7rem);
+  }
+
+  /* The credit at the map's top right: the bar has its foot. */
+  .app:has(.panel.activity-sheet) .attribution {
+    left: auto;
+    right: var(--space-2);
+    top: calc(7rem + var(--space-2));
+    bottom: auto;
+  }
+
+  /* A lower bar: the buttons and the rail's hit area shorter, still a finger wide. */
+  .activity-timebar .timebar__play {
+    width: 36px;
+    height: 36px;
+  }
+
+  .activity-timebar .activity-switch button {
+    min-height: 30px;
+  }
+
+  .activity-timebar__date select {
+    min-height: 32px;
+  }
+
+  .activity-timebar .timebar__track {
+    height: 32px;
   }
 
   .activity-timebar__dock {
-    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
-      'mode date now play latest'
-      'line line line line line';
+      'mode date now play'
+      'line line line line';
     row-gap: 0;
     padding: var(--space-2) var(--space-3);
   }
 
-  .activity-timebar .timebar__scale {
-    display: none;
+  .activity-about-panel {
+    left: calc(var(--activity-side) + var(--space-2));
+    right: var(--space-2);
+    top: calc(6.75rem + var(--space-2));
+    max-height: calc(100vh - 6.75rem - 9rem);
   }
 }

@@ -17,9 +17,8 @@
  *
  *   Simulated with Machado et al. (2009) at full severity, 2026-10-14. The
  *   steps stay about twenty L* apart in every simulation, and the lightest
- *   is still darker than the buildings (#dbd5cd, L* 85) and the light map
- *   beneath. The approved and in-progress massings (teal, peach) are hidden
- *   on this screen, so nothing else on the map is this colour.
+ *   is still darker than anything under it on the flat map (ActivityMap:
+ *   buildings L* 87, ground 93, roads 100), where nothing else is red.
  */
 import type { ActivityLevel } from '../data/streetActivity';
 

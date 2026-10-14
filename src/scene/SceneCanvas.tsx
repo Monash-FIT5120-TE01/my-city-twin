@@ -81,7 +81,6 @@ import { skyAppearance } from './sky';
 import { CityMassing } from './CityMassing';
 import { StreetLabels } from './StreetLabels';
 import { LandmarkTags } from './LandmarkTags';
-import { ActivityGlow, type Glow } from './ActivityGlow';
 import type { Landmark } from '../data/landmarks';
 import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
 import { SunArrow } from './SunArrow';
@@ -166,13 +165,11 @@ interface SceneCanvasProps {
   markerCard?: ReactNode;
   /** The named places, tagged on their buildings. Empty when the layer is off. See LandmarkTags. */
   landmarks?: readonly Landmark[];
-  /** The street activity's glows, one per rated counter. Empty off that screen. See ActivityGlow. */
-  activityGlows?: readonly Glow[];
-  onPickActivity?: (sensorId: number) => void;
-  /** Look down more steeply (about 68° rather than 38°): for glows on the ground, which the towers hide from low. */
-  overhead?: boolean;
-  /** False: leave the street level out (CityMassing) — the street activity screen, where trees and dark road slabs hide the glows. */
-  streetscape?: boolean;
+  /**
+   * Stop drawing: another view covers the whole canvas (the street activity
+   * screen's flat map). Nothing is torn down, so waking is immediate.
+   */
+  asleep?: boolean;
   /** The landmark whose address is open, by name — one on open ground, with no page to go to. */
   openLandmark?: string | null;
   onOpenLandmark?: (name: string | null) => void;
@@ -262,10 +259,7 @@ export function SceneCanvas({
   marker,
   markerCard,
   landmarks = [],
-  activityGlows = [],
-  onPickActivity,
-  overhead = false,
-  streetscape = true,
+  asleep = false,
   openLandmark = null,
   onOpenLandmark = () => undefined,
   onPickLandmarkBuilding = () => undefined,
@@ -365,7 +359,7 @@ export function SceneCanvas({
   const APPROACH_ELEVATION_DEG = 52;
 
   const eye = approach ? settled * APPROACH_BACK : settled;
-  const ELEVATION = (approach ? APPROACH_ELEVATION_DEG : overhead ? 68 : 38) * (Math.PI / 180);
+  const ELEVATION = (approach ? APPROACH_ELEVATION_DEG : 38) * (Math.PI / 180);
   const BEARING = 150 * (Math.PI / 180);
   const horizontal = Math.cos(ELEVATION);
   // Both the camera and what it looks at are measured from the same height,
@@ -635,6 +629,7 @@ export function SceneCanvas({
       // so a long lens rather than the 50° default.
       camera={{ position: openingShot, fov: 30, near: 5, far: 20000 }}
       gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}
+      frameloop={asleep ? 'never' : 'always'}
     >
       {/*
         ── EVERYTHING, WITH A HEADSET OPTIONALLY ATTACHED ───────────────────
@@ -707,7 +702,6 @@ export function SceneCanvas({
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
             solar={solar}
-            streetscape={streetscape}
           />
 
           {/*
@@ -718,10 +712,6 @@ export function SceneCanvas({
             targetE/targetN are already "the subject", whichever kind it is.
           */}
           {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={ground} />}
-
-          {activityGlows.length > 0 && !walking && !inVr && (
-            <ActivityGlow glows={activityGlows} groundAhdM={ground} onPick={interactive ? onPickActivity : undefined} />
-          )}
 
           {showSunArrow && !wholeCity && (
             <SunArrow

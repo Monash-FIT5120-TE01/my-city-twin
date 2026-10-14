@@ -27,7 +27,6 @@ const INSIDE = [
   'CityMassing.tsx',
   'Ground.tsx',
   'Roads.tsx',
-  'ActivityGlow.tsx',
   'OpenSpace.tsx',
   'ReceptorMarker.tsx',
   'WindowMarker.tsx',

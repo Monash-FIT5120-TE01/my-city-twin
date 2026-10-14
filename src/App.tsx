@@ -125,7 +125,8 @@ import { ActivitySearchResults, StreetActivitySheet } from './ui/StreetActivityS
 import { ActivityTimeBar } from './ui/ActivityTimeBar';
 import { useStreetActivity } from './data/useStreetActivity';
 import { modeAt, nearestHour, nextHourWithData, onRail, readingsAt, timeline } from './data/streetActivity';
-import type { Glow } from './scene/ActivityGlow';
+import type { Glow } from './ui/activityMapView';
+import { ActivityMap } from './ui/ActivityMap';
 import { StandPrompt } from './ui/StandPrompt';
 import './styles/ui.css';
 import './styles/solar.css';
@@ -177,6 +178,8 @@ export default function App() {
   const [activityHour, setActivityHour] = useState<number | null>(initial.activityHour ?? null);
   const [sensorId, setSensorId] = useState<number | null>(initial.sensorId ?? null);
   const [activityPlaying, setActivityPlaying] = useState(false);
+  /** A location found by the search, for the flat map to bring to the middle. */
+  const [activityFocus, setActivityFocus] = useState<{ en: [number, number]; key: number } | null>(null);
   const streetActivity = useStreetActivity(view === 'activity');
   const activityData = streetActivity.activity;
   /** The hour asked for if the data has it, else the nearest that it does: a stale link, or a refresh. */
@@ -194,6 +197,8 @@ export default function App() {
     const timer = setInterval(() => setActivityNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, [view, activityData]);
+  /** Every counter's place, for the map's "show all". */
+  const activitySensorsEN = useMemo(() => activityData?.sensors.map((s) => s.en) ?? [], [activityData]);
   /** One glow per rated counter at the hour on the map; none off the screen. */
   const activityGlows = useMemo<Glow[]>(() => {
     if (view !== 'activity' || !activityData || activityAt === null) return [];
@@ -1613,8 +1618,7 @@ export default function App() {
           insetOn={frontShown}
           // On the comparison screen this is "today": no approved project.
           // on the solar screen, the developments are on show exactly when the shade counts them
-          // Not on the street activity screen: teal and peach massings beside the red glows read as more levels.
-          showProposed={compareShown || view === 'activity' ? false : view === 'solar' ? solarUsesPlans : layers.developments}
+          showProposed={compareShown ? false : view === 'solar' ? solarUsesPlans : layers.developments}
           castShadows={layers.shadows}
           streetLights={layers.streetLights}
           clock={tramClock}
@@ -1695,10 +1699,8 @@ export default function App() {
           }
           markerCard={placeCard('anchored')}
           landmarks={layers.landmarks ? landmarks : []}
-          activityGlows={activityGlows}
-          onPickActivity={setSensorId}
-          overhead={view === 'activity'}
-          streetscape={view !== 'activity'}
+          // The street activity screen covers the city with its own flat map; the city sleeps under it.
+          asleep={view === 'activity' && !inVr}
           openLandmark={openLandmark}
           onOpenLandmark={setOpenLandmark}
           onPickLandmarkBuilding={(buildingId) => {
@@ -1730,6 +1732,18 @@ export default function App() {
         {/* The map is shown twice on the comparison screen, so its credit is too. */}
         {compareShown && compareFrames && mapbox && <MapAttribution />}
       </div>
+
+      {/* ── STREET ACTIVITY: the flat map, over the sleeping city. ── */}
+      {!chromeHidden && !inVr && view === 'activity' && activityData && (
+        <ActivityMap
+          model={model}
+          glows={activityGlows}
+          sensorsEN={activitySensorsEN}
+          selectedId={sensorId}
+          focus={activityFocus}
+          onPick={setSensorId}
+        />
+      )}
 
       {/*
         ── THE "AFTER" VIEW ──────────────────────────────────────────────────
@@ -1792,7 +1806,8 @@ export default function App() {
 
         Not on the front page either, which frames the city itself.
       */}
-      {!chromeHidden && !frontShown && !compareShown && !pageShown && (
+      {/* Not on the street activity screen: its flat map has its own zoom. */}
+      {!chromeHidden && !frontShown && !compareShown && !pageShown && view !== 'activity' && (
         <ViewControls
           onZoom={(factor) => viewCommands.current?.dolly(factor)}
           onOrbit={(radians) => viewCommands.current?.orbit(radians)}
@@ -1838,7 +1853,7 @@ export default function App() {
         see MapAttribution. On the front page it sits in the page's own
         window onto the map instead.
       */}
-      {mapbox && !frontShown && !compareShown && !pageShown && <MapAttribution />}
+      {mapbox && !frontShown && !compareShown && !pageShown && view !== 'activity' && <MapAttribution />}
 
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
       {/* On a phone the keys are a stick and buttons (TouchWalk) */}
@@ -1968,7 +1983,7 @@ export default function App() {
                 setQuery('');
                 setSensorId(id);
                 const sensor = activityData?.sensors.find((s) => s.id === id);
-                if (sensor) setLookAt({ east: sensor.en[0], north: sensor.en[1], heightM: 30 });
+                if (sensor) setActivityFocus((f) => ({ en: sensor.en, key: (f?.key ?? 0) + 1 }));
               }}
             />
           ) : (!frontShown || searchAt === 'header') && (

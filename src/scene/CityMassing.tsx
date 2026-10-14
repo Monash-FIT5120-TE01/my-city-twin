@@ -70,8 +70,6 @@ interface CityMassingProps {
   clock?: { date: SimulationDate; minutes: number };
   /** Standing in the street on foot or in a headset: the trams run. Defaults to `walking`. */
   streetTrams?: boolean;
-  /** False: no street level (trees, road slabs, furniture) — for a map read from above, where it is clutter. */
-  streetscape?: boolean;
   /** Standing in the street rather than looking down at it. */
   walking: boolean;
 }
@@ -104,7 +102,6 @@ export function CityMassing({
   lampsLit = false,
   clock,
   streetTrams,
-  streetscape = true,
 }: CityMassingProps) {
   const roofCheck = useMemo(() => roofCheckOn(), []);
   const groundAhdM = useMemo(
@@ -231,10 +228,7 @@ export function CityMassing({
         furniture. It draws the real road outlines, so the inferred roads below are only the fallback for
         where it has nothing; see streetscape/Streetscape.tsx.
       */}
-      {/* Hidden rather than unmounted when not wanted: building it again takes seconds of shaders and data. */}
-      <group visible={streetscape}>
-        <Streetscape groundAhdM={groundAhdM} lampsLit={lampsLit} walking={streetTrams ?? walking} clock={clock} />
-      </group>
+      <Streetscape groundAhdM={groundAhdM} lampsLit={lampsLit} walking={streetTrams ?? walking} clock={clock} />
 
       {/*
         The inferred carriageways stand down once a real map is under the
