@@ -280,6 +280,9 @@ export function ActivityTimeBar({
             Recorded
             <span className="activity-key__line activity-key__line--forecast" aria-hidden="true" />
             Forecast
+            {/* The rail's thin dotted stretch: hours the API has neither a count nor a forecast for. */}
+            <span className="activity-key__line activity-key__line--none" aria-hidden="true" />
+            No data
           </span>
         </div>
       </div>

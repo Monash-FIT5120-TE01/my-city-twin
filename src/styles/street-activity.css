@@ -1000,6 +1000,15 @@
   background: repeating-linear-gradient(90deg, var(--ink-2) 0 6px, transparent 6px 10px);
 }
 
+/* As the rail draws it (.activity-rail__run--none): a thin dotted line, lighter than both. */
+.activity-key__line--none {
+  height: 0;
+  margin-left: var(--space-3);
+  border-top: 1px dotted var(--edge-strong);
+  border-radius: 0;
+  background: none;
+}
+
 /*
  * ── ON A PHONE ───────────────────────────────────────────────────────────
  *
