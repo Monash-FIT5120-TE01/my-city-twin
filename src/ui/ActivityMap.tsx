@@ -17,8 +17,9 @@
  *   - the glows, one per counter with a count, on one colour ramp by how
  *     many people (activityPalette: darker and warmer, and wider, the more)
  *     — no dots, no pins; a thin ring round the chosen one;
- *   - the landmarks' names, as white tags on their places (2026-10-15: these
- *     instead of street names, which the reader did not need).
+ *   - the landmarks' names, as white tags on their places: the major ones
+ *     first and the rest between them at one spacing, more as the map
+ *     nears (landmarkSpread). These instead of street names (2026-10-15).
  *
  * WHY IT IS DRAWN TWICE (2026-10-15)
  *   The still parts are some 18,000 polygons, and painting them took about
@@ -46,6 +47,7 @@ import { bundled } from '../data/bundled';
 import { fetchJsonWithProgress } from '../data/fetchWithProgress';
 import { rampRgb } from '../scene/activityPalette';
 import { Icon } from './kit/Icon';
+import { landmarksAtScale, spreadLandmarks } from './landmarkSpread';
 import {
   boundsOf,
   centreOn,
@@ -89,8 +91,6 @@ const MAP = {
 
 /** A glow is never smaller than this on screen, so the whole CBD at once still shows it. */
 const MIN_GLOW_PX = 9;
-/** Landmark tags from this scale: below it the whole CBD has room for too few to be worth it. */
-const LANDMARKS_FROM_SCALE = 0.25;
 /** A tag's size, CSS pixels: the 3D tags' look, a little smaller for a map. */
 const TAG_HEIGHT = 22;
 const TAG_PAD_X = 8;
@@ -321,8 +321,10 @@ export function ActivityMap({
   const viewRef = useRef<MapView | null>(null);
   const sizeRef = useRef(size);
   sizeRef.current = size;
-  const live = useRef({ paths, glows, selectedId, landmarks });
-  live.current = { paths, glows, selectedId, landmarks };
+  /** The landmarks in the order they are named, majors first and spread (landmarkSpread). */
+  const spread = useMemo(() => spreadLandmarks(landmarks), [landmarks]);
+  const live = useRef({ paths, glows, selectedId, landmarks: spread });
+  live.current = { paths, glows, selectedId, landmarks: spread };
   const picture = useRef<Picture | null>(null);
   const frame = useRef(0);
   const settle = useRef(0);
@@ -417,16 +419,17 @@ export function ActivityMap({
 
     /*
      * The landmarks' names, as white tags on their places — the 3D view's
-     * tags drawn flat (landmark-tags.css). Laid out each frame in their list
-     * order: one that would overlap a tag already placed is left out, so the
-     * whole CBD shows a readable few and zooming in brings the rest.
+     * tags drawn flat (landmark-tags.css). Which ones is landmarkSpread's:
+     * the major places first, then the rest filling the gaps, all at one
+     * spacing on screen, so a few on the whole CBD and more nearer. A long
+     * name that would still touch a tag already drawn is left out too.
      */
-    if (s >= LANDMARKS_FROM_SCALE && lms.length > 0) {
+    if (lms.length > 0) {
       ctx.font = `500 12px ${fontFamily.current}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const placed: [number, number, number, number][] = [];
-      for (const lm of lms) {
+      for (const lm of landmarksAtScale(lms, s)) {
         const [x, y] = toScreen(view, width, height, lm.en[0], lm.en[1]);
         const w = ctx.measureText(lm.name).width + 2 * TAG_PAD_X;
         const h = TAG_HEIGHT;
