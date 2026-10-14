@@ -15,8 +15,7 @@
  * time bar leave free, zooming and turning about the pointer, panning, and
  * which glow a tap lands on.
  */
-import type { ActivityLevel } from '../data/streetActivity';
-import { ACTIVITY_LEVELS, ACTIVITY_RADII_M } from '../scene/activityPalette';
+import { glowRadiusAt } from '../scene/activityPalette';
 
 export interface MapView {
   /** Pixels per metre. */
@@ -192,16 +191,17 @@ export interface Glow {
   id: number;
   /** East and north of the scene's origin, metres. */
   en: [number, number];
-  level: ActivityLevel;
+  /** Movements this hour over the most anywhere on the timeline: 0–1, the place on the colour ramp. */
+  t: number;
 }
 
 /**
- * How far a glow reaches on the map, metres: its level's radius, but never
- * less than `minPx` on screen, so the whole CBD at a glance still shows
- * every street that is busy.
+ * How far a glow reaches on the map, metres: by its share of the busiest
+ * hour anywhere, but never less than `minPx` on screen, so the whole CBD
+ * at a glance still shows every street that has people.
  */
-export function glowRadiusM(level: ActivityLevel, scale: number, minPx: number): number {
-  return Math.max(ACTIVITY_RADII_M[level], minPx / scale);
+export function glowRadiusM(t: number, scale: number, minPx: number): number {
+  return Math.max(glowRadiusAt(t), minPx / scale);
 }
 
 /**
@@ -214,8 +214,8 @@ export function glowAt(glows: readonly Glow[], e: number, n: number, scale: numb
   let bestD = Infinity;
   for (const g of glows) {
     const d = Math.hypot(g.en[0] - e, g.en[1] - n);
-    if (d > glowRadiusM(g.level, scale, minPx)) continue;
-    const rank = ACTIVITY_LEVELS.indexOf(g.level);
+    if (d > glowRadiusM(g.t, scale, minPx)) continue;
+    const rank = g.t;
     if (rank > bestRank || (rank === bestRank && d < bestD)) {
       best = g;
       bestRank = rank;

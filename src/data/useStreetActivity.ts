@@ -32,6 +32,13 @@ const SNAPSHOT = bundled('data/street-activity.json');
 const LIVE = (part: keyof StreetActivityAnswers) => `${API_BASE}/api/pedestrian-activities/${part}`;
 const PARTS: (keyof StreetActivityAnswers)[] = ['sensors', 'recent', 'history', 'forecast'];
 
+/**
+ * A week of forecast: `hours=168` is not in the API's description (2026-10-15)
+ * but answers 168 hours, weather included. Without it the answer is 24 hours,
+ * so if the long one ever fails the plain one is asked instead.
+ */
+const FORECAST_HOURS = 168;
+
 /** Give up on the live API and stay where we are after this long. */
 const LIVE_TIMEOUT_MS = 20_000;
 
@@ -116,8 +123,34 @@ export function createStreetActivityLoader(deps: LoaderDeps, emit: (state: Stree
   return { start, refresh: live, get state() { return state; } };
 }
 
+/** How long the week of forecast may take before the plain day of it is asked for instead. */
+const LONG_FORECAST_TIMEOUT_MS = 10_000;
+
+function fetchPart(part: keyof StreetActivityAnswers, signal: AbortSignal): Promise<unknown> {
+  const plain = () => fetchJsonWithProgress<unknown>(LIVE(part), () => {}, signal);
+  if (part !== 'forecast') return plain();
+  /*
+   * The week on a shorter clock of its own, so that if it hangs the plain
+   * call still has time left on the loader's — and not at all if the
+   * loader itself has given up, when it would fail at once anyway.
+   */
+  const own = new AbortController();
+  const stop = () => own.abort();
+  signal.addEventListener('abort', stop, { once: true });
+  const timer = setTimeout(stop, LONG_FORECAST_TIMEOUT_MS);
+  return fetchJsonWithProgress<unknown>(`${LIVE(part)}?hours=${FORECAST_HOURS}`, () => {}, own.signal)
+    .catch((error: unknown) => {
+      if (signal.aborted) throw error;
+      return plain();
+    })
+    .finally(() => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', stop);
+    });
+}
+
 async function fetchLive(signal: AbortSignal): Promise<unknown> {
-  const parts = await Promise.all(PARTS.map((part) => fetchJsonWithProgress<unknown>(LIVE(part), () => {}, signal)));
+  const parts = await Promise.all(PARTS.map((part) => fetchPart(part, signal)));
   return Object.fromEntries(PARTS.map((part, i) => [part, parts[i]]));
 }
 

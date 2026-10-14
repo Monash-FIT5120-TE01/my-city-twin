@@ -124,7 +124,7 @@ import { SolarSheet } from './ui/SolarSheet';
 import { ActivitySearchResults, StreetActivitySheet } from './ui/StreetActivitySheet';
 import { ActivityTimeBar } from './ui/ActivityTimeBar';
 import { useStreetActivity } from './data/useStreetActivity';
-import { modeAt, nearestHour, nextHourWithData, onRail, readingsAt, timeline } from './data/streetActivity';
+import { countCeiling, modeAt, nearestHour, nextHourWithData, onRail, readingsAt, timeline } from './data/streetActivity';
 import type { Glow } from './ui/activityMapView';
 import { ActivityMap } from './ui/ActivityMap';
 import { StandPrompt } from './ui/StandPrompt';
@@ -199,15 +199,17 @@ export default function App() {
   }, [view, activityData]);
   /** Every counter's place, for the map's "show all". */
   const activitySensorsEN = useMemo(() => activityData?.sensors.map((s) => s.en) ?? [], [activityData]);
-  /** One glow per rated counter at the hour on the map; none off the screen. */
+  /** The top of the colour ramp: the most in any hour anywhere on the timeline. */
+  const activityCeiling = useMemo(() => (activityData ? countCeiling(activityData) : 1), [activityData]);
+  /** One glow per counter with a count at the hour on the map, coloured by the count; none off the screen. */
   const activityGlows = useMemo<Glow[]>(() => {
     if (view !== 'activity' || !activityData || activityAt === null) return [];
     const mode = modeAt(activityData, activityAt);
     if (!mode) return [];
     return readingsAt(activityData, mode, activityAt).flatMap((r) =>
-      r.level ? [{ id: r.sensor.id, en: r.sensor.en, level: r.level }] : [],
+      r.count === null ? [] : [{ id: r.sensor.id, en: r.sensor.en, t: r.count / activityCeiling }],
     );
-  }, [view, activityData, activityAt]);
+  }, [view, activityData, activityAt, activityCeiling]);
   // Play: one hour a little under every second, to the end of the timeline.
   useEffect(() => {
     if (!activityPlaying) return;
@@ -2123,6 +2125,7 @@ export default function App() {
       {!chromeHidden && !inVr && view === 'activity' && (
         <StreetActivitySheet
           state={streetActivity}
+          ceiling={activityCeiling}
           at={activityAt}
           sensorId={sensorId}
           now={activityNow}
@@ -2137,6 +2140,8 @@ export default function App() {
       {!chromeHidden && !inVr && view === 'activity' && activityData && activityAt !== null && (
         <ActivityTimeBar
           activity={activityData}
+          ceiling={activityCeiling}
+          now={activityNow}
           at={activityAt}
           onChange={(at) => {
             // Dragging or choosing an hour stops Play, as on the sunlight screen.

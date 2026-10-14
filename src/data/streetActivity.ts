@@ -475,3 +475,17 @@ export function searchSensors(activity: StreetActivity, query: string, max = 8):
     .slice(0, max)
     .map((s) => s.sensor);
 }
+
+/**
+ * The most movements in any hour anywhere on the timeline, recorded or
+ * forecast: the top of the map's colour ramp. One number for the whole
+ * timeline, so a colour means the same count at every hour the reader
+ * moves to. Never below one, so an empty answer is not a division by zero.
+ */
+export function countCeiling(activity: StreetActivity): number {
+  let top = 1;
+  for (const rows of [activity.recorded, activity.forecast]) {
+    for (const row of rows.values()) for (const count of row.values()) if (count > top) top = count;
+  }
+  return top;
+}

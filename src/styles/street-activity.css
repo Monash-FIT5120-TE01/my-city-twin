@@ -5,11 +5,6 @@
  * colours are activityPalette.ts's, set inline where they are used; every
  * one is beside its word.
  */
-:root {
-  /* A count with no level: mid grey, L* 61, apart from the three reds by lightness and by having no hue. */
-  --activity-unrated: #8d9399;
-}
-
 .activity-sheet {
   gap: var(--space-3);
 }
@@ -236,20 +231,29 @@
 
 /* ── levels ── */
 
-.activity-swatch {
-  display: inline-block;
+/* A level's mark: three rising bars, as many filled in ink as the level is high. */
+.activity-levelmark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
   flex: none;
-  width: 12px;
   height: 12px;
   margin-right: 6px;
-  border-radius: 50%;
-  vertical-align: -1px;
 }
 
-/* No level: an empty ring, told from the three by having no fill at all. */
-.activity-swatch--none {
-  border: 2px solid var(--activity-unrated);
-  background: transparent;
+.activity-levelmark span {
+  width: 3px;
+  border: 1px solid var(--ink-2);
+  border-radius: 1px;
+}
+
+.activity-levelmark span:nth-child(1) { height: 5px; }
+.activity-levelmark span:nth-child(2) { height: 8px; }
+.activity-levelmark span:nth-child(3) { height: 12px; }
+
+.activity-levelmark .is-filled {
+  border-color: var(--ink);
+  background: var(--ink);
 }
 
 .activity-level {
@@ -352,12 +356,11 @@
 .activity-switch button:focus-visible,
 .activity-rank:focus-visible,
 .activity-more:focus-visible,
-.activity-plain-list__item:focus-visible,
 .activity-suggest__item:focus-visible,
 .activity-tabs button:focus-visible,
 .activity-latest:focus-visible,
 .activity-source__refresh:focus-visible,
-.activity-timebar__date select:focus-visible {
+.activity-days__day:focus-visible {
   outline: 2px solid var(--green-700);
   outline-offset: 2px;
 }
@@ -365,7 +368,6 @@
 /* ── the ranking ── */
 
 .activity-ranks,
-.activity-plain-list,
 .activity-suggest {
   margin: 0;
   padding: 0;
@@ -373,7 +375,6 @@
 }
 
 .activity-rank,
-.activity-plain-list__item,
 .activity-suggest__item {
   display: grid;
   width: 100%;
@@ -399,7 +400,6 @@
 }
 
 .activity-rank:hover,
-.activity-plain-list__item:hover,
 .activity-suggest__item:hover {
   background: var(--green-050);
 }
@@ -429,19 +429,6 @@
   grid-area: level;
 }
 
-.activity-plain-list__item {
-  grid-template-columns: minmax(0, 1fr) auto;
-  font-size: var(--text-sm);
-}
-
-/*
- * The name and its count on one row. The count shares the ranking's class
- * for its weight, and with it `grid-area: count` — an area this grid does
- * not have, which put every count on a row of its own (2026-10-15).
- */
-.activity-plain-list__item .activity-rank__count {
-  grid-area: auto;
-}
 
 .activity-nodata strong {
   color: var(--ink);
@@ -667,15 +654,16 @@
 
 /*
  * The card over the map's lower left: beside the column, above the time
- * bar (its top is about 11rem over the fine print on a wide screen).
+ * bar (its top is about 14.5rem over the fine print on a wide screen, the
+ * row of days included).
  */
 .activity-about-panel {
   position: fixed;
   z-index: 6;
   left: calc(var(--w-sun-column) + var(--gutter));
-  bottom: calc(var(--h-mapfoot) + 12.25rem);
+  bottom: calc(var(--h-mapfoot) + 15rem);
   width: min(22rem, calc(100vw - var(--w-sun-column) - 2 * var(--gutter)));
-  max-height: calc(100vh - var(--h-header) - var(--h-mapfoot) - 13.25rem);
+  max-height: calc(100vh - var(--h-header) - var(--h-mapfoot) - 16rem);
   overflow-y: auto;
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-card);
@@ -784,6 +772,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     'left right'
+    'days days'
     'line line'
     'key key';
   row-gap: var(--space-2);
@@ -809,15 +798,81 @@
   grid-area: line;
 }
 
-.activity-timebar__date select {
-  min-height: 36px;
-  padding: 0 var(--space-2);
+/*
+ * The days: one button each, in a row that scrolls sideways when it is too
+ * long for the bar, with a step either side. The chosen day is filled dark
+ * and set heavier, the others outlined — lightness and weight, not hue.
+ */
+.activity-days {
+  grid-area: days;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.activity-days__list {
+  position: relative;
+  display: flex;
+  flex: 1;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.activity-days__list::-webkit-scrollbar {
+  display: none;
+}
+
+.activity-days__day,
+.activity-days__step {
+  flex: none;
+  min-height: 34px;
   border: 1px solid var(--cream-edge);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--paper);
   font: inherit;
   font-size: var(--text-sm);
   color: var(--ink);
+  cursor: pointer;
+}
+
+.activity-days__day {
+  padding: 0 var(--space-3);
+  white-space: nowrap;
+  font-variant-numeric: var(--numeric);
+}
+
+.activity-days__day:hover,
+.activity-days__step:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.activity-days__day[aria-pressed='true'] {
+  border-color: var(--green-700);
+  background: var(--green-700);
+  color: var(--paper);
+  font-weight: var(--weight-title);
+}
+
+.activity-days__step {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  padding: 0;
+}
+
+.activity-days__step:disabled {
+  cursor: default;
+  color: var(--ink-3);
+  opacity: 0.6;
+}
+
+.activity-days__day:focus-visible,
+.activity-days__step:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 1px;
 }
 
 .activity-timebar__now {
@@ -902,6 +957,25 @@
   font-weight: var(--weight-title);
 }
 
+/* The ramp as drawn, with its scale under it: 0 → the most anywhere. */
+.activity-key__ramp {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activity-key__bar {
+  display: block;
+  width: 11rem;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.activity-key__scale {
+  color: var(--ink-2);
+  font-variant-numeric: var(--numeric);
+}
+
 .activity-key__item {
   display: inline-flex;
   align-items: center;
@@ -963,8 +1037,8 @@
   .activity-timebar__dock {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      'mode date play'
-      'now now now'
+      'mode now play'
+      'days days days'
       'line line line';
     gap: var(--space-1) var(--space-2);
     padding: var(--space-3);
@@ -979,13 +1053,12 @@
     grid-area: mode;
   }
 
-  .activity-timebar__date {
-    grid-area: date;
-  }
-
   .activity-timebar__now {
     grid-area: now;
     align-self: center;
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.15;
   }
 
   .activity-timebar .timebar__play {
@@ -997,11 +1070,12 @@
     display: none;
   }
 
-  .activity-timebar__date select {
-    width: 100%;
+  /* The zone is said once, in "About the data"; on a phone the line holds only the hour and its kind. */
+  .activity-timebar__zone {
+    display: none;
   }
 
-  /* Room for the whole date beside them: "Thu, 15 Oct". */
+  /* Room for the hour beside them. */
   .activity-timebar .activity-switch button {
     padding: 0 var(--space-2);
   }
@@ -1099,8 +1173,13 @@
     min-height: 30px;
   }
 
-  .activity-timebar__date select {
-    min-height: 32px;
+  .activity-days__day,
+  .activity-days__step {
+    min-height: 30px;
+  }
+
+  .activity-days__step {
+    width: 30px;
   }
 
   .activity-timebar .timebar__track {
@@ -1108,10 +1187,10 @@
   }
 
   .activity-timebar__dock {
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      'mode date now play'
-      'line line line line';
+      'mode days play'
+      'now line line';
     row-gap: 0;
     padding: var(--space-2) var(--space-3);
   }

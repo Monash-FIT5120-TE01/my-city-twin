@@ -15,7 +15,7 @@ import {
   zoomAt,
   type Glow,
 } from './activityMapView';
-import { ACTIVITY_RADII_M } from '../scene/activityPalette';
+import { GLOW_RADIUS_M } from '../scene/activityPalette';
 
 const W = 1000;
 const H = 600;
@@ -163,22 +163,30 @@ describe('the flat map turned', () => {
 });
 
 describe('choosing a counter by its glow on the flat map', () => {
+  // The busiest (70 m) at the origin, the quietest (28 m) 80 m east: they overlap from 52 m to 70 m.
   const glows: Glow[] = [
-    { id: 1, en: [0, 0], level: 'busy' },
-    { id: 2, en: [40, 0], level: 'quiet' },
+    { id: 1, en: [0, 0], t: 1 },
+    { id: 2, en: [80, 0], t: 0 },
   ];
 
   it('gives the glow drawn on top: the busier where two overlap, else the nearer', () => {
     expect(glowAt(glows, 1, 1, 2, 0)?.id).toBe(1);
-    expect(glowAt(glows, 25, 0, 2, 0)?.id).toBe(1);
-    expect(glowAt(glows, 70, 0, 2, 0)?.id).toBe(2);
+    // Inside both, nearer the quiet one: the busier glow is painted over it.
+    expect(glowAt(glows, 55, 0, 2, 0)?.id).toBe(1);
+    // Beyond the busy glow, only the quiet one reaches.
+    expect(glowAt(glows, 100, 0, 2, 0)?.id).toBe(2);
     expect(glowAt(glows, 0, 500, 2, 0)).toBeNull();
   });
 
+  it("makes a busier glow reach further, from the ramp's two ends", () => {
+    expect(glowRadiusM(0, 2, 0)).toBe(GLOW_RADIUS_M.min);
+    expect(glowRadiusM(1, 2, 0)).toBe(GLOW_RADIUS_M.max);
+    expect(glowRadiusM(0.5, 2, 0)).toBeGreaterThan(GLOW_RADIUS_M.min);
+  });
+
   it('keeps a glow at least minPx across when zoomed out, and hits it there', () => {
-    // At 0.1 px/m a busy 64 m glow would be 6 px; held at 14 px it reaches 140 m.
-    expect(glowRadiusM('busy', 0.1, 14)).toBe(140);
-    expect(glowRadiusM('busy', 2, 14)).toBe(ACTIVITY_RADII_M.busy);
+    // At 0.1 px/m a 70 m glow would be 7 px; held at 14 px it reaches 140 m.
+    expect(glowRadiusM(1, 0.1, 14)).toBe(140);
     expect(glowAt(glows, 0, 130, 0.1, 14)?.id).toBe(1);
   });
 });

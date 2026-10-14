@@ -42,7 +42,7 @@ import {
   type StreetActivity,
 } from '../data/streetActivity';
 import type { StreetActivityState } from '../data/useStreetActivity';
-import { ACTIVITY_COLOURS, ACTIVITY_LEVELS, ACTIVITY_WORDS } from '../scene/activityPalette';
+import { ACTIVITY_LEVELS, ACTIVITY_WORDS, LEVEL_BARS, rampColour } from '../scene/activityPalette';
 import { countLabel, dayLabel, hourLabel, whenLabel } from './activityFormat';
 
 /** How many of the ranking show before "View all locations". */
@@ -50,21 +50,31 @@ const TOP = 3;
 
 const MODE_WORDS = { recorded: 'Recorded', forecast: 'Forecast' } as const;
 
-function Swatch({ level }: { level: ActivityLevel }) {
-  return <span className="activity-swatch" style={{ background: ACTIVITY_COLOURS[level] }} aria-hidden="true" />;
+/**
+ * A level's mark: three bars, one filled for quiet, two for moderate,
+ * three for busy — a count of filled bars, in ink, never a colour, so it
+ * cannot be confused with the map's ramp (which is people, not levels).
+ */
+function LevelMark({ level }: { level: ActivityLevel }) {
+  const filled = LEVEL_BARS[level];
+  return (
+    <span className="activity-levelmark" aria-hidden="true">
+      {[1, 2, 3].map((i) => (
+        <span key={i} className={i <= filled ? 'is-filled' : undefined} />
+      ))}
+    </span>
+  );
 }
 
-/** "Busy", or "No level yet" for a counter the backend has no thresholds for. */
-function LevelWord({ level, sensor }: { level: ActivityLevel | null; sensor: ActivitySensor }) {
-  if (level) {
-    return (
-      <span className={`activity-level activity-level--${level}`}>
-        <Swatch level={level} />
-        {ACTIVITY_WORDS[level]}
-      </span>
-    );
-  }
-  return <span className="activity-level activity-level--none">{sensor.thresholds ? '—' : 'No level yet'}</span>;
+/** "Busy", with its swatch; nothing for a count with no level (the location's details say why). */
+function LevelWord({ level }: { level: ActivityLevel | null }) {
+  if (!level) return null;
+  return (
+    <span className={`activity-level activity-level--${level}`}>
+      <LevelMark level={level} />
+      {ACTIVITY_WORDS[level]}
+    </span>
+  );
 }
 
 /* ── the weather ───────────────────────────────────────────────────────── */
@@ -120,7 +130,7 @@ function WeatherCard({ activity, at }: { activity: StreetActivity; at: number })
 
 function RankRow({ rank, reading, onSelect }: { rank: number; reading: Reading; onSelect: (id: number) => void }) {
   const { sensor, count, level } = reading;
-  const levelWords = level ? ACTIVITY_WORDS[level] : sensor.thresholds ? '' : 'no level yet';
+  const levelWords = level ? ACTIVITY_WORDS[level] : '';
   return (
     <li>
       <button
@@ -132,7 +142,7 @@ function RankRow({ rank, reading, onSelect }: { rank: number; reading: Reading; 
         <span className="activity-rank__n">{rank}</span>
         <span className="activity-rank__name">{sensor.name}</span>
         <span className="activity-rank__count">{countLabel(count ?? 0)}</span>
-        <LevelWord level={level} sensor={sensor} />
+        <LevelWord level={level} />
       </button>
     </li>
   );
@@ -155,11 +165,6 @@ function Overview({
   const summary = summarise(readings);
   const list = ranked(readings, order);
   const shown = all ? list : list.slice(0, TOP);
-  /*
-   * Every counter with no thresholds of its own, whether or not it has a
-   * count this hour: the list is how they are on the screen at all.
-   */
-  const noLevel = readings.filter((r) => !r.sensor.thresholds);
 
   // An hour on the rail the backend has nothing for: said, not shown as an empty city.
   if (!mode) {
@@ -188,21 +193,12 @@ function Overview({
           {ACTIVITY_LEVELS.map((level) => (
             <div key={level}>
               <dt>
-                <Swatch level={level} />
+                <LevelMark level={level} />
                 {ACTIVITY_WORDS[level]}
               </dt>
               <dd>{summary[level]}</dd>
             </div>
           ))}
-          {summary.unrated > 0 && (
-            <div>
-              <dt>
-                <span className="activity-swatch activity-swatch--none" aria-hidden="true" />
-                No level yet
-              </dt>
-              <dd>{summary.unrated}</dd>
-            </div>
-          )}
         </dl>
         <p className="activity-card__note">Each level is measured against that location's own usual traffic.</p>
       </section>
@@ -265,37 +261,13 @@ function Overview({
         )}
       </section>
 
-      {noLevel.length > 0 && (
-        <section className="activity-section" aria-labelledby="activity-unrated-title">
-          <h3 className="activity-section__title" id="activity-unrated-title">
-            {mode === 'forecast' ? 'No forecast' : 'No level yet'}
-          </h3>
-          <p className="activity-card__note">
-            {mode === 'forecast'
-              ? 'These locations have no forecast model yet, so they are not on the map for forecast hours.'
-              : 'These locations have no thresholds of their own yet, so they show a count but no level, and are not on the map.'}
-          </p>
-          <ul className="activity-plain-list">
-            {noLevel.map((r) => (
-              <li key={r.sensor.id}>
-                <button type="button" className="activity-plain-list__item" onClick={() => onSelect(r.sensor.id)}>
-                  <span>{r.sensor.name}</span>
-                  <span className="activity-rank__count">
-                    {r.count !== null ? countLabel(r.count) : mode === 'forecast' ? 'No forecast' : 'No count'}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </>
   );
 }
 
 /* ── one counter ───────────────────────────────────────────────────────── */
 
-function DayBars({ activity, sensor, at }: { activity: StreetActivity; sensor: ActivitySensor; at: number }) {
+function DayBars({ activity, sensor, at, ceiling }: { activity: StreetActivity; sensor: ActivitySensor; at: number; ceiling: number }) {
   const date = melbourneClock(at).date;
   const curve = dayCurve(activity, sensor.id, date);
   const top = Math.max(1, ...curve.map((p) => p.count ?? 0));
@@ -312,7 +284,8 @@ function DayBars({ activity, sensor, at }: { activity: StreetActivity; sensor: A
             className={`activity-day__bar${p.mode === 'forecast' ? ' activity-day__bar--forecast' : ''}${p.at === at ? ' activity-day__bar--now' : ''}`}
             style={{
               height: p.count === null ? 0 : `${Math.max(3, (p.count / top) * 100)}%`,
-              ['--bar' as string]: p.level ? ACTIVITY_COLOURS[p.level] : 'var(--activity-unrated)',
+              // The map's ramp, so a bar is the colour its hour's glow is.
+              ['--bar' as string]: p.count === null ? 'transparent' : rampColour(p.count / ceiling),
             }}
           />
         ))}
@@ -419,6 +392,7 @@ function Detail({
   sensor,
   at,
   now,
+  ceiling,
   onBack,
   onJump,
 }: {
@@ -426,6 +400,8 @@ function Detail({
   sensor: ActivitySensor;
   at: number;
   now: number;
+  /** The top of the map's colour ramp, for the day's bars. */
+  ceiling: number;
   onBack: () => void;
   onJump: (at: number) => void;
 }) {
@@ -486,7 +462,7 @@ function Detail({
             ) : (
               <strong>{countLabel(count)}</strong>
             )}
-            {count !== null && <LevelWord level={level} sensor={sensor} />}
+            {count !== null && <LevelWord level={level} />}
           </p>
           <p className="activity-card__meta">
             movements / hour · {whenLabel(at)}
@@ -501,7 +477,7 @@ function Detail({
             <p className="activity-card__note">This location has no thresholds yet, so its count has no level.</p>
           )}
         </div>
-        <DayBars activity={activity} sensor={sensor} at={at} />
+        <DayBars activity={activity} sensor={sensor} at={at} ceiling={ceiling} />
       </section>
       <section className="activity-section" role="tabpanel" id={`${tabsId}-p1`} aria-labelledby={`${tabsId}-t1`} hidden={tab !== 'plan'}>
         <PlanVisit activity={activity} sensor={sensor} now={now} onJump={onJump} />
@@ -524,7 +500,6 @@ function Detail({
  */
 function AboutPanel({ activity, at, onClose }: { activity: StreetActivity; at: number | null; onClose: () => void }) {
   const titleId = useId();
-  const unrated = activity.sensors.filter((s) => !s.thresholds).length;
   const mode = at === null ? null : modeAt(activity, at);
   const reporting = mode && at !== null ? summarise(readingsAt(activity, mode, at)).reporting : 0;
   useEffect(() => {
@@ -554,14 +529,15 @@ function AboutPanel({ activity, at, onClose }: { activity: StreetActivity; at: n
       </div>
       <div className="activity-about-panel__body">
         <p>
-          A deeper, wider glow on the map is a busier street. Every counting location with a level is shown, without
-          choosing a spot.
+          A glow's colour and size are how many people passed in the hour, on one scale for every location: teal and
+          small for few, through yellow, to dark red and wide for the most in any hour on the timeline. Every location
+          with a count is shown.
         </p>
         <p>
           Quiet, moderate and busy are the backend's own levels, set for each location against its usual traffic: a busy
           hour in a lane can be fewer people than a quiet one at Town Hall. The same levels are applied to the recorded
-          hours. {unrated} {unrated === 1 ? 'location has' : 'locations have'} no levels yet and {unrated === 1 ? 'is' : 'are'}{' '}
-          listed instead of drawn.
+          hours. These levels are words in the list, not the map's colours; a location with no levels of its own yet
+          still has its glow, by its count.
         </p>
         {at !== null && (
           <p>
@@ -598,6 +574,7 @@ function AboutPanel({ activity, at, onClose }: { activity: StreetActivity; at: n
 
 export function StreetActivitySheet({
   state,
+  ceiling,
   at,
   sensorId,
   now,
@@ -606,6 +583,8 @@ export function StreetActivitySheet({
   onExplore,
 }: {
   state: StreetActivityState;
+  /** The top of the map's colour ramp: the most in any hour anywhere. */
+  ceiling: number;
   /** The hour on the map. Null until the data has arrived. */
   at: number | null;
   sensorId: number | null;
@@ -652,6 +631,7 @@ export function StreetActivitySheet({
               sensor={sensor}
               at={at}
               now={now}
+              ceiling={ceiling}
               onBack={() => onSelect(null)}
               onJump={onJump}
             />
@@ -740,7 +720,7 @@ export function ActivitySearchResults({
         >
           <Icon name="directions_walk" size={16} />
           {sensor.name}
-          <small>{sensor.thresholds ? 'Counting location' : 'Counting location · no level yet'}</small>
+          <small>Counting location</small>
         </button>
       ))}
     </div>

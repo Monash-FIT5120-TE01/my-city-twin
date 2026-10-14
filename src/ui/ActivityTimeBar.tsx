@@ -22,6 +22,7 @@
  * without. App resolves anything else — a stale link — to the nearest hour
  * with data before passing it here.
  */
+import { useEffect, useRef } from 'react';
 import { Icon } from './kit/Icon';
 import {
   datesCovered,
@@ -30,17 +31,33 @@ import {
   slotsOn,
   type StreetActivity,
 } from '../data/streetActivity';
-import { ACTIVITY_COLOURS, ACTIVITY_LEVELS, ACTIVITY_WORDS } from '../scene/activityPalette';
-import { dateKey, dateLabelOf, hourLabel, offsetLabel, whenLabel } from './activityFormat';
+import type { SimulationDate } from '../scene/solar';
+import { RAMP_GRADIENT } from '../scene/activityPalette';
+import { countLabel, dateKey, dateLabelOf, hourLabel, offsetLabel, whenLabel } from './activityFormat';
+
+/** "Fri 16": a day's button, short enough for a row of eight or nine. */
+function dayChip({ year, month, day }: SimulationDate): string {
+  return new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', weekday: 'short', day: 'numeric' })
+    .format(new Date(Date.UTC(year, month - 1, day, 12)))
+    .replace(',', '');
+}
+
+const sameDay = (a: SimulationDate, b: SimulationDate) => a.year === b.year && a.month === b.month && a.day === b.day;
 
 export function ActivityTimeBar({
   activity,
+  ceiling,
+  now,
   at,
   onChange,
   playing,
   onPlay,
 }: {
   activity: StreetActivity;
+  /** The top of the map's colour ramp, for the key. */
+  ceiling: number;
+  /** The present: which day is "Today". */
+  now: number;
   at: number;
   onChange: (at: number) => void;
   playing: boolean;
@@ -59,9 +76,22 @@ export function ActivityTimeBar({
   /** Midday's slot, which is not the middle one on a 23- or 25-hour day. */
   const noon = slots.findIndex((s) => s.hour === 12);
 
+  const today = melbourneClock(now).date;
+  const dayIndex = dates.findIndex((d) => sameDay(d, date));
+
+  // The chosen day kept in view in its own row (a phone scrolls the row): only the row moves, never the page.
+  const dayList = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = dayList.current;
+    const chip = list?.querySelectorAll<HTMLElement>('.activity-days__day')[dayIndex];
+    if (!list || !chip) return;
+    const left = chip.offsetLeft; // the row is positioned, so this is measured from it
+    if (left < list.scrollLeft) list.scrollLeft = left;
+    else if (left + chip.offsetWidth > list.scrollLeft + list.clientWidth) list.scrollLeft = left + chip.offsetWidth - list.clientWidth;
+  }, [dayIndex]);
+
   /** Keep the clock hour on another date, or the nearest hour that has data there. */
-  const toDate = (key: string) => {
-    const next = dates.find((d) => dateKey(d) === key);
+  const toDate = (next: SimulationDate | undefined) => {
     if (!next) return;
     const there = slotsOn(activity, next);
     const hour = melbourneClock(at).hour;
@@ -121,19 +151,12 @@ export function ActivityTimeBar({
               Forecast
             </button>
           </div>
-          <label className="activity-timebar__date">
-            <span className="visually-hidden">Date</span>
-            <select value={dateKey(date)} onChange={(e) => toDate(e.target.value)}>
-              {dates.map((d) => (
-                <option key={dateKey(d)} value={dateKey(d)}>
-                  {dateLabelOf(d)}
-                </option>
-              ))}
-            </select>
-          </label>
           <p className="activity-timebar__now">
             <strong>{clock}</strong>
-            <span>{mode ? (mode === 'recorded' ? 'Recorded' : 'Forecast') : 'No data'} · Melbourne time</span>
+            <span>
+              {mode ? (mode === 'recorded' ? 'Recorded' : 'Forecast') : 'No data'}
+              <span className="activity-timebar__zone"> · Melbourne time</span>
+            </span>
           </p>
         </div>
 
@@ -154,6 +177,50 @@ export function ActivityTimeBar({
             onClick={() => latest !== null && onChange(latest)}
           >
             Latest
+          </button>
+        </div>
+
+        {/*
+          The days the data covers, one press each — yesterday's record to a
+          week of forecast — with a step either way. The hour stays the same
+          across days (toDate).
+        */}
+        <div className="activity-days" role="group" aria-label="Day">
+          <button
+            type="button"
+            className="activity-days__step"
+            onClick={() => toDate(dates[dayIndex - 1])}
+            disabled={dayIndex <= 0}
+            aria-label="Previous day"
+          >
+            <Icon name="chevron_left" size={18} />
+          </button>
+          <div className="activity-days__list" ref={dayList}>
+            {dates.map((d) => {
+              const isToday = sameDay(d, today);
+              const chosen = sameDay(d, date);
+              return (
+                <button
+                  key={dateKey(d)}
+                  type="button"
+                  className="activity-days__day"
+                  aria-pressed={chosen}
+                  aria-label={`${isToday ? 'Today, ' : ''}${dateLabelOf(d)}`}
+                  onClick={() => toDate(d)}
+                >
+                  {isToday ? 'Today' : dayChip(d)}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            className="activity-days__step"
+            onClick={() => toDate(dates[dayIndex + 1])}
+            disabled={dayIndex < 0 || dayIndex >= dates.length - 1}
+            aria-label="Next day"
+          >
+            <Icon name="chevron_right" size={18} />
           </button>
         </div>
 
@@ -198,15 +265,16 @@ export function ActivityTimeBar({
           </p>
         </div>
 
-        <div className="activity-key" aria-label="Map key">
-          <span className="activity-key__title">Foot traffic</span>
-          {ACTIVITY_LEVELS.map((level) => (
-            <span key={level} className="activity-key__item">
-              <span className="activity-swatch" style={{ background: ACTIVITY_COLOURS[level] }} aria-hidden="true" />
-              {ACTIVITY_WORDS[level]}
+        {/* The map's ramp, on the scale it is drawn to: no one, to the most in any hour anywhere. */}
+        <div className="activity-key" role="group" aria-labelledby="activity-key-title">
+          <span className="activity-key__title" id="activity-key-title">Foot traffic</span>
+          <span className="activity-key__ramp">
+            <span className="activity-key__bar" style={{ background: RAMP_GRADIENT }} aria-hidden="true" />
+            <span className="activity-key__scale">
+              0 → {countLabel(ceiling)} movements/h
+              <span className="visually-hidden">, from light teal to dark red</span>
             </span>
-          ))}
-          <span className="activity-key__item activity-key__item--muted">No level: not drawn</span>
+          </span>
           <span className="activity-key__item activity-key__item--muted">
             <span className="activity-key__line" aria-hidden="true" />
             Recorded

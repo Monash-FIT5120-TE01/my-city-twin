@@ -18,7 +18,8 @@ const PARTS = ['sensors', 'recent', 'history', 'forecast'];
 
 const answers = {};
 for (const part of PARTS) {
-  const url = `${BASE}/api/pedestrian-activities/${part}`;
+  // A week of forecast, as the screen asks for it (useStreetActivity: FORECAST_HOURS).
+  const url = `${BASE}/api/pedestrian-activities/${part}${part === 'forecast' ? '?hours=168' : ''}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${response.status} ${url}`);
   answers[part] = await response.json();

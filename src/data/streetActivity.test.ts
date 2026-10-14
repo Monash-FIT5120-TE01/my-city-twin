@@ -17,6 +17,7 @@ import {
   slotsOn,
   suggestHours,
   summarise,
+  countCeiling,
   onRail,
   nextHourWithData,
   modeAt,
@@ -87,11 +88,20 @@ describe('street activity', () => {
     }
   });
 
-  it('puts the forecast after the record, without a gap', () => {
+  it('starts the forecast where the record ends (overlapping by an hour at most), with no gap of more than an hour', () => {
     expect(activity.latest).toBe(activity.recordedHours.at(-1));
+    const latest = activity.latest as number;
     const first = activity.forecastHours[0];
-    expect(first).toBeGreaterThan(activity.latest as number);
-    expect(first - (activity.latest as number)).toBeLessThanOrEqual(60 * 60 * 1000);
+    expect(first).toBeGreaterThanOrEqual(latest - 60 * 60 * 1000);
+    // The first hour only the forecast has: at most two hours on (the backend sometimes skips one).
+    const onlyForecast = activity.forecastHours.find((h) => !activity.recorded.has(h)) as number;
+    expect(onlyForecast).toBeGreaterThan(latest);
+    expect(onlyForecast - latest).toBeLessThanOrEqual(2 * 60 * 60 * 1000);
+  });
+
+  it('carries a week of forecast', () => {
+    const span = (activity.forecastHours.at(-1) as number) - activity.forecastHours[0];
+    expect(span).toBeGreaterThanOrEqual(6 * 24 * 60 * 60 * 1000);
   });
 
   it('reads hours off a Melbourne clock, whichever zone the API wrote them in', () => {
@@ -105,8 +115,9 @@ describe('street activity', () => {
 
   it('offers only the dates the timeline touches, in order', () => {
     const dates = datesCovered(activity);
-    expect(dates.length).toBeGreaterThanOrEqual(2);
-    expect(dates.length).toBeLessThanOrEqual(4);
+    // A day of record and a week of forecast: eight or nine Melbourne dates.
+    expect(dates.length).toBeGreaterThanOrEqual(7);
+    expect(dates.length).toBeLessThanOrEqual(10);
     const keys = dates.map((d) => d.year * 10000 + d.month * 100 + d.day);
     expect([...keys].sort((a, b) => a - b)).toEqual(keys);
     // Every date has at least one hour on it.
@@ -167,8 +178,12 @@ describe('street activity', () => {
 
   it('has one weather reading per forecast hour and none for recorded ones', () => {
     expect(activity.weather.size).toBe(activity.forecastHours.length);
-    expect(activity.weather.has(activity.latest as number)).toBe(false);
-    expect(nextForecastHour(activity, activity.latest as number)).toBe(activity.forecastHours[0]);
+    for (const at of activity.weather.keys()) expect(activity.forecast.has(at)).toBe(true);
+    const recordOnly = activity.recordedHours.filter((h) => !activity.forecast.has(h));
+    expect(recordOnly.length).toBeGreaterThan(0);
+    for (const at of recordOnly) expect(activity.weather.has(at)).toBe(false);
+    const latest = activity.latest as number;
+    expect(nextForecastHour(activity, latest)).toBe(activity.forecastHours.find((h) => h >= latest));
     expect(nextForecastHour(activity, (activity.forecastHours.at(-1) as number) + 1)).toBeNull();
   });
 
@@ -258,5 +273,16 @@ describe('the rail, gaps included', () => {
       expect(modeAt(activity, next as number)).not.toBeNull();
     }
     expect(nextHourWithData(activity, timeline(activity).at(-1) as number)).toBeNull();
+  });
+});
+
+describe('the top of the colour scale', () => {
+  it('is the most in any hour anywhere, recorded or forecast', () => {
+    const all = [...activity.recorded.values(), ...activity.forecast.values()].flatMap((row) => [...row.values()]);
+    expect(countCeiling(activity)).toBe(Math.max(...all));
+  });
+
+  it('is at least one, with no counts at all', () => {
+    expect(countCeiling({ ...activity, recorded: new Map(), forecast: new Map() })).toBe(1);
   });
 });

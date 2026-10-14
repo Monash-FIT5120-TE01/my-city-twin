@@ -14,8 +14,9 @@
  *     3D street level is built from): carriageways white, footpaths a shade
  *     darker;
  *   - each building's ground floor, its footprint, with a fine edge;
- *   - the glows, one per counter with a level, deeper and wider the busier
- *     (activityPalette) — no dots, no pins; a thin ring round the chosen one;
+ *   - the glows, one per counter with a count, on one colour ramp by how
+ *     many people (activityPalette: darker and warmer, and wider, the more)
+ *     — no dots, no pins; a thin ring round the chosen one;
  *   - the street names, along their streets (fitted, see streets.ts).
  *
  * WHY IT IS DRAWN TWICE (2026-10-15)
@@ -43,7 +44,7 @@ import type { CityModel } from '../data/model';
 import { bundled } from '../data/bundled';
 import { fetchJsonWithProgress } from '../data/fetchWithProgress';
 import { CROSS_BEARING_DEG, LONG_BEARING_DEG, streetLabelsNear } from '../scene/streets';
-import { ACTIVITY_COLOURS, ACTIVITY_LEVELS } from '../scene/activityPalette';
+import { rampRgb } from '../scene/activityPalette';
 import { Icon } from './kit/Icon';
 import {
   boundsOf,
@@ -64,8 +65,8 @@ import {
 
 /*
  * The map's own colours: light, told apart by lightness, under the glows'
- * three reds (L* 74 / 54 / 34). Lightest is the road, so the streets the
- * glows sit on read first.
+ * ramp (L* 79 → 46). Lightest is the road, so the streets the glows sit on
+ * read first.
  *
  *   road        #ffffff  L* 100
  *   footpath    #f4f4ef  L* 96
@@ -377,16 +378,15 @@ export function ActivityMap({
       ctx.drawImage(pic.canvas, 0, 0, pic.size[0], pic.size[1]);
     }
 
-    // The glows, in pixels; quiet first so the busier lie on top.
+    // The glows, in pixels, coloured by the count on the ramp; the quieter first so the busier lie on top.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const s = view.scale;
-    const ordered = [...gs].sort((x, y) => ACTIVITY_LEVELS.indexOf(x.level) - ACTIVITY_LEVELS.indexOf(y.level));
+    const ordered = [...gs].sort((x, y) => x.t - y.t);
     for (const g of ordered) {
       const [x, y] = toScreen(view, width, height, g.en[0], g.en[1]);
-      const r = glowRadiusM(g.level, s, MIN_GLOW_PX) * s;
+      const r = glowRadiusM(g.t, s, MIN_GLOW_PX) * s;
       if (x < -r || y < -r || x > width + r || y > height + r) continue;
-      const v = Number.parseInt(ACTIVITY_COLOURS[g.level].slice(1), 16);
-      const rgb = `${(v >> 16) & 255},${(v >> 8) & 255},${v & 255}`;
+      const rgb = rampRgb(g.t).join(',');
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
       gradient.addColorStop(0, `rgba(${rgb},0.95)`);
       gradient.addColorStop(0.5, `rgba(${rgb},0.8)`);
@@ -404,7 +404,7 @@ export function ActivityMap({
       ctx.strokeStyle = MAP.selected;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x, y, glowRadiusM(chosen.level, s, MIN_GLOW_PX) * s * 0.75, 0, Math.PI * 2);
+      ctx.arc(x, y, glowRadiusM(chosen.t, s, MIN_GLOW_PX) * s * 0.75, 0, Math.PI * 2);
       ctx.stroke();
     }
 
