@@ -17,14 +17,15 @@
  *   - the glows, one per counter with a count, on one colour ramp by how
  *     many people (activityPalette: darker and warmer, and wider, the more)
  *     — no dots, no pins; a thin ring round the chosen one;
- *   - the street names, along their streets (fitted, see streets.ts).
+ *   - the landmarks' names, as white tags on their places (2026-10-15: these
+ *     instead of street names, which the reader did not need).
  *
  * WHY IT IS DRAWN TWICE (2026-10-15)
  *   The still parts are some 18,000 polygons, and painting them took about
  *   90 ms a frame: dragging ran at eleven frames a second. So they are
  *   painted once into a picture a little larger than the window, and while
  *   the map is handled that picture is only moved, scaled and turned
- *   (pictureTransform) — the glows and the names, a few dozen things, are
+ *   (pictureTransform) — the glows and the landmark tags, a few dozen things, are
  *   drawn fresh on top every frame. A moment after the handling stops, the
  *   picture is painted again at the new view, sharp. Frames are asked for
  *   one at a time, so a burst of pointer events is one redraw, not twenty.
@@ -43,7 +44,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CityModel } from '../data/model';
 import { bundled } from '../data/bundled';
 import { fetchJsonWithProgress } from '../data/fetchWithProgress';
-import { CROSS_BEARING_DEG, LONG_BEARING_DEG, streetLabelsNear } from '../scene/streets';
 import { rampRgb } from '../scene/activityPalette';
 import { Icon } from './kit/Icon';
 import {
@@ -73,7 +73,7 @@ import {
  *   ground      #e9ebe4  L* 93
  *   building    #d7dbd0  L* 87   edge #b9bfb2 (L* 77)
  *   open space  #cfe0c6  L* 87   (also a hue, but only ever a park)
- *   names       #5a6169  on a white halo
+ *   landmark tags  #16181a on white (about 17:1)
  */
 const MAP = {
   road: '#ffffff',
@@ -82,15 +82,19 @@ const MAP = {
   building: '#d7dbd0',
   edge: '#b9bfb2',
   park: '#cfe0c6',
-  name: '#5a6169',
-  halo: 'rgba(255,255,255,0.9)',
+  tag: 'rgba(255, 255, 255, 0.95)',
+  tagText: '#16181a',
   selected: '#16181a',
 } as const;
 
 /** A glow is never smaller than this on screen, so the whole CBD at once still shows it. */
 const MIN_GLOW_PX = 9;
-/** Names only once the streets are wide enough to carry them. */
-const NAMES_FROM_SCALE = 0.32;
+/** Landmark tags from this scale: below it the whole CBD has room for too few to be worth it. */
+const LANDMARKS_FROM_SCALE = 0.25;
+/** A tag's size, CSS pixels: the 3D tags' look, a little smaller for a map. */
+const TAG_HEIGHT = 22;
+const TAG_PAD_X = 8;
+const TAG_RADIUS = 8;
 /** Kerbs and channels only from here: below it they are under a pixel wide. */
 const KERBS_FROM_SCALE = 0.7;
 /** Buildings' edges only from here. */
@@ -270,6 +274,7 @@ export function ActivityMap({
   sensorsEN,
   selectedId,
   focus,
+  landmarks,
   onPick,
 }: {
   model: CityModel;
@@ -280,6 +285,8 @@ export function ActivityMap({
   selectedId: number | null;
   /** Bring this point to the middle (a search pick); `key` changes to ask again for the same point. */
   focus: { en: [number, number]; key: number } | null;
+  /** The named places, tagged on the map. Empty when "Landmarks" is off in Map layers. */
+  landmarks: readonly { name: string; en: [number, number] }[];
   onPick: (sensorId: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -314,8 +321,8 @@ export function ActivityMap({
   const viewRef = useRef<MapView | null>(null);
   const sizeRef = useRef(size);
   sizeRef.current = size;
-  const live = useRef({ paths, glows, selectedId });
-  live.current = { paths, glows, selectedId };
+  const live = useRef({ paths, glows, selectedId, landmarks });
+  live.current = { paths, glows, selectedId, landmarks };
   const picture = useRef<Picture | null>(null);
   const frame = useRef(0);
   const settle = useRef(0);
@@ -351,7 +358,7 @@ export function ActivityMap({
     if (canvas.height !== Math.round(height * dpr)) canvas.height = Math.round(height * dpr);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const { paths: p, glows: gs, selectedId: chosenId } = live.current;
+    const { paths: p, glows: gs, selectedId: chosenId, landmarks: lms } = live.current;
     /*
      * Paint it now if there is none yet, if the layers have arrived since, or
      * if it no longer covers the window (a long drag, a big turn) — at once,
@@ -408,31 +415,37 @@ export function ActivityMap({
       ctx.stroke();
     }
 
-    // The names, along their streets and turned with the map, never upside down.
-    if (s >= NAMES_FROM_SCALE) {
-      const [ce, cn] = toWorld(view, width, height, width / 2, height / 2);
-      ctx.font = `500 ${s >= 1 ? 12 : 11}px ${fontFamily.current}`;
+    /*
+     * The landmarks' names, as white tags on their places — the 3D view's
+     * tags drawn flat (landmark-tags.css). Laid out each frame in their list
+     * order: one that would overlap a tag already placed is left out, so the
+     * whole CBD shows a readable few and zooming in brings the rest.
+     */
+    if (s >= LANDMARKS_FROM_SCALE && lms.length > 0) {
+      ctx.font = `500 12px ${fontFamily.current}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.lineJoin = 'round';
-      for (const label of streetLabelsNear(ce, cn, Infinity)) {
-        const [x, y] = toScreen(view, width, height, label.east, label.north);
-        if (x < 0 || y < 0 || x > width || y > height) continue;
-        const bearing = ((label.axis === 'long' ? LONG_BEARING_DEG : CROSS_BEARING_DEG) * Math.PI) / 180;
-        // On screen (y down): the street's direction, less the map's own turn.
-        let angle = Math.atan2(-Math.cos(bearing), Math.sin(bearing)) - view.rotation;
-        angle = Math.atan2(Math.sin(angle), Math.cos(angle));
-        if (angle > Math.PI / 2) angle -= Math.PI;
-        if (angle < -Math.PI / 2) angle += Math.PI;
+      const placed: [number, number, number, number][] = [];
+      for (const lm of lms) {
+        const [x, y] = toScreen(view, width, height, lm.en[0], lm.en[1]);
+        const w = ctx.measureText(lm.name).width + 2 * TAG_PAD_X;
+        const h = TAG_HEIGHT;
+        const box: [number, number, number, number] = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+        if (box[2] < 0 || box[3] < 0 || box[0] > width || box[1] > height) continue;
+        const gap = 4;
+        if (placed.some((b) => box[0] < b[2] + gap && b[0] < box[2] + gap && box[1] < b[3] + gap && b[1] < box[3] + gap)) continue;
+        placed.push(box);
         ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
-        ctx.strokeStyle = MAP.halo;
-        ctx.lineWidth = 3;
-        ctx.strokeText(label.name, 0, 0);
-        ctx.fillStyle = MAP.name;
-        ctx.fillText(label.name, 0, 0);
+        ctx.shadowColor = 'rgba(16, 24, 20, 0.16)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = MAP.tag;
+        ctx.beginPath();
+        ctx.roundRect(box[0], box[1], w, h, TAG_RADIUS);
+        ctx.fill();
         ctx.restore();
+        ctx.fillStyle = MAP.tagText;
+        ctx.fillText(lm.name, x, y + 0.5);
       }
     }
     stats.current.frames += 1;
@@ -474,10 +487,10 @@ export function ActivityMap({
     [],
   );
 
-  // New glows, a new choice or new layers: one frame (the picture repaints itself if its paths changed).
+  // New glows, a new choice, new landmarks or new layers: one frame (the picture repaints itself if its paths changed).
   useEffect(() => {
     redraw();
-  }, [paths, glows, selectedId, redraw]);
+  }, [paths, glows, selectedId, landmarks, redraw]);
 
   /* ── size, and the first fit ── */
   useEffect(() => {

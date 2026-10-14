@@ -1743,6 +1743,7 @@ export default function App() {
           sensorsEN={activitySensorsEN}
           selectedId={sensorId}
           focus={activityFocus}
+          landmarks={layers.landmarks ? landmarks : []}
           onPick={setSensorId}
         />
       )}
