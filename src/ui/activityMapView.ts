@@ -3,15 +3,17 @@
  * THE STREET ACTIVITY MAP: WHERE THE CITY IS ON THE SCREEN
  * ─────────────────────────────────────────────────────────────────────────
  *
- * The flat map (ActivityMap) is north-up, in the city's east/north metres
- * from the scene origin — the same numbers as the buildings, the road
- * surfaces and the counters, so nothing is projected twice. A view is a
- * scale (pixels per metre) and the point at the middle of the canvas.
+ * The flat map (ActivityMap) is in the city's east/north metres from the
+ * scene origin — the same numbers as the buildings, the road surfaces and
+ * the counters, so nothing is projected twice. A view is a scale (pixels
+ * per metre), the point at the middle of the canvas, and a rotation: zero
+ * is north up, and a positive rotation turns the map anticlockwise on the
+ * screen.
  *
  * Kept apart from the drawing so the arithmetic can be tested without a
  * canvas: fitting the CBD into the part of the window the column and the
- * time bar leave free, zooming about the pointer, panning, and which glow
- * a tap lands on.
+ * time bar leave free, zooming and turning about the pointer, panning, and
+ * which glow a tap lands on.
  */
 import type { ActivityLevel } from '../data/streetActivity';
 import { ACTIVITY_LEVELS, ACTIVITY_RADII_M } from '../scene/activityPalette';
@@ -21,6 +23,8 @@ export interface MapView {
   scale: number;
   /** The east/north point at the middle of the canvas, metres. */
   centre: [number, number];
+  /** Radians; 0 is north up, positive turns the map anticlockwise on screen. */
+  rotation: number;
 }
 
 export interface Insets {
@@ -45,35 +49,81 @@ export const SCALE_LIMITS = { min: 0.01, max: 6 } as const;
 
 const clampScale = (scale: number) => Math.min(SCALE_LIMITS.max, Math.max(SCALE_LIMITS.min, scale));
 
-/** A point of the city on the canvas, CSS pixels. North is up. */
+/** A rotation folded into (-π, π], so "north up" is exactly 0 again after a full turn. */
+export function normaliseRotation(r: number): number {
+  const t = r % (2 * Math.PI);
+  return t > Math.PI ? t - 2 * Math.PI : t <= -Math.PI ? t + 2 * Math.PI : t;
+}
+
+/** A world offset (metres) as a screen offset (pixels, y down). */
+function worldToOffset(view: MapView, de: number, dn: number): [number, number] {
+  const c = Math.cos(view.rotation);
+  const s = Math.sin(view.rotation);
+  return [(de * c - dn * s) * view.scale, -(de * s + dn * c) * view.scale];
+}
+
+/** A screen offset (pixels, y down) as a world offset (metres). */
+function offsetToWorld(view: MapView, ox: number, oy: number): [number, number] {
+  const c = Math.cos(view.rotation);
+  const s = Math.sin(view.rotation);
+  const rx = ox / view.scale;
+  const ry = -oy / view.scale;
+  return [rx * c + ry * s, -rx * s + ry * c];
+}
+
+/** A point of the city on the canvas, CSS pixels. */
 export function toScreen(view: MapView, width: number, height: number, e: number, n: number): [number, number] {
-  return [width / 2 + (e - view.centre[0]) * view.scale, height / 2 - (n - view.centre[1]) * view.scale];
+  const [ox, oy] = worldToOffset(view, e - view.centre[0], n - view.centre[1]);
+  return [width / 2 + ox, height / 2 + oy];
 }
 
 /** A point of the canvas in the city, metres. */
 export function toWorld(view: MapView, width: number, height: number, x: number, y: number): [number, number] {
-  return [view.centre[0] + (x - width / 2) / view.scale, view.centre[1] - (y - height / 2) / view.scale];
+  const [de, dn] = offsetToWorld(view, x - width / 2, y - height / 2);
+  return [view.centre[0] + de, view.centre[1] + dn];
 }
 
+/** The centre that puts world point `en` at screen point (x, y) in a view of this scale and rotation. */
+function centreFor(
+  view: Omit<MapView, 'centre'>,
+  width: number,
+  height: number,
+  en: [number, number],
+  x: number,
+  y: number,
+): [number, number] {
+  const [de, dn] = offsetToWorld({ ...view, centre: [0, 0] }, x - width / 2, y - height / 2);
+  return [en[0] - de, en[1] - dn];
+}
+
+const freeMiddle = (width: number, height: number, insets: Insets): [number, number] => [
+  insets.left + Math.max(1, width - insets.left - insets.right) / 2,
+  insets.top + Math.max(1, height - insets.top - insets.bottom) / 2,
+];
+
 /**
- * The view that shows `bounds` whole in the part of the canvas the insets
- * leave free — beside the column, above the time bar — and centred there.
+ * The view that shows `bounds` whole, at this rotation, in the part of the
+ * canvas the insets leave free — beside the column, above the time bar —
+ * and centred there.
  */
-export function fitView(bounds: Bounds, width: number, height: number, insets: Insets): MapView {
+export function fitView(bounds: Bounds, width: number, height: number, insets: Insets, rotation = 0): MapView {
   const freeW = Math.max(1, width - insets.left - insets.right);
   const freeH = Math.max(1, height - insets.top - insets.bottom);
-  const spanE = Math.max(1, bounds.maxE - bounds.minE);
-  const spanN = Math.max(1, bounds.maxN - bounds.minN);
-  // Not held to the zoom's lower limit: "show all" must show all, however small the free part.
-  const scale = Math.min(SCALE_LIMITS.max, freeW / spanE, freeH / spanN);
   const middle: [number, number] = [(bounds.minE + bounds.maxE) / 2, (bounds.minN + bounds.maxN) / 2];
-  // Put the middle of the bounds at the middle of the FREE part, not of the canvas.
-  const freeX = insets.left + freeW / 2;
-  const freeY = insets.top + freeH / 2;
-  return {
-    scale,
-    centre: [middle[0] - (freeX - width / 2) / scale, middle[1] + (freeY - height / 2) / scale],
-  };
+  // The bounds' corners as they lie on a turned screen, one metre to the pixel.
+  const unit: MapView = { scale: 1, centre: middle, rotation };
+  const corners = [
+    [bounds.minE, bounds.minN],
+    [bounds.maxE, bounds.minN],
+    [bounds.maxE, bounds.maxN],
+    [bounds.minE, bounds.maxN],
+  ].map(([e, n]) => worldToOffset(unit, e - middle[0], n - middle[1]));
+  const spanX = Math.max(1, Math.max(...corners.map((p) => p[0])) - Math.min(...corners.map((p) => p[0])));
+  const spanY = Math.max(1, Math.max(...corners.map((p) => p[1])) - Math.min(...corners.map((p) => p[1])));
+  // Not held to the zoom's lower limit: "show all" must show all, however small the free part.
+  const scale = Math.min(SCALE_LIMITS.max, freeW / spanX, freeH / spanY);
+  const [fx, fy] = freeMiddle(width, height, insets);
+  return { scale, rotation, centre: centreFor({ scale, rotation }, width, height, middle, fx, fy) };
 }
 
 /**
@@ -83,13 +133,21 @@ export function fitView(bounds: Bounds, width: number, height: number, insets: I
  */
 export function zoomAt(view: MapView, width: number, height: number, x: number, y: number, factor: number): MapView {
   const scale = Math.min(SCALE_LIMITS.max, Math.max(Math.min(SCALE_LIMITS.min, view.scale), view.scale * factor));
-  const [e, n] = toWorld(view, width, height, x, y);
-  return { scale, centre: [e - (x - width / 2) / scale, n + (y - height / 2) / scale] };
+  const en = toWorld(view, width, height, x, y);
+  return { scale, rotation: view.rotation, centre: centreFor({ scale, rotation: view.rotation }, width, height, en, x, y) };
 }
 
-/** Drag the map by (dx, dy) pixels: the city moves with the pointer. */
+/** Turn by `radians` (positive anticlockwise) keeping the city point under (x, y) where it is. */
+export function rotateAt(view: MapView, width: number, height: number, x: number, y: number, radians: number): MapView {
+  const rotation = normaliseRotation(view.rotation + radians);
+  const en = toWorld(view, width, height, x, y);
+  return { scale: view.scale, rotation, centre: centreFor({ scale: view.scale, rotation }, width, height, en, x, y) };
+}
+
+/** Drag the map by (dx, dy) pixels: the city moves with the pointer, whichever way it is turned. */
 export function panBy(view: MapView, dx: number, dy: number): MapView {
-  return { scale: view.scale, centre: [view.centre[0] - dx / view.scale, view.centre[1] + dy / view.scale] };
+  const [de, dn] = offsetToWorld(view, dx, dy);
+  return { ...view, centre: [view.centre[0] - de, view.centre[1] - dn] };
 }
 
 /** The same view, moved so `en` is at the middle of the free part of the canvas. */
@@ -102,9 +160,30 @@ export function centreOn(
   scale = view.scale,
 ): MapView {
   const s = clampScale(scale);
-  const freeX = insets.left + (width - insets.left - insets.right) / 2;
-  const freeY = insets.top + (height - insets.top - insets.bottom) / 2;
-  return { scale: s, centre: [en[0] - (freeX - width / 2) / s, en[1] + (freeY - height / 2) / s] };
+  const [fx, fy] = freeMiddle(width, height, insets);
+  return { scale: s, rotation: view.rotation, centre: centreFor({ scale: s, rotation: view.rotation }, width, height, en, fx, fy) };
+}
+
+/**
+ * The transform that takes a picture drawn at view `from` (of size
+ * `fromSize`) to where it lies at view `to` on a canvas of `toSize`, as the
+ * six numbers of canvas setTransform, in CSS pixels. The map's still parts
+ * are drawn once into such a picture and moved with this while handled.
+ */
+export function pictureTransform(
+  from: MapView,
+  fromSize: [number, number],
+  to: MapView,
+  toSize: [number, number],
+): [number, number, number, number, number, number] {
+  const at = (x: number, y: number) => {
+    const [e, n] = toWorld(from, fromSize[0], fromSize[1], x, y);
+    return toScreen(to, toSize[0], toSize[1], e, n);
+  };
+  const o = at(0, 0);
+  const ax = at(1, 0);
+  const ay = at(0, 1);
+  return [ax[0] - o[0], ax[1] - o[1], ay[0] - o[0], ay[1] - o[1], o[0], o[1]];
 }
 
 /* ── the glows ─────────────────────────────────────────────────────────── */

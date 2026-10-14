@@ -110,8 +110,20 @@
   border-bottom: 0;
 }
 
-.activity-mapctl button:hover {
+.activity-mapctl button:hover:not(:disabled) {
   background: var(--surface-sunken);
+}
+
+/* North already up: the arrow stays, lighter, as the compass it is. */
+.activity-mapctl button:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+/* The arrow turns with the map, so it always points to north. */
+.activity-mapctl__north {
+  display: grid;
+  place-items: center;
 }
 
 .activity-mapctl button:focus-visible {
