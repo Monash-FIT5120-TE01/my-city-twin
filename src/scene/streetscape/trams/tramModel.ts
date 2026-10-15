@@ -19,15 +19,21 @@ import {
   Float32BufferAttribute,
   Group,
   Material,
+  Matrix4,
   Mesh,
   MeshStandardMaterial,
+  Object3D,
   PlaneGeometry,
   RepeatWrapping,
   SRGBColorSpace,
   Shape,
+  Texture,
+  TextureLoader,
   Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { bundled } from '../../../data/bundled';
 import { TRAM_CLASSES, type ClassKey, type TramClass } from './tramClasses';
 
 export interface Part { geo: BufferGeometry; mat: Material }
@@ -40,7 +46,11 @@ export interface TramKit {
   doors: { x: number; w: number }[];
   /** The glass of the windows and doors: drawn see-through for the tram being ridden. */
   glass: Material;
+  /** Seats a rider can sit on: centre along the tram (from its middle) and across (+ left), cushion height above
+   *  the rail, and which way the sitter faces along the tram (+1 forward). Only the models from files have them. */
+  seats: Seat[];
 }
+export interface Seat { x: number; y: number; z: number; face: number }
 
 const canvas = (w: number, h: number, draw: (g: CanvasRenderingContext2D, w: number, h: number) => void) => {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d') as CanvasRenderingContext2D, w, h);
@@ -245,14 +255,97 @@ function build(C: TramClass, wire: number): Group {
 }
 
 const kits = new Map<ClassKey, TramKit>();
-/** Lets every built model go (their geometry leaves the GPU); built again on next use. */
+/**
+ * Lets every built model go (their geometry, and the materials and images that came from the files, leave the
+ * GPU); built or loaded again on next use. A load still under way when this runs is dropped when it ends.
+ */
 export function disposeKits(): void {
-  for (const kit of kits.values()) for (const sec of kit.sections) for (const p of [...sec.outside, ...sec.inside]) p.geo.dispose();
-  kits.clear();
+  for (const kit of [...kits.values(), ...fromFile.values()]) for (const sec of kit.sections) for (const p of [...sec.outside, ...sec.inside]) p.geo.dispose();
+  for (const kit of fromFile.values()) {
+    const own = new Set<Material>([kit.glass]); for (const sec of kit.sections) for (const p of [...sec.outside, ...sec.inside]) own.add(p.mat);
+    for (const m of own) { if (m === plainMat || m === mats?.glass) continue; const map = (m as MeshStandardMaterial).map; if (map && map !== patternTex) map.dispose(); m.dispose(); }
+  }
+  kits.clear(); fromFile.clear(); loading = null; generation++;
+  patternTex?.dispose(); patternTex = null;
 }
 let plainMat: MeshStandardMaterial | null = null;
-/** The class's model, cut into sections and merged (built on first use). */
+
+/*
+ * MODELS FROM FILES — public/models/trams/<class>.glb, made with a 3D modelling tool (ProjectDoc/streetscape/models/build_trams.py:
+ * sizes, cab faces and liveries checked against photos, section lengths and doors re-measured). Each file holds a
+ * node <class>_sec<i> / <class>_int<i> per section, at the section's centre in this module's frame (+x forward,
+ * +y left, +z up), and the root's extras give the section centres and lengths and the door centres and widths.
+ * The shared network-pattern image is pattern.png beside them. A class whose file does not load keeps the
+ * parametric model below.
+ */
+const fromFile = new Map<ClassKey, TramKit>();
+let loading: Promise<void> | null = null, patternTex: Texture | null = null, generation = 0;
+interface FileMeta { sections: { centre: number; len: number }[]; doors: { x: number; w: number }[]; seats?: Seat[] }
+
+/** Loads every class's model file (once per walk: disposeKits lets them go). Never rejects. */
+export function loadTramModels(): Promise<void> {
+  return (loading ??= (async () => {
+    const gen = generation;
+    const tex = await new TextureLoader().loadAsync(bundled('models/trams/pattern.png')).catch(() => null);
+    if (gen !== generation) { tex?.dispose(); return; }   // let go while it loaded
+    if (tex) { tex.colorSpace = SRGBColorSpace; tex.wrapS = tex.wrapT = RepeatWrapping; tex.flipY = false; patternTex = tex; }
+    const loader = new GLTFLoader();
+    await Promise.all((Object.keys(TRAM_CLASSES) as ClassKey[]).map(async (key) => {
+      try {
+        const gltf = await loader.loadAsync(bundled(`models/trams/${key}.glb`));
+        if (gen === generation) fromFile.set(key, kitFromScene(key, gltf.scene));
+      } catch { /* the parametric model stands in */ }
+    }));
+  })());
+}
+
+function kitFromScene(key: ClassKey, scene: Object3D): TramKit {
+  scene.updateMatrixWorld(true);
+  const root = scene.getObjectByName(`${key}_root`)!, extras = root.userData.tram;
+  const meta = (typeof extras === 'string' ? JSON.parse(extras) : extras) as FileMeta;
+  let glass: Material | null = null;
+  const toSection = new Matrix4();
+  // every mesh under a section node, in the section's frame, merged per material; plain colours share one
+  // vertex-coloured material, as the parametric model does
+  const collect = (node: Object3D | undefined): Part[] => {
+    if (!node) return [];
+    toSection.copy(node.matrixWorld).invert();
+    const byMat = new Map<Material, BufferGeometry[]>();
+    node.traverse((o) => {
+      const m = o as Mesh; if (!m.isMesh) return;
+      const mat = m.material as MeshStandardMaterial;
+      if (mat.name === 'glass') glass = mat;
+      if (mat.name === 'pattern' && patternTex) { mat.map = patternTex; mat.color.set(0xffffff); mat.needsUpdate = true; }
+      const geo = m.geometry.clone().applyMatrix4(new Matrix4().multiplyMatrices(toSection, m.matrixWorld));
+      for (const k of Object.keys(geo.attributes)) if (k !== 'position' && k !== 'normal' && !(k === 'uv' && mat.map)) geo.deleteAttribute(k);
+      const plain = !mat.map && mat.emissive.getHex() === 0 && mat.name !== 'glass' && !mat.transparent;
+      if (plain) {
+        const n = geo.attributes.position.count, col = new Float32Array(n * 3);
+        for (let k = 0; k < n; k++) { col[k * 3] = mat.color.r; col[k * 3 + 1] = mat.color.g; col[k * 3 + 2] = mat.color.b; }
+        geo.setAttribute('color', new Float32BufferAttribute(col, 3));
+      }
+      const into = plain ? (plainMat ??= new MeshStandardMaterial({ vertexColors: true, roughness: 0.55 })) : mat;
+      if (!byMat.has(into)) byMat.set(into, []);
+      byMat.get(into)!.push(geo);
+    });
+    return [...byMat].map(([mat, geos]) => {
+      const list = geos.every((x) => x.index) ? geos : geos.map((x) => (x.index ? x.toNonIndexed() : x));
+      const geo = mergeGeometries(list, false)!; geo.computeBoundingSphere();
+      for (const g of geos) g.dispose();
+      return { geo, mat };
+    });
+  };
+  const sections = meta.sections.map((s, i) => ({
+    centre: s.centre, len: s.len,
+    outside: collect(scene.getObjectByName(`${key}_sec${i}`)),
+    inside: collect(scene.getObjectByName(`${key}_int${i}`)),
+  }));
+  return { cls: TRAM_CLASSES[key], sections, doors: meta.doors, seats: meta.seats ?? [], glass: glass ?? (mats ??= makeMats()).glass };
+}
+
+/** The class's model: from its file when loaded (loadTramModels), else cut into sections and merged (built on first use). */
 export function kitFor(key: ClassKey, wire = 5.64): TramKit {
+  const file = fromFile.get(key); if (file) return file;
   const have = kits.get(key); if (have) return have;
   const C = TRAM_CLASSES[key], g = build(C, wire);
   g.updateMatrixWorld(true);
@@ -296,6 +389,7 @@ export function kitFor(key: ClassKey, wire = 5.64): TramKit {
     cls: C, glass: (mats ??= makeMats()).glass,
     sections: sections.map((s) => ({ centre: s.centre, len: s.len, outside: merge(s.out), inside: merge(s.inn) })),
     doors: C.doors.map(([f, w]) => ({ x: -C.L / 2 + f * C.L, w })),
+    seats: [],
   };
   kits.set(key, kit);
   return kit;
