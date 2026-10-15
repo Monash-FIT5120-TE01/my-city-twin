@@ -59,8 +59,27 @@ export function rampColour(t: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/** The ramp as a CSS gradient, for the key. */
-export const RAMP_GRADIENT = `linear-gradient(to right, ${ACTIVITY_RAMP.join(', ')})`;
+/**
+ * The quiet end fades out (2026-10-15): from no one (nothing drawn) to this
+ * share of the most anywhere, the glow goes from clear to its full colour;
+ * above it, the ramp as it is. About 80 movements an hour on 4,000: the
+ * streets nearly empty at night all but vanish, and fewer is still always
+ * lighter, so the order the ramp keeps by lightness is not broken.
+ */
+export const FADE_T = 0.02;
+
+/** How opaque a glow is at `t`: 0 at no one, 1 from FADE_T up. */
+export function glowOpacity(t: number): number {
+  if (!Number.isFinite(t) || t <= 0) return 0;
+  return Math.min(1, t / FADE_T);
+}
+
+/** The ramp as a CSS gradient, for the key: clear at 0, its first colour by FADE_T. */
+export const RAMP_GRADIENT = (() => {
+  const [r, g, b] = rgbOf(ACTIVITY_RAMP[0]);
+  const rest = ACTIVITY_RAMP.map((hex, i) => `${hex} ${Math.max(FADE_T, i / (ACTIVITY_RAMP.length - 1)) * 100}%`);
+  return `linear-gradient(to right, rgba(${r}, ${g}, ${b}, 0) 0%, ${rest.join(', ')})`;
+})();
 
 /** How far a glow reaches, metres, from no one (t = 0) to the most anywhere (t = 1). */
 export const GLOW_RADIUS_M = { min: 28, max: 70 } as const;

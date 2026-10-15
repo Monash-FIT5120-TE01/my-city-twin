@@ -213,6 +213,8 @@ export function glowAt(glows: readonly Glow[], e: number, n: number, scale: numb
   let bestRank = -1;
   let bestD = Infinity;
   for (const g of glows) {
+    // A glow faded out to nothing (no one there) is not there to tap.
+    if (!(g.t > 0)) continue;
     const d = Math.hypot(g.en[0] - e, g.en[1] - n);
     if (d > glowRadiusM(g.t, scale, minPx)) continue;
     const rank = g.t;

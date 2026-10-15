@@ -163,10 +163,10 @@ describe('the flat map turned', () => {
 });
 
 describe('choosing a counter by its glow on the flat map', () => {
-  // The busiest (70 m) at the origin, the quietest (28 m) 80 m east: they overlap from 52 m to 70 m.
+  // The busiest (70 m) at the origin, a nearly empty one (28 m) 80 m east: they overlap from 52 m to 70 m.
   const glows: Glow[] = [
     { id: 1, en: [0, 0], t: 1 },
-    { id: 2, en: [80, 0], t: 0 },
+    { id: 2, en: [80, 0], t: 0.001 },
   ];
 
   it('gives the glow drawn on top: the busier where two overlap, else the nearer', () => {
@@ -176,6 +176,11 @@ describe('choosing a counter by its glow on the flat map', () => {
     // Beyond the busy glow, only the quiet one reaches.
     expect(glowAt(glows, 100, 0, 2, 0)?.id).toBe(2);
     expect(glowAt(glows, 0, 500, 2, 0)).toBeNull();
+  });
+
+  it('passes over a glow faded out to nothing', () => {
+    const empty: Glow[] = [{ id: 3, en: [0, 0], t: 0 }];
+    expect(glowAt(empty, 0, 0, 2, 0)).toBeNull();
   });
 
   it("makes a busier glow reach further, from the ramp's two ends", () => {

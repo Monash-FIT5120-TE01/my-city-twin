@@ -45,7 +45,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CityModel } from '../data/model';
 import { bundled } from '../data/bundled';
 import { fetchJsonWithProgress } from '../data/fetchWithProgress';
-import { rampRgb } from '../scene/activityPalette';
+import { glowOpacity, rampRgb } from '../scene/activityPalette';
 import { Icon } from './kit/Icon';
 import { landmarksAtScale, spreadLandmarks } from './landmarkSpread';
 import {
@@ -396,9 +396,12 @@ export function ActivityMap({
       const r = glowRadiusM(g.t, s, MIN_GLOW_PX) * s;
       if (x < -r || y < -r || x > width + r || y > height + r) continue;
       const rgb = rampRgb(g.t).join(',');
+      // The quiet end fades out: clear at no one, full from FADE_T (activityPalette).
+      const alpha = glowOpacity(g.t);
+      if (alpha <= 0) continue;
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
-      gradient.addColorStop(0, `rgba(${rgb},0.95)`);
-      gradient.addColorStop(0.5, `rgba(${rgb},0.8)`);
+      gradient.addColorStop(0, `rgba(${rgb},${0.95 * alpha})`);
+      gradient.addColorStop(0.5, `rgba(${rgb},${0.8 * alpha})`);
       gradient.addColorStop(1, `rgba(${rgb},0)`);
       ctx.fillStyle = gradient;
       ctx.beginPath();
