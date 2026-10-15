@@ -16,7 +16,9 @@
  * round the pit outline (~0.25 m wide, ~0.2 m above the footway), dark soil with sparse leafy plants, and a
  * low stainless rail (posts ~0.9 m apart, one top rail ~0.3 m above the kerb). No rail on a planter end
  * that has a seat. The outline is the surveyed footway cut-out where the tree has one, else a 1.7 m square
- * (CoM DS 501.04). Trees off the footway (squares, parks) grow straight out of the ground.
+ * (CoM DS 501.04). A tree the city records in the road (a kerb outstand or planted strip the road surfaces
+ * do not draw) gets the same square, set to the kerb (scripts/road-tree-planters.mjs). Trees elsewhere
+ * (squares, parks) grow straight out of the ground.
  */
 import {
   CylinderGeometry,

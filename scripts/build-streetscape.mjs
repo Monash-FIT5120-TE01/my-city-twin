@@ -7,6 +7,11 @@
  *   node scripts/build-streetscape.mjs --cache <dir> --trees <cbd_trees_postgis_ready.geojson>
  *        [--ptlines <public_transport_lines.geojson>]
  *
+ * THE WHOLE CHAIN, in order (each post-process script changes the builds' output and runs once; after a
+ * rebuild, run all of it again, from here):
+ *   build-streetscape.mjs -> road-tree-planters.mjs -> build-trams.mjs -> terminus-tracks.mjs -> terminus-crossover.mjs
+ * (align-platforms.mjs is run by build-streetscape.mjs.)
+ *
  * Writes public/data/streetscape/{surfaces,trees,street,signals,tram,manifest}.json, in metres east/north of
  * the scene origin (EPSG:7855, the same projection and origin as the buildings), for the extent of the
  * building data plus a margin. Downloads are cached in --cache (outside the repo; some inputs are large).
@@ -29,6 +34,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import proj4 from 'proj4';
+import { alignPlatforms, fitPlainPlatforms, pairRamps } from './align-platforms.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, all) => (v.startsWith('--') ? [...a, [v.slice(2), all[i + 1]]] : a), []));
 const CACHE = args.cache; if (!CACHE) throw new Error('--cache <dir> is required');
@@ -307,6 +313,10 @@ for (const el of osm) {
   platforms.push({ name: nm, stopName: ci > 0 ? nm.slice(ci + 1).trim() : nm, stopNo: ci > 0 ? nm.slice(0, ci).replace('Stop', '').trim() : '', ring, c: c.map(r2), t: t.map((v) => +v.toFixed(5)), u: [r2(u0), r2(u1)], w: [r2(w0), r2(w1)], front: f, dep, needRamp, rampAtStart, m: [r2(mStart), r2(mEnd)], fence: runs.map(([a, b]) => [r2(a), r2(b)]), shelters });
 }
 console.log('platforms', platforms.length, '| with front', platforms.filter((q) => !q.simple).length, '| shelters', platforms.reduce((a, q) => a + (q.shelters || []).length, 0));
+// the OSM outlines sit 0.8-1.4 m off the fitted tracks: onto the tracks, with everything they carry (align-platforms.mjs)
+{ const r = alignPlatforms(platforms, trackLines); console.log('platforms aligned to the tracks', r.moved, '| left alone', r.skipped); }
+console.log('slabs given fittings', fitPlainPlatforms(platforms, trackLines, surfAt, SITES.map((q) => q.p)));
+console.log('ramps moved to match the facing platform', pairRamps(platforms, SITES.map((q) => q.p)));
 
 // overhead: contact wire over each track; cross spans every ~30 m to poles 0.8 m behind each kerb
 const onPlatform = (p) => platforms.some((q) => inRing(p, q.ring));
