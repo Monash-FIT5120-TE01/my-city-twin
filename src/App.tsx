@@ -206,7 +206,7 @@ export default function App() {
     if (view !== 'activity' || !activityData || activityAt === null) return [];
     const mode = modeAt(activityData, activityAt);
     if (!mode) return [];
-    return readingsAt(activityData, mode, activityAt).flatMap((r) =>
+    return readingsAt(activityData, activityAt).flatMap((r) =>
       r.count === null ? [] : [{ id: r.sensor.id, en: r.sensor.en, t: r.count / activityCeiling }],
     );
   }, [view, activityData, activityAt, activityCeiling]);

@@ -43,6 +43,16 @@
   outline: none;
 }
 
+/* The header search on this screen: the shared .results look, as a list of buttons. */
+.activity-results {
+  margin: 0;
+  list-style: none;
+}
+
+.activity-results li > button {
+  width: 100%;
+}
+
 /* ── the flat map (ActivityMap) ── */
 
 .activity-map {
@@ -429,6 +439,13 @@
   grid-area: level;
 }
 
+/* A forecast standing in for a count not yet in: said in words, lighter. */
+.activity-rank__source {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-body);
+  color: var(--ink-3);
+}
+
 
 .activity-nodata strong {
   color: var(--ink);
@@ -663,7 +680,8 @@
   left: calc(var(--w-sun-column) + var(--gutter));
   bottom: calc(var(--h-mapfoot) + 15rem);
   width: min(22rem, calc(100vw - var(--w-sun-column) - 2 * var(--gutter)));
-  max-height: calc(100vh - var(--h-header) - var(--h-mapfoot) - 16rem);
+  /* Never squeezed to nothing on a very short window: it scrolls inside 8rem instead. */
+  max-height: max(8rem, calc(100vh - var(--h-header) - var(--h-mapfoot) - 16rem));
   overflow-y: auto;
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-card);
@@ -1029,6 +1047,19 @@
 }
 
 /*
+ * A wide window too short for the card above the time bar: it hangs from
+ * under the header instead, over the bar, so all of it is on screen and it
+ * scrolls inside what there is.
+ */
+@media (min-width: 901px) and (max-height: 620px) {
+  .activity-about-panel {
+    top: calc(var(--h-header) + var(--space-2));
+    bottom: auto;
+    max-height: calc(100vh - var(--h-header) - 2 * var(--space-2));
+  }
+}
+
+/*
  * ── ON A PHONE ───────────────────────────────────────────────────────────
  *
  * The sunlight screen's stack (sunlight.css): the column is a bottom sheet
@@ -1144,7 +1175,8 @@
     top: calc(6.75rem + var(--space-2));
     bottom: auto;
     width: auto;
-    max-height: calc(100vh - 6.75rem - var(--activity-sheet) - 2 * var(--space-2));
+    /* Clear of the sheet; if that leaves too little, up to 8rem — but never past the foot of the screen. */
+    max-height: max(min(8rem, calc(100vh - 6.75rem - 2 * var(--space-2))), calc(100vh - 6.75rem - var(--activity-sheet) - 2 * var(--space-2)));
   }
 }
 
@@ -1227,6 +1259,6 @@
     left: calc(var(--activity-side) + var(--space-2));
     right: var(--space-2);
     top: calc(6.75rem + var(--space-2));
-    max-height: calc(100vh - 6.75rem - 9rem);
+    max-height: max(min(8rem, calc(100vh - 6.75rem - 2 * var(--space-2))), calc(100vh - 6.75rem - 9rem));
   }
 }

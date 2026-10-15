@@ -128,9 +128,22 @@ function WeatherCard({ activity, at }: { activity: StreetActivity; at: number })
 
 /* ── the whole CBD ─────────────────────────────────────────────────────── */
 
-function RankRow({ rank, reading, onSelect }: { rank: number; reading: Reading; onSelect: (id: number) => void }) {
+function RankRow({
+  rank,
+  reading,
+  mode,
+  onSelect,
+}: {
+  rank: number;
+  reading: Reading;
+  /** The hour's kind; a reading from the other kind (a forecast filling a count not yet in) says so. */
+  mode: 'recorded' | 'forecast';
+  onSelect: (id: number) => void;
+}) {
   const { sensor, count, level } = reading;
-  const levelWords = level ? ACTIVITY_WORDS[level] : '';
+  // A count of the other kind than the hour's (a forecast standing in for a count not yet in) says which it is.
+  const borrowed = reading.source !== null && reading.source !== mode ? reading.source : null;
+  const levelWords = [level ? ACTIVITY_WORDS[level] : '', borrowed ?? ''].filter(Boolean).join(', ');
   return (
     <li>
       <button
@@ -141,7 +154,10 @@ function RankRow({ rank, reading, onSelect }: { rank: number; reading: Reading; 
       >
         <span className="activity-rank__n">{rank}</span>
         <span className="activity-rank__name">{sensor.name}</span>
-        <span className="activity-rank__count">{countLabel(count ?? 0)}</span>
+        <span className="activity-rank__count">
+          {countLabel(count ?? 0)}
+          {borrowed && <small className="activity-rank__source"> {borrowed}</small>}
+        </span>
         <LevelWord level={level} />
       </button>
     </li>
@@ -161,7 +177,7 @@ function Overview({
   const [all, setAll] = useState(false);
   const moreButton = useRef<HTMLButtonElement>(null);
   const mode = modeAt(activity, at);
-  const readings = useMemo(() => (mode ? readingsAt(activity, mode, at) : []), [activity, mode, at]);
+  const readings = useMemo(() => (mode ? readingsAt(activity, at) : []), [activity, mode, at]);
   const summary = summarise(readings);
   const list = ranked(readings, order);
   const shown = all ? list : list.slice(0, TOP);
@@ -245,7 +261,7 @@ function Overview({
         {shown.length > 0 ? (
           <ol className="activity-ranks" id="activity-ranks">
             {shown.map((r, i) => (
-              <RankRow key={r.sensor.id} rank={i + 1} reading={r} onSelect={onSelect} />
+              <RankRow key={r.sensor.id} rank={i + 1} reading={r} mode={mode} onSelect={onSelect} />
             ))}
           </ol>
         ) : (
@@ -427,7 +443,7 @@ function Detail({
     document.getElementById(`${tabsId}-t${next}`)?.focus();
   };
   const mode = modeAt(activity, at);
-  const reading = mode ? readingsAt(activity, mode, at).find((r) => r.sensor.id === sensor.id) : undefined;
+  const reading = mode ? readingsAt(activity, at).find((r) => r.sensor.id === sensor.id) : undefined;
   const count = reading?.count ?? null;
   const level = reading?.level ?? null;
 
@@ -471,7 +487,8 @@ function Detail({
           </p>
           <p className="activity-card__meta">
             movements / hour · {whenLabel(at)}
-            {mode && ` · ${MODE_WORDS[mode]}`}
+            {/* The count's own kind: at an hour both cover, a count not yet in is the forecast's. */}
+            {(reading?.source ?? mode) && ` · ${MODE_WORDS[(reading?.source ?? mode) as 'recorded' | 'forecast']}`}
           </p>
           {sensor.thresholds ? (
             <p className="activity-card__note">
@@ -506,7 +523,7 @@ function Detail({
 function AboutPanel({ activity, at, onClose }: { activity: StreetActivity; at: number | null; onClose: () => void }) {
   const titleId = useId();
   const mode = at === null ? null : modeAt(activity, at);
-  const reporting = mode && at !== null ? summarise(readingsAt(activity, mode, at)).reporting : 0;
+  const reporting = mode && at !== null ? summarise(readingsAt(activity, at)).reporting : 0;
   useEffect(() => {
     document.getElementById(titleId)?.focus();
   }, [titleId]);
@@ -713,21 +730,17 @@ export function ActivitySearchResults({
     );
   }
   return (
-    <div className="results" role="listbox" aria-label="Counting locations">
+    // A plain list of buttons: Tab moves through them and Enter opens one (a listbox would promise arrow keys).
+    <ul className="results activity-results" aria-label="Counting locations">
       {hits.map((sensor, index) => (
-        <button
-          key={sensor.id}
-          type="button"
-          style={{ '--i': index } as React.CSSProperties}
-          role="option"
-          aria-selected="false"
-          onClick={() => onPick(sensor.id)}
-        >
-          <Icon name="directions_walk" size={16} />
-          {sensor.name}
-          <small>Counting location</small>
-        </button>
+        <li key={sensor.id}>
+          <button type="button" style={{ '--i': index } as React.CSSProperties} onClick={() => onPick(sensor.id)}>
+            <Icon name="directions_walk" size={16} />
+            {sensor.name}
+            <small>Counting location</small>
+          </button>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

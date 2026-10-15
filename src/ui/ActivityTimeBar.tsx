@@ -33,7 +33,7 @@ import {
 } from '../data/streetActivity';
 import type { SimulationDate } from '../scene/solar';
 import { RAMP_GRADIENT } from '../scene/activityPalette';
-import { countLabel, dateKey, dateLabelOf, hourLabel, offsetLabel, whenLabel } from './activityFormat';
+import { countLabel, dateKey, dateLabelOf, hourLabel, whenLabel } from './activityFormat';
 
 /** How wide a stretch with no data must be for "No data" to be written on it, pixels. */
 const NO_DATA_LABEL_PX = 56;
@@ -72,9 +72,8 @@ export function ActivityTimeBar({
   const index = Math.max(0, slots.findIndex((s) => s.at === at));
   const mode = modeAt(activity, at);
   const last = Math.max(1, slots.length - 1);
-  // 02:00 twice on the night daylight saving ends: each says its offset.
-  const repeated = slots.filter((s) => s.hour === melbourneClock(at).hour).length > 1;
-  const clock = repeated ? `${hourLabel(at)} (${offsetLabel(at)})` : hourLabel(at);
+  // 02:00 twice on the night daylight saving ends: hourLabel gives each its offset.
+  const clock = hourLabel(at);
   const place = (i: number) => (i / last) * 100;
   /** Midday's slot, which is not the middle one on a 23- or 25-hour day. */
   const noon = slots.findIndex((s) => s.hour === 12);
@@ -272,7 +271,7 @@ export function ActivityTimeBar({
                 if (slot) onChange(slot.at);
               }}
               aria-label="Hour"
-              aria-valuetext={`${whenLabel(at)}${repeated ? ` ${offsetLabel(at)}` : ''}, ${mode ? (mode === 'recorded' ? 'recorded' : 'forecast') : 'no data'}`}
+              aria-valuetext={`${whenLabel(at)}, ${mode ? (mode === 'recorded' ? 'recorded' : 'forecast') : 'no data'}`}
             />
           </div>
           <p className="timebar__scale" aria-hidden="true">

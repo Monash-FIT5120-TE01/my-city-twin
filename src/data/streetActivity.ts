@@ -266,14 +266,30 @@ export interface Reading {
   count: number | null;
   /** Null when there is no count, or no thresholds to rate it by. */
   level: ActivityLevel | null;
+  /** Where the count came from; null with no count. */
+  source: ActivityMode | null;
 }
 
-/** Every counter at one hour, from the record or the forecast. */
-export function readingsAt(activity: StreetActivity, mode: ActivityMode, at: number): Reading[] {
-  const row = (mode === 'recorded' ? activity.recorded : activity.forecast).get(at);
+/**
+ * Every counter at one hour: its count if there is one, else its forecast
+ * — the same rule, counter by counter, as dayCurve, so the map, the
+ * ranking and the day's bars always agree. At an hour both cover, a
+ * counter whose last count has not arrived yet shows its forecast and says
+ * so (`source`), rather than nothing on the map and a bar in its day.
+ */
+export function readingsAt(activity: StreetActivity, at: number): Reading[] {
+  const recorded = activity.recorded.get(at);
+  const forecast = activity.forecast.get(at);
   return activity.sensors.map((sensor) => {
-    const count = row?.get(sensor.id) ?? null;
-    return { sensor, count, level: count === null ? null : levelFor(count, sensor.thresholds) };
+    const counted = recorded?.get(sensor.id);
+    const forecastCount = counted === undefined ? forecast?.get(sensor.id) : undefined;
+    const count = counted ?? forecastCount ?? null;
+    return {
+      sensor,
+      count,
+      level: count === null ? null : levelFor(count, sensor.thresholds),
+      source: counted !== undefined ? 'recorded' : forecastCount !== undefined ? 'forecast' : null,
+    };
   });
 }
 

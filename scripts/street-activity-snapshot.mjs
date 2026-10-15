@@ -16,13 +16,27 @@ import { resolve } from 'node:path';
 const BASE = process.env.VITE_API_BASE ?? 'https://api.mycitytwin.com';
 const PARTS = ['sensors', 'recent', 'history', 'forecast'];
 
+async function getJson(url, timeoutMs) {
+  const response = await fetch(url, timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : undefined);
+  if (!response.ok) throw new Error(`${response.status} ${url}`);
+  return response.json();
+}
+
 const answers = {};
 for (const part of PARTS) {
-  // A week of forecast, as the screen asks for it (useStreetActivity: FORECAST_HOURS).
-  const url = `${BASE}/api/pedestrian-activities/${part}${part === 'forecast' ? '?hours=168' : ''}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${response.status} ${url}`);
-  answers[part] = await response.json();
+  const url = `${BASE}/api/pedestrian-activities/${part}`;
+  if (part !== 'forecast') {
+    answers[part] = await getJson(url);
+    continue;
+  }
+  // A week of forecast, as the screen asks for it (useStreetActivity: FORECAST_HOURS);
+  // the plain day of it if the undocumented `hours` fails or hangs, as the screen does too.
+  try {
+    answers[part] = await getJson(`${url}?hours=168`, 15_000);
+  } catch (error) {
+    console.warn(`forecast?hours=168 failed (${error.message}); taking the plain 24 hours`);
+    answers[part] = await getJson(url);
+  }
 }
 
 const out = resolve(import.meta.dirname, '../public/data/street-activity.json');

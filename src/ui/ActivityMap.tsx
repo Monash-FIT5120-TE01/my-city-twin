@@ -122,13 +122,20 @@ type XY = [number, number];
 interface SurfacesDoc { byType: Record<string, XY[][][]> }
 interface OpenSpaceDoc { features: { polygons: XY[][][] }[] }
 
-/** Fetched once for the page's life: three and a half megabytes are not fetched twice. */
+/**
+ * Fetched once for the page's life: three and a half megabytes are not
+ * fetched twice. Unless one failed — then the next time the map opens
+ * asks again, rather than the roads or the parks staying missing.
+ */
 let layersOnce: Promise<{ surfaces: SurfacesDoc | null; openSpace: OpenSpaceDoc | null }> | null = null;
 function loadLayers() {
   layersOnce ??= Promise.all([
     fetchJsonWithProgress<SurfacesDoc>(bundled('data/streetscape/surfaces.json'), () => {}).catch(() => null),
     fetchJsonWithProgress<OpenSpaceDoc>(bundled('data/open-space.json'), () => {}).catch(() => null),
-  ]).then(([surfaces, openSpace]) => ({ surfaces, openSpace }));
+  ]).then(([surfaces, openSpace]) => {
+    if (!surfaces || !openSpace) layersOnce = null;
+    return { surfaces, openSpace };
+  });
   return layersOnce;
 }
 

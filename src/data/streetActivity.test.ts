@@ -143,7 +143,7 @@ describe('street activity', () => {
   });
 
   it('summarises an hour: rated, unrated and silent counters add up', () => {
-    const readings = readingsAt(activity, 'recorded', activity.latest as number);
+    const readings = readingsAt(activity, activity.latest as number);
     const s = summarise(readings);
     expect(s.total).toBe(activity.sensors.length);
     expect(s.quiet + s.moderate + s.busy + s.unrated).toBe(s.reporting);
@@ -153,12 +153,14 @@ describe('street activity', () => {
   });
 
   it('has no forecast for the counters without a model', () => {
-    const readings = readingsAt(activity, 'forecast', activity.forecastHours[0]);
+    // An hour only the forecast covers: where both do, a missing count is filled from the record.
+    const onlyForecast = activity.forecastHours.find((h) => !activity.recorded.has(h)) as number;
+    const readings = readingsAt(activity, onlyForecast);
     for (const r of readings) expect(r.count === null).toBe(r.sensor.thresholds === null);
   });
 
   it('ranks most first or fewest first, leaving out the silent', () => {
-    const readings = readingsAt(activity, 'recorded', activity.latest as number);
+    const readings = readingsAt(activity, activity.latest as number);
     const higher = ranked(readings, 'higher');
     const lower = ranked(readings, 'lower');
     expect(higher[0].count).toBe(Math.max(...higher.map((r) => r.count as number)));
@@ -173,7 +175,9 @@ describe('street activity', () => {
     expect(curve).toHaveLength(24);
     const i = curve.findIndex((p) => p.at === activity.latest);
     expect(curve[i].mode).toBe('recorded');
-    if (i < curve.length - 1) expect(curve[i + 1].mode).toBe('forecast');
+    // The next hour with anything is the forecast's (the backend sometimes leaves one empty between).
+    const next = curve.slice(i + 1).find((p) => p.mode !== null);
+    if (next) expect(next.mode).toBe('forecast');
   });
 
   it('has one weather reading per forecast hour and none for recorded ones', () => {
@@ -284,5 +288,25 @@ describe('the top of the colour scale', () => {
 
   it('is at least one, with no counts at all', () => {
     expect(countCeiling({ ...activity, recorded: new Map(), forecast: new Map() })).toBe(1);
+  });
+});
+
+describe('an hour both the record and the forecast cover', () => {
+  it('gives each counter its count if it has one, else its forecast, saying which, as its day does', () => {
+    const at = activity.forecastHours[0];
+    const sensors = activity.sensors.filter((s) => activity.forecast.get(at)?.has(s.id));
+    const [kept, missing] = sensors;
+    const recorded = new Map(activity.recorded);
+    recorded.set(at, new Map([[kept.id, 123]]));
+    const both = { ...activity, recorded };
+    const readings = readingsAt(both, at);
+    const k = readings.find((r) => r.sensor.id === kept.id)!;
+    const m = readings.find((r) => r.sensor.id === missing.id)!;
+    expect(k).toMatchObject({ count: 123, source: 'recorded' });
+    expect(m.source).toBe('forecast');
+    expect(m.count).toBe(activity.forecast.get(at)?.get(missing.id));
+    const day = dayCurve(both, missing.id, melbourneClock(at).date).find((p) => p.at === at)!;
+    expect(day.count).toBe(m.count);
+    expect(day.mode).toBe('forecast');
   });
 });

@@ -24,9 +24,18 @@ export function dateLabelOf({ year, month, day }: SimulationDate): string {
   return dayLabel(Date.UTC(year, month - 1, day, 2));
 }
 
-/** "07:00". */
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * "07:00" — and "02:00 (GMT+11)" for each of the two 02:00s on the night
+ * daylight saving ends, so the weather card, the details, the day's bars
+ * and the rail never show two different hours as the same one.
+ */
 export function hourLabel(at: number): string {
-  return `${String(melbourneClock(at).hour).padStart(2, '0')}:00`;
+  const hour = melbourneClock(at).hour;
+  const plain = `${String(hour).padStart(2, '0')}:00`;
+  const twice = melbourneClock(at - HOUR_MS).hour === hour || melbourneClock(at + HOUR_MS).hour === hour;
+  return twice ? `${plain} (${offsetLabel(at)})` : plain;
 }
 
 /** "Wed, 14 Oct · 07:00". */
