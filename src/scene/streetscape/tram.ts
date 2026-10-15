@@ -33,6 +33,8 @@ export interface Platform {
   name: string; stopName?: string; stopNo?: string; ring: XY[]; c: XY; t: XY; u: [number, number]; w: [number, number];
   front?: number; dep?: number; needRamp?: boolean; rampAtStart?: boolean; m?: [number, number]; fence?: [number, number][];
   shelters?: { type: 'box' | 'canopy'; u: number; w: number; depth: number; ruleBench: boolean }[]; simple?: boolean;
+  /** A track along both sides (scripts/terminus-tracks.mjs): the track-edge markings on both edges. */
+  island?: boolean;
 }
 export interface TramDoc { trackLines: XY[][]; platforms: Platform[]; overhead: { spans: [XY, XY][]; poles: XY[] } }
 
@@ -135,9 +137,11 @@ export async function buildTram(doc: TramDoc): Promise<{ always: Group; mid: Gro
         for (const u of [ra, (ra + rb) / 2, rb]) tube([u, w, ya(u) - 0.9], [u, w, ya(u)], 0.025);
       }
     }
-    // track edge: thin yellow line, then the pale warning TGSI 300 wide from 300 mm
-    box(mStart, mEnd, wf, wf + s * 0.075, PH, 0.005, MAT.yellow);
-    box(mStart, mEnd, wf + s * 0.3, wf + s * 0.6, PH, 0.006, tgsiMat);
+    // track edge: thin yellow line, then the pale warning TGSI 300 wide from 300 mm (both edges of an island)
+    for (const [we, se] of pl.island ? [[wf, s], [wr, -s]] : [[wf, s]]) {
+      box(mStart, mEnd, we, we + se * 0.075, PH, 0.005, MAT.yellow);
+      box(mStart, mEnd, we + se * 0.3, we + se * 0.6, PH, 0.006, tgsiMat);
+    }
     // fence (rear faces the carriageway only): posts every 2 m, top rail 1.1 m, bottom rail 0.15 m, bars 120 mm
     const wz = wr + k * 0.08;
     for (const [fa, fb] of pl.fence || []) {

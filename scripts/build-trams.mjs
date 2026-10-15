@@ -7,6 +7,9 @@
  *   The tram GTFS is folder 3 of the Victorian GTFS Schedule (Transport Victoria / DTP, CC BY 4.0, weekly):
  *   https://opendata.transport.vic.gov.au/dataset/gtfs-schedule  ->  gtfs.zip / 3 / google_transit.zip
  *   Run after build-streetscape.mjs: it reads tram.json (tracks, platforms) and signals.json from there.
+ *   Then run scripts/terminus-tracks.mjs and scripts/terminus-crossover.mjs: the second track at the Elizabeth
+ *   St terminus, which the route lines do not have, and the crossover that lets a tram use either side
+ *   (after a rebuild of this alone, the whole chain again: build-streetscape.mjs).
  *
  * WRITES public/data/streetscape/trams-{monThu,fri,sat,sun}.json (the same paths in each; the day's trips)
  *   paths   one per distinct route path through the CBD: the GTFS shape clipped to the model's extent and

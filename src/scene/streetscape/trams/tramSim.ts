@@ -23,6 +23,11 @@
  *   calling there: it opens its doors where it is. Further back than that it waits, and moves up when there
  *   is room. A call lasts 15-20 s, and a tram early on the timetable waits for its time (up to a minute more).
  *
+ * WHERE TRACKS JOIN, AND THE TERMINUS WITH POINTS
+ *   At a join the tram further from it gives way, short of where the tracks are still clear of each other
+ *   (mergeHold). At Elizabeth St's terminus a tram uses whichever side of the island is free, over a
+ *   crossover (terminusHold, and the block above `terminus`).
+ *
  * WHAT IS NOT MODELLED
  *   Tram priority at signals (SCATS extends greens for trams), cars, and turning conflicts between trams
  *   crossing on different tracks (the signals keep those apart).
@@ -39,6 +44,12 @@ export interface TramsDoc {
   paths: { pts: XY[]; stops: PathStop[]; signals: [number, number, 'A' | 'B'][]; slow: [number, number, number][]; merges: [number, number, number][] }[];
   /** [path, route, class, [stop index, time s, stop index, time s, ...]] */
   trips: Record<DayKey, [number, string, ClassKey, number[]][]>;
+  /**
+   * A terminus with points (scripts/terminus-crossover.mjs): per path, the side of the island it ends at or
+   * starts from, whether it arrives or leaves there, its twin on the other side, where it runs through the
+   * crossover (from, to: distances along it), and whether it takes a diagonal there.
+   */
+  terminus?: [number, string, 'arrive' | 'depart', number, number, number, boolean][];
 }
 
 export const LIMIT_MS = 40 / 3.6;
@@ -49,12 +60,25 @@ const JERK = 1.0;              // m/s3: comfort (EST; no published vehicle figur
 const COMFORT = 0.7;           // plan braking at this share of the service rate
 const BODY_STEP_M = 4;         // spacing of the points a tram's body is checked by
 const MERGE_LOOK_M = 40;       // how near a join two trams start deciding who goes first
+/*
+ * Clearance between trams on tracks that meet, part (a join, a split) or run close: their centre lines must be
+ * this far apart, or the bodies touch (2.74 m is the widest class, W8; 2.65 the low-floor ones). Within it a
+ * tram on another track, heading the same way, is in the way (obstacle()), and a tram giving way at a join
+ * waits where the tracks are still this far apart (mergeHold()). Before 2026-10-16 trams saw only what was
+ * within 1.2 m of their own track, so at the City Circle's junctions a tram clipped the corner of one splitting
+ * off ahead of it, or of one waiting at a signal beside a join, and waited too close to a join (3 m short of
+ * it, where the tracks are still about 2 m apart). Adjacent tracks are 3.35 m apart or more (CE-019-ST-0039).
+ */
+const CLEAR_M = 2.8;
+const MERGE_HOLD_M = 7;        // a tram giving way at a join waits at least this far short of it (mergeHold)
 const MAX_HOLD_S = 60;         // the longest a tram waits at a stop for its timetabled time
+const BERTH_LOOK_M = 60;       // how far short of a terminus crossover an arriving tram picks its side
+const POINTS_CLAIM_M = 30;     // how near the crossover a tram taking a diagonal asks for it
 const ENTRY_SHORT_M = 8;       // how far short of its first stop a tram comes into the model, at most
 const BOX_M = 25;              // an intersection's depth past its stop line (EST): room needed to clear it
 const GRID_M = 10;             // cell of a path's segment grid (segmentsNear)
 const SHARE_STEP_M = 1;        // how densely one path is sampled against another (sharesTrack)
-const SHARE_OFF_M = 2;         // nearer than this, and heading the same way, is the same track (obstacle allows 1.2)
+const SHARE_OFF_M = 3;         // nearer than this, and heading the same way, shares track (obstacle allows CLEAR_M)
 const SHARE_PAST_END_M = 45;  // longer than any tram (tramClasses)
 const NONE: readonly number[] = [];
 /** A grid cell as one number (a string key cost more than the lookup it named); cells span ±5,000 km. */
@@ -157,8 +181,15 @@ export interface Tram {
   body: XY[]; bodyDir: XY[];
   dir: XY;
   /** What it is stopping for, if anything (for checking the simulation). */
-  why: 'tram' | 'merge' | 'signal' | 'box' | 'stop' | '';
+  why: 'tram' | 'merge' | 'signal' | 'box' | 'stop' | 'berth' | 'points' | '';
+  /** The tram it is giving way to at a join, if any: that tram does not wait for it in turn (obstacle()). */
+  yieldTo: Tram | null;
+  /** The side of a terminus island it has taken (arriving, or starting from it), until it is clear of it. */
+  berth: string | null;
 }
+
+/** A path's part in a terminus with points (TramsDoc.terminus). */
+interface TerminusPath { berth: string; kind: 'arrive' | 'depart'; twin: number; x: [number, number]; diagonal: boolean }
 
 /** A random number in [0, 1) from two integers, so the same trip calls for the same time every run. */
 const rand = (a: number, b: number) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -173,6 +204,17 @@ export class TramSim {
   private signalPhase: (site: number, t: number) => Phase;
   /** Called when a tram leaves the model (the ride ends with it). */
   onLeave: ((t: Tram) => void) | null = null;
+  /*
+   * THE TERMINUS WITH POINTS (Elizabeth St, Stop 1: Flinders Street Station). A crossover north of the island
+   * lets a tram use either side. An arriving tram takes a side BERTH_LOOK_M short of the crossover: its own
+   * if free, else the other (changing to its path's twin, which is the same up to there), else it waits short
+   * of the crossover; a leaving tram starts on a free side. A side stays taken until the tram leaves the model
+   * (arriving) or its back is through the crossover (leaving), so two trams never meet head on beside the
+   * island. A tram taking a diagonal has the crossover to itself; trams running straight through it (one each
+   * way on its own track) can share it, but not with a diagonal (pointsOwner). Seen on site, 2026-10-16.
+   */
+  private terminus = new Map<number, TerminusPath>();
+  private pointsOwner: Tram | null = null;
 
   /**
    * @param time seconds of the service day to start at (the caller warms up from earlier: see warmUp)
@@ -183,6 +225,7 @@ export class TramSim {
   constructor(doc: TramsDoc, day: DayKey, time: number, signalPhase: (site: number, t: number) => Phase, before?: { doc: TramsDoc; day: DayKey }) {
     this.paths = doc.paths.map((p) => new TramPath(p));
     this.time = time; this.signalPhase = signalPhase;
+    for (const [path, berth, kind, twin, x0, x1, diagonal] of doc.terminus ?? []) this.terminus.set(path, { berth, kind, twin, x: [x0, x1], diagonal });
     const trips: Trip[] = [];
     const read = (list: TramsDoc['trips'][DayKey], shift: number, lateOnly: boolean) => list.forEach(([path, route, cls, flat], index) => {
       const stops: [number, number][] = []; for (let i = 0; i < flat.length; i += 2) stops.push([flat[i], flat[i + 1] - shift]);
@@ -208,9 +251,13 @@ export class TramSim {
     this.spawn();
     for (const t of this.trams) this.control(t, dt);
     for (const t of this.trams) this.refresh(t);
+    // a side of the terminus is free again once a leaving tram's back is through the crossover; so is the crossover
+    for (const t of this.trams) { const tp = this.terminus.get(t.trip.path); if (t.berth && tp?.kind === 'depart' && t.s - t.L > tp.x[1]) t.berth = null; }
+    const po = this.pointsOwner, pt = po && this.terminus.get(po.trip.path);
+    if (po && (!pt || po.s - po.L > pt.x[1])) this.pointsOwner = null;   // one leaving the model is let go below
     for (let i = this.trams.length - 1; i >= 0; i--) {
       const t = this.trams[i];
-      if (t.s - t.L > t.path.len + 1) { this.trams.splice(i, 1); this.onLeave?.(t); }
+      if (t.s - t.L > t.path.len + 1) { this.trams.splice(i, 1); if (this.pointsOwner === t) this.pointsOwner = null; this.onLeave?.(t); }
     }
   }
 
@@ -224,9 +271,23 @@ export class TramSim {
     while (this.nextTrip < this.trips.length && this.trips[this.nextTrip].spawnAt <= this.time) this.due.push(this.trips[this.nextTrip++]);
     const blocked = new Set<number>();
     for (let k = 0; k < this.due.length; k++) {
-      const trip = this.due[k], path = this.paths[trip.path], c = TRAM_CLASSES[trip.cls];
+      const trip = this.due[k], c = TRAM_CLASSES[trip.cls];
       if (blocked.has(trip.path)) continue;
       if (trip.stops[trip.stops.length - 1][1] < this.time - 60) { this.due.splice(k--, 1); continue; }   // long gone
+      /*
+       * Leaving a terminus with points: from its own side if free, else the other (its twin path), else not
+       * yet. The trip keeps its own path until it is in, so a later try prefers its own side again and the
+       * trips behind it on that path stay behind it.
+       */
+      let berth: string | null = null, pi = trip.path;
+      const tp = this.terminus.get(trip.path);
+      if (tp?.kind === 'depart') {
+        const other = this.terminus.get(tp.twin)!;
+        if (!this.berthTaken(tp.berth, null)) berth = tp.berth;
+        else if (!this.berthTaken(other.berth, null)) { berth = other.berth; pi = tp.twin; }
+        else { blocked.add(trip.path); continue; }
+      }
+      const path = this.paths[pi];
       /*
        * The front starts short of the first stop, so the trip calls there too: at most a tram length in, and
        * never past the stop. The body may reach back past the edge of the model, as a tram coming in does.
@@ -235,9 +296,10 @@ export class TramSim {
       // the way in must be clear: no tram body from the edge to just ahead of the front
       if (this.obstacle(path, 0, front + GAP_M + 2, null) < front + GAP_M + 2) { blocked.add(trip.path); continue; }
       this.due.splice(k--, 1);
+      trip.path = pi;
       const t: Tram = {
         id: this.nextId++, trip, path, L: c.L, accel: c.accel, brake: c.brake, s: front, v: Math.min(LIMIT_MS, path.limit(front)) * 0.6, a: 0,
-        next: 0, calling: false, callUntil: 0, callStop: -1, committed: -1, body: Array.from({ length: Math.ceil(c.L / BODY_STEP_M) + 1 }, (): XY => [0, 0]), bodyDir: Array.from({ length: Math.ceil(c.L / BODY_STEP_M) + 1 }, (): XY => [1, 0]), dir: [1, 0], why: '',
+        next: 0, calling: false, callUntil: 0, callStop: -1, committed: -1, body: Array.from({ length: Math.ceil(c.L / BODY_STEP_M) + 1 }, (): XY => [0, 0]), bodyDir: Array.from({ length: Math.ceil(c.L / BODY_STEP_M) + 1 }, (): XY => [1, 0]), dir: [1, 0], why: '', yieldTo: null, berth,
       };
       // a stop already behind the entry point is not called at
       while (t.next < trip.stops.length && path.stops[trip.stops[t.next][0]][3] < t.s) t.next++;
@@ -253,21 +315,37 @@ export class TramSim {
 
   /**
    * Distance along `path` (from `from`, looking `ahead` metres) to the nearest part of another tram that is on
-   * this path and heading the same way. `self` is skipped.
+   * this path, or near enough to it to touch a tram on it (CLEAR_M), heading the same way. `self` is skipped,
+   * and so, beyond 1.2 m, is a tram giving way to `self` at a join (it waits clear; waiting for it in turn
+   * would hold both).
    */
   private obstacle(path: TramPath, from: number, ahead: number, self: Tram | null): number {
     let best = Infinity;
     const here = path.at(Math.max(0, from)), dirHere: XY = [0, 0];
+    /*
+     * Past the end of the path: a tram leaving the model runs its last length on along the straight beyond its
+     * last point (step keeps it until its back is off). The path's own projection stops at the end, so on that
+     * straight nothing used to be seen, and where a path ends on another route's track (routes 19 and 59 ending
+     * on route 57's, Elizabeth St north) the leaving tram drove into the back of one held there (2026-10-16).
+     */
+    const past = from + ahead > path.len, end = past ? path.at(path.len) : here, endDir = past ? path.dir(path.len) : dirHere;
     for (const o of this.trams) {
       if (o === self) continue;
       // a tram on a path that never runs along this one, the same way, can never be in front: skipped whole
       if (!this.sharesTrack(path, o.path)) continue;
       const mid = o.body[o.body.length >> 1];
       if (Math.hypot(mid[0] - here[0], mid[1] - here[1]) > ahead + o.L) continue;
+      const yields = self !== null && o.yieldTo === self;
       for (let i = 0; i < o.body.length; i++) {
         const p = o.body[i], pd = o.bodyDir[i];
+        if (past) {
+          const rx = p[0] - end[0], ry = p[1] - end[1], on = rx * endDir[0] + ry * endDir[1];
+          if (on > 0 && on <= from + ahead - path.len && Math.abs(rx * endDir[1] - ry * endDir[0]) < 1.2 && pd[0] * endDir[0] + pd[1] * endDir[1] >= 0.5) {
+            best = Math.min(best, path.len + on); continue;
+          }
+        }
         const pr = path.projectNear(p[0], p[1], from - 1, from + ahead);
-        if (pr.d > 1.2 || pr.s < from - 0.5) continue;
+        if (pr.d > (yields ? 1.2 : CLEAR_M) || pr.s < from - 0.5) continue;
         path.dir(pr.s, dirHere);
         if (pd[0] * dirHere[0] + pd[1] * dirHere[1] < 0.5) continue;   // crossing: the signals keep those apart
         best = Math.min(best, pr.s);
@@ -281,7 +359,9 @@ export class TramSim {
    * `other` every SHARE_STEP_M against `path`'s segment grid. obstacle() looks at every other tram for every
    * tram, every step, and almost all of those pairs are on tracks that only cross or never meet; it was most
    * of the simulation's time (2026-10-14). The test is looser than obstacle's own (SHARE_OFF_M against
-   * 1.2 m, a wider angle), so a pair it lets through is checked as before and none it drops could have counted.
+   * CLEAR_M, a wider angle), so a pair it lets through is checked as before and none it drops could have
+   * counted. Past a path's end obstacle() looks along the straight beyond it; the paths that end on another's
+   * track run along it before their end, so that pair is let through here too.
    */
   private shared = new Map<TramPath, Map<TramPath, boolean>>();
   private sharesTrack(path: TramPath, other: TramPath): boolean {
@@ -317,22 +397,39 @@ export class TramSim {
   /**
    * Where a tram must wait for another joining the same track (the paths' merges). Within MERGE_LOOK_M of a
    * join, the tram nearer it goes first (or the one already on it, until its back is clear); the other waits
-   * GAP_M short of it. Both paths list the join, so each tram reaches the same answer.
+   * MERGE_HOLD_M short of it. Both paths list the join, so each tram reaches the same answer.
    */
   private mergeHold(t: Tram): number {
-    let hold = Infinity;
-    for (const [at, other, atOther] of t.path.merges) {
+    let hold = Infinity; t.yieldTo = null;
+    t.path.merges.forEach(([at, other, atOther], k) => {
       const mine = at - t.s;
-      if (mine < -0.5 || mine > MERGE_LOOK_M) continue;
+      if (mine < -0.5 || mine > MERGE_LOOK_M) return;
       for (const o of this.trams) {
         if (o === t || o.trip.path !== other) continue;
         const theirs = atOther - o.s;
         if (theirs > MERGE_LOOK_M || theirs < -(o.L + GAP_M)) continue;   // far off, or through and clear
         const first = theirs < 0 || theirs < mine || (theirs === mine && o.id < t.id);
-        if (first) hold = Math.min(hold, at - GAP_M);
+        if (first) { const h = this.clearOf(t.path, k); if (h < hold) { hold = h; t.yieldTo = o; } }
       }
-    }
+    });
     return hold;
+  }
+
+  /** Where along `path`, short of its join `k`, the other track is still CLEAR_M away: worked out once. */
+  private clear = new Map<TramPath, number[]>();
+  private clearOf(path: TramPath, k: number): number {
+    let row = this.clear.get(path);
+    if (!row) { row = []; this.clear.set(path, row); }
+    if (row[k] === undefined) {
+      const [at, other, atOther] = path.merges[k], o = this.paths[other], p: XY = [0, 0];
+      let d = at - MERGE_HOLD_M;
+      for (let back = 0.5; back <= MERGE_LOOK_M; back += 0.5) {
+        path.at(at - back, p);
+        if (o.project(p[0], p[1], atOther - MERGE_LOOK_M - 10, atOther + 5).d >= CLEAR_M) { d = Math.min(d, at - back); break; }
+      }
+      row[k] = d;
+    }
+    return row[k];
   }
 
   /** Who is directly ahead (for the stop rule): the nearest tram whose back is within `within` m. */
@@ -347,20 +444,67 @@ export class TramSim {
     return best;
   }
 
+  /** Whether a side of the terminus island is taken by a tram other than `self`. */
+  private berthTaken(berth: string, self: Tram | null): boolean {
+    for (const o of this.trams) if (o !== self && o.berth === berth) return true;
+    return false;
+  }
+
+  /**
+   * The terminus: an arriving tram taking its side (and its twin path for the other), and where a tram must
+   * wait short of the crossover — for a side to come free, or for the crossover. Infinity when it need not.
+   */
+  private terminusHold(t: Tram): number {
+    let tp = this.terminus.get(t.trip.path);
+    if (!tp) return Infinity;
+    const x0 = tp.x[0];
+    if (tp.kind === 'arrive' && t.berth === null && t.s >= x0 - BERTH_LOOK_M && t.s < x0) {
+      const other = this.terminus.get(tp.twin)!;
+      if (!this.berthTaken(tp.berth, t)) t.berth = tp.berth;
+      // the twin has the same points, stops and signals up to the crossover (scripts/terminus-crossover.mjs;
+      // tramSim.test.ts checks it), so the tram's place along it and its next stop and signal carry over
+      else if (!this.berthTaken(other.berth, t)) { t.berth = other.berth; t.trip.path = tp.twin; t.path = this.paths[tp.twin]; tp = other; }
+    }
+    // no side yet (both taken, or still further off than BERTH_LOOK_M): it may come no nearer than the crossover
+    if (tp.kind === 'arrive' && t.berth === null) return t.s < x0 ? x0 - GAP_M : Infinity;
+    if (t.s >= x0 || x0 - t.s > LOOK_M) return Infinity;                                      // through it, or far off
+    if (this.pointsOwner === t) return Infinity;
+    const owner = this.pointsOwner;
+    if (!tp.diagonal) return owner && owner !== t ? x0 - GAP_M : Infinity;   // straight: not alongside a diagonal
+    // a diagonal: the crossover to itself, asked for when near, with nobody in it or about to be
+    if (owner === null && x0 - t.s < POINTS_CLAIM_M) {
+      let clear = true;
+      for (const o of this.trams) {
+        if (o === t) continue;
+        const op = this.terminus.get(o.trip.path); if (!op) continue;
+        // in it, or running into it; one waiting short of it (for it, or for a side) is not: two diagonals
+        // waiting for each other would wait for ever (Friday 17:23, 2026-10-16)
+        const inside = o.s > op.x[0] - 0.5 && o.s - o.L < op.x[1];
+        const entering = o.s > op.x[0] - 15 && o.s <= op.x[0] - 0.5 && o.v > 0.1 && o.why !== 'points' && o.why !== 'berth';
+        if (inside || entering) { clear = false; break; }
+      }
+      if (clear) { this.pointsOwner = t; return Infinity; }
+    }
+    return x0 - GAP_M;
+  }
+
   private control(t: Tram, dt: number): void {
-    const p = t.path, now = this.time;
+    const now = this.time;
 
     // ── calling at a stop ──
     if (t.calling) {
-      if (now < t.callUntil) { t.v = 0; t.a = 0; return; }
+      if (now < t.callUntil) { t.v = 0; t.a = 0; t.yieldTo = null; return; }   // giving way to nobody while it stands
       t.calling = false; t.next++;
     }
 
     // ── what it must stop for, nearest first ──
     let stopAt = Infinity;
-    const obstacleS = this.obstacle(p, t.s, LOOK_M, t);
     let why: Tram['why'] = '';
-    if (obstacleS < Infinity) { stopAt = obstacleS - GAP_M; why = 'tram'; }
+    const hold = this.terminusHold(t);   // may change its path to its twin: decided before anything else
+    const p = t.path;
+    if (hold < stopAt) { stopAt = hold; why = t.berth === null ? 'berth' : 'points'; }
+    const obstacleS = this.obstacle(p, t.s, LOOK_M, t);
+    if (obstacleS - GAP_M < stopAt) { stopAt = obstacleS - GAP_M; why = 'tram'; }
     const merge = this.mergeHold(t); if (merge < stopAt) { stopAt = merge; why = 'merge'; }
     // signals ahead
     for (let k = 0; k < p.signals.length; k++) {

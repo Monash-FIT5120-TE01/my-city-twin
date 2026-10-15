@@ -106,3 +106,90 @@ describe('the shortcuts in the simulation', () => {
     }
   }, 60_000);
 });
+
+describe('leaving the model', () => {
+  /*
+   * A tram past the end of its path runs its last length on along the straight beyond the end. Routes 19 and
+   * 59 end on route 57's track (Elizabeth St north); before obstacle() looked past the end, a 19 or 59 leaving
+   * there drove into the back of a 57 held at the signal or the stop (monThu 11:53, 2026-10-16). Checked every
+   * step, in the street's own terms: no body point of another tram, heading the same way, within 1.2 m of the
+   * leaving tram's own body.
+   */
+  it('does not drive into a tram beyond the end of its path', () => {
+    // from 11:45, as the trams first go in when the street is opened then (the run that found it)
+    const sim = new TramSim(docs.monThu, 'monThu', 11.75 * 3600, (s, t) => phaseOf(plans[s], t));
+    let hits = 0;
+    for (let k = 0; k < 20 * 120; k++) {
+      sim.step(0.5);
+      for (const a of sim.trams) {
+        if (a.s <= a.path.len) continue;
+        for (const b of sim.trams) {
+          if (b === a || Math.hypot(b.body[0][0] - a.body[0][0], b.body[0][1] - a.body[0][1]) > a.L + b.L) continue;
+          for (let i = 0; i < b.body.length; i++) {
+            const p = b.body[i];
+            for (let j = 0; j < a.body.length - 1; j++) {
+              const q = a.body[j], r = a.body[j + 1], dx = r[0] - q[0], dy = r[1] - q[1], L2 = dx * dx + dy * dy || 1;
+              const u = Math.max(0, Math.min(1, ((p[0] - q[0]) * dx + (p[1] - q[1]) * dy) / L2));
+              if (Math.hypot(p[0] - q[0] - u * dx, p[1] - q[1] - u * dy) < 1.2 && a.dir[0] * b.bodyDir[i][0] + a.dir[1] * b.bodyDir[i][1] > 0.5) { hits++; break; }
+            }
+          }
+        }
+      }
+    }
+    expect(hits).toBe(0);
+  }, 120_000);
+});
+
+describe('the terminus with points', () => {
+  /*
+   * Elizabeth St, Stop 1 (Flinders Street Station): a tram takes whichever side of the island is free, over the
+   * crossover north of it (scripts/terminus-crossover.mjs). Friday 17:00 to 18:00 is the busiest hour there; at
+   * 17:23 two trams taking the diagonals each waited for the other, and the trams behind them for hours
+   * (2026-10-16). Near the island: no two trams touch, none waits for a side or the crossover over 3 min, and
+   * both sides are used by arriving and leaving trams. The paths and the island are read from the data.
+   */
+  const island = (JSON.parse(readFileSync('public/data/streetscape/tram.json', 'utf8')).platforms as { name: string; c: [number, number] }[])
+    .find((q) => q.name === 'Stop 1: Flinders Street Station')!.c;
+
+  it('swaps an arriving tram onto a twin with the same stops and signals up to the crossover', () => {
+    // terminusHold() keeps the tram's place, next stop and next signal when it changes to the twin
+    for (const day of ['monThu', 'fri', 'sat', 'sun'] as DayKey[]) {
+      const doc = docs[day];
+      expect(doc.terminus?.length).toBe(8);
+      for (const [pi, , kind, twin, x0] of doc.terminus!) {
+        if (kind !== 'arrive') continue;
+        const a = doc.paths[pi], b = doc.paths[twin];
+        expect(b.stops).toEqual(a.stops);
+        expect(b.signals.filter((g) => g[0] < x0)).toEqual(a.signals.filter((g) => g[0] < x0));
+      }
+    }
+  });
+
+  it('uses both sides, without touching or waiting for ever', () => {
+    const sim = new TramSim(docs.fri, 'fri', 17 * 3600, (s, t) => phaseOf(plans[s], t));
+    const arriving = new Set(docs.fri.terminus!.filter((e) => e[2] === 'arrive').map((e) => e[0]));
+    const sides = new Set<string>(), waited = new Map<number, number>();
+    let touch = 0, longest = 0;
+    for (let k = 0; k < 3600 * 2; k++) {
+      sim.step(0.5);
+      const near = sim.trams.filter((t) => Math.hypot(t.body[0][0] - island[0], t.body[0][1] - island[1]) < 130);
+      for (const t of near) {
+        if (t.berth) sides.add((arriving.has(t.trip.path) ? 'arrive ' : 'depart ') + t.berth);
+        // one wait without a break, not all of a tram's waits added up
+        const w = (t.why === 'berth' || t.why === 'points') && t.v === 0 ? (waited.get(t.id) ?? 0) + 0.5 : 0;
+        waited.set(t.id, w); longest = Math.max(longest, w);
+      }
+      for (const a of near) for (const b of near) {
+        if (a.id >= b.id) continue;
+        for (const p of a.body) for (let j = 0; j < b.body.length - 1; j++) {
+          const q = b.body[j], r = b.body[j + 1], dx = r[0] - q[0], dy = r[1] - q[1], L2 = dx * dx + dy * dy || 1;
+          const u = Math.max(0, Math.min(1, ((p[0] - q[0]) * dx + (p[1] - q[1]) * dy) / L2));
+          if (Math.hypot(p[0] - q[0] - u * dx, p[1] - q[1] - u * dy) < 1.5) touch++;
+        }
+      }
+    }
+    expect(touch).toBe(0);
+    expect(longest).toBeLessThan(180);
+    expect([...sides].sort()).toEqual(['arrive E', 'arrive W', 'depart E', 'depart W']);
+  }, 300_000);
+});
