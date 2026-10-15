@@ -39,6 +39,7 @@ import { PedestrianAudio } from './pedestrianAudio';
 import { Lighting } from './lights';
 import { setSlicer } from './kit';
 import { TramLayer } from './trams/TramLayer';
+import { loadTramModels } from './trams/tramModel';
 import { keepStill } from './still';
 import { ride } from './trams/ride';
 import type { DayKey, TramsDoc } from './trams/tramSim';
@@ -196,7 +197,7 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
     let alive = true, layer: TramLayer | null = null;
     const day = dayOf(clock.date), start = clock.minutes * 60 - WARM_S;
     const prev = start < BEFORE_UNTIL_S ? dayBefore(clock.date) : null;
-    Promise.all([loadTrams(day), prev ? loadTrams(prev) : null]).then(([doc, prevDoc]) => {
+    Promise.all([loadTrams(day), prev ? loadTrams(prev) : null, loadTramModels()]).then(([doc, prevDoc]) => {
       if (!alive) return;
       const before = prev && prevDoc ? { doc: prevDoc, day: prev } : undefined;
       layer = new TramLayer(doc, day, start, (site, t) => built.signals.phase(site, t), before);
@@ -232,7 +233,7 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
   }, [walking, camera]);
 
   const tick = useRef(1), sweep = useRef(0), cam = useMemo(() => new Vector3(), []), camNow = useMemo(() => new Vector3(), []);
-  const [pick, tapAt, rayFrom, rayDir, rootTurn] = useMemo(() => [new Raycaster(), new Vector2(), new Vector3(), new Vector3(), new Quaternion()] as const, []);
+  const [pick, tapAt, rayFrom, rayDir, rootTurn, lookDir] = useMemo(() => [new Raycaster(), new Vector2(), new Vector3(), new Vector3(), new Quaternion(), new Vector3()] as const, []);
   useFrame((state, dt) => {
     const built = live.current;
     if (!built) return;
@@ -241,7 +242,9 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
     if (run && run.warm > 0) { const steps = Math.min(run.warm / 0.5, WARM_STEPS_PER_FRAME); run.layer.sim.warmUp(steps * 0.5, 0.5); run.warm -= steps * 0.5; }
     else if (run) {
       state.camera.getWorldPosition(camNow); built.root.worldToLocal(camNow);
-      run.layer.update(dt, camNow, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice].reach);
+      // where the centre of the view points, for the door or seat it is on
+      state.camera.getWorldDirection(lookDir); built.root.getWorldQuaternion(rootTurn); lookDir.applyQuaternion(rootTurn.invert()).normalize();
+      run.layer.update(dt, camNow, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice].reach, lookDir);
       // for the headset: where the rider's eye is, and where a ride ended, in world coordinates
       if (ride.active) ride.eyeWorld = built.root.localToWorld(rayFrom.fromArray(ride.eye)).toArray() as [number, number, number];
       else ride.eyeWorld = null;
@@ -253,7 +256,7 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
         else if (ride.ray) { rayFrom.fromArray(ride.ray.from); rayDir.fromArray(ride.ray.dir); }
         ride.tap = null; ride.ray = null;
         built.root.worldToLocal(rayFrom); built.root.getWorldQuaternion(rootTurn); rayDir.applyQuaternion(rootTurn.invert()).normalize();
-        run.layer.click(rayFrom, rayDir);
+        run.layer.click(rayFrom, rayDir, false);   // doors only: no way to stand up again from a phone or headset
       }
     }
     const t = run ? run.layer.sim.time : state.clock.elapsedTime;

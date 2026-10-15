@@ -2234,6 +2234,68 @@
 }
 
 /*
+ * The centre of the view while walking (TramAim): a dot, and over a tram door or seat a ring and what a click
+ * does. White on the walking hint's near-black, so it reads by lightness on any street, by anybody.
+ */
+.tram-aim {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.tram-aim__dot {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 1.5px rgba(22, 24, 26, 0.7);
+  transition: transform 120ms ease;
+}
+
+.tram-aim--on .tram-aim__dot {
+  transform: scale(3.4);
+  background: transparent;
+  box-shadow: 0 0 0 1px #ffffff, 0 0 0 2px rgba(22, 24, 26, 0.7);
+}
+
+.tram-aim__ask {
+  position: absolute;
+  left: 0;
+  top: 26px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background: rgba(22, 24, 26, 0.78);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.tram-aim__ask strong {
+  font-weight: var(--weight-label);
+}
+
+.tram-aim__ask span {
+  opacity: 0.8;
+}
+
+.tram-aim__ask--quiet {
+  padding: 5px 12px;
+}
+
+/*
  * The explore screen's one line: how to choose a place, now that the list
  * of nearby projects is gone. Top left under the header, where that panel
  * was, on paper so it reads over any part of the city. A caption, so the

@@ -7,12 +7,22 @@
  *   track by its own two ends, so the tram bends on a curve.
  *
  * RIDDEN
- *   A tram calling at a stop has its doors open: clicking one boards it. The rider stands in the aisle at that
- *   door and travels with the tram; the interior is drawn and the windows turn clear for that tram only. At a
- *   stop, E or a click steps off on the tram's left, the platform side on Melbourne's left-running track. A
- *   tram that leaves the model sets its rider down beside it.
+ *   A tram calling at a stop has its doors open: a door under the centre of the view lights up and asks to be
+ *   boarded, and a click boards it. The rider stands inside that door and travels with the tram; the interior
+ *   is drawn and the windows turn clear for that tram only. Inside, the walking keys move the rider about the
+ *   saloon (kept off the walls, the cabs and the seats), and a seat under the view lights up the same way: a
+ *   click sits on it, a walking key stands up again (seats on a desktop only: a phone's tap and a headset's laser
+ *   take doors, as neither can walk inside). At a stop, a door under the view offers the way off, and
+ *   E or a click on it steps off on the tram's left, the platform side on Melbourne's left-running track. A
+ *   tram that leaves the model sets its rider down beside it; when the layer goes (a new day or time), the rider
+ *   stays where they were.
+ *
+ * SOLID
+ *   Every section near the walker is handed to the street view as a box (ride.blockers), which keeps the
+ *   walker out of it as it does out of walls: a tram that comes at someone standing on the track pushes them
+ *   aside rather than passing through them.
  */
-import { Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3, type Material } from 'three';
+import { BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Quaternion, Vector3, type Material } from 'three';
 import type { Phase } from '../signalPlan';
 import { disposeKits, kitFor, type TramKit } from './tramModel';
 import type { ClassKey } from './tramClasses';
@@ -31,14 +41,27 @@ const EYE_M = 1.7;
  */
 const SIM_DT = 1 / 15;
 const STEP_REACH_M = 2;
+/** Trams nearer than this to the walker are solid (ride.blockers). */
+const BLOCK_M = 60;
+/** Inside: how far the rider's middle is kept from a seat's edge (a seat is 0.46 m square), the walls, and the cab ends. */
+const SEAT_GAP_M = 0.15, WALL_GAP_M = 0.34, CAB_M = 1.9;
+/** A seated eye above the cushion, and how far away a seat can be picked. */
+const SEATED_EYE_M = 0.72, SEAT_REACH_M = 3.5;
 
 interface ClassMeshes { kit: TramKit; meshes: { mesh: InstancedMesh; section: number }[] }
+/** What the centre of the view (or a tap, or a laser) is on. */
+type Aim = { kind: 'board' | 'alight'; tram: Tram; door: number; side: number; d: number } | { kind: 'seat'; tram: Tram; seat: number; d: number };
 
 export class TramLayer {
   readonly group = new Group();
   readonly sim: TramSim;
   private classes = new Map<ClassKey, ClassMeshes>();
-  private riding: { tram: Tram; door: number; group: Group } | null = null;
+  /** The tram being ridden: where in it the rider is (along from its middle, across, + left) and the seat sat on. */
+  private riding: { tram: Tram; door: number; group: Group; glass: Material; x: number; y: number; seat: number | null } | null = null;
+  private aim: Aim | null = null;
+  /** The light over what is aimed at: a door or a seat. */
+  private glow = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.32, depthWrite: false }));
+  private look = new Vector3(1, 0, 0);
   /** Seconds of the display not yet simulated, and where each tram's front was before the last step. */
   private owed = 0;
   private before = new Map<Tram, number>();
@@ -48,6 +71,7 @@ export class TramLayer {
     this.group.name = 'trams';
     this.sim = new TramSim(doc, day, time, phase, before);
     this.sim.onLeave = (t) => { if (this.riding?.tram === t) this.stepOff(); };
+    this.glow.visible = false; this.glow.raycast = () => undefined; this.glow.renderOrder = 2; this.group.add(this.glow);
   }
 
   private meshesFor(key: ClassKey): ClassMeshes {
@@ -83,8 +107,9 @@ export class TramLayer {
   /**
    * @param cam the camera (east, north, up) in the streetscape's frame
    * @param reach the device's distance scale (lod.ts)
+   * @param look the camera's direction in the same frame, for what the centre of the view is on
    */
-  update(dt: number, cam: Vector3, reach: number): void {
+  update(dt: number, cam: Vector3, reach: number, look?: Vector3): void {
     this.owed += Math.min(dt, 0.25);
     while (this.owed >= SIM_DT) {
       this.before = new Map(this.sim.trams.map((t) => [t, t.s]));
@@ -109,42 +134,117 @@ export class TramLayer {
         mesh.count = n; mesh.instanceMatrix.needsUpdate = true;
       }
     }
+    this.walkInside();
     this.follow();
+    this.solid(cam);
+    if (look) this.look.copy(look);
+    this.aim = this.aimed(cam, this.look);
+    this.light();
     this.report(cam);
   }
 
+  /** The sections near the walker as boxes, for the street view to keep the walker out of (ride.ts). */
+  private solid(cam: Vector3): void {
+    const out = ride.blockers; let n = 0;
+    for (const t of this.sim.trams) {
+      if (t === this.riding?.tram) continue;
+      const mid = t.body[t.body.length >> 1];
+      if (Math.hypot(mid[0] - cam.x, mid[1] - cam.y) > BLOCK_M + t.L / 2) continue;
+      const kit = kitFor(t.trip.cls), front = this.shownS(t);
+      for (const sec of kit.sections) {
+        const c = front - (kit.cls.L / 2 - sec.centre), a = t.path.at(c - sec.len / 2), b = t.path.at(c + sec.len / 2);
+        const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), k = n * 6;
+        out[k] = (a[0] + b[0]) / 2; out[k + 1] = (a[1] + b[1]) / 2; out[k + 2] = Math.cos(ang); out[k + 3] = Math.sin(ang);
+        out[k + 4] = sec.len / 2; out[k + 5] = kit.cls.W / 2; n++;
+      }
+    }
+    ride.blockerCount = n;
+  }
+
   // ── riding ──────────────────────────────────────────────────────────────
+  /** A point of tram `t` (x along from its middle, y across, + left, z above the rail) where it is drawn now. */
+  private pointOf(t: Tram, x: number, y: number, z: number): [number, number, number] {
+    const s = this.shownS(t) - (t.L / 2 - x), p = t.path.at(s), dir = t.path.dir(s);
+    return [p[0] - dir[1] * y, p[1] + dir[0] * y, RAIL_Z + z];
+  }
+
   private doorPoint(t: Tram, door: number, side: number): [number, number, number] {
-    const kit = kitFor(t.trip.cls), d = kit.doors[door], s = t.s - (kit.cls.L / 2 - d.x);
+    const kit = kitFor(t.trip.cls), d = kit.doors[door], s = this.shownS(t) - (kit.cls.L / 2 - d.x);
     const p = t.path.at(s), dir = t.path.dir(s), off = side * (kit.cls.W / 2 + 0.05);
     return [p[0] - dir[1] * off, p[1] + dir[0] * off, RAIL_Z + kit.cls.floor + 1.0];
   }
 
-  /** A tram at a stop with a door within reach of the camera ray. */
-  private doorUnder(cam: Vector3, dir: Vector3): { tram: Tram; door: number } | null {
-    let best: { tram: Tram; door: number; d: number } | null = null;
-    for (const t of this.sim.trams) {
+  /** A tram at a stop with a door within reach of the camera ray (only `only`, when given). */
+  private doorUnder(cam: Vector3, dir: Vector3, only?: Tram): { tram: Tram; door: number; side: number; d: number } | null {
+    let best: { tram: Tram; door: number; side: number; d: number } | null = null;
+    for (const t of only ? [only] : this.sim.trams) {
       if (!t.calling || Math.hypot(t.body[0][0] - cam.x, t.body[0][1] - cam.y) > t.L + 15) continue;
       const kit = kitFor(t.trip.cls);
       kit.doors.forEach((_, i) => { for (const side of [1, -1]) {
         const [x, y, z] = this.doorPoint(t, i, side), rx = x - cam.x, ry = y - cam.y, rz = z - cam.z, along = rx * dir.x + ry * dir.y + rz * dir.z;
         if (along < 0 || along > 12) continue;
         const off = Math.hypot(rx - dir.x * along, ry - dir.y * along, rz - dir.z * along);
-        if (off < 1.0 && (!best || along < best.d)) best = { tram: t, door: i, d: along };
+        if (off < 1.0 && (!best || along < best.d)) best = { tram: t, door: i, side, d: along };
       } });
     }
     return best;
   }
 
-  /** A click while walking (cam and dir in the streetscape's frame): board, or step off. */
-  click(cam: Vector3, dir: Vector3): boolean {
-    if (this.riding) { if (this.riding.tram.calling) { this.stepOff(); return true; } return false; }
-    const hit = this.doorUnder(cam, dir); if (!hit) return false;
-    this.board(hit.tram, hit.door); return true;
+  /** A seat of the ridden tram within reach of the camera ray, not the one sat on. */
+  private seatUnder(cam: Vector3, dir: Vector3): { seat: number; d: number } | null {
+    const r = this.riding; if (!r) return null;
+    const kit = kitFor(r.tram.trip.cls); let best: { seat: number; d: number } | null = null;
+    kit.seats.forEach((st, i) => {
+      if (i === r.seat) return;
+      const [x, y, z] = this.pointOf(r.tram, st.x, st.y, st.z + 0.15), rx = x - cam.x, ry = y - cam.y, rz = z - cam.z, along = rx * dir.x + ry * dir.y + rz * dir.z;
+      if (along < 0.3 || along > SEAT_REACH_M) return;
+      const off = Math.hypot(rx - dir.x * along, ry - dir.y * along, rz - dir.z * along);
+      if (off < 0.32 && (!best || along < best.d)) best = { seat: i, d: along };
+    });
+    return best;
+  }
+
+  /** What a ray from the eye is on: a door to board by, a door to get off by, or a seat. */
+  private aimed(cam: Vector3, dir: Vector3): Aim | null {
+    const r = this.riding;
+    if (!r) { const d = this.doorUnder(cam, dir); return d ? { kind: 'board', ...d } : null; }
+    const seat = this.seatUnder(cam, dir), door = this.doorUnder(cam, dir, r.tram);
+    if (door && (!seat || door.d < seat.d)) return { kind: 'alight', ...door };
+    return seat ? { kind: 'seat', tram: r.tram, ...seat } : null;
+  }
+
+  /** The light over the door or seat aimed at. */
+  private light(): void {
+    const a = this.aim, g = this.glow;
+    if (!a) { g.visible = false; return; }
+    const kit = kitFor(a.tram.trip.cls), C = kit.cls;
+    if (a.kind === 'seat') {
+      const st = kit.seats[a.seat], s = this.shownS(a.tram) - (C.L / 2 - st.x), dir = a.tram.path.dir(s);
+      g.position.fromArray(this.pointOf(a.tram, st.x, st.y, st.z + 0.04)); g.scale.set(0.5, 0.5, 0.08);
+      g.rotation.set(0, 0, Math.atan2(dir[1], dir[0]));
+    } else {
+      const d = kit.doors[a.door], s = this.shownS(a.tram) - (C.L / 2 - d.x), dir = a.tram.path.dir(s), h = Math.max(1.9, C.H - 0.5 - C.floor);
+      g.position.fromArray(this.pointOf(a.tram, d.x, a.side * (C.W / 2 + 0.02), C.floor + h / 2)); g.scale.set(d.w, 0.1, h);
+      g.rotation.set(0, 0, Math.atan2(dir[1], dir[0]));
+    }
+    g.visible = true;
+  }
+
+  /**
+   * A click while walking (cam and dir in the streetscape's frame): board, sit, or step off — by what the ray is
+   * on. `seats` false for a phone's tap and a headset's laser: they have no way to stand up again (walking
+   * inside is a desktop's keys), so a seat there is not taken.
+   */
+  click(cam: Vector3, dir: Vector3, seats = true): boolean {
+    const a = this.aimed(cam, dir); if (!a || (a.kind === 'seat' && !seats)) return false;
+    if (a.kind === 'board') this.board(a.tram, a.door, a.side);
+    else if (a.kind === 'seat') this.sit(a.seat);
+    else this.stepOff();
+    return true;
   }
   key(code: string): void { if (code === 'KeyE' && this.riding?.tram.calling) this.stepOff(); }
 
-  private board(t: Tram, door: number): void {
+  private board(t: Tram, door: number, side = 1): void {
     const kit = kitFor(t.trip.cls), g = new Group(); g.name = 'ridden-tram';
     // see-through windows for this tram only
     const glass = (kit.glass as Material).clone() as Material & { transparent: boolean; opacity: number; depthWrite: boolean };
@@ -157,17 +257,49 @@ export class TramLayer {
       g.add(sg);
     });
     this.group.add(g);
-    this.riding = { tram: t, door, group: g };
+    // just inside the door it came in by
+    this.riding = { tram: t, door, group: g, glass, x: kit.doors[door].x, y: side * (kit.cls.W / 2 - 0.09 - WALL_GAP_M - 0.05), seat: null };
     ride.active = true; this.follow();
+  }
+
+  private sit(seat: number): void {
+    const r = this.riding; if (!r) return;
+    const st = kitFor(r.tram.trip.cls).seats[seat], s = this.shownS(r.tram) - (r.tram.L / 2 - st.x), dir = r.tram.path.dir(s);
+    r.seat = seat; r.x = st.x; r.y = st.y;
+    ride.look = Math.atan2(dir[1], dir[0]) + (st.face > 0 ? 0 : Math.PI);
+  }
+
+  /** Room to stand at (x, y) inside the ridden tram: off the walls, out of the cabs, and (`seats`) off the seats. */
+  private roomAt(kit: TramKit, x: number, y: number, seats = true): boolean {
+    const C = kit.cls;
+    if (Math.abs(x) > C.L / 2 - CAB_M || Math.abs(y) > C.W / 2 - 0.09 - WALL_GAP_M) return false;
+    if (seats) for (const st of kit.seats) if (Math.abs(x - st.x) < 0.23 + SEAT_GAP_M && Math.abs(y - st.y) < 0.23 + SEAT_GAP_M) return false;
+    return true;
+  }
+
+  /** The walking keys inside (ride.move, east/north): along and across the tram, kept in the room; a step stands up. */
+  private walkInside(): void {
+    const r = this.riding, m = ride.move; ride.move = null;
+    if (!r || !m) return;
+    const kit = kitFor(r.tram.trip.cls), s = this.shownS(r.tram) - (r.tram.L / 2 - r.x), dir = r.tram.path.dir(s);
+    if (r.seat !== null) { r.seat = null; if (this.roomAt(kit, r.x, 0)) r.y = 0; return; }   // up into the aisle
+    const along = m[0] * dir[0] + m[1] * dir[1], across = -m[0] * dir[1] + m[1] * dir[0];
+    // standing where there is no room (up from a seat with no aisle beside it): the seats do not hold it there
+    const seats = this.roomAt(kit, r.x, r.y);
+    if (this.roomAt(kit, r.x + along, r.y + across, seats)) { r.x += along; r.y += across; }
+    else if (this.roomAt(kit, r.x + along, r.y, seats)) r.x += along;
+    else if (this.roomAt(kit, r.x, r.y + across, seats)) r.y += across;
   }
 
   private stepOff(): void {
     const r = this.riding; if (!r) return;
-    const [x, y] = this.doorPoint(r.tram, r.door, 1), dir = r.tram.path.dir(r.tram.s);
+    // by the door aimed at, or the one boarded by, on the platform side
+    const door = this.aim?.kind === 'alight' ? this.aim.door : r.door;
+    const [x, y] = this.doorPoint(r.tram, door, 1), dir = r.tram.path.dir(this.shownS(r.tram));
     ride.stepOff = [x - dir[1] * 1.0, y + dir[0] * 1.0];
     ride.active = false;
     this.group.remove(r.group);
-    r.group.traverse((o) => { const m = o as Mesh; if (m.isMesh && (m.material as Material).transparent) (m.material as Material).dispose(); });
+    r.glass.dispose();   // the rest is the kit's, still drawn on the other trams
     this.riding = null;
   }
 
@@ -176,8 +308,9 @@ export class TramLayer {
     const kit = kitFor(r.tram.trip.cls);
     for (const sg of r.group.children) { this.sectionMatrix(r.tram, kit, sg.userData.section as number, this.m); this.m.decompose(sg.position, sg.quaternion, sg.scale); }
     // where the tram is drawn, not where the simulation has it, so the rider and the tram move together
-    const d = kit.doors[r.door], s = this.shownS(r.tram) - (kit.cls.L / 2 - d.x), p = r.tram.path.at(s), dir = r.tram.path.dir(s);
-    ride.eye = [p[0], p[1], RAIL_Z + kit.cls.floor + EYE_M];
+    const st = r.seat !== null ? kit.seats[r.seat] : null;
+    const s = this.shownS(r.tram) - (kit.cls.L / 2 - r.x), dir = r.tram.path.dir(s);
+    ride.eye = this.pointOf(r.tram, r.x, r.y, st ? st.z + SEATED_EYE_M : kit.cls.floor + EYE_M);
     ride.heading = Math.atan2(dir[1], dir[0]);
   }
 
@@ -186,18 +319,23 @@ export class TramLayer {
     if (r) {
       // the stop after this one while calling here: "to" is where it goes next
       const t = r.tram, call = t.trip.stops[t.next + (t.calling ? 1 : 0)], name = call ? t.path.stops[call[0]][1] : '';
-      ride.setStatus({ riding: true, canBoard: false, canAlight: t.calling, route: t.trip.route, next: name });
+      ride.setStatus({ riding: true, canBoard: false, canAlight: t.calling, route: t.trip.route, next: name, aim: this.aim?.kind ?? '', seated: r.seat !== null });
       return;
     }
     const canBoard = this.sim.trams.some((t) => t.calling && Math.hypot(t.body[t.body.length >> 1][0] - cam.x, t.body[t.body.length >> 1][1] - cam.y) < t.L / 2 + 8);
-    ride.setStatus({ riding: false, canBoard, canAlight: false, route: '', next: '' });
+    ride.setStatus({ riding: false, canBoard, canAlight: false, route: '', next: '', aim: this.aim?.kind ?? '', seated: false });
   }
 
   dispose(): void {
+    /*
+     * The ride ends where the rider is: the step-off point is cleared with the rest of the ride, since the
+     * street view may be going too, and a point kept for the next walk would move the walker there.
+     */
     if (this.riding) this.stepOff();
     ride.reset();
     for (const c of this.classes.values()) for (const { mesh } of c.meshes) mesh.dispose();
     this.classes.clear();
+    this.glow.geometry.dispose(); (this.glow.material as Material).dispose();
     this.group.clear();
     disposeKits();   // the models too: nothing draws a tram until the next walk
   }

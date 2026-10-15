@@ -17,9 +17,13 @@ export interface RideStatus {
   /** Route number and where it is going next, while riding. */
   route: string;
   next: string;
+  /** What the centre of the view is on, for the prompt there: a door to board by, a door to get off by, a seat. */
+  aim: '' | 'board' | 'alight' | 'seat';
+  /** Sitting on a seat of the tram being ridden. */
+  seated: boolean;
 }
 
-const IDLE: RideStatus = { riding: false, canBoard: false, canAlight: false, route: '', next: '' };
+const IDLE: RideStatus = { riding: false, canBoard: false, canAlight: false, route: '', next: '', aim: '', seated: false };
 
 class Ride {
   /** On a tram: the eye's position (east, north, height above ground) and the tram's heading (rad from east). */
@@ -40,11 +44,29 @@ class Ride {
    *   tap    a tap on a phone's screen, as normalised device coordinates (-1..1, y up)
    *   ray    a headset controller's laser, in three.js world coordinates (from, unit direction)
    *   alight the "Get off" button
-   * A tap or a ray at a door of a tram at a stop boards it; while riding, at a stop, either steps off.
+   * A tap or a ray at a door of a tram at a stop boards it; while riding, at a stop, either steps off. Seats
+   * are a desktop's (a click, TramLayer.click): neither a tap nor a ray sits down.
    */
   tap: [number, number] | null = null;
   ray: { from: [number, number, number]; dir: [number, number, number] } | null = null;
   alight = false;
+
+  /*
+   * Walking about inside the tram (a desktop's keys): the street view hands over the step it would have
+   * taken (east, north metres), the tram layer turns it into a step along and across the tram and keeps it
+   * inside. Added to until the tram layer takes it.
+   */
+  move: [number, number] | null = null;
+  /** Asked by the tram layer when the rider sits down: the street view turns to this heading (rad from east), once. */
+  look: number | null = null;
+
+  /*
+   * The trams near the walker as boxes, one per section, for the street view to keep the walker out of
+   * (east, north metres): centre x, y, the box's direction cos, sin, half length, half width, six numbers each.
+   * Rewritten by the tram layer every frame; `blockerCount` boxes are valid.
+   */
+  blockers: number[] = [];
+  blockerCount = 0;
 
   private status = IDLE;
   private listeners = new Set<() => void>();
@@ -52,12 +74,13 @@ class Ride {
   readonly getStatus = () => this.status;
   setStatus(next: RideStatus): void {
     const s = this.status;
-    if (s.riding === next.riding && s.canBoard === next.canBoard && s.canAlight === next.canAlight && s.route === next.route && s.next === next.next) return;
+    if (s.riding === next.riding && s.canBoard === next.canBoard && s.canAlight === next.canAlight && s.route === next.route && s.next === next.next
+      && s.aim === next.aim && s.seated === next.seated) return;
     this.status = next; for (const fn of this.listeners) fn();
   }
   reset(): void {
     this.active = false; this.stepOff = null; this.eyeWorld = null; this.stepOffWorld = null;
-    this.tap = null; this.ray = null; this.alight = false; this.setStatus(IDLE);
+    this.tap = null; this.ray = null; this.alight = false; this.move = null; this.look = null; this.blockerCount = 0; this.setStatus(IDLE);
   }
 }
 

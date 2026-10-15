@@ -122,6 +122,26 @@ const WALK_FAR = 12000;
 /** World up (y), the axis a tram's turn turns the rider's view about. */
 const UP = new Vector3(0, 1, 0);
 
+/** How wide the walker is against a tram (half, metres): a little less than against walls (BODY_RADIUS_M). */
+const BODY_M = 0.3;
+
+/**
+ * Out of every tram near the walker (streetscape/trams/ride.ts: one box a section, east/north): a walker
+ * inside a box is moved to its nearest side. Run before and after each step, so a tram that comes at
+ * someone standing still pushes them aside instead of passing through them.
+ */
+function clearOfTrams(e: number, n: number): [number, number] {
+  const b = ride.blockers;
+  for (let i = 0; i < ride.blockerCount; i++) {
+    const k = i * 6, dx = e - b[k], dy = n - b[k + 1], c = b[k + 2], s = b[k + 3], hl = b[k + 4] + BODY_M, hw = b[k + 5] + BODY_M;
+    let u = dx * c + dy * s, v = -dx * s + dy * c;
+    if (Math.abs(u) >= hl || Math.abs(v) >= hw) continue;
+    if (hw - Math.abs(v) < hl - Math.abs(u)) v = Math.sign(v || 1) * hw; else u = Math.sign(u || 1) * hl;
+    e = b[k] + u * c - v * s; n = b[k + 1] + u * s + v * c;
+  }
+  return [e, n];
+}
+
 interface StreetViewProps {
   /** Where to stand, east/north metres. */
   startEN: [number, number];
@@ -332,16 +352,34 @@ export function StreetView({
   useFrame((_, rawDelta) => {
     /*
      * On a tram (streetscape/trams/ride.ts): the eye is carried by it and the view turns as it turns, so a
-     * look out of the side window stays a look out of the side window round a corner. Walking keys do
-     * nothing until the rider steps off, where the tram layer says.
+     * look out of the side window stays a look out of the side window round a corner. The walking keys move
+     * the rider about inside (below); stepping off puts them where the tram layer says.
      */
     if (ride.active) {
       const [x, y, z] = enuToWorld([ride.eye[0], ride.eye[1], groundAhdM + ride.eye[2]]);
       camera.position.set(x, y, z);
-      if (rideHeading.current !== null) camera.rotateOnWorldAxis(UP, ride.heading - rideHeading.current);
+      if (ride.look !== null) {
+        // sat down: facing the way the seat faces
+        camera.lookAt(x + Math.cos(ride.look), y, z - Math.sin(ride.look)); ride.look = null;
+      } else if (rideHeading.current !== null) camera.rotateOnWorldAxis(UP, ride.heading - rideHeading.current);
       rideHeading.current = ride.heading;
       // no jump carried onto the tram, or saved up for stepping off it
       lift.current.height = 0; lift.current.rise = 0; jumpAsked.current = false;
+      /*
+       * Walking about inside (keys only): the step is worked out as on the street and handed to the tram
+       * layer, which turns it into the tram's terms and keeps it inside the saloon.
+       */
+      const k = held.current;
+      const inAhead = Number(k.has('KeyW') || k.has('ArrowUp')) - Number(k.has('KeyS') || k.has('ArrowDown'));
+      const inAcross = Number(k.has('KeyD') || k.has('ArrowRight')) - Number(k.has('KeyA') || k.has('ArrowLeft'));
+      if (inAhead || inAcross) {
+        camera.getWorldDirection(forward.current); forward.current.y = 0; forward.current.normalize();
+        sideways.current.crossVectors(forward.current, camera.up).normalize();
+        const step = walkPace.walk() * Math.min(rawDelta, MAX_STEP_S) / Math.hypot(inAhead, inAcross);
+        const dE = (forward.current.x * inAhead + sideways.current.x * inAcross) * step;
+        const dN = -(forward.current.z * inAhead + sideways.current.z * inAcross) * step;
+        ride.move = ride.move ? [ride.move[0] + dE, ride.move[1] + dN] : [dE, dN];
+      }
       return;
     }
     rideHeading.current = null;
@@ -369,6 +407,12 @@ export function StreetView({
     }
     // Feet on the ground, whatever the view is doing — or off it, mid-jump.
     camera.position.y = groundAhdM + EYE_HEIGHT_M + air.height;
+    // a tram that has come at the walker since the last frame
+    // (and no further than the walls let it: a push does not go through a building)
+    if (ride.blockerCount) {
+      const e0 = camera.position.x, n0 = -camera.position.z, [e, n] = clearOfTrams(e0, n0);
+      if (e !== e0 || n !== n0) { const [we, wn] = slide(obstacles, e0, n0, e, n); camera.position.x = we; camera.position.z = -wn; }
+    }
     const keys = held.current;
     // keys, or the on-screen stick (touchWalk.ts), which also says how far: a little push is a slow walk
     const keyAhead = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
@@ -409,7 +453,10 @@ export function StreetView({
      * footprints the other way is the cheaper direction, and it keeps the
      * obstacle index in the same terms as the data it came from.
      */
-    const [nextE, nextN] = slide(obstacles, fromE, fromN, wantE, wantN);
+    const [slidE, slidN] = slide(obstacles, fromE, fromN, wantE, wantN);
+    // and not into a tram (one standing at a stop, or one going by)
+    const [pushE, pushN] = ride.blockerCount ? clearOfTrams(slidE, slidN) : [slidE, slidN];
+    const [nextE, nextN] = pushE !== slidE || pushN !== slidN ? slide(obstacles, slidE, slidN, pushE, pushN) : [slidE, slidN];
     camera.position.x = nextE;
     camera.position.z = -nextN;
 

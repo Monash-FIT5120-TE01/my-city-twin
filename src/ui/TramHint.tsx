@@ -13,9 +13,10 @@ export function TramHint() {
     return (
       <>
         {' · '}On route <strong>{s.route}</strong>{s.next ? <> to {s.next}</> : null}
+        {!touch ? <> · <strong>W A S D</strong> to move about inside</> : null}
         {s.canAlight && !touch ? <> · <strong>E</strong> to get off</> : null}
       </>
     );
   }
-  return s.canBoard ? <>{' · '}<strong>{touch ? 'Tap' : 'Click'}</strong> a tram door to board</> : null;
+  return s.canBoard ? <>{' · '}<strong>{touch ? 'Tap' : 'Aim at'}</strong> a tram door to board</> : null;
 }

@@ -92,6 +92,7 @@ import { ComparePage, type FrameRect } from './ui/ComparePage';
 import { HowItWorksPage } from './ui/HowItWorksPage';
 import { FuturePlansPage } from './ui/FuturePlansPage';
 import { TramHint } from './ui/TramHint';
+import { TramAim } from './ui/TramAim';
 import { WalkPaceHint } from './ui/WalkPaceHint';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
@@ -1861,6 +1862,8 @@ export default function App() {
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
       {/* On a phone the keys are a stick and buttons (TouchWalk) */}
       {walking && byTouch && <TouchWalk onBackUp={() => setWalking(false)} />}
+      {/* the centre of the view: what a click does on a tram door or seat */}
+      {walking && !byTouch && !inVr && <TramAim />}
       {walking && (
         <p className="walking-hint">
           {byTouch ? (
