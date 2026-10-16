@@ -710,20 +710,6 @@
 }
 
 /*
- * "Future plans", set apart as the design sets it: on a mint ground, in the
- * page's darkest ink and heavier — found by weight and ground, not by hue.
- */
-.header__link--accent {
-  background: var(--mint-100);
-  color: var(--ink-green-900);
-  font-weight: var(--weight-title);
-}
-
-.header__link--accent:hover {
-  background: var(--mint-200);
-}
-
-/*
  * On a phone the bar's field would be the second of two identical fields on
  * one screen, and it would put the bar on two rows. The page's own field is
  * the one kept; the bar stays one row, the height the page is laid out for.

@@ -1228,11 +1228,7 @@ export default function App() {
   /** The links the header carries on the front page and the sunlight screen. */
   const frontNav = (
     <>
-      <button
-        type="button"
-        className="header__link header__link--accent"
-        onClick={showFuturePlans}
-      >
+      <button type="button" className="header__link" onClick={showFuturePlans}>
         Future plans
       </button>
       <button
