@@ -234,6 +234,7 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
 
   const tick = useRef(1), sweep = useRef(0), cam = useMemo(() => new Vector3(), []), camNow = useMemo(() => new Vector3(), []);
   const [pick, tapAt, rayFrom, rayDir, rootTurn, lookDir] = useMemo(() => [new Raycaster(), new Vector2(), new Vector3(), new Vector3(), new Quaternion(), new Vector3()] as const, []);
+  const pointer = useMemo(() => ({ from: new Vector3(), dir: new Vector3() }), []);
   useFrame((state, dt) => {
     const built = live.current;
     if (!built) return;
@@ -244,7 +245,11 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
       state.camera.getWorldPosition(camNow); built.root.worldToLocal(camNow);
       // where the centre of the view points, for the door or seat it is on
       state.camera.getWorldDirection(lookDir); built.root.getWorldQuaternion(rootTurn); lookDir.applyQuaternion(rootTurn.invert()).normalize();
-      run.layer.update(dt, camNow, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice].reach, lookDir);
+      // in a headset, the laser: what it is on lights up, labelled (trams/ride.ts pointer); rootTurn is the
+      // world-to-streetscape turn here, as just used for the view's direction
+      const laser = gl.xr.isPresenting ? ride.pointer : null;
+      if (laser) { built.root.worldToLocal(pointer.from.fromArray(laser.from)); pointer.dir.fromArray(laser.dir).applyQuaternion(rootTurn).normalize(); }
+      run.layer.update(dt, camNow, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice].reach, lookDir, laser ? pointer : undefined);
       // for the headset: where the rider's eye is, and where a ride ended, in world coordinates
       if (ride.active) ride.eyeWorld = built.root.localToWorld(rayFrom.fromArray(ride.eye)).toArray() as [number, number, number];
       else ride.eyeWorld = null;

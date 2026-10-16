@@ -22,7 +22,7 @@
  *   walker out of it as it does out of walls: a tram that comes at someone standing on the track pushes them
  *   aside rather than passing through them.
  */
-import { BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Quaternion, Vector3, type Material } from 'three';
+import { BoxGeometry, CanvasTexture, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, SRGBColorSpace, Vector3, type Material } from 'three';
 import type { Phase } from '../signalPlan';
 import { disposeKits, kitFor, type TramKit } from './tramModel';
 import type { ClassKey } from './tramClasses';
@@ -47,6 +47,23 @@ const BLOCK_M = 60;
 const SEAT_GAP_M = 0.15, WALL_GAP_M = 0.34, CAB_M = 1.9;
 /** A seated eye above the cushion, and how far away a seat can be picked. */
 const SEATED_EYE_M = 0.72, SEAT_REACH_M = 3.5;
+/*
+ * The headset's label over a door its laser is on: what the trigger does there, since a light alone does not
+ * say it (2026-10-16). The desktop says it in the page (TramAim). White on near-black (L* 100 on about 7), so
+ * it reads by lightness alone; 0.9 m wide, a hand's width of view at three metres.
+ */
+const LABEL_W_M = 0.9, LABEL_H_M = 0.34;
+const LABELS = { board: ['Board this tram?', 'Pull the trigger'], alight: ['Get off here?', 'Pull the trigger'] } as const;
+function labelTexture([title, how]: readonly [string, string]): CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas'); c.width = 512; c.height = Math.round((512 * LABEL_H_M) / LABEL_W_M);
+  const g = c.getContext('2d'); if (!g) return null;
+  g.fillStyle = '#121212'; g.beginPath(); g.roundRect(0, 0, c.width, c.height, 28); g.fill();
+  g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '600 50px system-ui, sans-serif'; g.fillText(title, c.width / 2, c.height * 0.38);
+  g.font = '400 36px system-ui, sans-serif'; g.fillText(how, c.width / 2, c.height * 0.74);
+  const tex = new CanvasTexture(c); tex.colorSpace = SRGBColorSpace; return tex;
+}
 
 interface ClassMeshes { kit: TramKit; meshes: { mesh: InstancedMesh; section: number }[] }
 /** What the centre of the view (or a tap, or a laser) is on. */
@@ -62,6 +79,10 @@ export class TramLayer {
   /** The light over what is aimed at: a door or a seat. */
   private glow = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.32, depthWrite: false }));
   private look = new Vector3(1, 0, 0);
+  /** The headset's label (LABELS), one picture per kind, made on first use; shown over a door the laser is on. */
+  private label = new Mesh(new PlaneGeometry(LABEL_W_M, LABEL_H_M), new MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+  private labelTex: Partial<Record<keyof typeof LABELS, CanvasTexture | null>> = {};
+  private basis = new Matrix4(); private bx = new Vector3(); private by = new Vector3(); private bz = new Vector3();
   /** Seconds of the display not yet simulated, and where each tram's front was before the last step. */
   private owed = 0;
   private before = new Map<Tram, number>();
@@ -72,6 +93,7 @@ export class TramLayer {
     this.sim = new TramSim(doc, day, time, phase, before);
     this.sim.onLeave = (t) => { if (this.riding?.tram === t) this.stepOff(); };
     this.glow.visible = false; this.glow.raycast = () => undefined; this.glow.renderOrder = 2; this.group.add(this.glow);
+    this.label.visible = false; this.label.raycast = () => undefined; this.label.renderOrder = 3; this.group.add(this.label);
   }
 
   private meshesFor(key: ClassKey): ClassMeshes {
@@ -108,8 +130,10 @@ export class TramLayer {
    * @param cam the camera (east, north, up) in the streetscape's frame
    * @param reach the device's distance scale (lod.ts)
    * @param look the camera's direction in the same frame, for what the centre of the view is on
+   * @param pointer in a headset, the laser (from, unit direction) in the same frame: what it is on is aimed
+   *   at instead, doors only (the trigger takes no seat), with a label saying what the trigger does
    */
-  update(dt: number, cam: Vector3, reach: number, look?: Vector3): void {
+  update(dt: number, cam: Vector3, reach: number, look?: Vector3, pointer?: { from: Vector3; dir: Vector3 }): void {
     this.owed += Math.min(dt, 0.25);
     while (this.owed >= SIM_DT) {
       this.before = new Map(this.sim.trams.map((t) => [t, t.s]));
@@ -138,8 +162,9 @@ export class TramLayer {
     this.follow();
     this.solid(cam);
     if (look) this.look.copy(look);
-    this.aim = this.aimed(cam, this.look);
+    this.aim = pointer ? this.aimed(pointer.from, pointer.dir, false) : this.aimed(cam, this.look);
     this.light();
+    this.labelFor(pointer ? cam : null);
     this.report(cam);
   }
 
@@ -163,15 +188,27 @@ export class TramLayer {
 
   // ── riding ──────────────────────────────────────────────────────────────
   /** A point of tram `t` (x along from its middle, y across, + left, z above the rail) where it is drawn now. */
-  private pointOf(t: Tram, x: number, y: number, z: number): [number, number, number] {
-    const s = this.shownS(t) - (t.L / 2 - x), p = t.path.at(s), dir = t.path.dir(s);
-    return [p[0] - dir[1] * y, p[1] + dir[0] * y, RAIL_Z + z];
+  /**
+   * Where a point of tram `t` is drawn (x along from its middle, y across, + left, z up from the rail), and
+   * (`dir`) which way the body runs there. On the section the point is in, placed as that section is drawn
+   * (sectionMatrix: straight between its two ends): on a curve the body cuts inside the track's curve, and a
+   * point put on the curve itself was off the body — a door's light beside the door, a rider by the wall
+   * (seen in a headset at a stop on a curve, 2026-10-16).
+   */
+  private pointOf(t: Tram, x: number, y: number, z: number, dir?: [number, number]): [number, number, number] {
+    const kit = kitFor(t.trip.cls);
+    let sec = kit.sections[0];
+    for (const c of kit.sections) if (Math.abs(x - c.centre) - c.len / 2 < Math.abs(x - sec.centre) - sec.len / 2) sec = c;
+    const centre = this.shownS(t) - (kit.cls.L / 2 - sec.centre), a = t.path.at(centre - sec.len / 2), b = t.path.at(centre + sec.len / 2);
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, c = (b[0] - a[0]) / len, sn = (b[1] - a[1]) / len, u = x - sec.centre;
+    if (dir) { dir[0] = c; dir[1] = sn; }
+    return [(a[0] + b[0]) / 2 + u * c - y * sn, (a[1] + b[1]) / 2 + u * sn + y * c, RAIL_Z + z];
   }
+  private dir: [number, number] = [1, 0];
 
   private doorPoint(t: Tram, door: number, side: number): [number, number, number] {
-    const kit = kitFor(t.trip.cls), d = kit.doors[door], s = this.shownS(t) - (kit.cls.L / 2 - d.x);
-    const p = t.path.at(s), dir = t.path.dir(s), off = side * (kit.cls.W / 2 + 0.05);
-    return [p[0] - dir[1] * off, p[1] + dir[0] * off, RAIL_Z + kit.cls.floor + 1.0];
+    const kit = kitFor(t.trip.cls), d = kit.doors[door];
+    return this.pointOf(t, d.x, side * (kit.cls.W / 2 + 0.05), kit.cls.floor + 1.0);
   }
 
   /** A tram at a stop with a door within reach of the camera ray (only `only`, when given). */
@@ -204,11 +241,11 @@ export class TramLayer {
     return best;
   }
 
-  /** What a ray from the eye is on: a door to board by, a door to get off by, or a seat. */
-  private aimed(cam: Vector3, dir: Vector3): Aim | null {
+  /** What a ray from the eye (or a laser) is on: a door to board by, a door to get off by, or (`seats`) a seat. */
+  private aimed(cam: Vector3, dir: Vector3, seats = true): Aim | null {
     const r = this.riding;
     if (!r) { const d = this.doorUnder(cam, dir); return d ? { kind: 'board', ...d } : null; }
-    const seat = this.seatUnder(cam, dir), door = this.doorUnder(cam, dir, r.tram);
+    const seat = seats ? this.seatUnder(cam, dir) : null, door = this.doorUnder(cam, dir, r.tram);
     if (door && (!seat || door.d < seat.d)) return { kind: 'alight', ...door };
     return seat ? { kind: 'seat', tram: r.tram, ...seat } : null;
   }
@@ -219,15 +256,32 @@ export class TramLayer {
     if (!a) { g.visible = false; return; }
     const kit = kitFor(a.tram.trip.cls), C = kit.cls;
     if (a.kind === 'seat') {
-      const st = kit.seats[a.seat], s = this.shownS(a.tram) - (C.L / 2 - st.x), dir = a.tram.path.dir(s);
-      g.position.fromArray(this.pointOf(a.tram, st.x, st.y, st.z + 0.04)); g.scale.set(0.5, 0.5, 0.08);
+      const st = kit.seats[a.seat], dir = this.dir;
+      g.position.fromArray(this.pointOf(a.tram, st.x, st.y, st.z + 0.04, dir)); g.scale.set(0.5, 0.5, 0.08);
       g.rotation.set(0, 0, Math.atan2(dir[1], dir[0]));
     } else {
-      const d = kit.doors[a.door], s = this.shownS(a.tram) - (C.L / 2 - d.x), dir = a.tram.path.dir(s), h = Math.max(1.9, C.H - 0.5 - C.floor);
-      g.position.fromArray(this.pointOf(a.tram, d.x, a.side * (C.W / 2 + 0.02), C.floor + h / 2)); g.scale.set(d.w, 0.1, h);
+      const d = kit.doors[a.door], dir = this.dir, h = Math.max(1.9, C.H - 0.5 - C.floor);
+      g.position.fromArray(this.pointOf(a.tram, d.x, a.side * (C.W / 2 + 0.02), C.floor + h / 2, dir)); g.scale.set(d.w, 0.1, h);
       g.rotation.set(0, 0, Math.atan2(dir[1], dir[0]));
     }
     g.visible = true;
+  }
+
+  /** The headset's label over the door aimed at, turned to face `eye`; hidden without an eye or a door. */
+  private labelFor(eye: Vector3 | null): void {
+    const a = this.aim, lb = this.label;
+    if (!eye || !a || a.kind === 'seat') { lb.visible = false; return; }
+    const tex = a.kind in this.labelTex ? this.labelTex[a.kind] : (this.labelTex[a.kind] = labelTexture(LABELS[a.kind]));
+    if (!tex) { lb.visible = false; return; }
+    const mat = lb.material as MeshBasicMaterial; if (mat.map !== tex) { mat.map = tex; mat.needsUpdate = true; }
+    // over the light, a little out from the side the door is on
+    const kit = kitFor(a.tram.trip.cls), C = kit.cls, d = kit.doors[a.door], h = Math.max(1.9, C.H - 0.5 - C.floor);
+    lb.position.fromArray(this.pointOf(a.tram, d.x, a.side * (C.W / 2 + 0.25), C.floor + h + 0.3));
+    // upright (+y up), its face (+z) turned level towards the eye
+    this.bz.set(eye.x - lb.position.x, eye.y - lb.position.y, 0); if (this.bz.lengthSq() < 1e-6) this.bz.set(1, 0, 0); this.bz.normalize();
+    this.by.set(0, 0, 1); this.bx.crossVectors(this.by, this.bz);
+    lb.quaternion.setFromRotationMatrix(this.basis.makeBasis(this.bx, this.by, this.bz));
+    lb.visible = true;
   }
 
   /**
@@ -264,7 +318,7 @@ export class TramLayer {
 
   private sit(seat: number): void {
     const r = this.riding; if (!r) return;
-    const st = kitFor(r.tram.trip.cls).seats[seat], s = this.shownS(r.tram) - (r.tram.L / 2 - st.x), dir = r.tram.path.dir(s);
+    const st = kitFor(r.tram.trip.cls).seats[seat], dir = this.dir; this.pointOf(r.tram, st.x, st.y, 0, dir);
     r.seat = seat; r.x = st.x; r.y = st.y;
     ride.look = Math.atan2(dir[1], dir[0]) + (st.face > 0 ? 0 : Math.PI);
   }
@@ -281,7 +335,7 @@ export class TramLayer {
   private walkInside(): void {
     const r = this.riding, m = ride.move; ride.move = null;
     if (!r || !m) return;
-    const kit = kitFor(r.tram.trip.cls), s = this.shownS(r.tram) - (r.tram.L / 2 - r.x), dir = r.tram.path.dir(s);
+    const kit = kitFor(r.tram.trip.cls), dir = this.dir; this.pointOf(r.tram, r.x, r.y, 0, dir);
     if (r.seat !== null) { r.seat = null; if (this.roomAt(kit, r.x, 0)) r.y = 0; return; }   // up into the aisle
     const along = m[0] * dir[0] + m[1] * dir[1], across = -m[0] * dir[1] + m[1] * dir[0];
     // standing where there is no room (up from a seat with no aisle beside it): the seats do not hold it there
@@ -295,7 +349,8 @@ export class TramLayer {
     const r = this.riding; if (!r) return;
     // by the door aimed at, or the one boarded by, on the platform side
     const door = this.aim?.kind === 'alight' ? this.aim.door : r.door;
-    const [x, y] = this.doorPoint(r.tram, door, 1), dir = r.tram.path.dir(this.shownS(r.tram));
+    const d = kitFor(r.tram.trip.cls).doors[door], dir = this.dir;
+    const [x, y] = this.pointOf(r.tram, d.x, kitFor(r.tram.trip.cls).cls.W / 2 + 0.05, 0, dir);
     ride.stepOff = [x - dir[1] * 1.0, y + dir[0] * 1.0];
     ride.active = false;
     this.group.remove(r.group);
@@ -309,8 +364,8 @@ export class TramLayer {
     for (const sg of r.group.children) { this.sectionMatrix(r.tram, kit, sg.userData.section as number, this.m); this.m.decompose(sg.position, sg.quaternion, sg.scale); }
     // where the tram is drawn, not where the simulation has it, so the rider and the tram move together
     const st = r.seat !== null ? kit.seats[r.seat] : null;
-    const s = this.shownS(r.tram) - (kit.cls.L / 2 - r.x), dir = r.tram.path.dir(s);
-    ride.eye = this.pointOf(r.tram, r.x, r.y, st ? st.z + SEATED_EYE_M : kit.cls.floor + EYE_M);
+    const dir = this.dir;
+    ride.eye = this.pointOf(r.tram, r.x, r.y, st ? st.z + SEATED_EYE_M : kit.cls.floor + EYE_M, dir);
     ride.heading = Math.atan2(dir[1], dir[0]);
   }
 
@@ -336,6 +391,8 @@ export class TramLayer {
     for (const c of this.classes.values()) for (const { mesh } of c.meshes) mesh.dispose();
     this.classes.clear();
     this.glow.geometry.dispose(); (this.glow.material as Material).dispose();
+    this.label.geometry.dispose(); (this.label.material as Material).dispose();
+    for (const tex of Object.values(this.labelTex)) tex?.dispose();
     this.group.clear();
     disposeKits();   // the models too: nothing draws a tram until the next walk
   }

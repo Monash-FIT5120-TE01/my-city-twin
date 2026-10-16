@@ -23,6 +23,9 @@ export interface RideStatus {
   seated: boolean;
 }
 
+/** How wide the walker is against a tram (half, metres): a little less than against walls (obstacles.ts). */
+const BODY_M = 0.3;
+
 const IDLE: RideStatus = { riding: false, canBoard: false, canAlight: false, route: '', next: '', aim: '', seated: false };
 
 class Ride {
@@ -48,6 +51,8 @@ class Ride {
    * are a desktop's (a click, TramLayer.click): neither a tap nor a ray sits down.
    */
   tap: [number, number] | null = null;
+  /** A headset's laser every frame (world coordinates, as `ray`): a door it is on lights up and is labelled. */
+  pointer: { from: [number, number, number]; dir: [number, number, number] } | null = null;
   ray: { from: [number, number, number]; dir: [number, number, number] } | null = null;
   alight = false;
 
@@ -68,6 +73,24 @@ class Ride {
   blockers: number[] = [];
   blockerCount = 0;
 
+  /**
+   * Out of every tram near the walker (the blockers above; east, north): a walker inside a box is moved to
+   * its nearest side. The street view and the headset run it before and after each step, so a tram that comes
+   * at someone standing still pushes them aside instead of passing through them; each then holds the push to
+   * the walls.
+   */
+  clearOf(e: number, n: number): [number, number] {
+    const b = this.blockers;
+    for (let i = 0; i < this.blockerCount; i++) {
+      const k = i * 6, dx = e - b[k], dy = n - b[k + 1], c = b[k + 2], s = b[k + 3], hl = b[k + 4] + BODY_M, hw = b[k + 5] + BODY_M;
+      let u = dx * c + dy * s, v = -dx * s + dy * c;
+      if (Math.abs(u) >= hl || Math.abs(v) >= hw) continue;
+      if (hw - Math.abs(v) < hl - Math.abs(u)) v = Math.sign(v || 1) * hw; else u = Math.sign(u || 1) * hl;
+      e = b[k] + u * c - v * s; n = b[k + 1] + u * s + v * c;
+    }
+    return [e, n];
+  }
+
   private status = IDLE;
   private listeners = new Set<() => void>();
   readonly subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
@@ -80,7 +103,7 @@ class Ride {
   }
   reset(): void {
     this.active = false; this.stepOff = null; this.eyeWorld = null; this.stepOffWorld = null;
-    this.tap = null; this.ray = null; this.alight = false; this.move = null; this.look = null; this.blockerCount = 0; this.setStatus(IDLE);
+    this.tap = null; this.ray = null; this.pointer = null; this.alight = false; this.move = null; this.look = null; this.blockerCount = 0; this.setStatus(IDLE);
   }
 }
 

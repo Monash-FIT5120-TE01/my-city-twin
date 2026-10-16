@@ -122,25 +122,6 @@ const WALK_FAR = 12000;
 /** World up (y), the axis a tram's turn turns the rider's view about. */
 const UP = new Vector3(0, 1, 0);
 
-/** How wide the walker is against a tram (half, metres): a little less than against walls (BODY_RADIUS_M). */
-const BODY_M = 0.3;
-
-/**
- * Out of every tram near the walker (streetscape/trams/ride.ts: one box a section, east/north): a walker
- * inside a box is moved to its nearest side. Run before and after each step, so a tram that comes at
- * someone standing still pushes them aside instead of passing through them.
- */
-function clearOfTrams(e: number, n: number): [number, number] {
-  const b = ride.blockers;
-  for (let i = 0; i < ride.blockerCount; i++) {
-    const k = i * 6, dx = e - b[k], dy = n - b[k + 1], c = b[k + 2], s = b[k + 3], hl = b[k + 4] + BODY_M, hw = b[k + 5] + BODY_M;
-    let u = dx * c + dy * s, v = -dx * s + dy * c;
-    if (Math.abs(u) >= hl || Math.abs(v) >= hw) continue;
-    if (hw - Math.abs(v) < hl - Math.abs(u)) v = Math.sign(v || 1) * hw; else u = Math.sign(u || 1) * hl;
-    e = b[k] + u * c - v * s; n = b[k + 1] + u * s + v * c;
-  }
-  return [e, n];
-}
 
 interface StreetViewProps {
   /** Where to stand, east/north metres. */
@@ -410,7 +391,7 @@ export function StreetView({
     // a tram that has come at the walker since the last frame
     // (and no further than the walls let it: a push does not go through a building)
     if (ride.blockerCount) {
-      const e0 = camera.position.x, n0 = -camera.position.z, [e, n] = clearOfTrams(e0, n0);
+      const e0 = camera.position.x, n0 = -camera.position.z, [e, n] = ride.clearOf(e0, n0);
       if (e !== e0 || n !== n0) { const [we, wn] = slide(obstacles, e0, n0, e, n); camera.position.x = we; camera.position.z = -wn; }
     }
     const keys = held.current;
@@ -455,7 +436,7 @@ export function StreetView({
      */
     const [slidE, slidN] = slide(obstacles, fromE, fromN, wantE, wantN);
     // and not into a tram (one standing at a stop, or one going by)
-    const [pushE, pushN] = ride.blockerCount ? clearOfTrams(slidE, slidN) : [slidE, slidN];
+    const [pushE, pushN] = ride.blockerCount ? ride.clearOf(slidE, slidN) : [slidE, slidN];
     const [nextE, nextN] = pushE !== slidE || pushN !== slidN ? slide(obstacles, slidE, slidN, pushE, pushN) : [slidE, slidN];
     camera.position.x = nextE;
     camera.position.z = -nextN;

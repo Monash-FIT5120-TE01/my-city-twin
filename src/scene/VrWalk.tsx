@@ -99,6 +99,9 @@ const TURN_DEG_S = 90;
  */
 const TURN_DEAD_ZONE = 0.18;
 
+/** The fastest a rider walks about inside a tram, m/s: a walk, whatever the stick says (a saloon is 2 m wide). */
+const INSIDE_PACE_MS = 1.2;
+
 /*
  * ── THE BUTTONS ──────────────────────────────────────────────────────────
  *
@@ -275,6 +278,8 @@ export function VrWalk({
   const leftTriggerWas = useRef(false), rightTriggerWas = useRef(false);
   const rideHeading = useRef<number | null>(null), groundY = useRef<number | null>(null);
   const rayPose = useRef(new Matrix4()), rayDir = useRef(new Vector3());
+  /** The laser handed to the tram layer every frame (ride.pointer): one object, rewritten. */
+  const pointer = useRef<{ from: [number, number, number]; dir: [number, number, number] }>({ from: [0, 0, 0], dir: [0, 0, -1] });
   /** How long a grip has been squeezed, seconds. Reset the moment it is let go. */
   const squeezed = useRef(0);
   /** So one long squeeze leaves once, rather than every frame after a second. */
@@ -468,35 +473,62 @@ export function VrWalk({
      * ── TRAMS (streetscape/trams) ───────────────────────────────────────
      *
      * A trigger pulled with the laser on a tram's door boards it; on a tram at a stop, it steps off. The laser
-     * is handed over as a ray in world coordinates; the tram layer decides what it meant.
+     * is handed over as a ray in world coordinates; the tram layer decides what it meant. The right hand's
+     * laser (the left's when there is no right) is also handed over every frame, so a door it is on lights up
+     * with a label saying the trigger boards: the light followed the head before, and said nothing (2026-10-16).
      */
+    const laserOf = (hand: typeof left, out: { from: [number, number, number]; dir: [number, number, number] }) => {
+      const frame = state.gl.xr.getFrame(), space = state.gl.xr.getReferenceSpace();
+      const pose = hand?.inputSource && frame && space ? frame.getPose(hand.inputSource.targetRaySpace, space) : null;
+      if (!pose) return false;
+      rayPose.current.fromArray(pose.transform.matrix).premultiply(group.matrixWorld);
+      const from = step.current.setFromMatrixPosition(rayPose.current), dir = rayDir.current.set(0, 0, -1).transformDirection(rayPose.current);
+      out.from[0] = from.x; out.from[1] = from.y; out.from[2] = from.z; out.dir[0] = dir.x; out.dir[1] = dir.y; out.dir[2] = dir.z;
+      return true;
+    };
+    ride.pointer = laserOf(right, pointer.current) || laserOf(left, pointer.current) ? pointer.current : null;
     for (const [hand, was] of [[left, leftTriggerWas], [right, rightTriggerWas]] as const) {
       const down = hand?.gamepad?.[TRIGGER]?.state === 'pressed';
-      if (down && !was.current && hand?.inputSource) {
-        const frame = state.gl.xr.getFrame(), space = state.gl.xr.getReferenceSpace();
-        const pose = frame && space ? frame.getPose(hand.inputSource.targetRaySpace, space) : null;
-        if (pose) {
-          rayPose.current.fromArray(pose.transform.matrix).premultiply(group.matrixWorld);
-          const from = step.current.setFromMatrixPosition(rayPose.current);
-          const dir = rayDir.current.set(0, 0, -1).transformDirection(rayPose.current);
-          ride.ray = { from: [from.x, from.y, from.z], dir: [dir.x, dir.y, dir.z] };
-        }
+      if (down && !was.current) {
+        const ray = { from: [0, 0, 0] as [number, number, number], dir: [0, 0, -1] as [number, number, number] };
+        if (laserOf(hand, ray)) ride.ray = ray;
       }
       was.current = down;
     }
     /*
+     * The turning stick, as radians this frame (TURNING below): proportional, a nudge turns slowly, a shove
+     * quickly. Rescaled so the dead zone is a floor rather than a step; negated, since pushing RIGHT turns
+     * the view right and a positive turn about +y in three.js is to the left.
+     */
+    const turnAxis = right?.gamepad?.[THUMBSTICK]?.xAxis ?? 0;
+    const turnBy = Math.abs(turnAxis) > TURN_DEAD_ZONE
+      ? -Math.sign(turnAxis) * Math.min(1, (Math.abs(turnAxis) - TURN_DEAD_ZONE) / (1 - TURN_DEAD_ZONE)) * TURN_DEG_S * (Math.PI / 180) * delta
+      : 0;
+    const walkX = left?.gamepad?.[THUMBSTICK]?.xAxis ?? 0;
+    const walkY = left?.gamepad?.[THUMBSTICK]?.yAxis ?? 0;
+
+    /*
      * Riding: the floor goes with the tram, at the height of its floor, and turns as it turns, about the
-     * head so a look out of the window stays one. The sticks do nothing until the rider steps off, back on
-     * the ground where the tram layer says.
+     * head so a look out of the window stays one. The sticks work as on the ground: the turning stick turns
+     * the rider, and the walking stick walks about inside, handed to the tram layer as a step east/north
+     * (ride.move), which keeps it off the walls and seats. Back on the ground where the tram layer says.
      */
     if (ride.active && ride.eyeWorld) {
       groundY.current ??= group.position.y;
-      if (rideHeading.current !== null) {
-        const radians = ride.heading - rideHeading.current;
+      const radians = (rideHeading.current !== null ? ride.heading - rideHeading.current : 0) + turnBy;
+      if (radians) {
         const [x, z] = turnAbout([group.position.x, group.position.z], [at.x, at.z], radians);
         group.position.x = x; group.position.z = z; group.rotation.y += radians;
       }
       rideHeading.current = ride.heading;
+      const pace = Math.min(paceFor(Math.hypot(walkX, walkY)), INSIDE_PACE_MS);
+      if (pace > 0) {
+        state.camera.getWorldQuaternion(facing.current);
+        if (groundDirection(walkX, walkY, facing.current, step.current)) {
+          const dE = step.current.x * pace * delta, dN = -step.current.z * pace * delta;
+          ride.move = ride.move ? [ride.move[0] + dE, ride.move[1] + dN] : [dE, dN];
+        }
+      }
       group.position.x += ride.eyeWorld[0] - at.x;
       group.position.z += ride.eyeWorld[2] - at.z;
       group.position.y = ride.eyeWorld[1] - RIDER_EYE_M;   // the floor: the tram's, where the ground was
@@ -512,6 +544,18 @@ export function VrWalk({
     }
 
     /*
+     * A tram that has come at the player since the last frame pushes them aside (ride.clearOf, as at a desk),
+     * no further than the walls let it. Trams were not solid in a headset before (2026-10-16).
+     */
+    if (ride.blockerCount) {
+      const e0 = at.x, n0 = -at.z, [e, n] = ride.clearOf(e0, n0);
+      if (e !== e0 || n !== n0) {
+        const [we, wn] = obstacles ? slide(obstacles, e0, n0, e, n) : [e, n];
+        group.position.x += we - e0; group.position.z -= wn - n0; at.x += we - e0; at.z -= wn - n0;
+      }
+    }
+
+    /*
      * ── TURNING ─────────────────────────────────────────────────────────
      *
      * Proportional: a nudge turns slowly, a shove turns quickly. Only the
@@ -520,21 +564,8 @@ export function VrWalk({
      * The vertical axis of this stick turns the panel's pages instead (see
      * A PAGE OF THE LIST above).
      */
-    const turnAxis = right?.gamepad?.[THUMBSTICK]?.xAxis ?? 0;
-    if (Math.abs(turnAxis) > TURN_DEAD_ZONE) {
-      /*
-       * Rescaled so the dead zone is a floor rather than a step. Without
-       * this, the instant the stick crosses 0.18 the view jumps straight to
-       * 18% of full rate, which is the discontinuity the dead zone existed
-       * to remove.
-       */
-      const beyond = (Math.abs(turnAxis) - TURN_DEAD_ZONE) / (1 - TURN_DEAD_ZONE);
-      /*
-       * Negated: pushing the stick RIGHT should turn the view right, and a
-       * positive rotation about +y in three.js turns to the left.
-       */
-      const radians =
-        -Math.sign(turnAxis) * Math.min(1, beyond) * TURN_DEG_S * (Math.PI / 180) * delta;
+    if (turnBy !== 0) {
+      const radians = turnBy;   // worked out above, before the tram (the same stick turns a rider)
 
       /*
        * About the head, not the origin. Turning the origin spins the player
@@ -556,8 +587,6 @@ export function VrWalk({
      * stick's travel below walking pace and puts the run where the hardware
      * has an edge you can feel.
      */
-    const walkX = left?.gamepad?.[THUMBSTICK]?.xAxis ?? 0;
-    const walkY = left?.gamepad?.[THUMBSTICK]?.yAxis ?? 0;
     const pace = paceFor(Math.hypot(walkX, walkY));
     if (pace === 0) return;
 
@@ -607,7 +636,10 @@ export function VrWalk({
     const [slidE, slidN] = obstacles
       ? slide(obstacles, fromE, fromN, wantE, wantN)
       : [wantE, wantN];
-    const [nextE, nextN] = insideBounds([slidE, slidN], boundsCentreEN, boundsRadiusM);
+    // and not into a tram, no further than the walls let the push go
+    const [pushE, pushN] = ride.blockerCount ? ride.clearOf(slidE, slidN) : [slidE, slidN];
+    const [heldE, heldN] = obstacles && (pushE !== slidE || pushN !== slidN) ? slide(obstacles, slidE, slidN, pushE, pushN) : [pushE, pushN];
+    const [nextE, nextN] = insideBounds([heldE, heldN], boundsCentreEN, boundsRadiusM);
 
     /*
      * Applied as a DIFFERENCE, not as a destination. The origin is not the
