@@ -20,6 +20,10 @@ import { Streetscape } from './streetscape/Streetscape';
 import type { SimulationDate } from './solar';
 import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
+import { ApartmentRoom, RoomCheckCamera } from './room/ApartmentRoom';
+import { readRoomCheck } from './room/roomCheck';
+import { placeRoom } from './room/roomPlacement';
+import { roomClipPlanes } from './room/roomClip';
 import { BuildingPicker } from './BuildingPicker';
 import { EXISTING, UNRESOLVED } from './palette';
 
@@ -104,6 +108,14 @@ export function CityMassing({
   streetTrams,
 }: CityMassingProps) {
   const roofCheck = useMemo(() => roofCheckOn(), []);
+  // development only (?roomcheck=floor,side with &bldg=): the flat placed in the chosen building
+  const roomCheck = useMemo(() => readRoomCheck(), []);
+  const room = useMemo(() => {
+    if (!roomCheck || !highlightedBuildingId) return null;
+    const parts = model.buildings.filter((b) => b.parentId === highlightedBuildingId);
+    const placement = placeRoom(parts, roomCheck.side, roomCheck.floor, null);
+    return placement ? { placement, cut: roomClipPlanes(placement) } : null;
+  }, [roomCheck, highlightedBuildingId, model.buildings]);
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
     [model.buildings],
@@ -256,9 +268,12 @@ export function CityMassing({
             buildings={model.buildings}
             buildingId={highlightedBuildingId}
             groundAhdM={groundAhdM}
+            roomCut={room?.cut ?? null}
           />
         </group>
       )}
+      {room && <ApartmentRoom placement={room.placement} />}
+      {room && roomCheck && <RoomCheckCamera placement={room.placement} />}
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
       {windowAt && (

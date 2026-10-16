@@ -39,10 +39,11 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import type { BufferGeometry } from 'three';
+import type { BufferGeometry, Plane } from 'three';
 import type { BuildingMassing } from '../data/model';
 import { mergeMassings } from './massing';
 import { SelectionEdges } from './SelectionEdges';
+import { EXISTING } from './palette';
 
 interface HighlightedBuildingProps {
   /** Every part of the city; the matching ones are lifted out here. */
@@ -51,6 +52,13 @@ interface HighlightedBuildingProps {
   buildingId: string | null;
   /** The floor height the city was built on, so the copy lands on the original. */
   groundAhdM: number;
+  /**
+   * A flat placed inside it (room/ApartmentRoom): the block the flat takes is
+   * clipped out of the massing, picture and shadow alike (room/roomClip.ts),
+   * and the building is drawn as the city is — not pink, not outlined — since
+   * the reader is now looking out of it rather than at it.
+   */
+  roomCut?: Plane[] | null;
 }
 
 /** The searched-for building, lifted out of the welded city and drawn pink. */
@@ -58,6 +66,7 @@ export function HighlightedBuilding({
   buildings,
   buildingId,
   groundAhdM,
+  roomCut = null,
 }: HighlightedBuildingProps) {
   // A building is several roof planes sharing an id, so all of them are
   // needed or the highlight would light up one storey. Kept apart from the
@@ -79,6 +88,21 @@ export function HighlightedBuilding({
   useEffect(() => () => geometry?.dispose(), [geometry]);
 
   if (!geometry) return null;
+
+  if (roomCut) {
+    return (
+      <mesh geometry={geometry} castShadow receiveShadow>
+        <meshStandardMaterial
+          color={EXISTING}
+          roughness={0.82}
+          metalness={0}
+          clippingPlanes={roomCut}
+          clipIntersection
+          clipShadows
+        />
+      </mesh>
+    );
+  }
 
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
