@@ -37,6 +37,15 @@ export interface Facade {
   midpointEN: [number, number];
   /** Total length of wall facing this way, metres. */
   lengthM: number;
+  /**
+   * The longest single wall in that direction — the one midpointEN is the
+   * middle of: its two ends (east/north) and its own length. lengthM adds up
+   * every wall facing the same way, which is the side's size, not a wall a
+   * flat can be put behind (room/roomPlacement.ts).
+   */
+  runStartEN: [number, number];
+  runEndEN: [number, number];
+  runLengthM: number;
 }
 
 const COMPASS = [
@@ -162,7 +171,14 @@ export function facadesOf(parts: Massing[], atAhdM?: number): Facade[] {
 
   const sectors = new Map<
     number,
-    { lengthM: number; longest: number; midpointEN: [number, number]; bearingDeg: number }
+    {
+      lengthM: number;
+      longest: number;
+      midpointEN: [number, number];
+      bearingDeg: number;
+      start: [number, number];
+      end: [number, number];
+    }
   >();
 
   for (let i = 0; i < ring.length; i++) {
@@ -192,6 +208,8 @@ export function facadesOf(parts: Massing[], atAhdM?: number): Facade[] {
         longest: length,
         midpointEN: midpoint,
         bearingDeg: bearing,
+        start: [ax, ay],
+        end: [bx, by],
       });
     } else {
       found.lengthM += length;
@@ -199,6 +217,8 @@ export function facadesOf(parts: Massing[], atAhdM?: number): Facade[] {
         found.longest = length;
         found.midpointEN = midpoint;
         found.bearingDeg = bearing;
+        found.start = [ax, ay];
+        found.end = [bx, by];
       }
     }
   }
@@ -210,6 +230,9 @@ export function facadesOf(parts: Massing[], atAhdM?: number): Facade[] {
       compass: COMPASS[sector],
       midpointEN: side.midpointEN,
       lengthM: side.lengthM,
+      runStartEN: side.start,
+      runEndEN: side.end,
+      runLengthM: side.longest,
     }))
     .sort((a, b) => b.lengthM - a.lengthM);
 }
@@ -269,17 +292,36 @@ export function floorAhdM(
   floor: number,
   floorsAboveGround: number | null,
 ): number | null {
-  if (!Number.isInteger(floor) || floor < 1 || parts.length === 0) return null;
+  const base = floorBaseAhdM(parts, floor, floorsAboveGround);
+  if (base === null) return null;
+  const topAhdM = Math.max(...parts.map((part) => part.topAhdM));
+  const ahdM = base + SILL_M;
+  return ahdM > topAhdM ? null : ahdM;
+}
 
+/** Floor to floor, metres: the building's height over its storeys, or the assumed 3 m. */
+export function storeyHeightM(parts: Massing[], floorsAboveGround: number | null): number {
+  if (floorsAboveGround === null || floorsAboveGround <= 0 || parts.length === 0) return ASSUMED_FLOOR_M;
   const baseAhdM = Math.min(...parts.map((part) => part.baseAhdM));
   const topAhdM = Math.max(...parts.map((part) => part.topAhdM));
+  return (topAhdM - baseAhdM) / floorsAboveGround;
+}
 
+/**
+ * The floor itself (not the sill above it), metres AHD — where a flat on
+ * that floor stands (room/roomPlacement.ts). Null when there is no such
+ * floor: above the recorded storeys, or not a whole number.
+ */
+export function floorBaseAhdM(
+  parts: Massing[],
+  floor: number,
+  floorsAboveGround: number | null,
+): number | null {
+  if (!Number.isInteger(floor) || floor < 1 || parts.length === 0) return null;
+  const baseAhdM = Math.min(...parts.map((part) => part.baseAhdM));
   const known = floorsAboveGround !== null && floorsAboveGround > 0;
   if (known && floor > floorsAboveGround) return null;
-
-  const floorHeightM = known ? (topAhdM - baseAhdM) / floorsAboveGround : ASSUMED_FLOOR_M;
-  const ahdM = baseAhdM + floorHeightM * (floor - 1) + SILL_M;
-  return ahdM > topAhdM ? null : ahdM;
+  return baseAhdM + storeyHeightM(parts, floorsAboveGround) * (floor - 1);
 }
 
 /**

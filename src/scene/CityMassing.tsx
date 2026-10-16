@@ -22,7 +22,7 @@ import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
 import { ApartmentRoom, RoomCheckCamera } from './room/ApartmentRoom';
 import { readRoomCheck } from './room/roomCheck';
-import { placeRoom } from './room/roomPlacement';
+import { fitRoom } from './room/roomPlacement';
 import { roomClipPlanes } from './room/roomClip';
 import { BuildingPicker } from './BuildingPicker';
 import { EXISTING, UNRESOLVED } from './palette';
@@ -113,8 +113,18 @@ export function CityMassing({
   const room = useMemo(() => {
     if (!roomCheck || !highlightedBuildingId) return null;
     const parts = model.buildings.filter((b) => b.parentId === highlightedBuildingId);
-    const placement = placeRoom(parts, roomCheck.side, roomCheck.floor, null);
-    return placement ? { placement, cut: roomClipPlanes(placement) } : null;
+    if (!parts.length) return null;
+    // neighbours near enough to matter: within 120 m of the building
+    const [cx, cy] = parts[0].footprint[0][0][0];
+    const others = model.buildings.filter(
+      (b) => b.parentId !== highlightedBuildingId && b.footprint.some((poly) => poly[0]?.some(([e, n]) => Math.hypot(e - cx, n - cy) < 120)),
+    );
+    const fit = fitRoom(parts, others, roomCheck.side, roomCheck.floor, null);
+    if (!fit.ok) {
+      console.info('roomcheck: the flat does not fit here:', fit.problem);
+      return null;
+    }
+    return { placement: fit.placement, cut: roomClipPlanes(fit.placement) };
   }, [roomCheck, highlightedBuildingId, model.buildings]);
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
