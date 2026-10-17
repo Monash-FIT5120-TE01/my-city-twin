@@ -69,6 +69,8 @@ const BODY_RADIUS_M = 0.35;
 export interface ObstacleIndex {
   readonly cells: ReadonlyMap<string, readonly Obstacle[]>;
   readonly count: number;
+  /** How much room the walker takes up here, when not BODY_RADIUS_M (inside the flat, through 0.8 m doors). */
+  readonly bodyRadiusM?: number;
   /** On real ground: the ground and the walking height above it, for judging raised parts where they are met. */
   readonly ground?: { terrain: Terrain; aboveGroundM: number };
 }
@@ -204,12 +206,13 @@ export function blocked(index: ObstacleIndex, east: number, north: number): bool
  * near plane and disappears while the test still says you are in the clear.
  */
 function occupied(index: ObstacleIndex, east: number, north: number): boolean {
+  const r = index.bodyRadiusM ?? BODY_RADIUS_M;
   return (
     blocked(index, east, north) ||
-    blocked(index, east + BODY_RADIUS_M, north) ||
-    blocked(index, east - BODY_RADIUS_M, north) ||
-    blocked(index, east, north + BODY_RADIUS_M) ||
-    blocked(index, east, north - BODY_RADIUS_M)
+    blocked(index, east + r, north) ||
+    blocked(index, east - r, north) ||
+    blocked(index, east, north + r) ||
+    blocked(index, east, north - r)
   );
 }
 
@@ -229,7 +232,7 @@ function reachable(
   toN: number,
 ): boolean {
   const span = Math.hypot(toE - fromE, toN - fromN);
-  const steps = Math.max(1, Math.ceil(span / (BODY_RADIUS_M / 2)));
+  const steps = Math.max(1, Math.ceil(span / ((index.bodyRadiusM ?? BODY_RADIUS_M) / 2)));
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     if (occupied(index, fromE + (toE - fromE) * t, fromN + (toN - fromN) * t)) return false;

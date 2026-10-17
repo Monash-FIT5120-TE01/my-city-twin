@@ -17,6 +17,9 @@ type Box = [number, number, number, number];
 /** Every solid's footprint, local metres: [x0, y0, x1, y1]. */
 const BOXES = collision.walls as Box[];
 
+/** How much room the walker takes up inside, metres (StreetView brings its near plane in to match). */
+export const ROOM_BODY_RADIUS_M = 0.2;
+
 /** The walker is indexed at waist height; anything in the list counts at that height. */
 const WAIST_M = 0.5;
 
@@ -27,5 +30,7 @@ export function roomObstacles(p: RoomPlacement): ObstacleIndex {
     topAhdM: p.floorAhdM + 1.8,
     sinksToGround: false,
   }));
-  return indexObstacles(parts, p.floorAhdM + WAIST_M);
+  // a slimmer walker than in the street: the flat's doors are 0.8 m, and at 0.35 m a side the walker had
+  // 5 cm to spare and caught on the frame coming at a door at an angle (2026-10-18)
+  return { ...indexObstacles(parts, p.floorAhdM + WAIST_M), bodyRadiusM: ROOM_BODY_RADIUS_M };
 }

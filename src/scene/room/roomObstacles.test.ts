@@ -7,7 +7,7 @@ import type { RoomPlacement } from './roomPlacement';
 const HERE: RoomPlacement = { originEN: [0, 0], angle: 0, floorAhdM: 0, side: 'East' };
 /** Turned to face north-west, somewhere else: the same walls must still be met. */
 const TURNED: RoomPlacement = { originEN: [312.4, -88.1], angle: (135 * Math.PI) / 180, floorAhdM: 40, side: 'North-west' };
-const BODY = 0.35;
+const BODY = 0.2;
 
 function standsAt(index: ReturnType<typeof roomObstacles>, e: number, n: number): boolean {
   return ![[0, 0], [BODY, 0], [-BODY, 0], [0, BODY], [0, -BODY]].some(([de, dn]) => blocked(index, e + de, n + dn));
@@ -65,6 +65,22 @@ describe("the flat's walls and furniture", () => {
   ] as const) {
     it(`walks through the doors to ${room}`, () => {
       expect(near(seen, e, n)).toBe(true);
+    });
+  }
+
+  // at 0.35 m a side (the street's walker) every one of these stopped at the frame (2026-10-18)
+  for (const [door, at, off, deg] of [
+    ['the bedroom', [4.5, 3.55], 0.15, 90],
+    ['the bedroom', [4.5, 3.55], -0.15, 135],
+    ['the bedroom', [4.5, 3.55], 0, 30],
+    ['the bathroom', [2.15, 3.95], 0.15, 90],
+  ] as const) {
+    it(`walks through the door to ${door}, ${off} m off its middle at ${deg}°, without catching on the frame`, () => {
+      const a = (deg * Math.PI) / 180;
+      const [dx, dy] = [Math.cos(a) * 0.04, Math.sin(a) * 0.04];
+      let [e, n] = [at[0] + off - dx * 37, at[1] - dy * 37];
+      for (let k = 0; k < 120; k++) [e, n] = slide(index, e, n, e + dx, n + dy);
+      expect(n).toBeGreaterThan(at[1] + 0.4);
     });
   }
 

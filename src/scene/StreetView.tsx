@@ -219,7 +219,8 @@ export function StreetView({
     facing.normalize();
     camera.lookAt(x + facing.x, y, z + facing.z);
 
-    perspective.near = WALK_NEAR;
+    // inside the flat the walker comes to 0.2 m of a wall (roomObstacles.ts): the near plane closer still
+    perspective.near = inRoom ? 0.1 : WALK_NEAR;
     perspective.far = WALK_FAR;
     perspective.fov = WALK_FOV;
     perspective.updateProjectionMatrix();
