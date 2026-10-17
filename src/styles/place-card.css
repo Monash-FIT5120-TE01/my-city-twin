@@ -112,26 +112,27 @@
 }
 
 /*
- * On the colour the building is drawn in on the map (tokens.css --key-*), edged a little deeper than it,
- * the drawing in a deeper ink of the same hue: 3.4-3.8:1 against the colour (L* 65-73 behind, 31-36 for
- * the drawing), above the 3:1 a drawing needs, and lighter than the near-black first tried (too dark).
+ * On the colour the building is drawn in on the map (tokens.css --key-*), no edge of its own, the
+ * drawing in white: the near-black and then the deeper inks first tried read too dark (2026-10-18).
+ * White on these colours is about 2:1 to 2.6:1, so the drawing is told apart by its shape; what the
+ * building is, is said in words beside it.
  */
 .place-card__image--searched {
-  border-color: #c55b89;
+  border-color: transparent;
   background: var(--key-searched);
-  color: #7d2a52;
+  color: #ffffff;
 }
 
 .place-card__image--approved {
-  border-color: #529a95;
+  border-color: transparent;
   background: var(--key-approved);
-  color: #1f5f5b;
+  color: #ffffff;
 }
 
 .place-card__image--progress {
-  border-color: #c0835a;
+  border-color: transparent;
   background: var(--key-progress);
-  color: #7a4220;
+  color: #ffffff;
 }
 
 /* ── the figures ────────────────────────────────────────── */
@@ -477,7 +478,7 @@
 
 .about-button {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-1);
   min-height: 44px;
   padding: 6px 0;
@@ -491,7 +492,6 @@
 
 .about-button .icon {
   flex: none;
-  margin-top: 1px;
   color: var(--pc-ink-2, var(--ink-2));
 }
 
@@ -501,11 +501,6 @@
   font-weight: var(--weight-label);
 }
 
-.about-button__note {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--pc-ink-2, var(--ink-2));
-}
 
 .about-button:hover .about-button__label {
   text-decoration: underline;

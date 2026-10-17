@@ -85,7 +85,7 @@ export function SourcesLink({
 }: {
   /**
    * `link`: the words as a reference link (the demo note's way). `about`: the "About the data" button
-   * the street activity column has (an info mark and the words), saying under it what this is.
+   * the street activity column has (an info mark and the words).
    */
   look?: 'link' | 'about';
 } = {}) {
@@ -95,10 +95,7 @@ export function SourcesLink({
       {look === 'about' ? (
         <button type="button" className="about-button" onClick={() => dialog.current?.showModal()}>
           <Icon name="info" size={18} />
-          <span>
-            <span className="about-button__label">About the data</span>
-            <span className="about-button__note">Illustrative model · Demo data · Sources &amp; limitations</span>
-          </span>
+          <span className="about-button__label">About the data</span>
         </button>
       ) : (
         <TextButton
