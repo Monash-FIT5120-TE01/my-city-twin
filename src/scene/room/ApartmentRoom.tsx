@@ -27,25 +27,52 @@ const BASE = import.meta.env.BASE_URL;
 const MODEL_URL = `${BASE}models/apartment/apartment.glb`;
 const DRACO_URL = `${BASE}draco/`;
 
-function Model() {
+type Glowing = { emissiveIntensity: number };
+
+function Model({ night }: { night: number }) {
   const { scene } = useGLTF(MODEL_URL, DRACO_URL);
-  const copy = useMemo(() => {
+  const { copy, glow } = useMemo(() => {
     const c = scene.clone(true);
+    let g: Glowing | null = null;
     c.traverse((o) => {
-      const m = o as { isMesh?: boolean; castShadow: boolean; receiveShadow: boolean; material?: { transparent?: boolean } };
+      const m = o as { isMesh?: boolean; name: string; castShadow: boolean; receiveShadow: boolean; material?: { transparent?: boolean } };
+      // the lamp shades, the strip in the wardrobe (export_web.py "glow"): their own light, lit at night
+      if (m.isMesh && m.name === 'apartment-glow') g = m.material as unknown as Glowing;
       if (m.isMesh) {
         // glass lets the sun in: a shadow map knows nothing of transparency, so glass would cast a solid one
         m.castShadow = !m.material?.transparent;
         m.receiveShadow = true;
       }
     });
-    return c;
+    return { copy: c, glow: g as Glowing | null };
   }, [scene]);
+  useEffect(() => {
+    if (glow) glow.emissiveIntensity = night;
+  }, [glow, night]);
   // glTF is +Y up; the flat's frame is +Z up
   return <primitive object={copy} rotation={[Math.PI / 2, 0, 0]} />;
 }
 
-export function ApartmentRoom({ placement }: { placement: RoomPlacement }) {
+/*
+ * The flat's own lights, after dark (night: 0 by day, 1 once the sun is a few degrees down, eased between).
+ *
+ * Four, standing for the six downlights and the lamps: every light is paid for by every lit pixel in the
+ * whole city, not just in the flat, so they are few, without shadows, and reach only a few metres. Kept
+ * mounted by day at zero, because adding or removing a light recompiles every material in the scene.
+ *
+ * By day there is no fill light: the sky light (SceneCanvas's hemisphere and ambient) already reaches
+ * every surface inside, as it does outside, and more would only flatten the sun on the floor.
+ */
+const LIGHTS: { at: [number, number, number]; intensity: number }[] = [
+  { at: [2.5, 1.6, 2.35], intensity: 3.6 },   // living and kitchen
+  { at: [5.8, 1.8, 2.35], intensity: 3.6 },   // living, by the balcony
+  { at: [5.6, 5.2, 2.35], intensity: 3.0 },   // bedroom
+  { at: [1.1, 4.3, 2.35], intensity: 2.4 },   // bathroom, laundry and hall
+];
+const LAMP_COLOUR = '#ffd9a8';
+const LAMP_REACH_M = 5;
+
+export function ApartmentRoom({ placement, night = 0 }: { placement: RoomPlacement; night?: number }) {
   const gl = useThree((s) => s.gl);
   // the massing's clipping planes only act while local clipping is on
   useEffect(() => {
@@ -65,8 +92,11 @@ export function ApartmentRoom({ placement }: { placement: RoomPlacement }) {
   return (
     <group position={[placement.originEN[0], placement.originEN[1], placement.floorAhdM]} rotation={[0, 0, placement.angle]}>
       <Suspense fallback={null}>
-        <Model />
+        <Model night={night} />
       </Suspense>
+      {LIGHTS.map(({ at, intensity }) => (
+        <pointLight key={at.join()} position={at} color={LAMP_COLOUR} intensity={intensity * night} distance={LAMP_REACH_M} decay={2} />
+      ))}
       {/* the corner of the cut-out block the flat does not fill, made solid again */}
       <mesh position={notch.centre as unknown as [number, number, number]} castShadow receiveShadow>
         <boxGeometry args={notch.size as unknown as [number, number, number]} />

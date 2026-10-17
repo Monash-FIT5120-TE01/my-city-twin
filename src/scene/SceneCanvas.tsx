@@ -671,6 +671,8 @@ export function SceneCanvas({
    * map still has to reach the whole city: the flat's distance from the city's middle plus the city's
    * radius (ProjectDoc/studio-room/PLAN.md 4.4). The bias is a couple of centimetres in that depth.
    */
+  // the flat's lights: off with the sun up, on fully a few degrees after it sets (ApartmentRoom)
+  const roomNight = Math.min(1, Math.max(0, (2 - sun.altitudeDeg) / 6));
   const roomShadow = useMemo(() => {
     if (!inRoom || !placedRoom) return null;
     const [e, n] = placedRoom.centreEN;
@@ -773,7 +775,7 @@ export function SceneCanvas({
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
             solar={solar}
-            room={inRoom ? placedRoom : null}
+            room={inRoom && placedRoom ? { ...placedRoom, night: roomNight } : null}
           />
 
           {/*

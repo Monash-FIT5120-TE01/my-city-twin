@@ -535,6 +535,25 @@ export default function App() {
     chooseMinutes(intoWindow(minutes + by));
   };
 
+  /*
+   * Inside the flat, [ and ] move the hour ten minutes back and forward — the slider's own step, through
+   * the same clamp. The slider is hidden in there with the rest of the interface, and the sun across the
+   * floor is the thing to watch move. Read through a ref so the listener is added once per visit.
+   */
+  const nudgeRef = useRef(nudgeMinutes);
+  useEffect(() => {
+    nudgeRef.current = nudgeMinutes;
+  });
+  useEffect(() => {
+    if (!roomAt) return;
+    const key = (event: KeyboardEvent) => {
+      if (event.code === 'BracketLeft') nudgeRef.current(-10);
+      else if (event.code === 'BracketRight') nudgeRef.current(10);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [roomAt]);
+
 
   /*
    * ── THE SUN ─────────────────────────────────────────────────────────────
@@ -1875,10 +1894,12 @@ export default function App() {
             </>
           ) : (
             <>
-              <strong>W A S D</strong> to walk · <strong>Esc</strong> to leave the flat
+              <strong>W A S D</strong> to walk · <strong>[ ]</strong> ten minutes earlier or later ·{' '}
+              <strong>Esc</strong> to leave the flat
             </>
           )}
           <br />
+          {clockLabel(minutes)} · 
           Floor {roomAt.floor}, {roomAt.side} side · an example one-bedroom layout, not this building's real plan
         </p>
       )}
