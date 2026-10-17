@@ -82,7 +82,7 @@ import { useBuildingDetail } from './data/useBuildingDetail';
 import { clearOfBuildings, facadesOf, floorAhdM, windowPlace } from './scene/facades';
 import { buildingCentres, buildingsUnder } from './data/replaces';
 import { buildingEntry } from './data/buildingEntry';
-import { buildSkyline } from './scene/skyline';
+import { buildSkyline, withGroundHorizon } from './scene/skyline';
 import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { LandingPage } from './ui/LandingPage';
@@ -877,6 +877,12 @@ export default function App() {
   );
 
   /** The point on the chosen side and floor the window is measured at. */
+  /** The window's point is below the ground in front of it (terrain.ts): the floor is under the street there. */
+  const windowUnderStreet = useCallback(
+    (place: { en: [number, number]; ahdM: number }) => (terrain ? heightAt(terrain, place.en[0], place.en[1]) > place.ahdM - 0.3 : false),
+    [terrain],
+  );
+
   const windowAt = useMemo(() => {
     if (!chosenSide || homeParts.length === 0) return null;
     // floors counted from the street the city is drawn on, as the flat's are (facades.ts groundFloorAhdM)
@@ -890,12 +896,14 @@ export default function App() {
      * into open air first — or refused.
      */
     if (!place) return null;
+    // a low floor on the uphill side of a sloping site is under the street there: no window to measure
+    if (windowUnderStreet(place)) return null;
 
     const neighbours = standingCity.filter(
       (part) => part.parentId !== foundBuilding?.buildingId,
     );
     return clearOfBuildings(place, homeParts, neighbours);
-  }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding, homeGround]);
+  }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding, homeGround, windowUnderStreet]);
 
 
   /*
@@ -982,8 +990,10 @@ export default function App() {
   /** The sky from the window today: the expensive step, independent of the date. */
   const windowSkyline = useMemo(() => {
     if (!windowAt) return null;
-    return buildSkyline(windowAt.en, windowAt.ahdM, standingCity);
-  }, [windowAt, standingCity]);
+    const sky = buildSkyline(windowAt.en, windowAt.ahdM, standingCity);
+    // and the ground's own horizon: a low window on a slope has the hill above it uphill
+    return terrain ? withGroundHorizon(sky, windowAt.en, windowAt.ahdM, (e, n) => heightAt(terrain, e, n)) : sky;
+  }, [windowAt, standingCity, terrain]);
 
   /*
    * The same sky with every approved project added, so the two can be
@@ -1032,8 +1042,9 @@ export default function App() {
 
     const survivors = standingCity.filter((part) => !replaced.has(part.parentId));
     const proposals = model.developments.flatMap((development) => development.parts);
-    return buildSkyline(windowAt.en, windowAt.ahdM, [...survivors, ...proposals]);
-  }, [windowAt, model, standingCity, layers.developments, foundBuilding]);
+    const sky = buildSkyline(windowAt.en, windowAt.ahdM, [...survivors, ...proposals]);
+    return terrain ? withGroundHorizon(sky, windowAt.en, windowAt.ahdM, (e, n) => heightAt(terrain, e, n)) : sky;
+  }, [windowAt, model, standingCity, layers.developments, foundBuilding, terrain]);
 
   /*
    * Why there is no figure, when there is none.
@@ -1048,8 +1059,10 @@ export default function App() {
     if (windowSide === null || windowAt !== null) return null;
     if (floorHeightAhd === null) return 'no-such-floor';
     if (!chosenSide) return 'side-not-at-this-height';
+    const place = windowPlace(homeParts, chosenSide, floor, floorsAboveGround, homeGround);
+    if (place && windowUnderStreet(place)) return 'below-the-street';
     return 'inside-the-building';
-  }, [windowSide, windowAt, floorHeightAhd, chosenSide]);
+  }, [windowSide, windowAt, floorHeightAhd, chosenSide, homeParts, floor, floorsAboveGround, homeGround, windowUnderStreet]);
 
   /** True when the approved plan replaces the very building being measured. */
   const hostIsReplaced = useMemo(() => {

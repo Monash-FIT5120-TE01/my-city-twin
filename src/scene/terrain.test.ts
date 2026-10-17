@@ -5,6 +5,9 @@ import { buildCityModel } from '../data/adapter';
 import type { ApiBuildingPart, ApiDevelopmentPart, ApiFeatureCollection } from '../data/api-types';
 import type { Massing } from '../data/model';
 import { blocked, indexObstacles } from './obstacles';
+import { storeyHeightM } from './facades';
+import { fitRoomInModel } from './room/roomPlacement';
+import { withGroundHorizon } from './skyline';
 import { buildTerrain, groundAt, groundUnder, heightAt, lowestUnder, type Terrain } from './terrain';
 
 let n = 0;
@@ -138,5 +141,40 @@ describe('walls on a slope', () => {
     const index = indexObstacles([raised], slope, 1.7);
     expect(index.count).toBe(1);
     expect(blocked(index, 8.5, 0.5)).toBe(true);
+  });
+
+  it('and walked under on the downhill side, where it is overhead: no invisible wall there', () => {
+    const index = indexObstacles([raised], slope, 1.7);
+    expect(blocked(index, 2, 0.5)).toBe(false);   // ground 7 m, eye 8.7 m, the part starts at 14 m
+  });
+});
+
+describe('floors and windows on a slope', () => {
+  // ground rising 1 m every 2 m eastward, 0 m at the tower's west wall (e = -15)
+  const cols = 41;
+  const rising: Terrain = {
+    minE: -200, minN: -200, cell: 10, cols, rows: cols,
+    heights: Float32Array.from({ length: cols * cols }, (_, i) => Math.max(0, (-200 + (i % cols) * 10 + 15) / 2)),
+    reference: 0,
+  };
+  const tower = square(0, 0, 15, 0, 'slope-tower');
+  tower.topAhdM = 90;
+
+  it('a low flat on the uphill side is refused: below the street there', () => {
+    expect(fitRoomInModel([tower], 'slope-tower', 'East', 2, null, null, rising)).toEqual({ ok: false, problem: 'below-the-street' });
+  });
+
+  it('the same flat high enough is not', () => {
+    expect(fitRoomInModel([tower], 'slope-tower', 'East', 10, null, null, rising)?.ok).toBe(true);
+  });
+
+  it('known storeys share out the height above the ground the floors start from', () => {
+    expect(storeyHeightM([tower], 10, 15)).toBeCloseTo((90 - 15) / 10, 6);
+  });
+
+  it('the ground rising ahead of a window is a horizon the sun has to clear', () => {
+    const sky = withGroundHorizon(new Float32Array(360), [0, 0], 1, (_e, n) => (n > 50 ? 21 : 0));
+    expect(sky[0]).toBeGreaterThan(10);   // due north: the rise 50 m away, 20 m above the window
+    expect(sky[180]).toBe(0);             // due south: flat, open to the horizon
   });
 });

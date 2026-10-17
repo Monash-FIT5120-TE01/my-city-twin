@@ -37,11 +37,17 @@
  */
 
 import type { PolygonEN } from '../data/model';
-import { highestUnder, lowestUnder, type Terrain } from './terrain';
+import { heightAt, highestUnder, lowestUnder, type Terrain } from './terrain';
 
 const CELL_M = 50;
 
 interface Obstacle {
+  /**
+   * A part that starts above the ground (not the lowest of its building), on real ground: met only where
+   * the walking height there reaches it — not along its whole outline, which on a slope put an invisible
+   * wall under it on the downhill side (Codex review, 2026-10-18).
+   */
+  raised?: { baseAhdM: number; topAhdM: number };
   /** Outer ring first, then any courtyards. */
   rings: readonly (readonly (readonly [number, number])[])[];
   minE: number;
@@ -63,6 +69,8 @@ const BODY_RADIUS_M = 0.35;
 export interface ObstacleIndex {
   readonly cells: ReadonlyMap<string, readonly Obstacle[]>;
   readonly count: number;
+  /** On real ground: the ground and the walking height above it, for judging raised parts where they are met. */
+  readonly ground?: { terrain: Terrain; aboveGroundM: number };
 }
 
 const key = (e: number, n: number) => `${Math.floor(e / CELL_M)},${Math.floor(n / CELL_M)}`;
@@ -126,7 +134,10 @@ export function indexObstacles(parts: readonly Part[], heightAhdM: number | Terr
         if (n > maxN) maxN = n;
       }
 
-      const obstacle: Obstacle = { rings, minE, minN, maxE, maxN };
+      const obstacle: Obstacle = {
+        rings, minE, minN, maxE, maxN,
+        raised: !reachesTheGround && typeof heightAhdM !== 'number' ? { baseAhdM: part.baseAhdM, topAhdM: part.topAhdM } : undefined,
+      };
       count++;
 
       for (let e = Math.floor(minE / CELL_M); e <= Math.floor(maxE / CELL_M); e++) {
@@ -140,7 +151,7 @@ export function indexObstacles(parts: readonly Part[], heightAhdM: number | Terr
     }
   }
 
-  return { cells, count };
+  return { cells, count, ground: typeof heightAhdM === 'number' ? undefined : { terrain: heightAhdM, aboveGroundM } };
 }
 
 /** Ray casting, the same rule replaces.ts uses. */
@@ -166,6 +177,10 @@ export function blocked(index: ObstacleIndex, east: number, north: number): bool
     // rather than a walk around the whole ring.
     if (east < obstacle.minE || east > obstacle.maxE) continue;
     if (north < obstacle.minN || north > obstacle.maxN) continue;
+    if (obstacle.raised && index.ground) {
+      const z = heightAt(index.ground.terrain, east, north) + index.ground.aboveGroundM;
+      if (z < obstacle.raised.baseAhdM || z > obstacle.raised.topAhdM) continue;
+    }
 
     // Even-odd across every ring, so a courtyard reads as open.
     let inside = false;

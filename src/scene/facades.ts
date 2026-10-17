@@ -301,9 +301,11 @@ export function floorAhdM(
 }
 
 /** Floor to floor, metres: the building's height over its storeys, or the assumed 3 m. */
-export function storeyHeightM(parts: Massing[], floorsAboveGround: number | null): number {
+export function storeyHeightM(parts: Massing[], floorsAboveGround: number | null, groundAhdM?: number): number {
   if (floorsAboveGround === null || floorsAboveGround <= 0 || parts.length === 0) return ASSUMED_FLOOR_M;
-  const baseAhdM = Math.min(...parts.map((part) => part.baseAhdM));
+  // its storeys share out the height above the ground its floors start from (groundFloorAhdM), so the
+  // top floor on record is under the roof however far that ground is above the recorded base (Codex)
+  const baseAhdM = groundFloorAhdM(parts, groundAhdM);
   const topAhdM = Math.max(...parts.map((part) => part.topAhdM));
   return (topAhdM - baseAhdM) / floorsAboveGround;
 }
@@ -343,7 +345,7 @@ export function floorBaseAhdM(
   const baseAhdM = groundFloorAhdM(parts, groundAhdM);
   const known = floorsAboveGround !== null && floorsAboveGround > 0;
   if (known && floor > floorsAboveGround) return null;
-  return baseAhdM + storeyHeightM(parts, floorsAboveGround) * (floor - 1);
+  return baseAhdM + storeyHeightM(parts, floorsAboveGround, groundAhdM) * (floor - 1);
 }
 
 /**

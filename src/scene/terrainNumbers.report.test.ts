@@ -7,8 +7,10 @@
  * of every roof plane's base, 29.5 m) and now (the spot on the real ground, the proposal reaching down to it).
  *
  * Windows: for tall buildings, floor 3 on each side, on 21 June: direct sun at the window with the city as
- * it stands, its floor counted as before (from the recorded base) and now (from the building's ground on
- * the real ground).
+ * it stands, its floor counted as the deployed app counted it (from the recorded base: the count from the
+ * flat plane lasted only a day, a2b5bfa) and now (from the building's ground on the real ground, with the
+ * ground's own horizon). Each version chooses its sides at its own height; a side only one of them has
+ * is left out of the comparison.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -16,7 +18,7 @@ import { describe, it } from 'vitest';
 import { buildCityModel } from '../data/adapter';
 import type { ApiBuildingPart, ApiDevelopmentPart, ApiFeatureCollection } from '../data/api-types';
 import { facadesOf, floorAhdM, windowPlace } from './facades';
-import { buildSkyline } from './skyline';
+import { buildSkyline, withGroundHorizon } from './skyline';
 import { sunlightAtPoint } from './sunlightAt';
 import { buildingGroundAhdM, heightAt, terrainOf } from './terrain';
 import { sunlightAtWindow } from './windowSunlight';
@@ -55,15 +57,20 @@ describe.skipIf(!process.env.TERRAIN_REPORT)('the figures on real ground', () =>
       if (Math.max(...parts.map((p) => p.topAhdM)) - base < 40) continue;
       if (windows.length >= 120) break;
       const ground = buildingGroundAhdM(parts, t);
-      const level = floorAhdM(parts, 3, null, ground);
-      if (level === null) continue;
+      const levelNow = floorAhdM(parts, 3, null, ground);
+      const levelBefore = floorAhdM(parts, 3, null);
+      if (levelNow === null || levelBefore === null) continue;
       const others = model.buildings.filter((b) => b.parentId !== id);
-      for (const f of facadesOf(parts, level)) {
-        const before = windowPlace(parts, f, 3, null);
+      const sidesBefore = new Map(facadesOf(parts, levelBefore).map((f) => [f.compass, f]));
+      for (const f of facadesOf(parts, levelNow)) {
+        const fb = sidesBefore.get(f.compass);
+        if (!fb) continue;
+        const before = windowPlace(parts, fb, 3, null);
         const now = windowPlace(parts, f, 3, null, ground);
         if (!before || !now) continue;
         const sunBefore = sunlightAtWindow(before, buildSkyline(before.en, before.ahdM, others), null, DATE).sunAtWindowMin;
-        const sunNow = sunlightAtWindow(now, buildSkyline(now.en, now.ahdM, others), null, DATE).sunAtWindowMin;
+        const skyNow = withGroundHorizon(buildSkyline(now.en, now.ahdM, others), now.en, now.ahdM, (e, n) => heightAt(t, e, n));
+        const sunNow = sunlightAtWindow(now, skyNow, null, DATE).sunAtWindowMin;
         windows.push({ id, side: f.compass, heightBefore: +before.ahdM.toFixed(1), heightNow: +now.ahdM.toFixed(1), sunBefore, sunNow });
       }
     }

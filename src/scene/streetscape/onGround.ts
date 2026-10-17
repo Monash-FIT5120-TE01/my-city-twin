@@ -195,14 +195,20 @@ export async function liftOntoGround(
       if (!im.geometry.boundingBox) im.geometry.computeBoundingBox();
       const box = im.geometry.boundingBox!;
       const size = [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z];
-      const axis = size.indexOf(Math.max(...size));
-      const thin = size.every((s, k) => k === axis || s * 3 <= size[axis]);
-      const lo = [box.min.x, box.min.y, box.min.z][axis];
-      const len = size[axis];
       inverse.copy(im.matrixWorld).invert();
       for (let i = 0; i < im.count; i++) {
         im.getMatrixAt(i, m);
         w.multiplyMatrices(im.matrixWorld, m);
+        /*
+         * Thin and long as PLACED: the geometry's size along each axis times that axis's stretch in this
+         * instance's matrix. A unit rod is a block until it is scaled into a 20 m wire, and judging the
+         * geometry alone missed every wire (Codex review, 2026-10-18).
+         */
+        const placed = size.map((s, k) => s * Math.hypot(w.elements[k * 4], w.elements[k * 4 + 1], w.elements[k * 4 + 2]));
+        const axis = placed.indexOf(Math.max(...placed));
+        const thin = placed.every((s, k) => k === axis || s * 3 <= placed[axis]);
+        const lo = [box.min.x, box.min.y, box.min.z][axis];
+        const len = size[axis];
         if (thin && len > 0) {
           // the two ends along the long axis, in the streetscape's frame
           a.set((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2);

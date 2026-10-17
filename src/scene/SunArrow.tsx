@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { DoubleSide, Shape, ShapeGeometry } from 'three';
 import { shadowBearingDeg } from './narrative';
 import { shadowReachM, type SunAngles } from './sun';
-import { groundAt, type Ground } from './terrain';
+import { drapeOnGround } from './drape';
+import type { Ground } from './terrain';
 
 interface SunArrowProps {
   sun: SunAngles;
@@ -73,19 +74,26 @@ export function SunArrow({ sun, anchorEN, groundAhdM, heightM }: SunArrowProps) 
     shape.lineTo(0, shaftHalf);
     shape.closePath();
 
-    return new ShapeGeometry(shape);
-  }, [reach]);
+    /*
+     * Turned to the shadow's bearing (inside <WorldFrame> the shape's own plane is already horizontal),
+     * put at the anchor, then laid on the ground along its whole length (drape.ts): flat at the anchor's
+     * height, it buried its head going uphill and floated going down (Codex review, 2026-10-18).
+     */
+    const flat = new ShapeGeometry(shape);
+    flat.rotateZ(groundArrowRotation(sun.azimuthDeg));
+    flat.translate(anchorEN[0], anchorEN[1], 0);
+    const draped = drapeOnGround(flat, groundAhdM, 0.7, 12);
+    flat.dispose();
+    return draped;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the anchor by its numbers, not its array
+  }, [reach, sun.azimuthDeg, anchorEN[0], anchorEN[1], groundAhdM]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
 
   if (!geometry || reach === null) return null;
-
-  // Inside <WorldFrame> the shape's own plane is already horizontal, so the
-  // only rotation needed is the spin onto the shadow's bearing.
-  const rotation = groundArrowRotation(sun.azimuthDeg);
 
   return (
     <mesh
       geometry={geometry}
-      position={[anchorEN[0], anchorEN[1], groundAt(groundAhdM, anchorEN[0], anchorEN[1]) + 0.7]}
       /*
        * Not a target. It floats 0.7 m over the ground, so without this it
        * takes the raycast from the surface underneath and the sunlight
@@ -96,7 +104,6 @@ export function SunArrow({ sun, anchorEN, groundAhdM, heightM }: SunArrowProps) 
        * should be able to intercept the gesture that asks.
        */
       raycast={() => null}
-      rotation={[0, 0, rotation]}
       // Over the road, under the buildings: it is an annotation on the ground,
       // not a thing standing on it.
       renderOrder={2}

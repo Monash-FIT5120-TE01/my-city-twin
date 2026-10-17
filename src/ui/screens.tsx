@@ -584,7 +584,7 @@ export function SubjectHead({
  * south-east side up there, and the sentence sent them looking for a mistake
  * they had not made.
  */
-export type WindowProblem = 'no-such-floor' | 'side-not-at-this-height' | 'inside-the-building';
+export type WindowProblem = 'no-such-floor' | 'side-not-at-this-height' | 'inside-the-building' | 'below-the-street';
 
 /**
  * Everything the apartment half of the sunlight panel needs, in one object.
@@ -1050,6 +1050,8 @@ export function SunlightSheet({
                     : `Floor ${apartment.floor} would be above the top of this building as it is modelled.`
                   : apartment.problem === 'side-not-at-this-height'
                     ? `This building has no ${apartment.side?.toLowerCase()} side at floor ${apartment.floor}. Choose one of the sides above.`
+                    : apartment.problem === 'below-the-street'
+                      ? `Floor ${apartment.floor} is below the street on the ${apartment.side?.toLowerCase()} side — the ground is higher there. Try a floor higher up.`
                     : `That side of floor ${apartment.floor} is inside the building rather than on an outside wall, so there is no window there to measure.`}
               </p>
             ) : apartment?.sunlight && apartment.side ? (

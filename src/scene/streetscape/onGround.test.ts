@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BufferAttribute, BufferGeometry, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from 'three';
+import { UNIT_ROD, rodBetween } from './kit';
 import { cutFine, liftOntoGround } from './onGround';
 import { trackFrame } from './trams/TramLayer';
 
@@ -35,6 +36,23 @@ describe('the street furniture onto the ground', () => {
     const east = new Vector3(0, 0, 0.5).applyMatrix4(m);
     expect(west.z).toBeCloseTo(6 + slope(west.x), 4);
     expect(east.z).toBeCloseTo(6 + slope(east.x), 4);
+  });
+
+  it('a real span wire (the kit unit rod, placed by rodBetween) has each end on the ground at that end', async () => {
+    const from = new Vector3(0, 0, 6.6);
+    const to = new Vector3(20, 0, 5.74);
+    const im = new InstancedMesh(UNIT_ROD, new MeshBasicMaterial(), 1);
+    im.setMatrixAt(0, rodBetween(from, to, 0.005));
+    const root = new Group();
+    root.add(im);
+    await liftOntoGround(root, slope);
+    const m = new Matrix4();
+    im.getMatrixAt(0, m);
+    // the rod runs along its local z from 0 to 1
+    const a = new Vector3(0, 0, 0).applyMatrix4(m);
+    const b = new Vector3(0, 0, 1).applyMatrix4(m);
+    expect(a.z).toBeCloseTo(6.6 + slope(0), 3);
+    expect(b.z).toBeCloseTo(5.74 + slope(20), 3);
   });
 
   it('cuts long flat triangles fine, carrying the texture coordinates along', () => {

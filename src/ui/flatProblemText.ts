@@ -16,6 +16,7 @@ const TEXT: Record<RoomProblem, string> = {
   'next-building-in-the-way': 'Another building stands where the flat would be.',
   'balcony-in-the-way': 'There is no room for the balcony on this side at this floor.',
   'outlook-blocked': 'A wall stands a few metres past the balcony here, so there would be nothing to look out at.',
+  'below-the-street': 'This floor is below the street on this side: the ground is higher here.',
 };
 
 export function flatProblemText(problem: RoomProblem): string {

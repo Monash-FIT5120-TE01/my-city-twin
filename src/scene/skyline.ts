@@ -338,3 +338,33 @@ export function sunReaches(
     Math.floor(((sun.azimuthDeg % 360) + 360) % 360) % HORIZON_BUCKETS;
   return sun.altitudeDeg > skyline[bucket];
 }
+
+/** How far the ground itself is looked along for a horizon, metres; and the step, finer near. */
+const GROUND_HORIZON_M = 2000;
+
+/**
+ * The ground's own horizon (terrain.ts) laid into a skyline: for each degree of bearing, the highest the
+ * ground rises as seen from the window. A low window on a slope has the hill above it in the uphill
+ * direction, and the sun low in that direction is behind the hill before it is behind any building
+ * (Codex review, 2026-10-18). Returns the same array, raised where the ground is higher than the buildings.
+ */
+export function withGroundHorizon(
+  skyline: Skyline,
+  fromEN: [number, number],
+  fromAhdM: number,
+  groundAt: (east: number, north: number) => number,
+): Skyline {
+  for (let bucket = 0; bucket < HORIZON_BUCKETS; bucket++) {
+    const bearing = (bucket + 0.5) * DEG;
+    const dE = Math.sin(bearing);
+    const dN = Math.cos(bearing);
+    let highest = -90;
+    for (let d = 5; d <= GROUND_HORIZON_M; d += d < 200 ? 5 : 20) {
+      const rise = groundAt(fromEN[0] + dE * d, fromEN[1] + dN * d) - fromAhdM;
+      const altitude = Math.atan2(rise, d) / DEG;
+      if (altitude > highest) highest = altitude;
+    }
+    if (highest > skyline[bucket]) skyline[bucket] = highest;
+  }
+  return skyline;
+}

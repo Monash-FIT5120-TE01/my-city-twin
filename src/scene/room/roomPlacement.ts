@@ -21,7 +21,10 @@
  */
 import type { Massing } from '../../data/model';
 import { facadesOf, floorBaseAhdM, storeyHeightM } from '../facades';
-import { buildingGroundAhdM, type Terrain } from '../terrain';
+import { buildingGroundAhdM, heightAt, type Terrain } from '../terrain';
+
+/** How far the ground in front may stand above the flat's floor before the floor is under the street. */
+const BELOW_STREET_M = 0.15;
 import { FACADE_LENGTH, FACADE_MID_Y, FACADE_OUT_X, SLAB_TOP_Z } from './apartmentLayout';
 
 export interface RoomPlacement {
@@ -45,7 +48,8 @@ export type RoomProblem =
   | 'above-the-roof'
   | 'building-too-shallow'
   | 'balcony-in-the-way'
-  | 'outlook-blocked';
+  | 'outlook-blocked'
+  | 'below-the-street';
 
 export type RoomFit = { ok: true; placement: RoomPlacement } | { ok: false; problem: RoomProblem };
 
@@ -204,7 +208,7 @@ export function fitRoom(
   const facade = facadesOf(parts, base + 1.2).find((f) => f.compass.toLowerCase() === side.toLowerCase());
   if (!facade) return { ok: false, problem: 'no-such-side' };
   if (facade.runLengthM < FACADE_LENGTH + WALL_SPARE_M) return { ok: false, problem: 'wall-too-short' };
-  const storey = storeyHeightM(parts, floorsAboveGround);
+  const storey = storeyHeightM(parts, floorsAboveGround, groundAhdM);
   if (storey - SLAB_M < MIN_CEILING_M) return { ok: false, problem: 'ceiling-too-low' };
 
   const angle = Math.PI / 2 - (facade.bearingDeg * Math.PI) / 180;
@@ -330,5 +334,18 @@ export function fitRoomInModel(
     const o = boxOf([b]);
     return o.e1 >= h.e0 - NEAR_M && o.e0 <= h.e1 + NEAR_M && o.n1 >= h.n0 - NEAR_M && o.n0 <= h.n1 + NEAR_M;
   });
-  return fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, terrain ? buildingGroundAhdM(host, terrain) : undefined);
+  const fit = fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, terrain ? buildingGroundAhdM(host, terrain) : undefined);
+  /*
+   * On a slope the floors start from the low side, and a low floor on the uphill side is under the street
+   * there: the balcony would be dug into the ground (Codex review, 2026-10-18). Its floor must be at or
+   * above the ground in front of the facade.
+   */
+  if (fit.ok && terrain) {
+    const p = fit.placement;
+    for (const [x, y] of [[8.4, 0.4], [8.4, 3.1], [7.6, 1.75]] as const) {
+      const [e, n] = toEN(p, x, y);
+      if (heightAt(terrain, e, n) > p.floorAhdM + BELOW_STREET_M) return { ok: false, problem: 'below-the-street' };
+    }
+  }
+  return fit;
 }

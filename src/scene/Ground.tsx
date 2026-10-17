@@ -200,6 +200,48 @@ export function Ground({
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   /*
+   * What the pointer is tested against while a spot is being chosen: the same ground at every fourth
+   * grid point, drawn by nobody. Testing the drawn ground (some 120,000 points) on every move of the
+   * pointer would cost a phone or a headset a noticeable slice of each frame (Codex review); the hit's
+   * height is then read off the real ground at that place.
+   */
+  const picking = Boolean(onPick);
+  const pickGeometry = useMemo(() => {
+    if (!picking) return null;
+    const STRIDE = 4;
+    const half = size / 2;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let v = -half; v <= half + 1e-6; v += terrain.cell * STRIDE) {
+      xs.push(v);
+      ys.push(v);
+    }
+    const W = xs.length;
+    const positions = new Float32Array(W * W * 3);
+    for (let r = 0; r < W; r++) {
+      for (let c = 0; c < W; c++) {
+        const i = (r * W + c) * 3;
+        positions[i] = xs[c];
+        positions[i + 1] = ys[r];
+        positions[i + 2] = heightAt(terrain, centreE + xs[c], centreN + ys[r]);
+      }
+    }
+    const index: number[] = [];
+    for (let r = 0; r < W - 1; r++) {
+      for (let c = 0; c < W - 1; c++) {
+        const a0 = r * W + c;
+        index.push(a0, a0 + 1, a0 + W + 1, a0, a0 + W + 1, a0 + W);
+      }
+    }
+    const g = new BufferGeometry();
+    g.setAttribute('position', new BufferAttribute(positions, 3));
+    g.setIndex(index);
+    g.computeBoundingSphere();
+    return g;
+  }, [picking, size, terrain, centreE, centreN]);
+  useEffect(() => () => pickGeometry?.dispose(), [pickGeometry]);
+
+  /*
    * The grain is tiled by metres, not by the map's coordinates. The vertex
    * UVs run 0..1 across the whole plane, so the repeat is how many tiles fit
    * across it — the reprojection is near enough linear at this scale for the
@@ -290,9 +332,9 @@ export function Ground({
     <>
     {/* placed at the point under the pointer, its height included (onPointerMove): the cursor adds only its lift */}
     {onPick && <MeasureCursor groundAhdM={0} innerRef={cursor} />}
+    {pickGeometry && (
     <mesh
-      receiveShadow
-      geometry={geometry}
+      geometry={pickGeometry}
       position={[centreE, centreN, 0]}
       onPointerOut={onPick && (() => show(false))}
       onPointerDown={
@@ -318,7 +360,7 @@ export function Ground({
           trackTap(pressedAt.current, event.nativeEvent);
           // Same reading back as the click below: the hit arrives in three's
           // world frame, and the ring lives inside <WorldFrame>.
-          group.position.set(event.point.x, -event.point.z, event.point.y);
+          group.position.set(event.point.x, -event.point.z, heightAt(terrain, event.point.x, -event.point.z));
         })
       }
       onClick={
@@ -343,6 +385,10 @@ export function Ground({
         })
       }
     >
+      <meshBasicMaterial visible={false} />
+    </mesh>
+    )}
+    <mesh receiveShadow geometry={geometry} position={[centreE, centreN, 0]} raycast={() => null}>
       {/*
         The key is load-bearing, not decoration.
 
