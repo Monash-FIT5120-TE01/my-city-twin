@@ -67,6 +67,7 @@ import { Swatch } from './kit/Swatch';
 import { TextButton } from './kit/TextButton';
 import { DateField } from './DateField';
 import { ApartmentControls, WindowResult } from './Apartment';
+import { LookOutFromFlat, type FlatFit } from './LookOutFromFlat';
 import type { Facade } from '../scene/facades';
 import type { WindowSunlight } from '../scene/windowSunlight';
 import { searchCity, type SearchHit } from '../data/search';
@@ -617,6 +618,10 @@ export interface ApartmentState {
   sunlight: WindowSunlight | null;
   /** Why there is no figure, or null when there is one (or nothing chosen). */
   problem: WindowProblem | null;
+  /** Whether the example flat fits behind the chosen side on this floor; null before a side is chosen. */
+  flat: FlatFit | null;
+  /** Into the flat (LookOutFromFlat). */
+  onLookOut: () => void;
   /**
    * True when the approved plan replaces this very building.
    *
@@ -769,8 +774,11 @@ export function SunlightSheet({
    * the control. The 3D scene follows the receptor and the window place that
    * App already holds, so it does not need to know which of the two
    * questions the panel is showing.
+   *
+   * The panel is taken off the screen while the reader walks or stands in the example flat, and comes
+   * back new; a window side already chosen (App keeps it) means it was the window being asked about.
    */
-  const [measuring, setMeasuring] = useState<'spot' | 'window'>('spot');
+  const [measuring, setMeasuring] = useState<'spot' | 'window'>(() => (apartment?.side ? 'window' : 'spot'));
   const onMeasuring = (next: 'spot' | 'window') => setMeasuring(next);
 
   const preset = matchingSeason(date);
@@ -1045,12 +1053,15 @@ export function SunlightSheet({
                     : `That side of floor ${apartment.floor} is inside the building rather than on an outside wall, so there is no window there to measure.`}
               </p>
             ) : apartment?.sunlight && apartment.side ? (
-              <WindowResult
-                sunlight={apartment.sunlight}
-                dateLabel={dateLabel}
-                floor={apartment.floor}
-                side={apartment.side}
-              />
+              <>
+                <WindowResult
+                  sunlight={apartment.sunlight}
+                  dateLabel={dateLabel}
+                  floor={apartment.floor}
+                  side={apartment.side}
+                />
+                {apartment.flat && <LookOutFromFlat fit={apartment.flat} onEnter={apartment.onLookOut} />}
+              </>
             ) : (
               <p className="sheet__sub">
                 Choose which way your window faces to see the sun it gets.

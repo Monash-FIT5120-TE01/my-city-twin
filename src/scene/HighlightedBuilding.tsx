@@ -91,7 +91,9 @@ export function HighlightedBuilding({
 
   if (roomCut) {
     return (
-      <mesh geometry={geometry} castShadow receiveShadow>
+      // its own mesh and material, keyed: reusing the highlight's material and adding clipping planes to
+      // it on the way in failed inside three.js (an undefined plane while projecting them)
+      <mesh key="cut" geometry={geometry} castShadow receiveShadow>
         <meshStandardMaterial
           color={EXISTING}
           roughness={0.82}

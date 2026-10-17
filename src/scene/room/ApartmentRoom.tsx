@@ -29,7 +29,7 @@ const DRACO_URL = `${BASE}draco/`;
 
 type Glowing = { emissiveIntensity: number };
 
-function Model({ night }: { night: number }) {
+function Model({ night, onReady }: { night: number; onReady?: () => void }) {
   const { scene } = useGLTF(MODEL_URL, DRACO_URL);
   const { copy, glow } = useMemo(() => {
     const c = scene.clone(true);
@@ -49,6 +49,10 @@ function Model({ night }: { night: number }) {
   useEffect(() => {
     if (glow) glow.emissiveIntensity = night;
   }, [glow, night]);
+  // mounted means loaded: Suspense held this back until the model arrived
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
   // glTF is +Y up; the flat's frame is +Z up
   return <primitive object={copy} rotation={[Math.PI / 2, 0, 0]} />;
 }
@@ -72,7 +76,16 @@ const LIGHTS: { at: [number, number, number]; intensity: number }[] = [
 const LAMP_COLOUR = '#ffd9a8';
 const LAMP_REACH_M = 5;
 
-export function ApartmentRoom({ placement, night = 0 }: { placement: RoomPlacement; night?: number }) {
+export function ApartmentRoom({
+  placement,
+  night = 0,
+  onReady,
+}: {
+  placement: RoomPlacement;
+  night?: number;
+  /** Called once the model has loaded and been put in the scene. */
+  onReady?: () => void;
+}) {
   const gl = useThree((s) => s.gl);
   // the massing's clipping planes only act while local clipping is on
   useEffect(() => {
@@ -92,7 +105,7 @@ export function ApartmentRoom({ placement, night = 0 }: { placement: RoomPlaceme
   return (
     <group position={[placement.originEN[0], placement.originEN[1], placement.floorAhdM]} rotation={[0, 0, placement.angle]}>
       <Suspense fallback={null}>
-        <Model night={night} />
+        <Model night={night} onReady={onReady} />
       </Suspense>
       {LIGHTS.map(({ at, intensity }) => (
         <pointLight key={at.join()} position={at} color={LAMP_COLOUR} intensity={intensity * night} distance={LAMP_REACH_M} decay={2} />

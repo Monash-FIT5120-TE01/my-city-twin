@@ -1,0 +1,43 @@
+/*
+ * The way into the example flat and out of it: the screen fades to black and back (App, scene/room/).
+ * Out in 0.3 s, back in 0.4 s; a reader who asked for less movement gets a quicker fade, not none.
+ */
+.room-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.room-fade--dark {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: 0.3s;
+}
+
+.room-fade--quick {
+  transition-duration: 0.15s;
+}
+
+.room-fade--quick.room-fade--dark {
+  transition-duration: 0.12s;
+}
+
+/* Only if the dark lasts: a quick way in never shows it. */
+.room-fade__note {
+  margin: 0;
+  color: #fff;
+  font-size: var(--text-sm);
+  animation: room-fade-note 0.3s ease 0.8s both;
+}
+
+@keyframes room-fade-note {
+  from {
+    opacity: 0;
+  }
+}

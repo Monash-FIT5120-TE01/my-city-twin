@@ -163,3 +163,22 @@
 .place-card__go--solar {
   margin-top: 4px;
 }
+
+/* "Look out from a flat", and the floor and side picker it opens in the card. */
+.place-card__go--flat {
+  margin-top: 4px;
+}
+
+.place-card__flat {
+  max-height: min(11rem, 26vh);
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  overflow-y: auto;
+  border-top: 1px solid var(--hairline);
+}
+
+.look-out {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--space-2);
+}

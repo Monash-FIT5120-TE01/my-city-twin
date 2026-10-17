@@ -78,7 +78,7 @@ interface CityMassingProps {
    * Inside the flat (room/): where it is, and the planes that cut its space out of the building. Only
    * while the reader is in it — from above the building is whole.
    */
-  room?: { placement: RoomPlacement; cut: Plane[]; night: number } | null;
+  room?: { placement: RoomPlacement; cut: Plane[]; night: number; onReady?: () => void } | null;
 }
 
 /**
@@ -268,7 +268,7 @@ export function CityMassing({
           />
         </group>
       )}
-      {room && <ApartmentRoom placement={room.placement} night={room.night} />}
+      {room && <ApartmentRoom placement={room.placement} night={room.night} onReady={room.onReady} />}
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
       {windowAt && (

@@ -95,6 +95,10 @@ import { TramHint } from './ui/TramHint';
 import { TramAim } from './ui/TramAim';
 import { WalkPaceHint } from './ui/WalkPaceHint';
 import { readRoomCheck } from './scene/room/roomCheck';
+import { fitRoomInModel } from './scene/room/roomPlacement';
+import { ApartmentControls } from './ui/Apartment';
+import { LookOutFromFlat, type FlatFit } from './ui/LookOutFromFlat';
+import './styles/room.css';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
 import { PlaceCard } from './ui/PlaceCard';
@@ -248,12 +252,17 @@ export default function App() {
    */
   const [walking, setWalking] = useState(false);
   /*
-   * Inside the flat (scene/room/): which floor and side of the chosen building. Like walking, it hides
-   * the interface. Only the development check (?roomcheck) opens it for now; the entry points come in
-   * stage 6 (ProjectDoc/studio-room/PLAN.md).
+   * Inside the flat (scene/room/): which floor and side of which building. Like walking, it hides the
+   * interface. Opened from the sunlight panel or the building card (LookOutFromFlat), or by the
+   * development check (?roomcheck, which names no building: the one open is meant).
    */
-  const [roomAt, setRoomAt] = useState(readRoomCheck);
-  const leaveRoom = useCallback(() => setRoomAt(null), []);
+  const [roomAt, setRoomAt] = useState<{ floor: number; side: string; buildingId?: string } | null>(readRoomCheck);
+  /** The flat's model is loaded and drawn (SceneCanvas onRoomReady). */
+  const [roomReady, setRoomReady] = useState(false);
+  /** The screen faded to black, on the way into the flat or out of it. */
+  const [dark, setDark] = useState(false);
+  /** The floor and side picker opened in the building card. */
+  const [cardFlatOpen, setCardFlatOpen] = useState(false);
   /**
    * "Stand here?" over the map: asked once, right after a spot is chosen on
    * the ground. See StandPrompt.
@@ -882,6 +891,86 @@ export default function App() {
     return clearOfBuildings(place, homeParts, neighbours);
   }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding]);
 
+
+  /*
+   * -- THE EXAMPLE FLAT ----------------------------------------------------
+   *
+   * Whether the flat fits behind the side and floor being asked about (for the way in, which says why
+   * not when it does not) and where it goes while the reader is in it. Same city, same floors and the
+   * same measuring point as the window's figure, so the flat is never put where the figure is not about
+   * (roomPlacement.ts 'window-moved'). A few milliseconds: the neighbours are cut down to those near.
+   */
+  const flatFit = useMemo<FlatFit | null>(() => {
+    if (!foundBuilding || !windowSide) return null;
+    const fit = fitRoomInModel(standingCity, foundBuilding.buildingId, windowSide, floor, floorsAboveGround, windowAt?.en ?? null);
+    if (!fit) return null;
+    return fit.ok ? { ok: true } : { ok: false, problem: fit.problem };
+  }, [foundBuilding, windowSide, floor, floorsAboveGround, windowAt, standingCity]);
+
+  const roomFit = useMemo(() => {
+    if (!roomAt) return null;
+    if (!model || !foundBuilding) return { waiting: true as const };
+    if (roomAt.buildingId && roomAt.buildingId !== foundBuilding.buildingId) return { refused: 'another building is open' };
+    const sameAsWindow = roomAt.floor === floor && roomAt.side === windowSide;
+    const fit = fitRoomInModel(
+      standingCity, foundBuilding.buildingId, roomAt.side, roomAt.floor, floorsAboveGround,
+      sameAsWindow ? (windowAt?.en ?? null) : null,
+    );
+    if (!fit) return { refused: 'no such building' };
+    return fit.ok ? { placement: fit.placement } : { refused: fit.problem };
+  }, [roomAt, model, foundBuilding, floor, windowSide, floorsAboveGround, windowAt, standingCity]);
+  const roomPlacement = roomFit && 'placement' in roomFit ? roomFit.placement : null;
+
+  /*
+   * In and out through black (user decision, 2026-10-17): 0.3 s to dark, the flat loaded and put in place
+   * while it is dark ("Loading the flat" if that takes a while), 0.4 s back. Shorter, not gone, for a
+   * reader who asked for less movement. No flight of the camera into the building.
+   */
+  const fadeOutMs = reducedMotion ? 120 : 300;
+  const [leaving, setLeaving] = useState(false);
+  const enterFlat = () => {
+    if (!foundBuilding || !windowSide || !flatFit?.ok) return;
+    const at = { floor, side: windowSide, buildingId: foundBuilding.buildingId };
+    setDark(true);
+    window.setTimeout(() => {
+      setRoomReady(false);
+      setRoomAt(at);
+    }, fadeOutMs);
+  };
+  const onRoomReady = useCallback(() => setRoomReady(true), []);
+  // light again once the flat is drawn: two frames, so the first one with it in has been shown
+  useEffect(() => {
+    if (!dark || !roomAt || !roomReady || leaving) return;
+    let id = window.requestAnimationFrame(() => {
+      id = window.requestAnimationFrame(() => setDark(false));
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [dark, roomAt, roomReady, leaving]);
+  // Escape and the pointer lock ending both say leave: one fade, not two
+  const leavingNow = useRef(false);
+  const leaveRoom = useCallback(() => {
+    if (leavingNow.current) return;
+    leavingNow.current = true;
+    setLeaving(true);
+    setDark(true);
+    window.setTimeout(() => {
+      setRoomAt(null);
+      setRoomReady(false);
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        setDark(false);
+        setLeaving(false);
+        leavingNow.current = false;
+      }));
+    }, fadeOutMs);
+  }, [fadeOutMs]);
+  // asked for somewhere it does not fit (the development check), or the building changed under it: out
+  useEffect(() => {
+    if (roomFit && 'refused' in roomFit) {
+      console.info('The flat does not fit there:', roomFit.refused);
+      setRoomAt(null);
+      setDark(false);
+    }
+  }, [roomFit]);
 
   /** The sky from the window today: the expensive step, independent of the date. */
   const windowSkyline = useMemo(() => {
@@ -1587,6 +1676,26 @@ export default function App() {
               }
             : undefined
         }
+        lookOut={
+          view === 'building'
+            ? {
+                open: cardFlatOpen,
+                onToggle: () => setCardFlatOpen((open) => !open),
+                picker: (
+                  <ApartmentControls
+                      floor={floor}
+                      onFloor={setFloor}
+                      floorsAboveGround={floorsAboveGround}
+                      sides={sides}
+                      chosenSide={windowSide}
+                      onSide={setWindowSide}
+                      floorHeightAssumed={windowAt?.floorHeightAssumed ?? floorsAboveGround === null}
+                    />
+                ),
+                action: flatFit && <LookOutFromFlat fit={flatFit} onEnter={enterFlat} />,
+              }
+            : undefined
+        }
         onClose={() => setView('explore')}
       />
     );
@@ -1740,8 +1849,9 @@ export default function App() {
           interactive={!chromeHidden && !compareShown}
           walking={walking}
           onLeaveStreet={() => setWalking(false)}
-          roomAt={roomAt}
+          room={roomPlacement}
           onLeaveRoom={leaveRoom}
+          onRoomReady={onRoomReady}
           /*
             For the wrist clock and the A/B buttons. The page's own time bar
             does not exist in a headset; the panel shows the hour too, but it
@@ -1885,8 +1995,11 @@ export default function App() {
       {mapbox && !frontShown && !compareShown && !pageShown && view !== 'activity' && <MapAttribution />}
 
       {/* ── IN THE FLAT: the keys, and that the plan is an example rather than this building's */}
-      {roomAt && byTouch && <TouchWalk onBackUp={leaveRoom} />}
-      {roomAt && (
+      <div className={`room-fade${dark ? ' room-fade--dark' : ''}${reducedMotion ? ' room-fade--quick' : ''}`} aria-hidden={!dark}>
+        {dark && roomAt && !roomReady && !leaving && <p className="room-fade__note" role="status">Loading the flat</p>}
+      </div>
+      {roomPlacement && byTouch && <TouchWalk onBackUp={leaveRoom} />}
+      {roomPlacement && roomAt && (
         <p className="walking-hint">
           {byTouch ? (
             <>
@@ -2270,6 +2383,8 @@ export default function App() {
                     floorHeightAssumed: windowAt?.floorHeightAssumed ?? floorsAboveGround === null,
                     sunlight: windowSunlight,
                     problem: windowProblem,
+                    flat: flatFit,
+                    onLookOut: enterFlat,
                     /*
                      * The approved plan takes this building down, so there is
                      * no future window to compare against. The panel says so

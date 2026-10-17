@@ -56,7 +56,7 @@
 import type { SolarScene } from './useSolarComparison';
 import { roomClipPlanes } from './room/roomClip';
 import { roomObstacles } from './room/roomObstacles';
-import { fitRoomInModel, toEN } from './room/roomPlacement';
+import { toEN, type RoomPlacement } from './room/roomPlacement';
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR } from '@react-three/xr';
@@ -152,12 +152,14 @@ interface SceneCanvasProps {
   /** The pointer lock ended — Escape, or a click outside. */
   onLeaveStreet: () => void;
   /**
-   * Inside the flat (room/): which floor and side of the highlighted building. Null from above and in
-   * the street.
+   * Inside the flat (room/): where it is, worked out by App (roomPlacement.ts fitRoom). Null from above
+   * and in the street.
    */
-  roomAt?: { floor: number; side: string } | null;
-  /** Leaving the flat — Escape, a click outside, or the flat not fitting where it was asked for. */
+  room?: RoomPlacement | null;
+  /** Leaving the flat — Escape, or a click outside. */
   onLeaveRoom?: () => void;
+  /** The flat's model has loaded and is drawn: the way in can stop being dark. */
+  onRoomReady?: () => void;
   /**
    * The viewpoint had to be put down this far from the measured spot.
    *
@@ -279,8 +281,9 @@ export function SceneCanvas({
   lookAt,
   walking,
   onLeaveStreet,
-  roomAt = null,
+  room = null,
   onLeaveRoom = () => undefined,
+  onRoomReady,
   onStandMoved,
   approach = false,
   viewCommands,
@@ -471,34 +474,19 @@ export function SceneCanvas({
   const standOffsetM = Math.hypot(standPoint[0] - standAt[0], standPoint[1] - standAt[1]);
   useStandNotice(walking, standOffsetM, onStandMoved);
 
-  /*
-   * The flat, while the reader is in it: where it goes in the highlighted building, the cut out of the
-   * building, and its own walls and furniture to walk among. When it does not fit there it is left at
-   * once — the entry points (stage 6) only offer places where it does.
-   */
-  const room = useMemo(() => {
-    if (!roomAt || !highlightedBuildingId) return null;
-    const fit = fitRoomInModel(model.buildings, highlightedBuildingId, roomAt.side, roomAt.floor, null);
-    if (!fit?.ok) return { ok: false as const, refused: fit ? fit.problem : 'no-such-building' };
-    const p = fit.placement;
+  /* The flat, while the reader is in it: the cut out of the building, and its own walls and furniture. */
+  const placedRoom = useMemo(() => {
+    if (!room) return null;
     return {
-      ok: true as const,
-      placement: p,
-      cut: roomClipPlanes(p),
-      obstacles: roomObstacles(p),
+      placement: room,
+      cut: roomClipPlanes(room),
+      obstacles: roomObstacles(room),
       // in the living room, by the coffee table, facing the balcony
-      startEN: toEN(p, 4.6, 1.6),
-      facingEN: toEN(p, 1, 0).map((v, i) => v - toEN(p, 0, 0)[i]) as [number, number],
-      centreEN: toEN(p, 4.6, 3.4),
+      startEN: toEN(room, 4.6, 1.6),
+      facingEN: toEN(room, 1, 0).map((v, i) => v - toEN(room, 0, 0)[i]) as [number, number],
+      centreEN: toEN(room, 4.6, 3.4),
     };
-  }, [roomAt, highlightedBuildingId, model.buildings]);
-  const placedRoom = room?.ok ? room : null;
-  useEffect(() => {
-    if (room && !room.ok) {
-      console.info('The flat does not fit there:', room.refused);
-      onLeaveRoom();
-    }
-  }, [room, onLeaveRoom]);
+  }, [room]);
 
   /* A few metres away, so it is in front of the reader rather than inside them. */
   const scaleAt = useMemo(
@@ -775,7 +763,7 @@ export function SceneCanvas({
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
             solar={solar}
-            room={inRoom && placedRoom ? { ...placedRoom, night: roomNight } : null}
+            room={inRoom && placedRoom ? { ...placedRoom, night: roomNight, onReady: onRoomReady } : null}
           />
 
           {/*
