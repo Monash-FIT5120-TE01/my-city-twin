@@ -6,6 +6,16 @@ interface SunLightProps {
   angles: SunAngles;
   /** Half-width of the area that receives shadows, in metres. */
   extentM?: number;
+  /**
+   * Across and up the shadow map, half-width in metres, when it is not `extentM`: narrower is sharper.
+   * Inside the flat it is a few tens of metres round the flat (room/).
+   */
+  spanM?: number;
+  /** Along the light, half-depth in metres, when it is not `extentM`: everything that can cast must be within it. */
+  depthM?: number;
+  /** Shadow acne against peter-panning; the defaults suit the whole city at about half a metre a pixel. */
+  bias?: number;
+  normalBias?: number;
   /** Where the shadow camera is centred, in east/north/up metres. */
   centre?: [number, number, number];
   /** The "Sunlight & shadows" layer. Off leaves the scene lit but flat. */
@@ -23,8 +33,12 @@ interface SunLightProps {
 export function SunLight({
   angles,
   extentM = 600,
+  spanM = extentM,
+  depthM = extentM,
   centre = [0, 0, 0],
   castShadows = true,
+  bias = -0.0006,
+  normalBias = 0.9,
 }: SunLightProps) {
   const light = useRef<DirectionalLight>(null);
   const target = useRef<Object3D>(null);
@@ -37,7 +51,7 @@ export function SunLight({
 
   // Far enough that the near plane clears the tallest thing in the scene,
   // whatever direction the light comes from.
-  const distance = extentM * 2.5;
+  const distance = depthM * 2.5;
   const direction = sunDirectionENU(angles);
   const isUp = angles.altitudeDeg > 0;
 
@@ -59,16 +73,16 @@ export function SunLight({
         castShadow={isUp && castShadows}
         shadow-mapSize={[4096, 4096]}
         // The frustum must span the scene on both sides of the target: the
-        // light sits `distance` away, and casters reach `extentM` beyond it.
-        shadow-camera-near={Math.max(1, distance - extentM * 1.2)}
-        shadow-camera-far={distance + extentM * 1.2}
-        shadow-camera-left={-extentM}
-        shadow-camera-right={extentM}
-        shadow-camera-top={extentM}
-        shadow-camera-bottom={-extentM}
+        // light sits `distance` away, and casters reach `depthM` beyond it.
+        shadow-camera-near={Math.max(1, distance - depthM * 1.2)}
+        shadow-camera-far={distance + depthM * 1.2}
+        shadow-camera-left={-spanM}
+        shadow-camera-right={spanM}
+        shadow-camera-top={spanM}
+        shadow-camera-bottom={-spanM}
         // Flat roofs under a low, grazing sun are the classic acne case.
-        shadow-bias={-0.0006}
-        shadow-normalBias={0.9}
+        shadow-bias={bias}
+        shadow-normalBias={normalBias}
       />
     </>
   );

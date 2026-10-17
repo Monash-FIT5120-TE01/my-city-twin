@@ -32,9 +32,10 @@ function Model() {
   const copy = useMemo(() => {
     const c = scene.clone(true);
     c.traverse((o) => {
-      const m = o as { isMesh?: boolean; castShadow: boolean; receiveShadow: boolean };
+      const m = o as { isMesh?: boolean; castShadow: boolean; receiveShadow: boolean; material?: { transparent?: boolean } };
       if (m.isMesh) {
-        m.castShadow = true;
+        // glass lets the sun in: a shadow map knows nothing of transparency, so glass would cast a solid one
+        m.castShadow = !m.material?.transparent;
         m.receiveShadow = true;
       }
     });

@@ -105,6 +105,9 @@ import { useReducedMotion } from '../ui/useReducedMotion';
  * bring a layout engine and a font atlas that a desktop never uses — see the
  * header of VrPanel.tsx.
  */
+/** Inside the flat: the shadow map's half-width round it, metres (4096 pixels: about 2 cm each). */
+const ROOM_SHADOW_SPAN_M = 40;
+
 const VrFurniture = lazy(() => import('./VrPanel'));
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
@@ -660,6 +663,27 @@ export function SceneCanvas({
     };
   }, [model.extent, model.buildings, model.developments, ground]);
 
+  /*
+   * Inside the flat the shadow map is centred on it and narrowed, so the window frames, the balcony
+   * above and the furniture cast sharp shadows (about 2 cm a pixel rather than half a metre). Across the
+   * map only the flat and what is near it are covered — but anything that shades the flat, however far,
+   * lies on the line from the sun to the flat and so is across the map from it too. Along the light the
+   * map still has to reach the whole city: the flat's distance from the city's middle plus the city's
+   * radius (ProjectDoc/studio-room/PLAN.md 4.4). The bias is a couple of centimetres in that depth.
+   */
+  const roomShadow = useMemo(() => {
+    if (!inRoom || !placedRoom) return null;
+    const [e, n] = placedRoom.centreEN;
+    const depthM = Math.hypot(e - shadow.centre[0], n - shadow.centre[1], placedRoom.placement.floorAhdM - shadow.centre[2]) + shadow.extentM;
+    return {
+      centre: [e, n, placedRoom.placement.floorAhdM + 1.5] as [number, number, number],
+      spanM: ROOM_SHADOW_SPAN_M,
+      depthM,
+      bias: -0.02 / (depthM * 2.4),
+      normalBias: 0.02,
+    };
+  }, [inRoom, placedRoom, shadow]);
+
   return (
     <Canvas
       // Explicit rather than `shadows` — the default soft map is deprecated
@@ -722,7 +746,11 @@ export function SceneCanvas({
           <SunLight
             angles={sun}
             extentM={shadow.extentM}
-            centre={shadow.centre}
+            centre={roomShadow?.centre ?? shadow.centre}
+            spanM={roomShadow?.spanM}
+            depthM={roomShadow?.depthM}
+            bias={roomShadow?.bias}
+            normalBias={roomShadow?.normalBias}
             castShadows={castShadows}
           />
           <CityMassing
