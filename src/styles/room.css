@@ -41,3 +41,21 @@
     opacity: 0;
   }
 }
+
+/* The keys in the flat: two lines, the second saying where and that the layout is an example. */
+.walking-hint.walking-hint--room {
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+
+.walking-hint__note {
+  font-size: var(--text-xs);
+}
+
+/* On a phone the pill would wrap into a round blob: a rounded box instead. */
+@media (max-width: 600px) {
+  .walking-hint.walking-hint--room {
+    border-radius: 14px;
+  }
+}

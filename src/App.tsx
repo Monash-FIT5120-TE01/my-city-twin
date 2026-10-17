@@ -2000,7 +2000,7 @@ export default function App() {
       </div>
       {roomPlacement && byTouch && <TouchWalk onBackUp={leaveRoom} />}
       {roomPlacement && roomAt && (
-        <p className="walking-hint">
+        <p className="walking-hint walking-hint--room">
           {byTouch ? (
             <>
               <strong>Stick</strong> to walk · <strong>drag</strong> to look round
@@ -2012,8 +2012,10 @@ export default function App() {
             </>
           )}
           <br />
-          {clockLabel(minutes)} · 
-          Floor {roomAt.floor}, {roomAt.side} side · an example one-bedroom layout, not this building's real plan
+          <span className="walking-hint__note">
+            {clockLabel(minutes)} · Floor {roomAt.floor}, {roomAt.side} side · an example one-bedroom layout, not
+            this building's real plan
+          </span>
         </p>
       )}
 
