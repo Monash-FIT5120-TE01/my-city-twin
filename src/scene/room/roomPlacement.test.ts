@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Massing } from '../../data/model';
-import { fitRoom, toEN } from './roomPlacement';
+import { fitRoom, fitRoomInModel, toEN } from './roomPlacement';
 
 let n = 0;
 /** A part: one ring (plus optional holes), from base to top, metres AHD. */
@@ -117,8 +117,44 @@ describe('placing the flat behind a side of a building', () => {
     expect(fitRoom(tower, across, 'East', 10, null).ok).toBe(true);
   });
 
+  // Codex review, 2026-10-17
+  it('a slot narrower than the sampling grid, crossing the outline: refused', () => {
+    // 0.23 m wide, from outside the flat's south wall to well inside it; the 0.3 m grid steps over it
+    const slotted = [part(rect(-15, -15, 15, 15), 0, 90, true, [rect(10.15, -5, 10.38, -1)])];
+    expect(fitRoom(slotted, [], 'East', 10, null)).toEqual({ ok: false, problem: 'building-too-shallow' });
+  });
+
+  it('a gap of a few centimetres between two parts, part-way up the storey: refused', () => {
+    // floor 10 runs 27 .. 30; the lower part stops at 28.05, the upper one starts at 28.08
+    const gapped = [part(rect(-15, -15, 15, 15), 0, 28.05), part(rect(-15, -15, 15, 15), 28.08, 90, false)];
+    expect(fitRoom(gapped, [], 'East', 10, null).ok).toBe(false);
+  });
+
+  it('missing behind the wall already at the floor is too shallow, even beside a higher part', () => {
+    // a tall part only 5 m deep, on a wide podium that stops well below the floor: the podium's low roof
+    // once made this read as the flat sticking out of the roof
+    const mixed = [part(rect(10, -15, 15, 15), 0, 90), part(rect(-15, -15, 15, 15), 0, 20, false)];
+    expect(fitRoom(mixed, [], 'East', 10, null)).toEqual({ ok: false, problem: 'building-too-shallow' });
+  });
+
   it("refuses when the sunlight screen's measuring point had to be moved off this wall", () => {
     expect(fitRoom(tower, [], 'East', 10, null, [15.5, 0]).ok).toBe(true);
     expect(fitRoom(tower, [], 'East', 10, null, [18.0, 0])).toEqual({ ok: false, problem: 'window-moved' });
+  });
+});
+
+describe('the flat in a building of the model', () => {
+  const of = (parentId: string, m: Massing): Massing => ({ ...m, parentId });
+
+  it('meets a long neighbour whose every corner is far away', () => {
+    const host = of('h', part(rect(-15, -15, 15, 15), 0, 90));
+    // 400 m long, running right past the balcony
+    const long = of('n', part(rect(16, -200, 17, 200), 0, 90));
+    expect(fitRoom([host], [], 'East', 10, null).ok).toBe(true);
+    expect(fitRoomInModel([host, long], 'h', 'East', 10, null)).toEqual({ ok: false, problem: 'balcony-in-the-way' });
+  });
+
+  it('no such building: null', () => {
+    expect(fitRoomInModel([], 'h', 'East', 10, null)).toBeNull();
   });
 });

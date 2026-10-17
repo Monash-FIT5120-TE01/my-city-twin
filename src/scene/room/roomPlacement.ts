@@ -60,8 +60,12 @@ const WINDOW_TOLERANCE_M = 0.1;
 /** Sampling: spacing, and how far inside an outline a sample must be. */
 const STEP_M = 0.3;
 const INSET_M = 0.12;
+/** Along the outline's edges, closer: a slot or a corner narrower than the grid is met at the edge it crosses. */
+const EDGE_STEP_M = 0.1;
 /** Height differences smaller than this are the same height. */
 const EPS_M = 0.05;
+/** Part boundaries closer together than this are one boundary: a gap thinner than this is not a gap. */
+const MERGE_M = 0.01;
 /** In front of the balcony: how much of the outlook may be wall before it is no outlook at all. */
 const OUTLOOK_BLOCKED_SHARE = 0.25;
 
@@ -120,7 +124,28 @@ function samplesIn(poly: [number, number][]): [number, number][] {
       if (ok) out.push([x, y]);
     }
   }
-  // the outline's corners, just inside, so a thin intrusion at a corner is not missed between rows
+  /*
+   * And along every edge, just inside it, every EDGE_STEP_M — corners included. Anything of another
+   * building, or any gap in this one, that reaches into the flat crosses its outline, and a slot narrower
+   * than the grid is met there (Codex review, 2026-10-17). One that is wholly inside the flat and
+   * narrower than STEP_M can still be missed; the massing has none that small that matter.
+   */
+  for (let i = 0; i < poly.length; i++) {
+    const [x0, y0] = poly[i];
+    const [x1, y1] = poly[(i + 1) % poly.length];
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    // inward for an anticlockwise outline
+    const nx = -(y1 - y0) / len;
+    const ny = (x1 - x0) / len;
+    for (let d = 0; d <= len + 1e-9; d += EDGE_STEP_M) {
+      const t = Math.min(d, len) / len;
+      const x = x0 + (x1 - x0) * t + nx * INSET_M;
+      const y = y0 + (y1 - y0) * t + ny * INSET_M;
+      // and as far from every other edge, so the samples next to a corner do not sit on the next edge
+      const r = INSET_M * 0.9;
+      if ([[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].every(([dx, dy]) => inRing(x + dx, y + dy, poly))) out.push([x, y]);
+    }
+  }
   return out;
 }
 
@@ -132,15 +157,25 @@ const FLAT_SAMPLES = samplesIn(OUTLINE);
 const BALCONY_SAMPLES = samplesIn(rect(BALCONY));
 const OUTLOOK_SAMPLES = samplesIn(rect(OUTLOOK));
 
-/** The heights to test between two levels: a few fixed ones and every part boundary in between. */
+/**
+ * The heights to test between two levels, lowest first: just inside each end, either side of every part
+ * boundary in between, and half-way between each two neighbouring boundaries — so a gap between one part
+ * stopping and another starting is sampled however thin it is (down to MERGE_M).
+ */
 function heights(lo: number, hi: number, parts: readonly Massing[]): number[] {
-  const hs = [lo + EPS_M, (lo + hi) / 2, hi - EPS_M];
+  const cuts = [lo, hi];
   for (const p of parts) {
-    for (const z of [p.baseAhdM, p.topAhdM]) {
-      if (z > lo + EPS_M && z < hi - EPS_M) hs.push(z - EPS_M, z + EPS_M);
-    }
+    for (const z of [p.baseAhdM, p.topAhdM]) if (z > lo && z < hi) cuts.push(z);
   }
-  return hs;
+  cuts.sort((a, b) => a - b);
+  const levels = cuts.filter((z, i) => i === 0 || z - cuts[i - 1] >= MERGE_M);
+  const hs = [lo + EPS_M, hi - EPS_M];
+  for (let i = 0; i < levels.length; i++) {
+    const z = levels[i];
+    if (z > lo + EPS_M && z < hi - EPS_M) hs.push(z - EPS_M, z + EPS_M);
+    if (i > 0) hs.push((levels[i - 1] + z) / 2);
+  }
+  return hs.filter((z) => z > lo && z < hi).sort((a, b) => a - b);
 }
 
 /**
@@ -217,13 +252,15 @@ export function fitRoom(
   for (const z of heights(base, top, others)) {
     if (flatAt.some(([e, n]) => insideAny(e, n, z, others))) return { ok: false, problem: 'next-building-in-the-way' };
   }
-  // the whole flat inside its own building, at every height that matters
-  const roofs = host.filter((p) => flatAt.some(([e, n]) => insideAny(e, n, (p.baseAhdM + p.topAhdM) / 2, [p])));
-  const lowestRoof = roofs.length ? Math.min(...roofs.map((p) => p.topAhdM)) : -Infinity;
-  for (const z of heights(base, top, host)) {
-    if (flatAt.some(([e, n]) => !insideAny(e, n, z, host))) {
-      return { ok: false, problem: z > lowestRoof - EPS_M * 2 ? 'above-the-roof' : 'building-too-shallow' };
-    }
+  /*
+   * The whole flat inside its own building, at every height that matters, lowest first. Where a point is
+   * missing already at the floor, the building does not reach that far back; where it is there at the
+   * floor and gone higher up, the building stops part-way up the storey.
+   */
+  const [floorZ, ...upper] = heights(base, top, host);
+  if (flatAt.some(([e, n]) => !insideAny(e, n, floorZ, host))) return { ok: false, problem: 'building-too-shallow' };
+  for (const z of upper) {
+    if (flatAt.some(([e, n]) => !insideAny(e, n, z, host))) return { ok: false, problem: 'above-the-roof' };
   }
   // the balcony: open air, from its slab to the storey above's, clear of this building and every other
   const balconyAt = BALCONY_SAMPLES.map(([x, y]) => toEN(placement, x, y));
@@ -245,8 +282,23 @@ export function fitRoom(
   return { ok: true, placement };
 }
 
-/** Neighbours further than this from the building's first corner are not asked about. */
-const NEAR_M = 120;
+/** Neighbours whose outline's box is further than this from the building's are not asked about. */
+const NEAR_M = 60;
+
+function boxOf(parts: readonly Massing[]) {
+  let e0 = Infinity, e1 = -Infinity, n0 = Infinity, n1 = -Infinity;
+  for (const p of parts) {
+    for (const poly of p.footprint) {
+      for (const [e, n] of poly[0] ?? []) {
+        if (e < e0) e0 = e;
+        if (e > e1) e1 = e;
+        if (n < n0) n0 = n;
+        if (n > n1) n1 = n;
+      }
+    }
+  }
+  return { e0, e1, n0, n1 };
+}
 
 /**
  * fitRoom for a building in the model by its id: its parts, and every other building's parts near
@@ -262,9 +314,16 @@ export function fitRoomInModel(
 ): RoomFit | null {
   const host = buildings.filter((b) => b.parentId === buildingId);
   if (!host.length) return null;
-  const [cx, cy] = host[0].footprint[0][0][0];
-  const others = buildings.filter(
-    (b) => b.parentId !== buildingId && b.footprint.some((poly) => poly[0]?.some(([e, n]) => Math.hypot(e - cx, n - cy) < NEAR_M)),
-  );
+  /*
+   * By the boxes round the outlines, not by corners near a point: a long building whose every corner is
+   * far away can still run right past the flat (Codex review, 2026-10-17). The flat and its outlook reach
+   * at most 14 m out from the wall; fitRoom narrows this down again to what is actually near them.
+   */
+  const h = boxOf(host);
+  const others = buildings.filter((b) => {
+    if (b.parentId === buildingId) return false;
+    const o = boxOf([b]);
+    return o.e1 >= h.e0 - NEAR_M && o.e0 <= h.e1 + NEAR_M && o.n1 >= h.n0 - NEAR_M && o.n0 <= h.n1 + NEAR_M;
+  });
   return fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN);
 }

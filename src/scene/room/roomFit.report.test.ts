@@ -12,7 +12,7 @@ import { describe, it } from 'vitest';
 import { buildCityModel } from '../../data/adapter';
 import type { ApiBuildingPart, ApiDevelopmentPart, ApiFeatureCollection } from '../../data/api-types';
 import { facadesOf } from '../facades';
-import { fitRoom } from './roomPlacement';
+import { fitRoomInModel } from './roomPlacement';
 
 const load = <T,>(name: string): T => JSON.parse(readFileSync(resolve(__dirname, '../../../public/data', name), 'utf-8'));
 
@@ -40,17 +40,14 @@ describe.skipIf(!process.env.ROOM_REPORT)('the flat in the real city', () => {
       const top = Math.max(...parts.map((p) => p.topAhdM));
       if (top - base < 20) continue;
       buildingsTried += 1;
-      const [cx, cy] = parts[0].footprint[0][0][0];
-      const others = model.buildings.filter(
-        (b) => b.parentId !== id && b.footprint.some((poly) => poly[0]?.some(([e, n]) => Math.hypot(e - cx, n - cy) < 120)),
-      );
       let any = false;
       for (const floor of [3, 6, 10, 20]) {
         const sill = base + 3 * (floor - 1) + 1.2;
         if (sill > top) continue;
         for (const f of facadesOf(parts, sill)) {
           tried += 1;
-          const fit = fitRoom(parts, others, f.compass, floor, null);
+          const fit = fitRoomInModel(model.buildings, id, f.compass, floor, null);
+          if (!fit) continue;
           if (fit.ok) {
             fits += 1;
             any = true;
