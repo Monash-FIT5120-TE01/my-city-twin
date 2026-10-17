@@ -1,7 +1,8 @@
 /*
- * What the walker bumps into inside the flat: its walls, the closed glass,
- * the balcony rail and the furniture — the same obstacle index the street
- * uses (obstacles.ts), built from rectangles in the flat's own frame.
+ * What the walker bumps into inside the flat: its walls, the closed glass and
+ * the balcony rail — the same obstacle index the street uses (obstacles.ts),
+ * built from rectangles in the flat's own frame. Not the furniture: the user
+ * asked to walk freely through it (2026-10-17).
  *
  * The rectangles come from the finished Blender scene, the same one the
  * model was exported from (ProjectDoc/studio-room/blender/export_collision.py),
@@ -14,7 +15,7 @@ import { toEN, type RoomPlacement } from './roomPlacement';
 type Box = [number, number, number, number];
 
 /** Every solid's footprint, local metres: [x0, y0, x1, y1]. */
-const BOXES = [...collision.walls, ...collision.furniture] as Box[];
+const BOXES = collision.walls as Box[];
 
 /** The walker is indexed at waist height; anything in the list counts at that height. */
 const WAIST_M = 0.5;

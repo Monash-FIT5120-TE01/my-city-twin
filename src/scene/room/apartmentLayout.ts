@@ -32,11 +32,16 @@ export const SLAB_TOP_Z = 3.0;
 /**
  * The block cut out of the building's massing so the flat is not buried in
  * it: the flat's outside faces, a couple of centimetres inside them so the
- * flat's own walls cover the cut. A clipping box has to be convex, so it is
- * the flat's bounding rectangle; the corner it takes that the flat does not
- * fill (north of the bathroom) is closed by NOTCH below.
+ * flat's own walls cover the cut — except on the facade, where it runs 0.2 m
+ * past the outside face. Stopping short there left the building's own outer
+ * wall standing just in front of the flat's: unseen from inside (its back),
+ * but a blank wall across the windows from the balcony (2026-10-17). The
+ * balcony side is open air (roomPlacement.ts checks it), so nothing else is
+ * taken. A clipping box has to be convex, so it is the flat's bounding
+ * rectangle; the corner it takes that the flat does not fill (north of the
+ * bathroom) is closed by NOTCH below.
  */
-export const CUT_BOX = { x0: -0.18, x1: 7.48, y0: -0.18, y1: 6.98, z0: -0.28, z1: 2.98 };
+export const CUT_BOX = { x0: -0.18, x1: FACADE_OUT_X + 0.2, y0: -0.18, y1: 6.98, z0: -0.28, z1: 2.98 };
 
 /** The bounding rectangle's corner the flat does not occupy: filled solid. */
 export const NOTCH = { x0: -0.2, x1: 2.7, y0: 6.4, y1: 7.0, z0: SLAB_BOTTOM_Z, z1: SLAB_TOP_Z };

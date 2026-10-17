@@ -47,11 +47,11 @@ describe("the flat's walls and furniture", () => {
     expect(standsAt(index, ...start)).toBe(true);
   });
 
-  it('low things cannot be walked over: the bed, the coffee table, the balcony rail, the sofa', () => {
-    expect(blocked(index, 5.6, 5.6)).toBe(true);     // the bed
-    expect(blocked(index, 6.0, 1.9)).toBe(true);     // the coffee table
+  it('the furniture does not stop the walker; the balcony rail does', () => {
+    expect(blocked(index, 5.6, 5.6)).toBe(false);    // the bed
+    expect(blocked(index, 6.0, 1.9)).toBe(false);    // the coffee table
+    expect(blocked(index, 6.0, 3.0)).toBe(false);    // the sofa
     expect(blocked(index, 9.27, 1.7)).toBe(true);    // the rail's glass
-    expect(blocked(index, 6.0, 3.0)).toBe(true);     // the sofa
   });
 
   const seen = reachable(index, start);
@@ -84,7 +84,7 @@ describe("the flat's walls and furniture", () => {
       const c = Math.cos(TURNED.angle), s = Math.sin(TURNED.angle);
       return [TURNED.originEN[0] + x * c - y * s, TURNED.originEN[1] + x * s + y * c];
     };
-    expect(blocked(t, ...at(5.6, 5.6))).toBe(true);
+    expect(blocked(t, ...at(2.65, 4.5))).toBe(true);    // the bathroom's east wall
     expect(blocked(t, ...at(9.27, 1.7))).toBe(true);
     expect(standsAt(t, ...at(4.6, 1.6))).toBe(true);
   });
