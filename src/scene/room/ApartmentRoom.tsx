@@ -44,6 +44,14 @@ const REFLECTION: Record<string, number> = {
   'apartment-glass': 0.9,
 };
 
+/*
+ * After dark, the light the lamps throw back off the walls, the ceiling and the floor: the same soft
+ * environment on every surface of the flat, at this strength once it is night. Four point lights alone
+ * left the corners and everything they did not face nearly black (2026-10-18). Only the flat's own
+ * materials take it, so the city outside the window stays as dark as the night.
+ */
+const NIGHT_FILL = 0.28;
+
 function Model({ night, onReady }: { night: number; onReady?: () => void }) {
   const { scene } = useGLTF(MODEL_URL, DRACO_URL);
   const gl = useThree((s) => s.gl);
@@ -56,18 +64,20 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
     return texture;
   }, [gl]);
   useEffect(() => () => environment.dispose(), [environment]);
-  const { copy, glow } = useMemo(() => {
+  const { copy, glow, lit } = useMemo(() => {
     const c = scene.clone(true);
     let g: Glowing | null = null;
+    const l: { material: Reflecting; base: number }[] = [];
     c.traverse((o) => {
       const m = o as { isMesh?: boolean; name: string; castShadow: boolean; receiveShadow: boolean; material?: { transparent?: boolean } };
       // the lamp shades, the strip in the wardrobe (export_web.py "glow"): their own light, lit at night
       if (m.isMesh && m.name === 'apartment-glow') g = m.material as unknown as Glowing;
-      if (m.isMesh && REFLECTION[m.name] !== undefined) {
+      if (m.isMesh && m.name.startsWith('apartment-') && m.name !== 'apartment-glow') {
         const r = m.material as unknown as Reflecting;
         r.envMap = environment;
-        r.envMapIntensity = REFLECTION[m.name];
+        r.envMapIntensity = REFLECTION[m.name] ?? 0;
         r.needsUpdate = true;
+        l.push({ material: r, base: REFLECTION[m.name] ?? 0 });
       }
       if (m.isMesh) {
         // glass lets the sun in: a shadow map knows nothing of transparency, so glass would cast a solid one
@@ -75,11 +85,12 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
         m.receiveShadow = true;
       }
     });
-    return { copy: c, glow: g as Glowing | null };
+    return { copy: c, glow: g as Glowing | null, lit: l };
   }, [scene, environment]);
   useEffect(() => {
     if (glow) glow.emissiveIntensity = night;
-  }, [glow, night]);
+    for (const { material, base } of lit) material.envMapIntensity = base + NIGHT_FILL * night;
+  }, [glow, lit, night]);
   // mounted means loaded: Suspense held this back until the model arrived
   useEffect(() => {
     onReady?.();
@@ -104,10 +115,10 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
  * back off the room; from the middle of the room the ceiling is lit evenly, as it then is.
  */
 const LIGHTS: { at: [number, number, number]; intensity: number }[] = [
-  { at: [2.5, 1.6, 1.7], intensity: 3.6 },   // living and kitchen
-  { at: [5.8, 1.8, 1.7], intensity: 3.6 },   // living, by the balcony
-  { at: [5.6, 5.2, 1.7], intensity: 3.0 },   // bedroom
-  { at: [1.1, 4.3, 1.7], intensity: 2.4 },   // bathroom, laundry and hall
+  { at: [2.5, 1.6, 1.7], intensity: 6.5 },   // living and kitchen
+  { at: [5.8, 1.8, 1.7], intensity: 6.5 },   // living, by the balcony
+  { at: [5.6, 5.2, 1.7], intensity: 5.5 },   // bedroom
+  { at: [1.1, 4.3, 1.7], intensity: 4.5 },   // bathroom, laundry and hall
 ];
 const LAMP_COLOUR = '#ffd9a8';
 // far enough that the light fades out softly across the flat, not in a hard ring on the ceiling at 5 m
