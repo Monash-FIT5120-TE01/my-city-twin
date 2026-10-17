@@ -253,21 +253,24 @@ export function Ground({
       const n = -(ray.origin.z + ray.direction.z * t);
       return [e, n, ray.origin.y + ray.direction.y * t - heightAt(terrain, e, n)] as const;
     };
-    let lo = Math.max(0, distance - 80);
-    let above = at(lo)[2] > 0;
-    let hi = lo;
-    let found = false;
-    for (let t = lo + 2; t <= distance + 80; t += 2) {
-      if (above && at(t)[2] <= 0) {
-        hi = t;
-        lo = t - 2;
-        found = true;
+    // the FIRST place the ray goes under the ground, from where it enters the drawn disc; fine steps
+    // (a metre near, growing slowly with distance), so a ridge it only grazes is not stepped over
+    if (at(0)[2] <= 0) return null;
+    let lo = 0;
+    let hi = -1;
+    const end = distance + 200;
+    for (let t = 0; t < end; ) {
+      const step = Math.max(0.5, t * 0.002);
+      const next = t + step;
+      if (at(next)[2] <= 0) {
+        lo = t;
+        hi = next;
         break;
       }
-      above = at(t)[2] > 0;
+      t = next;
     }
-    if (!found) lo = hi = distance;
-    for (let k = 0; k < 14 && found; k++) {
+    if (hi < 0) return null;
+    for (let k = 0; k < 16; k++) {
       const mid = (lo + hi) / 2;
       if (at(mid)[2] > 0) lo = mid;
       else hi = mid;

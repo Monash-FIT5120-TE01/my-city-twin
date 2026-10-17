@@ -343,8 +343,10 @@ export function fitRoomInModel(
   if (fit.ok && terrain) {
     const p = fit.placement;
     // the whole balcony, out to its rail, and the room's floor along the facade, every half metre
-    for (let x = 6.0; x <= 9.3 + 1e-9; x += 0.5) {
-      for (let y = x < 7.5 ? -0.1 : 0.2; y <= (x < 7.5 ? 6.9 : 3.3) + 1e-9; y += 0.5) {
+    // every half metre, and the outer edges themselves (the rail at x 9.3, the balcony's north side)
+    const steps = (from: number, to: number) => [...Array.from({ length: Math.floor((to - from) / 0.5) + 1 }, (_, i) => from + i * 0.5), to];
+    for (const x of steps(6.0, 9.3)) {
+      for (const y of x < 7.5 ? steps(-0.1, 6.9) : steps(0.2, 3.3)) {
         const [e, n] = toEN(p, x, y);
         if (heightAt(terrain, e, n) > p.floorAhdM + BELOW_STREET_M) return { ok: false, problem: 'below-the-street' };
       }

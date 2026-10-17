@@ -70,18 +70,25 @@ describe.skipIf(!process.env.TERRAIN_REPORT)('the figures on real ground', () =>
         // chosen the way the app chooses them: moved clear of the buildings, and (now) not under the street
         const placedBefore = windowPlace(parts, fb, 3, null);
         const placedNow = windowPlace(parts, f, 3, null, ground);
+        const underStreet = (w: { en: [number, number]; ahdM: number }) => heightAt(t, w.en[0], w.en[1]) > w.ahdM - 1.2 + 0.15;
+        // the app refuses a floor under the street before moving the point clear, and again after
+        if (placedNow && underStreet(placedNow)) {
+          skipped.push({ id, side: f.compass, why: 'below the street now' });
+          continue;
+        }
         const before = placedBefore && clearOfBuildings(placedBefore, parts, others);
         const now = placedNow && clearOfBuildings(placedNow, parts, others);
         if (!before || !now) {
           skipped.push({ id, side: f.compass, why: 'inside a building' });
           continue;
         }
-        if (heightAt(t, now.en[0], now.en[1]) > now.ahdM - 1.2 + 0.15) {
+        if (underStreet(now)) {
           skipped.push({ id, side: f.compass, why: 'below the street now' });
           continue;
         }
-        const sunBefore = sunlightAtWindow(before, buildSkyline(before.en, before.ahdM, others), null, DATE).sunAtWindowMin;
-        const skyNow = withGroundHorizon(buildSkyline(now.en, now.ahdM, others), now.en, now.ahdM, (e, n) => heightAt(t, e, n));
+        // the whole city, the building's own other wings included, as the app's skyline has it
+        const sunBefore = sunlightAtWindow(before, buildSkyline(before.en, before.ahdM, model.buildings), null, DATE).sunAtWindowMin;
+        const skyNow = withGroundHorizon(buildSkyline(now.en, now.ahdM, model.buildings), now.en, now.ahdM, (e, n) => heightAt(t, e, n));
         const sunNow = sunlightAtWindow(now, skyNow, null, DATE).sunAtWindowMin;
         windows.push({ id, side: f.compass, heightBefore: +before.ahdM.toFixed(1), heightNow: +now.ahdM.toFixed(1), sunBefore, sunNow });
       }
