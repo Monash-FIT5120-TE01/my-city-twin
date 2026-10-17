@@ -2031,6 +2031,8 @@ export default function App() {
       {roomPlacement && byTouch && <TouchWalk onBackUp={leaveRoom} />}
       {roomPlacement && roomAt && (
         <WalkHints
+          title="Inside the flat"
+          icon="apartment"
           actions={
             byTouch ? (
               <>
@@ -2067,6 +2069,8 @@ export default function App() {
       {walking && !byTouch && !inVr && <TramAim />}
       {walking && (
         <WalkHints
+          title="In the street"
+          icon="directions_walk"
           actions={
             byTouch ? (
               <>
