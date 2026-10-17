@@ -146,8 +146,16 @@ export function PlaceCard({
             {facts.use && <span className="place-card__use"> · {facts.use}</span>}
           </p>
         </div>
-        <div className={`place-card__image${imageUrl ? '' : ' place-card__image--none'}`}>
-          {imageUrl ? <img src={imageUrl} alt="" /> : <Icon name="apartment" size={30} />}
+        {/*
+          Without a photograph, a drawing of what it is, on the colour it is drawn in on the map: a
+          building standing today, a project approved (its plans), one under construction (the tools).
+          The shape tells them apart as well as the colour; the words beside it say it too.
+        */}
+        <div
+          className={`place-card__image${imageUrl ? '' : ` place-card__image--none place-card__image--${tone}`}`}
+          title={imageUrl ? undefined : facts.kind}
+        >
+          {imageUrl ? <img src={imageUrl} alt="" /> : <Icon name={KIND_ICON[tone]} size={30} />}
         </div>
       </div>
 
@@ -180,6 +188,13 @@ export function PlaceCard({
     </Card>
   );
 }
+
+/** The drawing in the corner, by what the building is (the tone it is drawn in). */
+const KIND_ICON: Record<'searched' | 'approved' | 'progress', IconName> = {
+  searched: 'apartment',
+  approved: 'description',
+  progress: 'construction',
+};
 
 /** A figure's icon, by what it counts; anything else (a project's floor area or count) a plain mark. */
 function figureIcon(label: string): IconName {

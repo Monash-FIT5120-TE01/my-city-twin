@@ -111,6 +111,29 @@
   color: var(--pc-stats-ink);
 }
 
+/*
+ * On the colour the building is drawn in on the map (tokens.css --key-*), its edge in the darker edge
+ * colour, the drawing in a dark ink of the same hue: 5.5:1 or more against each (L* 65-73 behind, 16-22
+ * for the drawing), so it reads by lightness as well as by hue.
+ */
+.place-card__image--searched {
+  border-color: var(--key-searched-edge);
+  background: var(--key-searched);
+  color: #4a1230;
+}
+
+.place-card__image--approved {
+  border-color: var(--key-approved-edge);
+  background: var(--key-approved);
+  color: #0e3a37;
+}
+
+.place-card__image--progress {
+  border-color: var(--key-progress-edge);
+  background: var(--key-progress);
+  color: #4a250b;
+}
+
 /* ── the figures ────────────────────────────────────────── */
 
 /* Equal columns, the number above what it counts, hairlines between, on one soft band. */
