@@ -20,6 +20,7 @@ import { NOT_AN_ASSESSMENT } from './words';
 import { TextButton } from './kit/TextButton';
 import { CloseButton } from './kit/CloseButton';
 import '../styles/sources.css';
+import { Icon } from './kit/Icon';
 
 /**
  * Three figures about living in the CBD, each with where it came from.
@@ -79,17 +80,35 @@ const FIGURES = [
  * <dialog>, so focus is held inside it and Escape closes it without any
  * code here.
  */
-export function SourcesLink() {
+export function SourcesLink({
+  look = 'link',
+}: {
+  /**
+   * `link`: the words as a reference link (the demo note's way). `about`: the "About the data" button
+   * the street activity column has (an info mark and the words), saying under it what this is.
+   */
+  look?: 'link' | 'about';
+} = {}) {
   const dialog = useRef<HTMLDialogElement>(null);
   return (
     <>
-      <TextButton
-        variant="reference"
-        className="sources__link"
-        onClick={() => dialog.current?.showModal()}
-      >
-        Sources &amp; limitations
-      </TextButton>
+      {look === 'about' ? (
+        <button type="button" className="about-button" onClick={() => dialog.current?.showModal()}>
+          <Icon name="info" size={18} />
+          <span>
+            <span className="about-button__label">About the data</span>
+            <span className="about-button__note">Illustrative model · Demo data · Sources &amp; limitations</span>
+          </span>
+        </button>
+      ) : (
+        <TextButton
+          variant="reference"
+          className="sources__link"
+          onClick={() => dialog.current?.showModal()}
+        >
+          Sources &amp; limitations
+        </TextButton>
+      )}
       <dialog
         className="sources"
         ref={dialog}

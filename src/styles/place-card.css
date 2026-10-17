@@ -112,26 +112,26 @@
 }
 
 /*
- * On the colour the building is drawn in on the map (tokens.css --key-*), its edge in the darker edge
- * colour, the drawing in a dark ink of the same hue: 5.5:1 or more against each (L* 65-73 behind, 16-22
- * for the drawing), so it reads by lightness as well as by hue.
+ * On the colour the building is drawn in on the map (tokens.css --key-*), edged a little deeper than it,
+ * the drawing in a deeper ink of the same hue: 3.4-3.8:1 against the colour (L* 65-73 behind, 31-36 for
+ * the drawing), above the 3:1 a drawing needs, and lighter than the near-black first tried (too dark).
  */
 .place-card__image--searched {
-  border-color: var(--key-searched-edge);
+  border-color: #c55b89;
   background: var(--key-searched);
-  color: #4a1230;
+  color: #7d2a52;
 }
 
 .place-card__image--approved {
-  border-color: var(--key-approved-edge);
+  border-color: #529a95;
   background: var(--key-approved);
-  color: #0e3a37;
+  color: #1f5f5b;
 }
 
 .place-card__image--progress {
-  border-color: var(--key-progress-edge);
+  border-color: #c0835a;
   background: var(--key-progress);
-  color: #4a250b;
+  color: #7a4220;
 }
 
 /* ── the figures ────────────────────────────────────────── */
@@ -451,10 +451,70 @@
   cursor: not-allowed;
 }
 
+/* The line under the way in, as a hint: a small mark and the words, on a lighter patch of the card. */
 .flat-picker__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
   margin: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
   font-size: var(--text-xs);
+  line-height: 1.35;
   color: var(--pc-look-ink);
+}
+
+.flat-picker__note .icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* The foot of the card: what this is, as the "About the data" button the street activity column has. */
+.place-card__fine {
+  margin-top: var(--space-1);
+}
+
+.about-button {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--pc-ink, var(--ink));
+  cursor: pointer;
+}
+
+.about-button .icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--pc-ink-2, var(--ink-2));
+}
+
+.about-button__label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+}
+
+.about-button__note {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--pc-ink-2, var(--ink-2));
+}
+
+.about-button:hover .about-button__label {
+  text-decoration: underline;
+}
+
+.about-button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {

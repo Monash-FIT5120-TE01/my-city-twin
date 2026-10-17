@@ -33,7 +33,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import type { PlaceFacts } from './placeFacts';
 import { Card } from './kit/Card';
 import { CloseButton } from './kit/CloseButton';
-import { DemoNote } from './kit/DemoNote';
+import { SourcesLink } from './Sources';
 import { Icon, type IconName } from './kit/Icon';
 import { Swatch } from './kit/Swatch';
 import '../styles/place-card.css';
@@ -184,7 +184,10 @@ export function PlaceCard({
         )}
       </div>
       {flat}
-      <DemoNote className="place-card__fine" />
+      {/* what this is and where it comes from, as the "About the data" button elsewhere in the app */}
+      <div className="place-card__fine">
+        <SourcesLink look="about" />
+      </div>
     </Card>
   );
 }
