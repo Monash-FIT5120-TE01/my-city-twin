@@ -147,11 +147,22 @@ offset, and refraction mixed into a geometric figure — all produce shadows tha
 look entirely plausible on screen, and none survives that comparison. Melbourne
 sits at 37.8°S: the sun transits **north** and shadows fall **south**.
 
+**The ground.** It has its real heights (`src/scene/terrain.ts`), built from
+the buildings themselves: each structure records the elevation of the ground it
+stands on, and those 1,500-odd patches are gathered on a 10 m grid and smoothed
+(a blur cannot make a step, a terrace or a cliff: 99% of slopes come out under
+9%). Everything that stands on the ground reads its height from there — the
+surface, the foot of every building, roads, trees, trams, the walker, measured
+spots, the floors of a window. It replaced one flat plane at 29.5 m AHD, twelve
+metres above the median of the real ground, which had most of the city drawn
+sunk into it and casting shorter shadows than it does.
+
 **Massing.** Each source row is one roof plane, and 2,651 of the 4,443 start
 above ground. Every plane keeps its own base; only the lowest plane of each
-building is sunk to the ground plane. Extruding them all from the ground would
-be simpler and would guarantee nothing floats, but measured against the data it
-invents solid mass under 201 of them — and solids cast shadow.
+building reaches down to the ground, to the lowest point of it under its
+outline. Extruding them all from the ground would be simpler and would
+guarantee nothing floats, but measured against the data it invents solid mass
+under 201 of them — and solids cast shadow.
 
 **Nothing is ever dropped.** 45 rows disagree with themselves about their own
 height, by up to 11.7 m. They render in a muted tone rather than disappearing:
