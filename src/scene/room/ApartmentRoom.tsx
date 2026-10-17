@@ -1,6 +1,5 @@
-// oxlint-disable react/immutability -- turning local clipping on for the renderer, and (in the
-// development check) holding the camera still, mean writing to objects three.js hands back from hooks;
-// StreetView and CameraRig do the same for the same reason.
+// oxlint-disable react/immutability -- turning local clipping on for the renderer means writing to an
+// object three.js hands back from a hook; StreetView and CameraRig do the same for the same reason.
 /*
  * ─────────────────────────────────────────────────────────────────────────
  * THE FLAT, DRAWN IN ITS BUILDING
@@ -18,13 +17,11 @@
  * from anywhere else.
  */
 import { Suspense, useEffect, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { Vector3 } from 'three';
-import { enuToWorld } from '../frame';
 import { EXISTING } from '../palette';
 import { NOTCH } from './apartmentLayout';
-import { toEN, type RoomPlacement } from './roomPlacement';
+import type { RoomPlacement } from './roomPlacement';
 
 const BASE = import.meta.env.BASE_URL;
 const MODEL_URL = `${BASE}models/apartment/apartment.glb`;
@@ -77,33 +74,3 @@ export function ApartmentRoom({ placement }: { placement: RoomPlacement }) {
     </group>
   );
 }
-
-/* DEVELOPMENT ONLY (?roomcheck, roomCheck.ts): the camera held still in the living room, looking out. */
-export function RoomCheckCamera({ placement }: { placement: RoomPlacement }) {
-  const camera = useThree((s) => s.camera) as unknown as {
-    position: Vector3; near: number; far: number; fov: number; lookAt: (v: Vector3) => void; updateProjectionMatrix: () => void;
-  };
-  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
-  const gl = useThree((s) => s.gl);
-  const scene = useThree((s) => s.scene);
-  const pose = useMemo(() => {
-    const at = (x: number, y: number, z: number) => new Vector3(...enuToWorld([...toEN(placement, x, y), placement.floorAhdM + z]));
-    return { eye: at(1.2, 2.0, 1.4), target: at(7.3, 1.9, 1.1), near: 0.05 };
-  }, [placement]);
-  useEffect(() => {
-    if (controls) controls.enabled = false;
-  }, [controls]);
-  // priority 1: runs after everything else that moves the camera, and draws the frame itself
-  useFrame(() => {
-    camera.position.copy(pose.eye);
-    camera.lookAt(pose.target);
-    if (camera.near !== pose.near || camera.fov !== 60) {
-      camera.near = pose.near;
-      camera.fov = 60;
-      camera.updateProjectionMatrix();
-    }
-    gl.render(scene, camera as never);
-  }, 1);
-  return null;
-}
-

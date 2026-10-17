@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { Group, Mesh } from 'three';
+import type { Group, Mesh, Plane } from 'three';
 import type { CityModel, Development } from '../data/model';
 import { groundElevationOf, mergeMassingsOwned } from './massing';
 import { RoofCheck } from './RoofCheck';
@@ -20,10 +20,8 @@ import { Streetscape } from './streetscape/Streetscape';
 import type { SimulationDate } from './solar';
 import { OpenSpace } from './OpenSpace';
 import { HighlightedBuilding } from './HighlightedBuilding';
-import { ApartmentRoom, RoomCheckCamera } from './room/ApartmentRoom';
-import { readRoomCheck } from './room/roomCheck';
-import { fitRoom } from './room/roomPlacement';
-import { roomClipPlanes } from './room/roomClip';
+import { ApartmentRoom } from './room/ApartmentRoom';
+import type { RoomPlacement } from './room/roomPlacement';
 import { BuildingPicker } from './BuildingPicker';
 import { EXISTING, UNRESOLVED } from './palette';
 
@@ -76,6 +74,11 @@ interface CityMassingProps {
   streetTrams?: boolean;
   /** Standing in the street rather than looking down at it. */
   walking: boolean;
+  /**
+   * Inside the flat (room/): where it is, and the planes that cut its space out of the building. Only
+   * while the reader is in it — from above the building is whole.
+   */
+  room?: { placement: RoomPlacement; cut: Plane[] } | null;
 }
 
 /**
@@ -106,26 +109,9 @@ export function CityMassing({
   lampsLit = false,
   clock,
   streetTrams,
+  room = null,
 }: CityMassingProps) {
   const roofCheck = useMemo(() => roofCheckOn(), []);
-  // development only (?roomcheck=floor,side with &bldg=): the flat placed in the chosen building
-  const roomCheck = useMemo(() => readRoomCheck(), []);
-  const room = useMemo(() => {
-    if (!roomCheck || !highlightedBuildingId) return null;
-    const parts = model.buildings.filter((b) => b.parentId === highlightedBuildingId);
-    if (!parts.length) return null;
-    // neighbours near enough to matter: within 120 m of the building
-    const [cx, cy] = parts[0].footprint[0][0][0];
-    const others = model.buildings.filter(
-      (b) => b.parentId !== highlightedBuildingId && b.footprint.some((poly) => poly[0]?.some(([e, n]) => Math.hypot(e - cx, n - cy) < 120)),
-    );
-    const fit = fitRoom(parts, others, roomCheck.side, roomCheck.floor, null);
-    if (!fit.ok) {
-      console.info('roomcheck: the flat does not fit here:', fit.problem);
-      return null;
-    }
-    return { placement: fit.placement, cut: roomClipPlanes(fit.placement) };
-  }, [roomCheck, highlightedBuildingId, model.buildings]);
   const groundAhdM = useMemo(
     () => groundElevationOf(model.buildings),
     [model.buildings],
@@ -283,7 +269,6 @@ export function CityMassing({
         </group>
       )}
       {room && <ApartmentRoom placement={room.placement} />}
-      {room && roomCheck && <RoomCheckCamera placement={room.placement} />}
 
       {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
       {windowAt && (
@@ -356,7 +341,7 @@ export function CityMassing({
         ]}
         blockers={projectsGroup}
         highlighted={{ object: highlightGroup, id: highlightedBuildingId }}
-        onSelect={interactive && !walking ? onSelectBuilding : undefined}
+        onSelect={interactive && !walking && !room ? onSelectBuilding : undefined}
       />
     </group>
   );

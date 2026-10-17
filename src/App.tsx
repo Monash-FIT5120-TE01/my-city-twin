@@ -56,7 +56,7 @@
  *   back out; there is exactly one copy of every fact.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SceneCanvas } from './scene/SceneCanvas';
 import type { ViewCommands } from './scene/ViewControls';
 import { describeShadow } from './scene/narrative';
@@ -94,6 +94,7 @@ import { FuturePlansPage } from './ui/FuturePlansPage';
 import { TramHint } from './ui/TramHint';
 import { TramAim } from './ui/TramAim';
 import { WalkPaceHint } from './ui/WalkPaceHint';
+import { readRoomCheck } from './scene/room/roomCheck';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
 import { PlaceCard } from './ui/PlaceCard';
@@ -246,6 +247,13 @@ export default function App() {
    * fourteen places.
    */
   const [walking, setWalking] = useState(false);
+  /*
+   * Inside the flat (scene/room/): which floor and side of the chosen building. Like walking, it hides
+   * the interface. Only the development check (?roomcheck) opens it for now; the entry points come in
+   * stage 6 (ProjectDoc/studio-room/PLAN.md).
+   */
+  const [roomAt, setRoomAt] = useState(readRoomCheck);
+  const leaveRoom = useCallback(() => setRoomAt(null), []);
   /**
    * "Stand here?" over the map: asked once, right after a spot is chosen on
    * the ground. See StandPrompt.
@@ -418,7 +426,7 @@ export default function App() {
   );
 
   /** Either way of hiding the interface. */
-  const chromeHidden = focusMode || walking;
+  const chromeHidden = focusMode || walking || roomAt !== null;
 
   /*
    * Coming out of a headset.
@@ -1713,6 +1721,8 @@ export default function App() {
           interactive={!chromeHidden && !compareShown}
           walking={walking}
           onLeaveStreet={() => setWalking(false)}
+          roomAt={roomAt}
+          onLeaveRoom={leaveRoom}
           /*
             For the wrist clock and the A/B buttons. The page's own time bar
             does not exist in a headset; the panel shows the hour too, but it
@@ -1854,6 +1864,24 @@ export default function App() {
         window onto the map instead.
       */}
       {mapbox && !frontShown && !compareShown && !pageShown && view !== 'activity' && <MapAttribution />}
+
+      {/* ── IN THE FLAT: the keys, and that the plan is an example rather than this building's */}
+      {roomAt && byTouch && <TouchWalk onBackUp={leaveRoom} />}
+      {roomAt && (
+        <p className="walking-hint">
+          {byTouch ? (
+            <>
+              <strong>Stick</strong> to walk · <strong>drag</strong> to look round
+            </>
+          ) : (
+            <>
+              <strong>W A S D</strong> to walk · <strong>Esc</strong> to leave the flat
+            </>
+          )}
+          <br />
+          Floor {roomAt.floor}, {roomAt.side} side · an example one-bedroom layout, not this building's real plan
+        </p>
+      )}
 
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
       {/* On a phone the keys are a stick and buttons (TouchWalk) */}

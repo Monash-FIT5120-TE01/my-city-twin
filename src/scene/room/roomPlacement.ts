@@ -244,3 +244,27 @@ export function fitRoom(
   if (blocked / total > OUTLOOK_BLOCKED_SHARE) return { ok: false, problem: 'outlook-blocked' };
   return { ok: true, placement };
 }
+
+/** Neighbours further than this from the building's first corner are not asked about. */
+const NEAR_M = 120;
+
+/**
+ * fitRoom for a building in the model by its id: its parts, and every other building's parts near
+ * enough to matter. Null when the model has no such building.
+ */
+export function fitRoomInModel(
+  buildings: readonly Massing[],
+  buildingId: string,
+  side: string,
+  floor: number,
+  floorsAboveGround: number | null,
+  windowAtEN: [number, number] | null = null,
+): RoomFit | null {
+  const host = buildings.filter((b) => b.parentId === buildingId);
+  if (!host.length) return null;
+  const [cx, cy] = host[0].footprint[0][0][0];
+  const others = buildings.filter(
+    (b) => b.parentId !== buildingId && b.footprint.some((poly) => poly[0]?.some(([e, n]) => Math.hypot(e - cx, n - cy) < NEAR_M)),
+  );
+  return fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN);
+}

@@ -54,6 +54,9 @@
  */
 
 import type { SolarScene } from './useSolarComparison';
+import { roomClipPlanes } from './room/roomClip';
+import { roomObstacles } from './room/roomObstacles';
+import { fitRoomInModel, toEN } from './room/roomPlacement';
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR } from '@react-three/xr';
@@ -145,6 +148,13 @@ interface SceneCanvasProps {
   walking: boolean;
   /** The pointer lock ended — Escape, or a click outside. */
   onLeaveStreet: () => void;
+  /**
+   * Inside the flat (room/): which floor and side of the highlighted building. Null from above and in
+   * the street.
+   */
+  roomAt?: { floor: number; side: string } | null;
+  /** Leaving the flat — Escape, a click outside, or the flat not fitting where it was asked for. */
+  onLeaveRoom?: () => void;
   /**
    * The viewpoint had to be put down this far from the measured spot.
    *
@@ -266,6 +276,8 @@ export function SceneCanvas({
   lookAt,
   walking,
   onLeaveStreet,
+  roomAt = null,
+  onLeaveRoom = () => undefined,
   onStandMoved,
   approach = false,
   viewCommands,
@@ -456,6 +468,35 @@ export function SceneCanvas({
   const standOffsetM = Math.hypot(standPoint[0] - standAt[0], standPoint[1] - standAt[1]);
   useStandNotice(walking, standOffsetM, onStandMoved);
 
+  /*
+   * The flat, while the reader is in it: where it goes in the highlighted building, the cut out of the
+   * building, and its own walls and furniture to walk among. When it does not fit there it is left at
+   * once — the entry points (stage 6) only offer places where it does.
+   */
+  const room = useMemo(() => {
+    if (!roomAt || !highlightedBuildingId) return null;
+    const fit = fitRoomInModel(model.buildings, highlightedBuildingId, roomAt.side, roomAt.floor, null);
+    if (!fit?.ok) return { ok: false as const, refused: fit ? fit.problem : 'no-such-building' };
+    const p = fit.placement;
+    return {
+      ok: true as const,
+      placement: p,
+      cut: roomClipPlanes(p),
+      obstacles: roomObstacles(p),
+      // in the living room, by the coffee table, facing the balcony
+      startEN: toEN(p, 4.6, 1.6),
+      facingEN: toEN(p, 1, 0).map((v, i) => v - toEN(p, 0, 0)[i]) as [number, number],
+      centreEN: toEN(p, 4.6, 3.4),
+    };
+  }, [roomAt, highlightedBuildingId, model.buildings]);
+  const placedRoom = room?.ok ? room : null;
+  useEffect(() => {
+    if (room && !room.ok) {
+      console.info('The flat does not fit there:', room.refused);
+      onLeaveRoom();
+    }
+  }, [room, onLeaveRoom]);
+
   /* A few metres away, so it is in front of the reader rather than inside them. */
   const scaleAt = useMemo(
     () => nearestFree(obstacles, standPoint[0], standPoint[1] + 4) ?? standPoint,
@@ -530,6 +571,8 @@ export function SceneCanvas({
   const [askToLeave, setAskToLeave] = useState(0);
 
   const [inVr, setInVr] = useState(false);
+  // the flat is walked on a monitor only; a headset has its own ways in (none to the flat yet)
+  const inRoom = placedRoom !== null && !inVr;
   /*
    * Not for a view without the headset wrapper (`noHeadset`). Told a session
    * had started, it would mount VrWalk — whose controller hooks need the
@@ -702,6 +745,7 @@ export function SceneCanvas({
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
             solar={solar}
+            room={inRoom ? placedRoom : null}
           />
 
           {/*
@@ -738,7 +782,7 @@ export function SceneCanvas({
           names are CSS 3D, which ignores the shift, so they would sit beside
           their streets.
         */}
-        {!walking && !insetOn && !lensShifted && (
+        {!walking && !inRoom && !insetOn && !lensShifted && (
           <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
         )}
 
@@ -749,7 +793,7 @@ export function SceneCanvas({
           are the point. Not in the headset, which names its landmarks its
           own way (VrStreetSigns).
         */}
-        {landmarks.length > 0 && !inVr && !insetOn && !lensShifted && (
+        {landmarks.length > 0 && !inVr && !inRoom && !insetOn && !lensShifted && (
           <LandmarkTags
             landmarks={landmarks}
             groundAhdM={ground}
@@ -772,7 +816,7 @@ export function SceneCanvas({
           views look like two different places (2026-10-13). Same pin, same
           height in both, so the eye can go straight across.
         */}
-        {marker && (marker.kind === 'building' || showProposed || markerCard || link !== null) && (
+        {marker && !inRoom && (marker.kind === 'building' || showProposed || markerCard || link !== null) && (
           <SiteMarker subject={marker} groundAhdM={ground} card={markerCard} />
         )}
 
@@ -795,6 +839,19 @@ export function SceneCanvas({
             boundsRadiusM={citySpan * 1.2}
             obstacles={obstacles}
             onExit={onLeaveStreet}
+          />
+        )}
+        {/* inside the flat: the same walking, among its own walls and furniture rather than the city's */}
+        {inRoom && placedRoom && (
+          <StreetView
+            place="room"
+            startEN={placedRoom.startEN}
+            startFacingEN={placedRoom.facingEN}
+            groundAhdM={placedRoom.placement.floorAhdM}
+            boundsCentreEN={placedRoom.centreEN}
+            boundsRadiusM={7.5}
+            obstacles={placedRoom.obstacles}
+            onExit={onLeaveRoom}
           />
         )}
 
@@ -890,7 +947,7 @@ export function SceneCanvas({
         */}
         <CameraRig
           refit={refit}
-          paused={walking || inVr}
+          paused={walking || inRoom || inVr}
           position={cameraPosition}
           target={orbitTarget}
           animate={!reducedMotion}
@@ -906,8 +963,8 @@ export function SceneCanvas({
           off for someone who asked for less movement.
         */}
         <OrbitControls
-          makeDefault={!walking && !inVr}
-          enabled={!walking && !inVr}
+          makeDefault={!walking && !inRoom && !inVr}
+          enabled={!walking && !inRoom && !inVr}
           enableDamping={!reducedMotion}
           dampingFactor={0.09}
           enablePan

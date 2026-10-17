@@ -135,7 +135,17 @@ interface StreetViewProps {
   obstacles: ObstacleIndex;
   /** Called when the pointer lock ends — Escape, or clicking away. */
   onExit: () => void;
+  /**
+   * Out on the street, or inside the flat (room/). In the flat there are no trams to board or be pushed
+   * by, and no running: the pace stops at a brisk walk.
+   */
+  place?: 'street' | 'room';
+  /** Which way to face on entry, east/north; otherwise the way the camera already faces, levelled. */
+  startFacingEN?: [number, number];
 }
+
+/** The fastest pace inside the flat, m/s: a brisk walk, whatever the wheel says. */
+const ROOM_MAX_MS = 1.4;
 
 export function StreetView({
   startEN,
@@ -144,7 +154,10 @@ export function StreetView({
   boundsRadiusM,
   obstacles,
   onExit,
+  place = 'street',
+  startFacingEN,
 }: StreetViewProps) {
+  const inRoom = place === 'room';
   const camera = useThree((state) => state.camera);
   const gl = useThree((state) => state.gl);
   const held = useRef(new Set<string>());
@@ -197,7 +210,8 @@ export function StreetView({
      * error, and `rotation.y` is not a heading for a pitched camera anyway.
      */
     const facing = new Vector3();
-    camera.getWorldDirection(facing);
+    if (startFacingEN) facing.set(startFacingEN[0], 0, -startFacingEN[1]);
+    else camera.getWorldDirection(facing);
     facing.y = 0;
     if (facing.lengthSq() < 1e-6) facing.set(0, 0, -1);
     facing.normalize();
@@ -317,7 +331,7 @@ export function StreetView({
       id = null;
       if (moved < 10 && e.timeStamp - since < 500) {
         const box = el.getBoundingClientRect();
-        ride.tap = [((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1];
+        if (!inRoom) ride.tap = [((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1];
       }
     };
     // the browser took the touch over (a system gesture, a call): no tap from it
@@ -328,7 +342,7 @@ export function StreetView({
       el.style.touchAction = before;
       el.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', cancel);
     };
-  }, [touch, gl, camera]);
+  }, [touch, gl, camera, inRoom]);
 
   useFrame((_, rawDelta) => {
     /*
@@ -336,7 +350,7 @@ export function StreetView({
      * look out of the side window stays a look out of the side window round a corner. The walking keys move
      * the rider about inside (below); stepping off puts them where the tram layer says.
      */
-    if (ride.active) {
+    if (ride.active && !inRoom) {
       const [x, y, z] = enuToWorld([ride.eye[0], ride.eye[1], groundAhdM + ride.eye[2]]);
       camera.position.set(x, y, z);
       if (ride.look !== null) {
@@ -364,7 +378,7 @@ export function StreetView({
       return;
     }
     rideHeading.current = null;
-    if (ride.stepOff) {
+    if (ride.stepOff && !inRoom) {
       const [x, , z] = enuToWorld([ride.stepOff[0], ride.stepOff[1], 0]);
       camera.position.set(x, groundAhdM + EYE_HEIGHT_M, z);
       ride.stepOff = null; ride.stepOffWorld = null;
@@ -390,7 +404,7 @@ export function StreetView({
     camera.position.y = groundAhdM + EYE_HEIGHT_M + air.height;
     // a tram that has come at the walker since the last frame
     // (and no further than the walls let it: a push does not go through a building)
-    if (ride.blockerCount) {
+    if (ride.blockerCount && !inRoom) {
       const e0 = camera.position.x, n0 = -camera.position.z, [e, n] = ride.clearOf(e0, n0);
       if (e !== e0 || n !== n0) { const [we, wn] = slide(obstacles, e0, n0, e, n); camera.position.x = we; camera.position.z = -wn; }
     }
@@ -414,9 +428,10 @@ export function StreetView({
     sideways.current.crossVectors(forward.current, camera.up).normalize();
 
     // keys walk at the wheel's pace and Shift hurries; a full push of the stick walks briskly
-    const pace = keyAhead || keyAcross
+    const chosen = keyAhead || keyAcross
       ? keys.has('ShiftLeft') || keys.has('ShiftRight') ? walkPace.hurry() : walkPace.walk()
       : TOUCH_WALK_MS;
+    const pace = inRoom ? Math.min(chosen, ROOM_MAX_MS) : chosen;
     const speed = pace * delta * push;
     // Normalised, so pressing two keys (or pushing the stick corner-wise) does not walk faster diagonally.
     const scale = 1 / Math.hypot(ahead, across);
@@ -436,7 +451,7 @@ export function StreetView({
      */
     const [slidE, slidN] = slide(obstacles, fromE, fromN, wantE, wantN);
     // and not into a tram (one standing at a stop, or one going by)
-    const [pushE, pushN] = ride.blockerCount ? ride.clearOf(slidE, slidN) : [slidE, slidN];
+    const [pushE, pushN] = ride.blockerCount && !inRoom ? ride.clearOf(slidE, slidN) : [slidE, slidN];
     const [nextE, nextN] = pushE !== slidE || pushN !== slidN ? slide(obstacles, slidE, slidN, pushE, pushN) : [slidE, slidN];
     camera.position.x = nextE;
     camera.position.z = -nextN;
