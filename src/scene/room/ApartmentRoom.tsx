@@ -38,10 +38,11 @@ type Reflecting = { envMap: Texture | null; envMapIntensity: number; needsUpdate
  * photos rather than looking like painted card. Set on these materials, not on the scene: the city
  * outside keeps the light it has always had. Matt surfaces get none; it would only wash them out.
  */
+// the glass only faintly: at 0.9 it reflected the bright room back and went milky white, hiding the view
 const REFLECTION: Record<string, number> = {
   'apartment-gloss': 0.2,
   'apartment-metal': 0.8,
-  'apartment-glass': 0.9,
+  'apartment-glass': 0.12,
 };
 
 /*
@@ -89,7 +90,8 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
   }, [scene, environment]);
   useEffect(() => {
     if (glow) glow.emissiveIntensity = night;
-    for (const { material, base } of lit) material.envMapIntensity = base + NIGHT_FILL * night;
+    // the glass takes no night fill: lit up, it turned milky and hid the view (it is the view's window)
+    for (const { material, base } of lit) material.envMapIntensity = base + (base === REFLECTION['apartment-glass'] ? 0 : NIGHT_FILL * night);
   }, [glow, lit, night]);
   // mounted means loaded: Suspense held this back until the model arrived
   useEffect(() => {
