@@ -61,6 +61,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { BufferGeometry } from 'three';
 import type { Development } from '../data/model';
 import { mergeMassings } from './massing';
+import type { Ground } from './terrain';
 import { SelectionEdges } from './SelectionEdges';
 import { toneOf } from './palette';
 import { useInVr } from './xrStore';
@@ -70,7 +71,8 @@ interface DevelopmentMassingsProps {
   developments: Development[];
   /** The proposal being read about, drawn selected; null for none. */
   focus: Development | null;
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
   /** When false, only the focused proposal is drawn. */
   showAll: boolean;
   /** False in focus mode: the view becomes something to look at, not operate. */

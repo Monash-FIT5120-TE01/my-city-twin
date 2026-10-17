@@ -67,6 +67,8 @@ function dayBefore(d: SimulationDate): DayKey {
 /** Before this time of day the day before's timetable is read too; no trip of it runs this late. */
 const BEFORE_UNTIL_S = 5 * 3600;
 import { DEVICE, DIST, LodSet, detectDevice, type DeviceSettings } from './lod';
+import { groundAt, type Ground } from '../terrain';
+import { liftOntoGround } from './onGround';
 
 interface Docs { surfaces: SurfacesDoc; trees: TreesDoc; street: StreetDoc; signals: SignalsDoc; tram: TramDoc }
 interface Built {
@@ -118,8 +120,13 @@ function disposeAll(o: Object3D) {
 const CELL_MID_Z_M = 5;
 
 /** Distances and near textures, from the camera in the streetscape's own frame (east, north, up). */
-function stepBands(b: Built, cam: Vector3, device: DeviceSettings): void {
+const bandCam = new Vector3();
+function stepBands(b: Built, cam: Vector3, device: DeviceSettings, groundAt: (e: number, n: number) => number): void {
   b.root.worldToLocal(cam);
+  // the bands are judged by height above the ground here, as they were on the flat ground at 0; on a copy,
+  // as the crossing sound reads the camera after this, on the real ground like the buttons
+  cam = bandCam.copy(cam);
+  cam.z -= groundAt(cam.x, cam.y);
   b.lod.update(cam, device.reach);
   for (const m of b.slabs) {
     const u = m.userData as { texKey: string | null; plain: Mesh['material']; centre: [number, number]; radius: number; walled: boolean; nearOnly: boolean };
@@ -139,7 +146,8 @@ function stepBands(b: Built, cam: Vector3, device: DeviceSettings): void {
  *                 switched the street lights off in Map layers).
  */
 export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clock }: {
-  groundAhdM: number; lampsLit?: boolean;
+  /** The ground (terrain.ts), or one flat height: everything is raised onto it once built (onGround.ts). */
+  groundAhdM: Ground; lampsLit?: boolean;
   /** Standing in the street: the trams run (only then; see trams/TramLayer.ts). */
   walking?: boolean;
   /** The date and time on the page's clock: the trams run to that day's timetable from that minute. */
@@ -147,6 +155,13 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
 }) {
   const [built, setBuilt] = useState<Built | null>(null);
   const getThree = useThree((s) => s.get);
+  /*
+   * The ground as it is when the street is built. Read through a ref: a refreshed city model brings a
+   * terrain a few centimetres different, which is not worth rebuilding and re-raising the whole street for.
+   */
+  const ground = useRef(groundAhdM);
+  ground.current = groundAhdM;
+  const heightAt = useMemo(() => (e: number, n: number) => groundAt(ground.current, e, n), []);
   useEffect(() => {
     let alive = true;
     /*
@@ -167,12 +182,20 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
     const get = (name: string) => fetch(bundled(`data/streetscape/${name}.json`)).then((r) => (r.ok ? r.json() : Promise.reject(new Error(name))));
     Promise.all(['surfaces', 'trees', 'street', 'signals', 'tram'].map(get))
       .then(([surfaces, trees, street, signals, tram]) => { setSlicer(yieldNow); return build({ surfaces, trees, street, signals, tram }, () => alive).finally(() => setSlicer(null)); })
+      // built for a flat ground at 0: raised onto the real one, before anything is frozen or compiled
+      .then(async (b) => {
+        if (!b || !alive) return b;
+        await liftOntoGround(b.root, heightAt, yieldNow);
+        // the push buttons' positions (the crossing sound, pedestrianAudio.ts) onto the ground with the posts
+        for (const btn of b.signals.buttons) btn.pos.z += heightAt(btn.pos.x, btn.pos.y);
+        return b;
+      })
       .then(compile)
       .then((b) => { if (alive && b) setBuilt(b); else if (b) { disposeAll(b.root); b.textures.dispose(); } })
       // The city stands without it; a missing street layer is not worth an error in front of anyone.
       .catch(() => undefined);
     return () => { alive = false; };
-  }, [getThree]);
+  }, [getThree, heightAt]);
 
   // The per-frame work changes materials and visibility on these objects; it reads them through a ref.
   const live = useRef<Built | null>(null);
@@ -200,7 +223,7 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
     Promise.all([loadTrams(day), prev ? loadTrams(prev) : null, loadTramModels()]).then(([doc, prevDoc]) => {
       if (!alive) return;
       const before = prev && prevDoc ? { doc: prevDoc, day: prev } : undefined;
-      layer = new TramLayer(doc, day, start, (site, t) => built.signals.phase(site, t), before);
+      layer = new TramLayer(doc, day, start, (site, t) => built.signals.phase(site, t), before, heightAt);
       built.root.add(layer.group);
       trams.current = { layer, warm: WARM_S };
       // for the browser checks in scripts/ (development builds only)
@@ -213,7 +236,7 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
     };
     // clockKey stands for clock: a new date or minute restarts the day's trams from there
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [built, walking, clockKey]);
+  }, [built, walking, clockKey, heightAt]);
   // boarding and stepping off: a click on a tram door (the pointer is locked while walking), and E
   useEffect(() => {
     if (!walking) return;
@@ -269,7 +292,7 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
     built.lighting.setLit(lampsLit);
     tick.current += dt; if (tick.current < 0.25) return; tick.current = 0;
     // world position: in VR the camera sits inside the player rig, so its own position is only head-local
-    state.camera.getWorldPosition(cam); stepBands(built, cam, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice]);
+    state.camera.getWorldPosition(cam); stepBands(built, cam, DEVICE[gl.xr.isPresenting ? 'xr' : baseDevice], heightAt);
     sweep.current += 0.25; if (sweep.current > 5) { sweep.current = 0; built.textures.sweep(); }
     audio.current?.update(cam, built.signals.buttons, (i) => { const b = built.signals.buttons[i]; return built.signals.phase(b.site, t).walk === b.crosses; });
   });
@@ -278,5 +301,5 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
    * The headset's laser need not look inside: nothing here answers a pointer (trams are boarded from the
    * laser's own ray, ride.ts), and walking ~3,600 objects for it every frame was a few per cent of a frame.
    */
-  return <group position={[0, 0, groundAhdM]}>{built && <primitive object={built.root} intersectChildren={false} />}</group>;
+  return <group>{built && <primitive object={built.root} intersectChildren={false} />}</group>;
 }

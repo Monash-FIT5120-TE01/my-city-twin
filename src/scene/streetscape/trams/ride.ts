@@ -29,7 +29,7 @@ const BODY_M = 0.3;
 const IDLE: RideStatus = { riding: false, canBoard: false, canAlight: false, route: '', next: '', aim: '', seated: false };
 
 class Ride {
-  /** On a tram: the eye's position (east, north, height above ground) and the tram's heading (rad from east). */
+  /** On a tram: the eye's position (east, north, metres AHD on the real ground) and the tram's heading (rad from east). */
   active = false;
   eye: [number, number, number] = [0, 0, 0];
   heading = 0;

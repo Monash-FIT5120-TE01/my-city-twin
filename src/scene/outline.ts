@@ -55,6 +55,7 @@
 
 import type { Massing, Ring } from '../data/model';
 import { effectiveBaseAhdM } from './massing';
+import type { Ground } from './terrain';
 
 /** A footprint turn sharper than this is a corner. Degrees. */
 const CORNER_DEG = 35;
@@ -151,7 +152,7 @@ function runs(count: number, shows: (t: number) => boolean): [number, number][] 
  * six numbers per segment, [x1, y1, z1, x2, y2, z2]. Blocks with no
  * usable footprint, or less than 0.2 m tall, are ignored.
  */
-export function outlineSegments(parts: Massing[], floorAhdM: number): Float32Array {
+export function outlineSegments(parts: Massing[], floorAhdM: Ground): Float32Array {
   const blocks: Block[] = parts
     .map((part) => ({
       rings: part.footprint.map((polygon) => polygon.map(open)).filter((p) => p[0]?.length >= 3),

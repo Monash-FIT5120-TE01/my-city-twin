@@ -42,6 +42,7 @@ import { useEffect, useMemo } from 'react';
 import type { BufferGeometry, Plane } from 'three';
 import type { BuildingMassing } from '../data/model';
 import { mergeMassings } from './massing';
+import type { Ground } from './terrain';
 import { SelectionEdges } from './SelectionEdges';
 import { EXISTING } from './palette';
 
@@ -51,7 +52,8 @@ interface HighlightedBuildingProps {
   /** Which building to pick out, or null for none. */
   buildingId: string | null;
   /** The floor height the city was built on, so the copy lands on the original. */
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
   /**
    * A flat placed inside it (room/ApartmentRoom): the block the flat takes is
    * clipped out of the massing, picture and shadow alike (room/roomClip.ts),

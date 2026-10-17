@@ -4,13 +4,15 @@ import { Html } from '@react-three/drei';
 import { enuToWorld } from './frame';
 import { streetLabelsNear } from './streets';
 import '../styles/street-labels.css';
+import { groundAt, type Ground } from './terrain';
 
 interface StreetLabelsProps {
   /** Where the names gather before the camera has moved, east/north metres. */
   initialEast: number;
   initialNorth: number;
   /** Ground elevation, metres AHD, so names sit on the road surface. */
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
 }
 
 /**
@@ -148,7 +150,7 @@ export function StreetLabels({ initialEast, initialNorth, groundAhdM }: StreetLa
            * occlusion is no more correct, it is seven, and the name visibly
            * floats off the carriageway.
            */
-          position={enuToWorld([label.east, label.north, groundAhdM + 1.2])}
+          position={enuToWorld([label.east, label.north, groundAt(groundAhdM, label.east, label.north) + 1.2])}
           rotation={[-Math.PI / 2, label.rotation, 0, 'YXZ']}
           // Holds the name at a steady size on screen however far the camera
           // is, so the names stay legible when zoomed right in.

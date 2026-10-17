@@ -60,6 +60,7 @@ import type { Massing, PolygonEN, Ring } from '../data/model';
 import { civilToInstant, solarPosition, type SimulationDate } from './solar';
 import { SITE } from './frame';
 import { effectiveBaseAhdM } from './massing';
+import type { Ground } from './terrain';
 
 const DEG = Math.PI / 180;
 
@@ -162,8 +163,8 @@ function segmentCrossesPolygon(
 export function blockedBySubject(
   receptorEN: [number, number],
   receptorAhdM: number,
-  /** The single flat ground the city is drawn on. */
-  groundAhdM: number,
+  /** The ground the city is drawn on (terrain.ts), or one flat height: buildings reach down to it. */
+  groundAhdM: Ground,
   sun: { altitudeDeg: number; azimuthDeg: number },
   subject: Massing[],
 ): boolean {
@@ -201,8 +202,8 @@ export function blockedBySubject(
 export function sunlightAtPoint(
   receptorEN: [number, number],
   receptorAhdM: number,
-  /** The flat ground plane, which is also what the massing is sunk to. */
-  groundAhdM: number,
+  /** The ground (terrain.ts) or one flat height, which is also what the massing reaches down to. */
+  groundAhdM: Ground,
   subject: Massing[],
   date: SimulationDate,
 ): SunlightAtPoint {

@@ -53,22 +53,24 @@
  */
 
 import { useEffect, useMemo, useRef } from 'react';
-import { BufferAttribute, Color, RingGeometry, type Group, type Texture } from 'three';
+import { BufferAttribute, BufferGeometry, Color, type Group, type Texture } from 'three';
 import type { CityModel } from '../data/model';
 import { groundPlacement, textureCoordinate } from './basemap';
 import { groundSurfaceTexture, SURFACE_TILE_M } from './groundSurface';
 import { MeasureCursor } from './MeasureCursor';
+import { heightAt, type Terrain } from './terrain';
 import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 
 export function Ground({
   model,
-  groundAhdM,
+  terrain,
   basemap,
   walking,
   onPick,
 }: {
   model: CityModel;
-  groundAhdM: number;
+  /** The ground's real heights (terrain.ts): the surface follows them. */
+  terrain: Terrain;
   /**
    * The map image, once it has arrived. Loaded by whoever owns this rather
    * than here, because the same answer decides whether the inferred road
@@ -106,13 +108,58 @@ export function Ground({
      * generous because it is the only silhouette in the scene against the
      * sky, and a coarse one reads as a polygon.
      */
-    const plane = new RingGeometry(0, size / 2, 96, 48);
-
     /*
-     * White under the map so the texture shows as itself. Under the walking
-     * surface a neutral tone, which the grain then varies — light enough
-     * that a shadow still reads on it, because the shadow is the product.
+     * A grid that follows the ground (terrain.ts). Over the terrain's own grid its points ARE the
+     * terrain's points, ten metres apart, so whatever is laid on the ground (drape.ts) reads the same
+     * heights the surface was built from and cannot sink into it. Past the terrain grid, out in the
+     * haze, a few coarse steps to the edge. One rectilinear grid, so no seams; squares outside the disc
+     * are left out, the edge being round as the haze round it is.
      */
+    const half = size / 2;
+    const axisOf = (centre: number, gridMin: number, count: number) => {
+      const lo = centre - half;
+      const hi = centre + half;
+      const inside: number[] = [];
+      for (let i = 0; i < count; i++) {
+        const v = gridMin + i * terrain.cell;
+        if (v > lo && v < hi) inside.push(v - centre);
+      }
+      const first = inside[0] ?? 0;
+      const last = inside[inside.length - 1] ?? 0;
+      const OUTER_STEPS = 16;
+      const before = Array.from({ length: OUTER_STEPS }, (_, i) => -half + ((first + half) * i) / OUTER_STEPS);
+      const after = Array.from({ length: OUTER_STEPS }, (_, i) => last + ((half - last) * (i + 1)) / OUTER_STEPS);
+      return [...before, ...inside, ...after];
+    };
+    const xs = axisOf(centreE, terrain.minE, terrain.cols);
+    const ys = axisOf(centreN, terrain.minN, terrain.rows);
+    const plane = new BufferGeometry();
+    const W = xs.length;
+    const H = ys.length;
+    const positions = new Float32Array(W * H * 3);
+    for (let r = 0; r < H; r++) {
+      for (let c = 0; c < W; c++) {
+        const i = (r * W + c) * 3;
+        positions[i] = xs[c];
+        positions[i + 1] = ys[r];
+        positions[i + 2] = heightAt(terrain, centreE + xs[c], centreN + ys[r]);
+      }
+    }
+    const index: number[] = [];
+    for (let r = 0; r < H - 1; r++) {
+      for (let c = 0; c < W - 1; c++) {
+        const mx = (xs[c] + xs[c + 1]) / 2;
+        const my = (ys[r] + ys[r + 1]) / 2;
+        if (Math.hypot(mx, my) > half) continue;
+        const a0 = r * W + c;
+        const c0 = a0 + W;
+        index.push(a0, a0 + 1, c0 + 1, a0, c0 + 1, c0);
+      }
+    }
+    plane.setAttribute('position', new BufferAttribute(positions, 3));
+    plane.setAttribute('uv', new BufferAttribute(new Float32Array(W * H * 2), 2));
+    plane.setIndex(index);
+
     const solid = new Color(walking ? '#cfccc4' : basemap ? '#ffffff' : '#e6e3da');
 
     const position = plane.getAttribute('position');
@@ -140,8 +187,9 @@ export function Ground({
 
     uv.needsUpdate = true;
     plane.setAttribute('color', new BufferAttribute(colours, 3));
+    plane.computeVertexNormals();
     return plane;
-  }, [centreE, centreN, size, placement, basemap, walking]);
+  }, [centreE, centreN, size, placement, basemap, walking, terrain]);
 
   /*
    * The plane is rebuilt when the map arrives, and react-three-fiber replaces
@@ -240,11 +288,12 @@ export function Ground({
 
   return (
     <>
-    {onPick && <MeasureCursor groundAhdM={groundAhdM} innerRef={cursor} />}
+    {/* placed at the point under the pointer, its height included (onPointerMove): the cursor adds only its lift */}
+    {onPick && <MeasureCursor groundAhdM={0} innerRef={cursor} />}
     <mesh
       receiveShadow
       geometry={geometry}
-      position={[centreE, centreN, groundAhdM]}
+      position={[centreE, centreN, 0]}
       onPointerOut={onPick && (() => show(false))}
       onPointerDown={
         onPick &&
@@ -269,7 +318,7 @@ export function Ground({
           trackTap(pressedAt.current, event.nativeEvent);
           // Same reading back as the click below: the hit arrives in three's
           // world frame, and the ring lives inside <WorldFrame>.
-          group.position.set(event.point.x, -event.point.z, 0);
+          group.position.set(event.point.x, -event.point.z, event.point.y);
         })
       }
       onClick={

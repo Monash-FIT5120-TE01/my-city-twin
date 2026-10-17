@@ -25,6 +25,7 @@
 import type { ReactNode } from 'react';
 import { Html } from '@react-three/drei';
 import { enuToWorld } from './frame';
+import { groundAt, type Ground } from './terrain';
 
 export interface SiteMarkerSubject {
   /** Where it stands, east/north metres. */
@@ -46,7 +47,8 @@ export function SiteMarker({
   card,
 }: {
   subject: SiteMarkerSubject;
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
   /**
    * The place card (PlaceCard), when the building's own screen is up. It
    * takes the place of the pin and the name: it says the name, and a pin
@@ -55,6 +57,7 @@ export function SiteMarker({
   card?: ReactNode;
 }) {
   const [east, north] = subject.anchorEN;
+  const ground = groundAt(groundAhdM, east, north);
   const found = subject.kind === 'building';
 
   if (card) {
@@ -64,7 +67,7 @@ export function SiteMarker({
           east,
           north,
           // Level with the upper part of the mass, as the design draws it.
-          groundAhdM + Math.max(24, (subject.topAhdM - groundAhdM) * 0.72),
+          ground + Math.max(24, (subject.topAhdM - ground) * 0.72),
         ])}
         // Over the city and its labels, under the header (6) and the panels.
         zIndexRange={[4, 3]}
@@ -115,7 +118,7 @@ export function SiteMarker({
           north,
           // Beside the middle of the mass rather than above the roof, so the
           // name does not collide with the pin on a short building.
-          groundAhdM + Math.max(24, (subject.topAhdM - groundAhdM) * 0.52),
+          ground + Math.max(24, (subject.topAhdM - ground) * 0.52),
         ])}
         center
         zIndexRange={[1, 0]}

@@ -35,6 +35,7 @@
 import { BufferGeometry, ExtrudeGeometry, Shape } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Massing, PolygonEN } from '../data/model';
+import { groundUnder, type Ground } from './terrain';
 
 /** Smallest ring we will trust. Below this it is noise in the source. */
 const MIN_RING_VERTICES = 3;
@@ -81,8 +82,9 @@ function toShapes(footprint: PolygonEN[]): Shape[] {
  * the recorded base while the screen drew the sunk one, so a shadow you could
  * see on the ground was not in the number underneath it.
  */
-export function effectiveBaseAhdM(massing: Massing, floorAhdM: number): number {
-  return massing.sinksToGround ? Math.min(floorAhdM, massing.baseAhdM) : massing.baseAhdM;
+export function effectiveBaseAhdM(massing: Massing, ground: Ground): number {
+  // on real ground (terrain.ts), down to the lowest ground under its outline, so no side shows a gap
+  return massing.sinksToGround ? Math.min(groundUnder(ground, massing.footprint), massing.baseAhdM) : massing.baseAhdM;
 }
 
 /**
@@ -95,10 +97,10 @@ export function effectiveBaseAhdM(massing: Massing, floorAhdM: number): number {
  */
 function buildMassingGeometry(
   massing: Massing,
-  floorAhdM: number,
+  ground: Ground,
 ): BufferGeometry | null {
   const top = massing.topAhdM;
-  const floor = effectiveBaseAhdM(massing, floorAhdM);
+  const floor = effectiveBaseAhdM(massing, ground);
   const depth = top - floor;
   if (depth < MIN_HEIGHT_M) return null;
 
@@ -122,9 +124,9 @@ function buildMassingGeometry(
  */
 export function mergeMassings(
   massings: Massing[],
-  floorAhdM: number,
+  ground: Ground,
 ): BufferGeometry | null {
-  return mergeMassingsOwned(massings, floorAhdM)?.geometry ?? null;
+  return mergeMassingsOwned(massings, ground)?.geometry ?? null;
 }
 
 /**
@@ -146,13 +148,13 @@ export interface OwnedGeometry {
 
 export function mergeMassingsOwned(
   massings: Massing[],
-  floorAhdM: number,
+  ground: Ground,
 ): OwnedGeometry | null {
   const parts: BufferGeometry[] = [];
   const owners: Massing[] = [];
 
   for (const massing of massings) {
-    const geometry = buildMassingGeometry(massing, floorAhdM);
+    const geometry = buildMassingGeometry(massing, ground);
     if (geometry) {
       parts.push(geometry);
       owners.push(massing);
@@ -195,9 +197,17 @@ export function ownerAt<T extends Massing>(
   return owners[lo];
 }
 
-/** Elevation the flat ground plane is drawn at: the median of what stands on it. */
+/**
+ * One ground height for what still needs one: the median of the ground under the buildings — each
+ * building's lowest part, not every roof plane. Taking every plane's base counted the podium roofs that
+ * towers stand on and put the plane at 29.5 m, twelve metres above the 17.5 m median of the real ground
+ * (terrain.ts, 2026-10-18). The ground itself now has its real heights; this is the reference for
+ * whatever has not been moved onto them yet.
+ */
 export function groundElevationOf(massings: Massing[]): number {
-  const bases = massings.map((m) => m.baseAhdM).sort((a, b) => a - b);
+  const lowest = new Map<string, number>();
+  for (const m of massings) lowest.set(m.parentId, Math.min(lowest.get(m.parentId) ?? Infinity, m.baseAhdM));
+  const bases = [...lowest.values()].sort((a, b) => a - b);
   if (bases.length === 0) return 0;
   return bases[Math.floor(bases.length / 2)];
 }

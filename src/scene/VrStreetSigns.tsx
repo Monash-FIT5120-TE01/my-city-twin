@@ -32,6 +32,7 @@ import { LANDMARKS } from './vrLandmarks';
 import { gridCrossings, wayfind, wayfindingWords } from './vrWayfinding';
 import { GREEN, INK, INK_2, PAPER } from './vrTokens';
 import { PANEL_RENDER_ORDER } from './vrPointer';
+import { groundAt, type Ground } from './terrain';
 
 const DEG = Math.PI / 180;
 const FONT = 'Inter, "Segoe UI", system-ui, sans-serif';
@@ -238,7 +239,7 @@ function Blade({ texture, along, heightM }: { texture: CanvasTexture; along: rea
   );
 }
 
-export function VrCornerSigns({ groundAhdM }: { groundAhdM: number }) {
+export function VrCornerSigns({ groundAhdM }: { groundAhdM: Ground }) {
   const crossings = useMemo(() => gridCrossings(), []);
   const textures = useMemo(() => {
     const names = new Set(crossings.flatMap((crossing) => [crossing.long, crossing.cross]));
@@ -269,7 +270,7 @@ export function VrCornerSigns({ groundAhdM }: { groundAhdM: number }) {
         const corner: [number, number, number] = [
           crossing.en[0] + (le + ce) * CORNER_M,
           crossing.en[1] + (ln + cn) * CORNER_M,
-          groundAhdM,
+          groundAt(groundAhdM, crossing.en[0] + (le + ce) * CORNER_M, crossing.en[1] + (ln + cn) * CORNER_M),
         ];
         return (
           <group key={`${crossing.long}|${crossing.cross}`} position={corner}>

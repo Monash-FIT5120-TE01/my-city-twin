@@ -41,6 +41,7 @@ import { Line } from '@react-three/drei';
 import { Vector3 } from 'three';
 import type { Massing } from '../data/model';
 import { outlineSegments } from './outline';
+import type { Ground } from './terrain';
 
 /**
  * Dark green-grey: the brand's darkest green, which stays far darker than
@@ -67,7 +68,7 @@ interface LineLike {
  * Put inside the chosen building's <mesh>, given the blocks the mesh was
  * built from and the same floor height, so the lines land on its walls.
  */
-export function SelectionEdges({ parts, floorAhdM }: { parts: Massing[]; floorAhdM: number }) {
+export function SelectionEdges({ parts, floorAhdM }: { parts: Massing[]; floorAhdM: Ground }) {
   /*
    * The segments as the point pairs <Line segments> wants, and their
    * average: the point the camera's distance is measured to.

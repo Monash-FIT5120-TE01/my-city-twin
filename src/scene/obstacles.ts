@@ -37,6 +37,7 @@
  */
 
 import type { PolygonEN } from '../data/model';
+import { highestUnder, lowestUnder, type Terrain } from './terrain';
 
 const CELL_M = 50;
 
@@ -80,11 +81,20 @@ interface Part {
  * Built once when the street view opens, from the model that is already in
  * memory — no extra data and nothing fetched.
  */
-export function indexObstacles(parts: readonly Part[], heightAhdM: number): ObstacleIndex {
+export function indexObstacles(parts: readonly Part[], heightAhdM: number | Terrain, aboveGroundM = 0): ObstacleIndex {
   const cells = new Map<string, Obstacle[]>();
   let count = 0;
 
   for (const part of parts) {
+    /*
+     * On real ground (terrain.ts) the walking height is not one number: it is the ground at the part,
+     * plus `aboveGroundM`. Read at the lowest ground under its outline, so a part on a slope is met
+     * from its downhill side too.
+     */
+    const lowAt = typeof heightAhdM === 'number' ? heightAhdM : lowestUnder(heightAhdM, part.footprint) + aboveGroundM;
+    // a part that starts above the ground: met if the walking height anywhere under it reaches it, from
+    // the downhill side to the uphill one (Codex review: the lowest alone let walkers through uphill)
+    const highAt = typeof heightAhdM === 'number' ? heightAhdM : highestUnder(heightAhdM, part.footprint) + aboveGroundM;
     /*
      * Standing height has to be inside the part's vertical span — EXCEPT for
      * the lowest part of a building, which the renderer sinks to the ground
@@ -94,8 +104,8 @@ export function indexObstacles(parts: readonly Part[], heightAhdM: number): Obst
      * column of numbers describes.
      */
     const reachesTheGround = part.sinksToGround;
-    if (!reachesTheGround && (part.baseAhdM > heightAhdM || part.topAhdM < heightAhdM)) continue;
-    if (reachesTheGround && part.topAhdM < heightAhdM) continue;
+    if (!reachesTheGround && (part.baseAhdM > highAt || part.topAhdM < lowAt)) continue;
+    if (reachesTheGround && part.topAhdM < lowAt) continue;
 
     for (const polygon of part.footprint) {
       const outer = polygon[0];

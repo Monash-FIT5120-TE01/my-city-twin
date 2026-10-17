@@ -54,6 +54,7 @@ import { slide, type ObstacleIndex } from './obstacles';
 import { ride } from './streetscape/trams/ride';
 import { touchWalk, walksByTouch } from './touchWalk';
 import { walkPace } from './walkPace';
+import { groundAt, type Ground } from './terrain';
 
 /** Standing height, metres. */
 export const EYE_HEIGHT_M = 1.7;
@@ -127,7 +128,8 @@ interface StreetViewProps {
   /** Where to stand, east/north metres. */
   startEN: [number, number];
   /** The ground under the whole model, metres AHD. */
-  groundAhdM: number;
+  /** The ground (terrain.ts): the eye is held this far above it where the walker stands. Flat in the flat. */
+  groundAhdM: Ground;
   /** How far from the model's centre the walker may wander. */
   boundsCentreEN: [number, number];
   boundsRadiusM: number;
@@ -197,7 +199,7 @@ export function StreetView({
      * not — and that second case starts the walker inside it, where solid
      * walls now also keep them.
      */
-    const [x, y, z] = enuToWorld([startEN[0], startEN[1], groundAhdM + EYE_HEIGHT_M]);
+    const [x, y, z] = enuToWorld([startEN[0], startEN[1], groundAt(groundAhdM, startEN[0], startEN[1]) + EYE_HEIGHT_M]);
     camera.position.set(x, y, z);
 
     /*
@@ -351,7 +353,8 @@ export function StreetView({
      * the rider about inside (below); stepping off puts them where the tram layer says.
      */
     if (ride.active && !inRoom) {
-      const [x, y, z] = enuToWorld([ride.eye[0], ride.eye[1], groundAhdM + ride.eye[2]]);
+      // the eye's height is already on the real ground (TramLayer reads terrain.ts), not above a flat one
+      const [x, y, z] = enuToWorld([ride.eye[0], ride.eye[1], ride.eye[2]]);
       camera.position.set(x, y, z);
       if (ride.look !== null) {
         // sat down: facing the way the seat faces
@@ -380,7 +383,7 @@ export function StreetView({
     rideHeading.current = null;
     if (ride.stepOff && !inRoom) {
       const [x, , z] = enuToWorld([ride.stepOff[0], ride.stepOff[1], 0]);
-      camera.position.set(x, groundAhdM + EYE_HEIGHT_M, z);
+      camera.position.set(x, groundAt(groundAhdM, ride.stepOff[0], ride.stepOff[1]) + EYE_HEIGHT_M, z);
       ride.stepOff = null; ride.stepOffWorld = null;
     }
 
@@ -401,7 +404,7 @@ export function StreetView({
       if (air.height <= 0) { air.height = 0; air.rise = 0; }
     }
     // Feet on the ground, whatever the view is doing — or off it, mid-jump.
-    camera.position.y = groundAhdM + EYE_HEIGHT_M + air.height;
+    camera.position.y = groundAt(groundAhdM, camera.position.x, -camera.position.z) + EYE_HEIGHT_M + air.height;
     // a tram that has come at the walker since the last frame
     // (and no further than the walls let it: a push does not go through a building)
     if (ride.blockerCount && !inRoom) {

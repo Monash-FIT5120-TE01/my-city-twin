@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { Group, Mesh, Plane } from 'three';
 import type { CityModel, Development } from '../data/model';
-import { groundElevationOf, mergeMassingsOwned } from './massing';
+import { mergeMassingsOwned } from './massing';
+import { terrainOf } from './terrain';
 import { RoofCheck } from './RoofCheck';
 import { SolarOnRoof } from './SolarOnRoof';
 import type { SolarScene } from './useSolarComparison';
@@ -112,10 +113,8 @@ export function CityMassing({
   room = null,
 }: CityMassingProps) {
   const roofCheck = useMemo(() => roofCheckOn(), []);
-  const groundAhdM = useMemo(
-    () => groundElevationOf(model.buildings),
-    [model.buildings],
-  );
+  // the ground at its real heights (terrain.ts): the surface, and the foot of every building
+  const terrain = useMemo(() => terrainOf(model), [model]);
 
   /*
     * Keyed on the numbers, not on the object. The model is rebuilt when the
@@ -187,10 +186,10 @@ export function CityMassing({
     const ok = model.buildings.filter((b) => b.readyFor3d && inCity(b));
     const bad = model.buildings.filter((b) => !b.readyFor3d && inCity(b));
     return {
-      built: mergeMassingsOwned(ok, groundAhdM),
-      unresolved: mergeMassingsOwned(bad, groundAhdM),
+      built: mergeMassingsOwned(ok, terrain),
+      unresolved: mergeMassingsOwned(bad, terrain),
     };
-  }, [model.buildings, groundAhdM, highlightedBuildingId, replaced]);
+  }, [model.buildings, terrain, highlightedBuildingId, replaced]);
 
   /** What BuildingPicker casts its ray at, and what can stand in front. */
   const builtMesh = useRef<Mesh>(null);
@@ -218,7 +217,7 @@ export function CityMassing({
       {/* The blocks between the streets, dissolving where the data ends. */}
       <Ground
         model={model}
-        groundAhdM={groundAhdM}
+        terrain={terrain}
         basemap={basemap}
         walking={walking}
         onPick={onPickReceptor}
@@ -229,14 +228,14 @@ export function CityMassing({
         so a park or a road at the far edge dissolves with the ground rather
         than staying sharp inside a fading surround.
       */}
-      <OpenSpace groundAhdM={groundAhdM} />
+      <OpenSpace groundAhdM={terrain} />
 
       {/*
         The street level from open data: surfaces, trees, lights, signals, tram infrastructure and street
         furniture. It draws the real road outlines, so the inferred roads below are only the fallback for
         where it has nothing; see streetscape/Streetscape.tsx.
       */}
-      <Streetscape groundAhdM={groundAhdM} lampsLit={lampsLit} walking={streetTrams ?? walking} clock={clock} />
+      <Streetscape groundAhdM={terrain} lampsLit={lampsLit} walking={streetTrams ?? walking} clock={clock} />
 
       {/*
         The inferred carriageways stand down once a real map is under the
@@ -251,7 +250,7 @@ export function CityMassing({
         release long after this term. The fallback and the layer it falls back
         to are the same decision, which is why the texture is loaded up here.
       */}
-      {!basemap && <Roads groundAhdM={groundAhdM} />}
+      {!basemap && <Roads groundAhdM={terrain} />}
 
       {/*
         Not when the plan demolishes it. The merged city already drops a
@@ -263,14 +262,14 @@ export function CityMassing({
           <HighlightedBuilding
             buildings={model.buildings}
             buildingId={highlightedBuildingId}
-            groundAhdM={groundAhdM}
+            groundAhdM={terrain}
             roomCut={room?.cut ?? null}
           />
         </group>
       )}
       {room && <ApartmentRoom placement={room.placement} night={room.night} onReady={room.onReady} />}
 
-      {receptor && <ReceptorMarker point={receptor} groundAhdM={groundAhdM} />}
+      {receptor && <ReceptorMarker point={receptor} groundAhdM={terrain} />}
       {windowAt && (
         <WindowMarker en={windowAt.en} ahdM={windowAt.ahdM} facingDeg={windowAt.facingDeg} />
       )}
@@ -314,7 +313,7 @@ export function CityMassing({
       <HazeVeil
         centreE={hazeExtent.centreE}
         centreN={hazeExtent.centreN}
-        groundAhdM={groundAhdM}
+        groundAhdM={terrain}
         innerM={hazeExtent.innerM}
         outerM={hazeExtent.outerM}
         colour={haze}
@@ -326,7 +325,7 @@ export function CityMassing({
           <DevelopmentMassings
             developments={model.developments}
             focus={focus}
-            groundAhdM={groundAhdM}
+            groundAhdM={terrain}
             showAll={showAllProposals}
             interactive={interactive}
             onSelect={onSelectDevelopment}

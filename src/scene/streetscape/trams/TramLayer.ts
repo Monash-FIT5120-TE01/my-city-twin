@@ -29,6 +29,21 @@ import type { ClassKey } from './tramClasses';
 import { TramSim, type DayKey, type Tram, type TramsDoc } from './tramSim';
 import { ride } from './ride';
 
+const UP = new Vector3(0, 0, 1), ACROSS = new Vector3(0, 1, 0), turnQ = new Quaternion(), tipQ = new Quaternion(), mid = new Vector3(), ONE = new Vector3(1, 1, 1);
+/**
+ * The frame of a straight piece of track from `a` to `b` (east, north) whose ground is `za` and `zb` there:
+ * its middle, `lift` above the ground, local x along the track, z up. Turned to the heading, then tipped
+ * about its own cross axis by the slope: in that order it cannot roll or turn over, as one rotation from
+ * east straight onto the slope did, heading west (Codex review, 2026-10-18).
+ */
+export function trackFrame(a: readonly number[], b: readonly number[], za: number, zb: number, lift: number, out: Matrix4): Matrix4 {
+  const run = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  turnQ.setFromAxisAngle(UP, Math.atan2(b[1] - a[1], b[0] - a[0]));
+  tipQ.setFromAxisAngle(ACROSS, -Math.atan2(zb - za, run));
+  turnQ.multiply(tipQ);
+  return out.compose(mid.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (za + zb) / 2 + lift), turnQ, ONE);
+}
+
 const RAIL_Z = 0.042;
 const DRAW_M = 320;
 const PER_CLASS = 18;
@@ -86,9 +101,12 @@ export class TramLayer {
   /** Seconds of the display not yet simulated, and where each tram's front was before the last step. */
   private owed = 0;
   private before = new Map<Tram, number>();
-  private m = new Matrix4(); private q = new Quaternion(); private v = new Vector3(); private one = new Vector3(1, 1, 1); private z = new Vector3(0, 0, 1);
+  private m = new Matrix4();
 
-  constructor(doc: TramsDoc, day: DayKey, time: number, phase: (site: number, t: number) => Phase, before?: { doc: TramsDoc; day: DayKey }) {
+  /** The ground's height (terrain.ts): the rails, and so the trams, follow it. Flat at 0 when not given. */
+  private ground: (e: number, n: number) => number;
+  constructor(doc: TramsDoc, day: DayKey, time: number, phase: (site: number, t: number) => Phase, before?: { doc: TramsDoc; day: DayKey }, ground: (e: number, n: number) => number = () => 0) {
+    this.ground = ground;
     this.group.name = 'trams';
     this.sim = new TramSim(doc, day, time, phase, before);
     this.sim.onLeave = (t) => { if (this.riding?.tram === t) this.stepOff(); };
@@ -120,10 +138,19 @@ export class TramLayer {
 
   /** The matrix of section `i` of tram `t` (east, north, up). */
   private sectionMatrix(t: Tram, kit: TramKit, i: number, out: Matrix4): Matrix4 {
-    const sec = kit.sections[i], centre = this.shownS(t) - (kit.cls.L / 2 - sec.centre);
+    return this.frameOf(t, kit, kit.sections[i], out);
+  }
+
+  /**
+   * A section's frame: between its two ends on the track, on the ground at each end (terrain.ts). Turned
+   * to the street's heading, then tipped about its own cross axis by the slope — in that order, so it can
+   * never roll or turn over (a single rotation from east onto the slope did, heading west; Codex review
+   * 2026-10-18).
+   */
+  private frameOf(t: Tram, kit: TramKit, sec: TramKit['sections'][number], out: Matrix4): Matrix4 {
+    const centre = this.shownS(t) - (kit.cls.L / 2 - sec.centre);
     const a = t.path.at(centre - sec.len / 2), b = t.path.at(centre + sec.len / 2);
-    this.q.setFromAxisAngle(this.z, Math.atan2(b[1] - a[1], b[0] - a[0]));
-    return out.compose(this.v.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, RAIL_Z), this.q, this.one);
+    return trackFrame(a, b, this.ground(a[0], a[1]), this.ground(b[0], b[1]), RAIL_Z, out);
   }
 
   /**
@@ -200,11 +227,16 @@ export class TramLayer {
     let sec = kit.sections[0];
     for (const c of kit.sections) if (Math.abs(x - c.centre) - c.len / 2 < Math.abs(x - sec.centre) - sec.len / 2) sec = c;
     const centre = this.shownS(t) - (kit.cls.L / 2 - sec.centre), a = t.path.at(centre - sec.len / 2), b = t.path.at(centre + sec.len / 2);
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, c = (b[0] - a[0]) / len, sn = (b[1] - a[1]) / len, u = x - sec.centre;
-    if (dir) { dir[0] = c; dir[1] = sn; }
-    return [(a[0] + b[0]) / 2 + u * c - y * sn, (a[1] + b[1]) / 2 + u * sn + y * c, RAIL_Z + z];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    if (dir) { dir[0] = (b[0] - a[0]) / len; dir[1] = (b[1] - a[1]) / len; }
+    // through the same frame the section is drawn with, so a door, a seat and the eye are where the body is
+    this.frameOf(t, kit, sec, this.frame);
+    const p = this.pv.set(x - sec.centre, y, z).applyMatrix4(this.frame);
+    return [p.x, p.y, p.z];
   }
   private dir: [number, number] = [1, 0];
+  private frame = new Matrix4();
+  private pv = new Vector3();
 
   private doorPoint(t: Tram, door: number, side: number): [number, number, number] {
     const kit = kitFor(t.trip.cls), d = kit.doors[door];

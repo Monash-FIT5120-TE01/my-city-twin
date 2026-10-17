@@ -24,6 +24,7 @@
 
 import { Html } from '@react-three/drei';
 import { EYE_HEIGHT_M } from './StreetView';
+import { groundAt, type Ground } from './terrain';
 
 /** A person's height, and the height the camera is at. The point is that they match. */
 const HEIGHT_M = EYE_HEIGHT_M;
@@ -35,10 +36,11 @@ export function ScaleFigure({
   groundAhdM,
 }: {
   atEN: [number, number];
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
 }) {
   return (
-    <group position={[atEN[0], atEN[1], groundAhdM]}>
+    <group position={[atEN[0], atEN[1], groundAt(groundAhdM, atEN[0], atEN[1])]}>
       {/*
         Inside <WorldFrame>, so +z is up and the box stands on the ground by
         being raised half its own height.

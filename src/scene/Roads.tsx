@@ -37,13 +37,15 @@ import { BufferGeometry, Shape, ShapeGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { bundled } from '../data/bundled';
 import type { PolygonEN } from '../data/model';
+import { drapeOnGround } from './drape';
+import type { Ground } from './terrain';
 
 interface RoadsDoc {
   /** Outer ring first, then holes, in metres east/north. */
   polygons: PolygonEN[];
 }
 
-export function Roads({ groundAhdM }: { groundAhdM: number }) {
+export function Roads({ groundAhdM }: { groundAhdM: Ground }) {
   const [doc, setDoc] = useState<RoadsDoc | null>(null);
 
   useEffect(() => {
@@ -89,15 +91,19 @@ export function Roads({ groundAhdM }: { groundAhdM: number }) {
     if (parts.length === 0) return null;
     const merged = mergeGeometries(parts, false);
     for (const part of parts) part.dispose();
-    return merged;
-  }, [doc]);
+    if (!merged) return null;
+    // cut fine and laid on the ground's real heights (drape.ts), 0.06 m above it
+    const draped = drapeOnGround(merged, groundAhdM, 0.06);
+    merged.dispose();
+    return draped;
+  }, [doc, groundAhdM]);
 
   if (!geometry) return null;
 
   return (
     <mesh
       geometry={geometry}
-      position={[0, 0, groundAhdM + 0.06]}
+      position={[0, 0, 0]}
       receiveShadow
       /* A tint on the ground, like OpenSpace. The ground is what answers. */
       raycast={() => null}

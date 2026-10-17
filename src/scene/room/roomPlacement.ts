@@ -21,7 +21,7 @@
  */
 import type { Massing } from '../../data/model';
 import { facadesOf, floorBaseAhdM, storeyHeightM } from '../facades';
-import { groundElevationOf } from '../massing';
+import { buildingGroundAhdM, type Terrain } from '../terrain';
 import { FACADE_LENGTH, FACADE_MID_Y, FACADE_OUT_X, SLAB_TOP_Z } from './apartmentLayout';
 
 export interface RoomPlacement {
@@ -314,6 +314,8 @@ export function fitRoomInModel(
   floor: number,
   floorsAboveGround: number | null,
   windowAtEN: [number, number] | null = null,
+  /** The real ground (terrain.ts): floors counted from the building's ground on it. Without it, its record. */
+  terrain?: Terrain,
 ): RoomFit | null {
   const host = buildings.filter((b) => b.parentId === buildingId);
   if (!host.length) return null;
@@ -328,5 +330,5 @@ export function fitRoomInModel(
     const o = boxOf([b]);
     return o.e1 >= h.e0 - NEAR_M && o.e0 <= h.e1 + NEAR_M && o.n1 >= h.n0 - NEAR_M && o.n0 <= h.n1 + NEAR_M;
   });
-  return fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, groundElevationOf(buildings as Massing[]));
+  return fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, terrain ? buildingGroundAhdM(host, terrain) : undefined);
 }

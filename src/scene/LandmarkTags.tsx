@@ -45,6 +45,7 @@ import { Vector3 } from 'three';
 import { enuToWorld, worldToEnu } from './frame';
 import type { Landmark } from '../data/landmarks';
 import '../styles/landmark-tags.css';
+import { groundAt, type Ground } from './terrain';
 
 /** Above the roof, so the dot reads as sitting on the building and not in it. */
 const ROOF_LIFT_M = 6;
@@ -93,7 +94,8 @@ const RESEAT_ZOOM_RATIO = 1.15;
 interface LandmarkTagsProps {
   landmarks: readonly Landmark[];
   /** Ground elevation, metres AHD, for the ones on open ground. */
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
   /** Standing in the street rather than orbiting above it. */
   walking: boolean;
   /** The landmark whose address is open, by name. */
@@ -190,7 +192,7 @@ export function LandmarkTags({
         // stays until it is closed; in the street even that one goes once it
         // is behind the walker or too far, as a floating card would.
         if (label === undefined && (walking || !opened)) return null;
-        const up = landmark.topAhdM !== null ? landmark.topAhdM + ROOF_LIFT_M : groundAhdM + GROUND_LIFT_M;
+        const up = landmark.topAhdM !== null ? landmark.topAhdM + ROOF_LIFT_M : groundAt(groundAhdM, landmark.en[0], landmark.en[1]) + GROUND_LIFT_M;
 
         const press = () => {
           if (landmark.buildingId) onPickBuilding(landmark.buildingId);

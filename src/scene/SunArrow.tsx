@@ -2,13 +2,15 @@ import { useMemo } from 'react';
 import { DoubleSide, Shape, ShapeGeometry } from 'three';
 import { shadowBearingDeg } from './narrative';
 import { shadowReachM, type SunAngles } from './sun';
+import { groundAt, type Ground } from './terrain';
 
 interface SunArrowProps {
   sun: SunAngles;
   /** Where the arrow starts, in east/north metres. */
   anchorEN: [number, number];
   /** Metres AHD of the road it is drawn on. */
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
   /** Height of the thing casting, so the arrow can be as long as its shadow. */
   heightM: number;
 }
@@ -83,7 +85,7 @@ export function SunArrow({ sun, anchorEN, groundAhdM, heightM }: SunArrowProps) 
   return (
     <mesh
       geometry={geometry}
-      position={[anchorEN[0], anchorEN[1], groundAhdM + 0.7]}
+      position={[anchorEN[0], anchorEN[1], groundAt(groundAhdM, anchorEN[0], anchorEN[1]) + 0.7]}
       /*
        * Not a target. It floats 0.7 m over the ground, so without this it
        * takes the raycast from the surface underneath and the sunlight

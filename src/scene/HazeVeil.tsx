@@ -28,6 +28,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { BufferAttribute, Color, DoubleSide, RingGeometry } from 'three';
+import { groundAt, type Ground } from './terrain';
 
 export function HazeVeil({
   centreE,
@@ -41,7 +42,8 @@ export function HazeVeil({
 }: {
   centreE: number;
   centreN: number;
-  groundAhdM: number;
+  /** The ground (terrain.ts): the veil lies a metre above it, following its rise and fall. */
+  groundAhdM: Ground;
   innerM: number;
   outerM: number;
   colour: string;
@@ -63,18 +65,19 @@ export function HazeVeil({
       colours[i * 4 + 1] = tint.g;
       colours[i * 4 + 2] = tint.b;
       colours[i * 4 + 3] = eased;
+      position.setZ(i, groundAt(groundAhdM, centreE + position.getX(i), centreN + position.getY(i)) + 1);
     }
 
     ring.setAttribute('color', new BufferAttribute(colours, 4));
     return ring;
-  }, [innerM, outerM, colour]);
+  }, [innerM, outerM, colour, groundAhdM, centreE, centreN]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
     <mesh
       geometry={geometry}
-      position={[centreE, centreN, groundAhdM + 1]}
+      position={[centreE, centreN, 0]}
       renderOrder={1}
       /*
        * Not a target. It is a ring a metre above the ground covering the

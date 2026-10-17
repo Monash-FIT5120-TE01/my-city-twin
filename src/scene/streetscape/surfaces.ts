@@ -67,7 +67,7 @@ const WALLED = new Set(['Road Kerb', 'Road Median', 'Road Nature Strip']);
  * the near cells they are under a pixel wide, so the far version leaves them out; the near cells carry them.
  */
 const NOT_FAR = new Set(['Road Kerb', 'Road Channel']);
-const NEAR_CELL_M = 200, FAR_SIMPLIFY_M = 0.05, FAR_MIN_AREA_M2 = 1, FAR_DROP_M = 0.005;
+const NEAR_CELL_M = 200, FAR_SIMPLIFY_M = 0.05, FAR_MIN_AREA_M2 = 1, FAR_DROP_M = 0.04;   // under the near slabs by more than the coarser far cut can rise (onGround.ts)
 
 // ── geometry ───────────────────────────────────────────────────────────────
 /** Twice the signed area: positive when the ring runs counter-clockwise. */
@@ -145,6 +145,8 @@ export async function buildSurfaces(doc: SurfacesDoc, breathe: () => Promise<voi
   const root = new Group(); root.name = 'surfaces';
   const near = new Group(); near.name = 'surfaces-near';
   const far = new Group(); far.name = 'surfaces-far';
+  // seen only from far off: laid on the ground in coarser pieces than the near slabs (onGround.ts)
+  far.userData.cutEdgeM = 16;
   root.add(far, near);
   let since = performance.now();
   const tick = async () => { if (performance.now() - since > 40) { await breathe(); since = performance.now(); } };

@@ -57,6 +57,7 @@ import type { SolarScene } from './useSolarComparison';
 import { roomClipPlanes } from './room/roomClip';
 import { roomObstacles } from './room/roomObstacles';
 import { roomShadowOf } from './room/roomShadow';
+import { heightAt, terrainOf } from './terrain';
 import { toEN, type RoomPlacement } from './room/roomPlacement';
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Canvas } from '@react-three/fiber';
@@ -298,6 +299,9 @@ export function SceneCanvas({
   vrMenu,
 }: SceneCanvasProps) {
   const ground = useMemo(() => groundElevationOf(model.buildings), [model.buildings]);
+  // the ground at its real heights (terrain.ts); `ground` is one reference height for what has not moved onto it
+  const terrain = useMemo(() => terrainOf(model), [model]);
+  const groundOf = useMemo(() => (e: number, n: number) => heightAt(terrain, e, n), [terrain]);
 
   /*
    * Frame on whatever was last asked for: a searched building if there is
@@ -384,7 +388,9 @@ export function SceneCanvas({
   // view by several degrees, and by a different amount for every subject.
   // Looking at the whole grid, aim at the ground rather than a third of the
   // way up something — there is no something.
-  const targetUp = wholeCity ? ground : ground + subjectHeight * 0.35;
+  // the camera aims at the subject from the ground it stands on (terrain.ts), not from one flat height
+  const targetGround = heightAt(terrain, targetE, targetN);
+  const targetUp = wholeCity ? ground : targetGround + subjectHeight * 0.35;
   const cameraPosition = enuToWorld([
     targetE + eye * horizontal * Math.sin(BEARING),
     targetN + eye * horizontal * Math.cos(BEARING),
@@ -441,11 +447,12 @@ export function SceneCanvas({
     // The proposal is solid too: it is what the plan puts there.
     const proposals = shown.flatMap((development) => development.parts);
 
-    return indexObstacles([...standing, ...proposals], ground + EYE_HEIGHT_M);
+    // at eye height above the real ground under each building (terrain.ts)
+    return indexObstacles([...standing, ...proposals], terrain, EYE_HEIGHT_M);
   }, [
     model.buildings,
     model.developments,
-    ground,
+    terrain,
     showProposed,
     showAllProposals,
     focus,
@@ -601,8 +608,8 @@ export function SceneCanvas({
    */
   const vrPlacement =
     vrStage === 'street'
-      ? streetPlacement(standPoint, [targetE, targetN], ground)
-      : overlookFor([targetE, targetN], wholeCity ? null : subjectHeight, ground);
+      ? streetPlacement(standPoint, [targetE, targetN], heightAt(terrain, standPoint[0], standPoint[1]))
+      : overlookFor([targetE, targetN], wholeCity ? null : subjectHeight, wholeCity ? ground : targetGround);
 
   /** The sky's colours and the fill lights' strengths for this sun height. */
   const sky = useMemo(() => skyAppearance(sun.altitudeDeg), [sun.altitudeDeg]);
@@ -714,7 +721,7 @@ export function SceneCanvas({
             standing at their own height, which is better than any marker and
             makes this one a black box in the road for no reason.
           */}
-          {walking && !inVr && <ScaleFigure atEN={scaleAt} groundAhdM={ground} />}
+          {walking && !inVr && <ScaleFigure atEN={scaleAt} groundAhdM={terrain} />}
 
           <SunLight
             angles={sun}
@@ -756,13 +763,13 @@ export function SceneCanvas({
             arrow back on a proposal while the screen was about a building;
             targetE/targetN are already "the subject", whichever kind it is.
           */}
-          {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={ground} />}
+          {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={terrain} />}
 
           {showSunArrow && !wholeCity && (
             <SunArrow
               sun={sun}
               anchorEN={[targetE, targetN]}
-              groundAhdM={ground}
+              groundAhdM={terrain}
               heightM={subjectHeight}
             />
           )}
@@ -784,7 +791,7 @@ export function SceneCanvas({
           their streets.
         */}
         {!walking && !inRoom && !insetOn && !lensShifted && (
-          <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={ground} />
+          <StreetLabels initialEast={targetE} initialNorth={targetN} groundAhdM={terrain} />
         )}
 
         {/*
@@ -797,7 +804,7 @@ export function SceneCanvas({
         {landmarks.length > 0 && !inVr && !inRoom && !insetOn && !lensShifted && (
           <LandmarkTags
             landmarks={landmarks}
-            groundAhdM={ground}
+            groundAhdM={terrain}
             walking={walking}
             open={openLandmark}
             onOpen={onOpenLandmark}
@@ -818,7 +825,7 @@ export function SceneCanvas({
           height in both, so the eye can go straight across.
         */}
         {marker && !inRoom && (marker.kind === 'building' || showProposed || markerCard || link !== null) && (
-          <SiteMarker subject={marker} groundAhdM={ground} card={markerCard} />
+          <SiteMarker subject={marker} groundAhdM={terrain} card={markerCard} />
         )}
 
         {/*
@@ -835,7 +842,7 @@ export function SceneCanvas({
         {walking && !inVr && (
           <StreetView
             startEN={standPoint}
-            groundAhdM={ground}
+            groundAhdM={terrain}
             boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
             boundsRadiusM={citySpan * 1.2}
             obstacles={obstacles}
@@ -881,6 +888,7 @@ export function SceneCanvas({
         {inVr && (
           <VrWalk
             placement={vrPlacement}
+            groundAt={vrStage === 'street' ? groundOf : undefined}
             trip={vrTrip}
             boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
             boundsRadiusM={citySpan * 1.2}

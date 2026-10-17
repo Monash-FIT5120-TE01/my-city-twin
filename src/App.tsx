@@ -136,6 +136,7 @@ import { StandPrompt } from './ui/StandPrompt';
 import './styles/ui.css';
 import './styles/solar.css';
 import './styles/street-activity.css';
+import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
@@ -766,6 +767,8 @@ export default function App() {
     () => (model ? groundElevationOf(model.buildings) : 0),
     [model],
   );
+  // the ground at its real heights (terrain.ts): measured spots stand on it, floors start from it
+  const terrain = useMemo(() => (model ? terrainOf(model) : null), [model]);
 
   /*
    * ── WHAT A WINDOW IN THIS BUILDING CAN SEE ─────────────────────────────
@@ -844,6 +847,11 @@ export default function App() {
   }, [model, foundBuilding]);
 
   const floorsAboveGround = buildingDetail?.floorsAboveGround ?? null;
+  // where the building's floors start: its ground on the real ground (terrain.ts buildingGroundAhdM)
+  const homeGround = useMemo(
+    () => (terrain && homeParts.length ? buildingGroundAhdM(homeParts, terrain) : undefined),
+    [terrain, homeParts],
+  );
 
   /*
    * The sides are chosen AT THE FLOOR BEING ASKED ABOUT, not for the building
@@ -854,8 +862,8 @@ export default function App() {
    * list should say so.
    */
   const floorHeightAhd = useMemo(
-    () => floorAhdM(homeParts, floor, floorsAboveGround, groundAhdM),
-    [homeParts, floor, floorsAboveGround, groundAhdM],
+    () => floorAhdM(homeParts, floor, floorsAboveGround, homeGround),
+    [homeParts, floor, floorsAboveGround, homeGround],
   );
 
   const sides = useMemo(
@@ -872,7 +880,7 @@ export default function App() {
   const windowAt = useMemo(() => {
     if (!chosenSide || homeParts.length === 0) return null;
     // floors counted from the street the city is drawn on, as the flat's are (facades.ts groundFloorAhdM)
-    const place = windowPlace(homeParts, chosenSide, floor, floorsAboveGround, groundAhdM);
+    const place = windowPlace(homeParts, chosenSide, floor, floorsAboveGround, homeGround);
 
     /*
      * A large building is several overlapping parts, and the side chosen from
@@ -887,7 +895,7 @@ export default function App() {
       (part) => part.parentId !== foundBuilding?.buildingId,
     );
     return clearOfBuildings(place, homeParts, neighbours);
-  }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding, groundAhdM]);
+  }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding, homeGround]);
 
 
   /*
@@ -900,10 +908,10 @@ export default function App() {
    */
   const flatFit = useMemo<FlatFit | null>(() => {
     if (!foundBuilding || !windowSide) return null;
-    const fit = fitRoomInModel(standingCity, foundBuilding.buildingId, windowSide, floor, floorsAboveGround, windowAt?.en ?? null);
+    const fit = fitRoomInModel(standingCity, foundBuilding.buildingId, windowSide, floor, floorsAboveGround, windowAt?.en ?? null, terrain ?? undefined);
     if (!fit) return null;
     return fit.ok ? { ok: true } : { ok: false, problem: fit.problem };
-  }, [foundBuilding, windowSide, floor, floorsAboveGround, windowAt, standingCity]);
+  }, [foundBuilding, windowSide, floor, floorsAboveGround, windowAt, standingCity, terrain]);
 
   const roomFit = useMemo(() => {
     if (!roomAt) return null;
@@ -913,10 +921,11 @@ export default function App() {
     const fit = fitRoomInModel(
       standingCity, foundBuilding.buildingId, roomAt.side, roomAt.floor, floorsAboveGround,
       sameAsWindow ? (windowAt?.en ?? null) : null,
+      terrain ?? undefined,
     );
     if (!fit) return { refused: 'no such building' };
     return fit.ok ? { placement: fit.placement } : { refused: fit.problem };
-  }, [roomAt, model, foundBuilding, floor, windowSide, floorsAboveGround, windowAt, standingCity]);
+  }, [roomAt, model, foundBuilding, floor, windowSide, floorsAboveGround, windowAt, standingCity, terrain]);
   const roomPlacement = roomFit && 'placement' in roomFit ? roomFit.placement : null;
 
   /*
@@ -1095,9 +1104,9 @@ export default function App() {
   const measured = useMemo(
     () =>
       receptor && subjectParts.length > 0
-        ? sunlightAtPoint(receptor, groundAhdM, groundAhdM, subjectParts, date)
+        ? sunlightAtPoint(receptor, terrain ? heightAt(terrain, receptor[0], receptor[1]) : groundAhdM, terrain ?? groundAhdM, subjectParts, date)
         : null,
-    [receptor, subjectParts, date, groundAhdM],
+    [receptor, subjectParts, date, groundAhdM, terrain],
   );
 
   /*

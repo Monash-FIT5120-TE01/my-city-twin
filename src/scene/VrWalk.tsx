@@ -201,6 +201,11 @@ interface VrWalkProps {
    * had walked away would be pulled back each time the hour moved.
    */
   placement: VrPlacement;
+  /**
+   * In the street, the ground's height (terrain.ts): the floor follows it as the player walks, steps off a
+   * tram or comes back from a ride. Absent over the roofs, where the floor is the platform's.
+   */
+  groundAt?: (east: number, north: number) => number;
   trip: number;
   /** How far from the model's centre the player may wander. */
   boundsCentreEN: [number, number];
@@ -239,6 +244,7 @@ interface VrWalkProps {
 
 export function VrWalk({
   placement,
+  groundAt,
   trip,
   boundsCentreEN,
   boundsRadiusM,
@@ -535,13 +541,16 @@ export function VrWalk({
       return;
     }
     rideHeading.current = null;
-    if (groundY.current !== null) { group.position.y = groundY.current; groundY.current = null; }
+    if (groundY.current !== null) { group.position.y = groundAt ? groundAt(at.x, -at.z) : groundY.current; groundY.current = null; }
     if (ride.stepOffWorld) {
       group.position.x += ride.stepOffWorld[0] - at.x;
       group.position.z += ride.stepOffWorld[2] - at.z;
+      if (groundAt) group.position.y = groundAt(ride.stepOffWorld[0], -ride.stepOffWorld[2]);
       ride.stepOffWorld = null; ride.stepOff = null;
       return;
     }
+    // under the head, every frame: walking for real across the room up a slope moves the floor too
+    if (groundAt) group.position.y = groundAt(at.x, -at.z);
 
     /*
      * A tram that has come at the player since the last frame pushes them aside (ride.clearOf, as at a desk),
@@ -649,6 +658,8 @@ export function VrWalk({
      */
     group.position.x += nextE - fromE;
     group.position.z -= nextN - fromN;
+    // and up or down with the street
+    if (groundAt) group.position.y = groundAt(nextE, nextN);
   });
 
   return (

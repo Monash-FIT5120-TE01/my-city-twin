@@ -111,8 +111,17 @@ export class Compact {
     this.mesh.count = 0; this.mesh.visible = false; this.mesh.castShadow = false; this.mesh.raycast = () => undefined;
     this.mesh.frustumCulled = true;
     if (cols) this.mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(cols.length), 3);
+    // found by the lift onto the ground (onGround.ts), which has to raise the store, not the copy
+    this.mesh.userData.compact = this;
+  }
+  private last: { flags: Uint8Array; invert: boolean } | null = null;
+  /** Raise every item onto the ground at its own place (onGround.ts): the store, and what is shown now. */
+  lift(groundAt: (e: number, n: number) => number): void {
+    for (let k = 0; k < this.all.length; k += 16) this.all[k + 14] += groundAt(this.all[k + 12], this.all[k + 13]);
+    if (this.last) this.apply(this.last.flags, this.last.invert);
   }
   apply(flags: Uint8Array, invert: boolean): void {
+    this.last = { flags, invert };
     const dst = this.mesh.instanceMatrix.array as Float32Array, cdst = this.mesh.instanceColor?.array as Float32Array | undefined;
     let n = 0;
     for (let i = 0; i < flags.length; i++) {

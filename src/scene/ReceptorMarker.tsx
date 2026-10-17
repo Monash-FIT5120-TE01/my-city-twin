@@ -42,15 +42,17 @@
  *   geometry, where not writing depth is the normal and correct thing to do.
  *   MeasureCursor and SunArrow already had the pair; this had half of it.
  */
+import { groundAt, type Ground } from './terrain';
 export function ReceptorMarker({
   point,
   groundAhdM,
 }: {
   point: [number, number];
-  groundAhdM: number;
+  /** The ground (terrain.ts), or one flat height. */
+  groundAhdM: Ground;
 }) {
   return (
-    <group position={[point[0], point[1], groundAhdM + 0.9]}>
+    <group position={[point[0], point[1], groundAt(groundAhdM, point[0], point[1]) + 0.9]}>
       <mesh raycast={() => null}>
         <ringGeometry args={[7, 10, 48]} />
         <meshBasicMaterial
