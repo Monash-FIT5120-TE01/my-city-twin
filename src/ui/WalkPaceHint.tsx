@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { walkPace } from '../scene/walkPace';
+import { HintChip } from './KeyHints';
 
 /**
  * The walking pace the wheel has chosen, as a figure: part of the walking hint on a desktop. Said in words
@@ -8,8 +9,8 @@ import { walkPace } from '../scene/walkPace';
 export function WalkPaceHint() {
   const pace = useSyncExternalStore(walkPace.subscribe, walkPace.getPace);
   return (
-    <>
-      {' · '}Pace <strong>{pace.toFixed(1)} m/s</strong> (<strong>wheel</strong> to change)
-    </>
+    <HintChip>
+      Pace <strong>{pace.toFixed(1)} m/s</strong> · wheel to change
+    </HintChip>
   );
 }

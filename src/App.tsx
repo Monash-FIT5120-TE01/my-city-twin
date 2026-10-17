@@ -137,6 +137,8 @@ import './styles/ui.css';
 import './styles/solar.css';
 import './styles/street-activity.css';
 import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
+import { HintChip, KeyHint, WalkHints } from './ui/KeyHints';
+import { Icon } from './ui/kit/Icon';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
@@ -2028,23 +2030,34 @@ export default function App() {
       </div>
       {roomPlacement && byTouch && <TouchWalk onBackUp={leaveRoom} />}
       {roomPlacement && roomAt && (
-        <p className="walking-hint walking-hint--room">
-          {byTouch ? (
+        <WalkHints
+          actions={
+            byTouch ? (
+              <>
+                <KeyHint keys={['Stick']} label="Walk" />
+                <KeyHint keys={['Drag']} label="Look round" />
+              </>
+            ) : (
+              <>
+                <KeyHint keys={['W', 'A', 'S', 'D']} label="Walk" />
+                <KeyHint keys={['[', ']']} label="−/+ 10 min" />
+                <KeyHint keys={['Esc']} label="Leave the flat" />
+              </>
+            )
+          }
+          chips={
             <>
-              <strong>Stick</strong> to walk · <strong>drag</strong> to look round
+              <HintChip icon={<Icon name="calendar_month" size={14} />}>
+                <strong>{clockLabel(minutes)}</strong>
+              </HintChip>
+              <HintChip icon={<Icon name="stairs" size={14} />}>
+                Floor <strong>{roomAt.floor}</strong> · {roomAt.side} side
+              </HintChip>
             </>
-          ) : (
-            <>
-              <strong>W A S D</strong> to walk · <strong>[ ]</strong> ten minutes earlier or later ·{' '}
-              <strong>Esc</strong> to leave the flat
-            </>
-          )}
-          <br />
-          <span className="walking-hint__note">
-            {clockLabel(minutes)} · Floor {roomAt.floor}, {roomAt.side} side · an example one-bedroom layout, not
-            this building's real plan
-          </span>
-        </p>
+          }
+        >
+          <p className="walk-hints__note">An example one-bedroom layout, not this building's real plan</p>
+        </WalkHints>
       )}
 
       {/* ── IN THE STREET: the keys, the way into a headset, how far the stand moved */}
@@ -2053,19 +2066,29 @@ export default function App() {
       {/* the centre of the view: what a click does on a tram door or seat */}
       {walking && !byTouch && !inVr && <TramAim />}
       {walking && (
-        <p className="walking-hint">
-          {byTouch ? (
+        <WalkHints
+          actions={
+            byTouch ? (
+              <>
+                <KeyHint keys={['Stick']} label="Walk" />
+                <KeyHint keys={['Drag']} label="Look round" />
+              </>
+            ) : (
+              <>
+                <KeyHint keys={['W', 'A', 'S', 'D']} label="Walk" />
+                <KeyHint keys={['Shift']} label="Hurry" />
+                <KeyHint keys={['Space']} label="Jump" />
+                <KeyHint keys={['Esc']} label="Come back up" />
+              </>
+            )
+          }
+          chips={
             <>
-              <strong>Stick</strong> to walk · <strong>drag</strong> to look round
+              {!byTouch && <WalkPaceHint />}
+              <TramHint />
             </>
-          ) : (
-            <>
-              <strong>W A S D</strong> to walk · <strong>Shift</strong> to hurry ·{' '}
-              <strong>Space</strong> to jump · <strong>Esc</strong> to come back up
-              <WalkPaceHint />
-            </>
-          )}
-          <TramHint />
+          }
+        >
           {/*
             ── THE WAY INTO A HEADSET ─────────────────────────────────────
 
@@ -2083,7 +2106,6 @@ export default function App() {
           */}
           {vrSupported && (
             <>
-              <br />
               <button type="button" className="walking-hint__vr" onClick={enterVr}>
                 Enter VR
               </button>
@@ -2093,7 +2115,7 @@ export default function App() {
                 and the comfort warning has to be read before the first step,
                 not after it.
               */}
-              <span className="walking-hint__note">
+              <span className="walk-hints__note">
                 Left stick walks, push it to the stop to run · right stick
                 turns · <strong>A</strong> and <strong>B</strong> move the
                 hour · hold either <strong>grip</strong> to come back.
@@ -2109,13 +2131,12 @@ export default function App() {
              * moving them without saying so implies the view and the numbers
              * describe the same place.
              */
-            <>
-              <br />
-              Standing {Math.round(standMoved)} m from the measured spot — the
-              nearest ground with no building modelled on it
-            </>
+            <p className="walk-hints__note">
+              Standing {Math.round(standMoved)} m from the measured spot — the nearest ground with no building
+              modelled on it
+            </p>
           )}
-        </p>
+        </WalkHints>
       )}
 
       {/*
