@@ -137,6 +137,17 @@ describe('placing the flat behind a side of a building', () => {
     expect(fitRoom(mixed, [], 'East', 10, null)).toEqual({ ok: false, problem: 'building-too-shallow' });
   });
 
+  it('counts floors from the street the city is drawn on, not from a base recorded below it', () => {
+    // recorded 6 m below the drawn ground at 20 m AHD: drawn partly buried, as the model draws it
+    const sunken = [part(rect(-15, -15, 15, 15), 14, 90)];
+    const fit = fitRoom(sunken, [], 'East', 2, null, null, 20);
+    expect(fit.ok).toBe(true);
+    if (fit.ok) expect(fit.placement.floorAhdM).toBeCloseTo(23, 5);   // the street, plus one 3 m storey
+    // without the ground, the old count: under the street
+    const old = fitRoom(sunken, [], 'East', 2, null);
+    if (old.ok) expect(old.placement.floorAhdM).toBeCloseTo(17, 5);
+  });
+
   it("refuses when the sunlight screen's measuring point had to be moved off this wall", () => {
     expect(fitRoom(tower, [], 'East', 10, null, [15.5, 0]).ok).toBe(true);
     expect(fitRoom(tower, [], 'East', 10, null, [18.0, 0])).toEqual({ ok: false, problem: 'window-moved' });

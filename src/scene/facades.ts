@@ -291,8 +291,9 @@ export function floorAhdM(
   parts: Massing[],
   floor: number,
   floorsAboveGround: number | null,
+  groundAhdM?: number,
 ): number | null {
-  const base = floorBaseAhdM(parts, floor, floorsAboveGround);
+  const base = floorBaseAhdM(parts, floor, floorsAboveGround, groundAhdM);
   if (base === null) return null;
   const topAhdM = Math.max(...parts.map((part) => part.topAhdM));
   const ahdM = base + SILL_M;
@@ -308,6 +309,25 @@ export function storeyHeightM(parts: Massing[], floorsAboveGround: number | null
 }
 
 /**
+ * Where the ground floor is: the street the city is drawn on, when it is given.
+ *
+ * The model has one flat ground (massing.ts groundElevationOf) and draws every building's lowest part
+ * from it. A building whose recorded base is below that plane is drawn partly buried, and counting its
+ * floors from the recorded base put the second floor under the street — a flat looking up at the
+ * underside of the city (2026-10-18) — and that is most buildings: the plane is the median of all the
+ * parts' bases, 29.5 m, and 1,386 of the 1,548 buildings record a base more than a metre below it. One
+ * whose base is above the plane is drawn sunk down to it. Either way the building visibly starts at the
+ * plane, so its floors are counted from there.
+ *
+ * The height of a storey stays the building's own (storeyHeightM, from its record), so a buried building
+ * simply has fewer floors above the street, and asking for one above its roof is refused as before.
+ * Without the ground (older callers, tests) the recorded base is used.
+ */
+export function groundFloorAhdM(parts: Massing[], groundAhdM?: number): number {
+  return groundAhdM ?? Math.min(...parts.map((part) => part.baseAhdM));
+}
+
+/**
  * The floor itself (not the sill above it), metres AHD — where a flat on
  * that floor stands (room/roomPlacement.ts). Null when there is no such
  * floor: above the recorded storeys, or not a whole number.
@@ -316,9 +336,11 @@ export function floorBaseAhdM(
   parts: Massing[],
   floor: number,
   floorsAboveGround: number | null,
+  /** The flat ground the city is drawn on (groundFloorAhdM). */
+  groundAhdM?: number,
 ): number | null {
   if (!Number.isInteger(floor) || floor < 1 || parts.length === 0) return null;
-  const baseAhdM = Math.min(...parts.map((part) => part.baseAhdM));
+  const baseAhdM = groundFloorAhdM(parts, groundAhdM);
   const known = floorsAboveGround !== null && floorsAboveGround > 0;
   if (known && floor > floorsAboveGround) return null;
   return baseAhdM + storeyHeightM(parts, floorsAboveGround) * (floor - 1);
@@ -347,13 +369,14 @@ export function windowPlace(
   facade: Facade,
   floor: number,
   floorsAboveGround: number | null,
+  groundAhdM?: number,
 ): WindowPlace | null {
   /*
    * Above the roof, or not a floor at all. Reachable without a storey count:
    * three metres a floor is a guess, and on a squat building with a tall
    * ground floor the guess runs out before the storeys do.
    */
-  const ahdM = floorAhdM(parts, floor, floorsAboveGround);
+  const ahdM = floorAhdM(parts, floor, floorsAboveGround, groundAhdM);
   if (ahdM === null) return null;
 
   const known = floorsAboveGround !== null && floorsAboveGround > 0;

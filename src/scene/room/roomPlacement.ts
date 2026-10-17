@@ -21,6 +21,7 @@
  */
 import type { Massing } from '../../data/model';
 import { facadesOf, floorBaseAhdM, storeyHeightM } from '../facades';
+import { groundElevationOf } from '../massing';
 import { FACADE_LENGTH, FACADE_MID_Y, FACADE_OUT_X, SLAB_TOP_Z } from './apartmentLayout';
 
 export interface RoomPlacement {
@@ -193,9 +194,11 @@ export function fitRoom(
   floor: number,
   floorsAboveGround: number | null,
   windowAtEN: [number, number] | null = null,
+  /** The flat ground the city is drawn on: floors are counted from it (facades.ts groundFloorAhdM). */
+  groundAhdM?: number,
 ): RoomFit {
   const parts = host as Massing[];
-  const base = floorBaseAhdM(parts, floor, floorsAboveGround);
+  const base = floorBaseAhdM(parts, floor, floorsAboveGround, groundAhdM);
   // no such floor: not a storey on record, or above the top of the building as modelled
   if (base === null || base + 1.2 > Math.max(...host.map((p) => p.topAhdM))) return { ok: false, problem: 'no-such-floor' };
   const facade = facadesOf(parts, base + 1.2).find((f) => f.compass.toLowerCase() === side.toLowerCase());
@@ -325,5 +328,5 @@ export function fitRoomInModel(
     const o = boxOf([b]);
     return o.e1 >= h.e0 - NEAR_M && o.e0 <= h.e1 + NEAR_M && o.n1 >= h.n0 - NEAR_M && o.n0 <= h.n1 + NEAR_M;
   });
-  return fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN);
+  return fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, groundElevationOf(buildings as Massing[]));
 }

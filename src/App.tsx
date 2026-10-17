@@ -854,8 +854,8 @@ export default function App() {
    * list should say so.
    */
   const floorHeightAhd = useMemo(
-    () => floorAhdM(homeParts, floor, floorsAboveGround),
-    [homeParts, floor, floorsAboveGround],
+    () => floorAhdM(homeParts, floor, floorsAboveGround, groundAhdM),
+    [homeParts, floor, floorsAboveGround, groundAhdM],
   );
 
   const sides = useMemo(
@@ -871,7 +871,8 @@ export default function App() {
   /** The point on the chosen side and floor the window is measured at. */
   const windowAt = useMemo(() => {
     if (!chosenSide || homeParts.length === 0) return null;
-    const place = windowPlace(homeParts, chosenSide, floor, floorsAboveGround);
+    // floors counted from the street the city is drawn on, as the flat's are (facades.ts groundFloorAhdM)
+    const place = windowPlace(homeParts, chosenSide, floor, floorsAboveGround, groundAhdM);
 
     /*
      * A large building is several overlapping parts, and the side chosen from
@@ -886,7 +887,7 @@ export default function App() {
       (part) => part.parentId !== foundBuilding?.buildingId,
     );
     return clearOfBuildings(place, homeParts, neighbours);
-  }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding]);
+  }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding, groundAhdM]);
 
 
   /*
