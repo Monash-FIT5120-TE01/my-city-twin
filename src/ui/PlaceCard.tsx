@@ -34,8 +34,8 @@ import type { PlaceFacts } from './placeFacts';
 import { Card } from './kit/Card';
 import { CloseButton } from './kit/CloseButton';
 import { DemoNote } from './kit/DemoNote';
+import { Icon, type IconName } from './kit/Icon';
 import { Swatch } from './kit/Swatch';
-import { TextButton } from './kit/TextButton';
 import '../styles/place-card.css';
 
 export function PlaceCard({
@@ -46,6 +46,7 @@ export function PlaceCard({
   onSunlight,
   onSolar,
   flat,
+  imageUrl = null,
   onClose,
 }: {
   title: string;
@@ -61,6 +62,11 @@ export function PlaceCard({
   onSolar?: () => void;
   /** "Look out from a flat" (FlatPicker): only for a building standing today. App draws it. */
   flat?: ReactNode;
+  /**
+   * A photograph of the building, when there is one. The records have none today, so the corner shows
+   * a drawn building instead: a placeholder that says what it is, never somebody else's photograph.
+   */
+  imageUrl?: string | null;
   /** Back to the map. */
   onClose: () => void;
 }) {
@@ -77,6 +83,38 @@ export function PlaceCard({
       element.focus({ preventScroll: true, focusVisible: false });
     }
   }, [title]);
+
+  /*
+   * Beside the building the card is centred on a point up its side, and it is tall now: near the top of
+   * the map it ran up under the header, near the foot off the screen. Watched each frame (the point moves
+   * with the camera) and moved just far enough to stay between the header and the bottom of the window.
+   */
+  useEffect(() => {
+    if (variant !== 'anchored') return;
+    const card = heading.current?.closest<HTMLElement>('.place-card');
+    if (!card) return;
+    let shift = 0;
+    let id = 0;
+    const tick = () => {
+      const r = card.getBoundingClientRect();
+      if (r.height > 0) {
+        const top = r.top - shift;
+        const bottom = r.bottom - shift;
+        const minTop = (document.querySelector('.header')?.getBoundingClientRect().bottom ?? 64) + 8;
+        const maxBottom = window.innerHeight - 8;
+        let want = 0;
+        if (top < minTop) want = minTop - top;
+        else if (bottom > maxBottom) want = Math.max(minTop - top, maxBottom - bottom);
+        if (Math.abs(want - shift) > 0.5) {
+          shift = want;
+          card.style.setProperty('--pc-shift', `${Math.round(shift)}px`);
+        }
+      }
+      id = window.requestAnimationFrame(tick);
+    };
+    id = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(id);
+  }, [variant]);
 
   return (
     <Card
@@ -96,15 +134,22 @@ export function PlaceCard({
     >
       <CloseButton label="Back to the map" className="place-card__close" onClick={onClose} />
 
-      {/* The address first, then what it is — the order the design reads in. */}
-      <h2 className="panel-title place-card__title" ref={heading} tabIndex={-1}>
-        {title}
-      </h2>
-      <p className="place-card__kind">
-        <Swatch tone={tone} size="sm" />
-        {facts.kind}
-        {facts.use && <span className="place-card__use"> · {facts.use}</span>}
-      </p>
+      {/* The address and what it is on the left; the building's picture on the right. */}
+      <div className="place-card__head">
+        <div className="place-card__head-text">
+          <h2 className="panel-title place-card__title" ref={heading} tabIndex={-1}>
+            {title}
+          </h2>
+          <p className="place-card__kind">
+            <Swatch tone={tone} size="sm" />
+            {facts.kind}
+            {facts.use && <span className="place-card__use"> · {facts.use}</span>}
+          </p>
+        </div>
+        <div className={`place-card__image${imageUrl ? '' : ' place-card__image--none'}`}>
+          {imageUrl ? <img src={imageUrl} alt="" /> : <Icon name="apartment" size={30} />}
+        </div>
+      </div>
 
       <dl className="place-card__figures">
         {facts.figures.map((figure) => (
@@ -112,23 +157,68 @@ export function PlaceCard({
           <div key={figure.label}>
             <dt>{figure.label}</dt>
             <dd>
+              <Icon name={figureIcon(figure.label)} size={16} className="place-card__figure-icon" />
               <FigureValue value={figure.value} />
             </dd>
           </div>
         ))}
       </dl>
 
-      <TextButton className="place-card__go" onClick={onSunlight}>
-        Explore sunlight
-      </TextButton>
-      {onSolar && (
-        <TextButton className="place-card__go place-card__go--solar" onClick={onSolar}>
-          Check solar panels
-        </TextButton>
-      )}
+      {/*
+        The ways on, as two cards of equal weight: each one button from edge to edge, with its own
+        colour, its own icon and its words, so none of them is found by colour alone.
+      */}
+      <h3 className="place-card__section">Explore this building</h3>
+      <div className={`place-card__features${onSolar ? '' : ' place-card__features--one'}`}>
+        <FeatureCard tone="sun" icon="light_mode" title="Explore sunlight" text="Analyse sunlight and shadows" onClick={onSunlight} />
+        {onSolar && (
+          <FeatureCard tone="solar" icon="solar_power" title="Solar panels" text="Estimate rooftop capacity" onClick={onSolar} />
+        )}
+      </div>
       {flat}
       <DemoNote className="place-card__fine" />
     </Card>
+  );
+}
+
+/** A figure's icon, by what it counts; anything else (a project's floor area or count) a plain mark. */
+function figureIcon(label: string): IconName {
+  if (label === 'Height') return 'height';
+  if (label === 'Storeys') return 'stairs';
+  if (label === 'Built' || label === 'Refurbished') return 'calendar_month';
+  return 'info';
+}
+
+/** One of the card's ways on: the whole card is the button. */
+function FeatureCard({
+  tone,
+  icon,
+  title,
+  text,
+  onClick,
+}: {
+  tone: 'sun' | 'solar';
+  icon: IconName;
+  title: string;
+  text: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={`feature-card feature-card--${tone}`} onClick={onClick}>
+      <span className="feature-card__top">
+        <span className="feature-card__icon">
+          <Icon name={icon} size={20} />
+        </span>
+        <span className="feature-card__go" aria-hidden="true">
+          <Icon name="arrow_forward" size={14} />
+        </span>
+      </span>
+      <span className="feature-card__title">{title}</span>
+      <span className="feature-card__text">{text}</span>
+      <span className="feature-card__action" aria-hidden="true">
+        Explore
+      </span>
+    </button>
   );
 }
 

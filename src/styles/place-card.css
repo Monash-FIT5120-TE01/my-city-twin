@@ -3,38 +3,74 @@
  * THE PLACE CARD
  * ─────────────────────────────────────────────────────────────────────────
  *
- * The card beside a chosen building — see PlaceCard.tsx. White on the
- * city, the address in the display face, the figures large enough to read
- * at a glance, one green way on.
+ * The card beside a chosen building — see PlaceCard.tsx. A soft green-grey
+ * panel: the address and the building's picture, three figures in one band,
+ * then the ways on as cards of their own colour — sunlight (warm yellow),
+ * solar panels (mint) and looking out from a flat (soft blue). Each card is
+ * told apart by its icon and its words as well as its colour.
  *
  * IN THIS FILE
- *   - The card and its parts.
+ *   - The card and its parts, and the flat picker inside it.
  *   - Beside the building (wide screens) or docked at the foot (phones).
  */
 
 .place-card {
+  --pc-surface: #f6f8f7;
+  --pc-edge: #d9e4e0;
+  --pc-ink: #153f33;
+  --pc-ink-2: #52675f;
+  --pc-stats: #e8efeb;
+  --pc-stats-ink: #1f4a3b;
+  --pc-sun: #fce9b9;
+  --pc-sun-edge: #e9bd63;
+  --pc-sun-ink: #664309;
+  --pc-solar: #cee9dd;
+  --pc-solar-edge: #9bc9b4;
+  --pc-solar-ink: #164e3c;
+  --pc-look: #d9e9f7;
+  --pc-look-edge: #a9cce5;
+  --pc-look-ink: #174f79;
+  --pc-field: #f8fcff;
+  --pc-field-edge: #b8d2e5;
+  --pc-field-ink: #164a6e;
+  --pc-lift: 0 1px 2px rgba(21, 63, 51, 0.08), 0 2px 6px rgba(21, 63, 51, 0.06);
+  --pc-lift-up: 0 3px 6px rgba(21, 63, 51, 0.12), 0 6px 14px rgba(21, 63, 51, 0.08);
+
   position: relative;
   /*
-   * As wide as its figures need, between these two. A fixed width let the
+   * As wide as its parts need, between these two. A fixed width let the
    * widest figure ("62,754 m²") run out past the card's edge.
    */
   width: max-content;
-  min-width: 17.5rem;
-  max-width: min(22rem, calc(100vw - 2rem));
-  padding: var(--space-3) var(--space-4) var(--space-2);
-  color: var(--ink);
+  min-width: 19rem;
+  max-width: min(22.5rem, calc(100vw - 2rem));
+  padding: var(--space-3);
+  border-color: var(--pc-edge);
+  background: var(--pc-surface);
+  color: var(--pc-ink);
   text-align: left;
 }
 
-/* The close button (kit) in the corner, out of the way of the title. */
+/* The close button (kit) in the corner, beside the picture rather than over it. */
 .place-card__close {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 4px;
+  right: 4px;
+}
+
+/* ── the address and the picture ─────────────────────────── */
+
+.place-card__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2);
+  padding-right: 2.25rem;
 }
 
 .place-card__title {
-  padding-right: 2rem;
+  color: var(--pc-ink);
+  overflow-wrap: anywhere;
 }
 
 .place-card__kind {
@@ -44,7 +80,7 @@
   gap: 0 var(--space-1);
   margin: var(--space-1) 0 0;
   font-size: var(--text-sm);
-  color: var(--ink-2);
+  color: var(--pc-ink-2);
 }
 
 /* The dot (kit Swatch) is the colour the building is drawn in while chosen; the words say the same. */
@@ -52,19 +88,39 @@
   margin-right: 2px;
 }
 
-/*
- * The figures: equal columns, the number above what it counts, hairlines
- * between. Grey ground, as measurements rather than something the product
- * is saying; the green belongs to the one way on.
- */
+/* The building's picture: a photograph when there is one, otherwise a drawn building on its own ground. */
+.place-card__image {
+  width: 3.75rem;
+  height: 3.75rem;
+  overflow: hidden;
+  border: 1px solid var(--pc-edge);
+  border-radius: 12px;
+  background: var(--pc-stats);
+}
+
+.place-card__image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.place-card__image--none {
+  display: grid;
+  place-items: center;
+  color: var(--pc-stats-ink);
+}
+
+/* ── the figures ────────────────────────────────────────── */
+
+/* Equal columns, the number above what it counts, hairlines between, on one soft band. */
 .place-card__figures {
   display: grid;
-  /* Each column as wide as its figure, the spare room shared out. */
-  grid-auto-columns: auto;
+  grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
-  margin: var(--space-3) 0 0;
-  border-radius: var(--radius-control);
-  background: var(--surface-sunken);
+  margin: var(--space-2) 0 0;
+  border-radius: 12px;
+  background: var(--pc-stats);
 }
 
 .place-card__figures > div {
@@ -72,43 +128,334 @@
   flex-direction: column-reverse;
   justify-content: flex-end;
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+}
+
+.place-card__figures > div + div {
+  border-left: 1px solid rgba(31, 74, 59, 0.14);
+}
+
+.place-card__figures dd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: var(--weight-title);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--pc-stats-ink);
+  font-variant-numeric: var(--numeric);
+  white-space: nowrap;
+}
+
+.place-card__figure-icon {
+  flex: none;
+  color: var(--pc-ink-2);
 }
 
 .place-card__unit {
   font-size: 0.72em;
   font-weight: var(--weight-label);
   letter-spacing: 0;
-  color: var(--ink-2);
-}
-
-.place-card__figures > div + div {
-  border-left: 1px solid var(--cream-edge);
-}
-
-.place-card__figures dd {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: var(--weight-title);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-  font-variant-numeric: var(--numeric);
-  white-space: nowrap;
+  color: var(--pc-ink-2);
 }
 
 .place-card__figures dt {
   margin: 2px 0 0;
   overflow: hidden;
   font-size: var(--text-xs);
-  color: var(--ink-2);
+  color: var(--pc-ink-2);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.place-card__go {
+/* ── the ways on ────────────────────────────────────────── */
+
+.place-card__section {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-label);
+  color: var(--pc-ink);
+}
+
+/* Two cards side by side, of one height; one alone (a project, with no panels to check) takes the row. */
+.place-card__features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.place-card__features--one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.feature-card {
+  --fc-bg: var(--pc-sun);
+  --fc-edge: var(--pc-sun-edge);
+  --fc-ink: var(--pc-sun-ink);
+
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 2px;
+  min-height: 6.5rem;
+  padding: 8px 10px;
+  border: 1px solid var(--fc-edge);
+  border-radius: 14px;
+  background: var(--fc-bg);
+  box-shadow: var(--pc-lift);
+  color: var(--fc-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 170ms var(--ease),
+    box-shadow 170ms var(--ease);
+}
+
+.feature-card--solar {
+  --fc-bg: var(--pc-solar);
+  --fc-edge: var(--pc-solar-edge);
+  --fc-ink: var(--pc-solar-ink);
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pc-lift-up);
+}
+
+.feature-card:active {
+  transform: translateY(0);
+  box-shadow: var(--pc-lift);
+  filter: brightness(0.97);
+}
+
+.feature-card:focus-visible {
+  outline: 2px solid var(--fc-ink);
+  outline-offset: 2px;
+}
+
+.feature-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.feature-card__icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.feature-card__go {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--fc-edge);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.feature-card__title {
+  margin-top: 4px;
+  font-weight: var(--weight-label);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+}
+
+.feature-card__text {
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  opacity: 0.9;
+}
+
+.feature-card__action {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── looking out from a flat (FlatPicker) ──────────────── */
+
+.flat-picker {
+  display: grid;
+  gap: var(--space-1);
   margin-top: var(--space-1);
+  padding: 10px;
+  border: 1px solid var(--pc-look-edge);
+  border-radius: 14px;
+  background: var(--pc-look);
+  box-shadow: var(--pc-lift);
+  color: var(--pc-look-ink);
+}
+
+.flat-picker__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.flat-picker__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.flat-picker__title {
+  display: block;
+  font-weight: var(--weight-label);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+}
+
+.flat-picker__text {
+  display: block;
+  font-size: var(--text-xs);
+  opacity: 0.9;
+}
+
+.flat-picker__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: var(--space-1);
+}
+
+.flat-picker__field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.flat-picker__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-label);
+}
+
+/* The sunlight panel's stepper, a size down and in the blue card's own field colours. */
+.flat-picker .stepper.stepper--compact {
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  min-height: 40px;
+  border: 1px solid var(--pc-field-edge);
+  background: var(--pc-field);
+}
+
+.flat-picker .stepper--compact .stepper__step {
+  min-height: 38px;
+  color: var(--pc-field-ink);
+}
+
+.flat-picker .stepper--compact .stepper__step:hover:not(:disabled) {
+  background: var(--pc-look);
+}
+
+.flat-picker .stepper--compact .stepper__value input {
+  min-height: 36px;
+  font-size: var(--text-body);
+  color: var(--pc-field-ink);
+}
+
+.flat-picker__select {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--pc-field-edge);
+  border-radius: var(--radius-control);
+  background: var(--pc-field);
+  font: inherit;
+  font-weight: var(--weight-label);
+  color: var(--pc-field-ink);
+  cursor: pointer;
+}
+
+.flat-picker__select:focus-visible,
+.flat-picker .stepper__step:focus-visible,
+.flat-picker .stepper__value input:focus-visible {
+  outline: 2px solid var(--pc-look-ink);
+  outline-offset: 2px;
+}
+
+/* The way in: full width, in the blue card's own ink, no bigger than a field. */
+.flat-picker__go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  border: 1px solid var(--pc-look-ink);
+  border-radius: var(--radius-control);
+  /* a step deeper than the card, in its own ink: clearly the way in, without outweighing the other two */
+  background: #b7d5ee;
+  color: #123f61;
+  font: inherit;
+  font-weight: var(--weight-label);
+  cursor: pointer;
+  transition:
+    transform 170ms var(--ease),
+    box-shadow 170ms var(--ease);
+}
+
+.flat-picker__go:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--pc-lift-up);
+}
+
+.flat-picker__go:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.flat-picker__go:focus-visible {
+  outline: 2px solid var(--pc-look-ink);
+  outline-offset: 2px;
+}
+
+/* Off until the floor and the side make a place the flat fits: lighter, and the pointer says so too. */
+.flat-picker__go:disabled {
+  border-color: var(--pc-field-edge);
+  background: var(--pc-field);
+  color: #6f8597;
+  cursor: not-allowed;
+}
+
+.flat-picker__note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--pc-look-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-card,
+  .flat-picker__go {
+    transition: none;
+  }
+
+  .feature-card:hover,
+  .flat-picker__go:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* A narrow card (a phone's docked sheet): the two ways on still side by side, their words a size down. */
+@media (max-width: 380px) {
+  .feature-card {
+    min-height: 6.75rem;
+    padding: 8px;
+  }
+
+  .feature-card__text {
+    font-size: 0.72rem;
+  }
 }
 
 /* ── where it sits ──────────────────────────────────────── */
@@ -119,7 +466,10 @@
  * and centres it on it, so it stands next to the building, not on it.
  */
 .place-card--anchored {
-  transform: translate(3.5rem, -50%);
+  /* taller now than the map is high on a short window: the card scrolls rather than leaving the screen */
+  max-height: calc(100vh - var(--h-header) - 2rem);
+  overflow-y: auto;
+  transform: translate(3.5rem, calc(-50% + var(--pc-shift, 0px)));
   animation: place-card-in var(--dur-panel) var(--ease) both;
 }
 
@@ -127,7 +477,7 @@
 @keyframes place-card-in {
   from {
     opacity: 0;
-    transform: translate(3.5rem, calc(-50% + 6px));
+    transform: translate(3.5rem, calc(-50% + var(--pc-shift, 0px) + 6px));
   }
 }
 
@@ -159,85 +509,8 @@
   }
 }
 
-/* The solar panel check: a second way out of the card, under the first. */
-.place-card__go--solar {
-  margin-top: 4px;
-}
 
-/*
- * "Look out from a flat" (FlatPicker): the floor and the side on one line, the button, one line of note.
- * Under a hairline, so it reads as a second thing the card offers rather than more figures.
- */
-.flat-picker {
-  display: grid;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--hairline);
-}
-
-.flat-picker__title {
-  margin: 0;
-  font-weight: var(--weight-label);
-  color: var(--ink);
-}
-
-.flat-picker__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
-  gap: var(--space-1);
-}
-
-.flat-picker__field {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.flat-picker__label {
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-}
-
-/* The sunlight panel's stepper, a size down to fit beside the side. */
-.stepper.stepper--compact {
-  grid-template-columns: 34px minmax(0, 1fr) 34px;
-  min-height: 40px;
-}
-
-.stepper--compact .stepper__step {
-  min-height: 40px;
-}
-
-.stepper--compact .stepper__value input {
-  min-height: 38px;
-  font-size: var(--text-body);
-}
-
-.flat-picker__select {
-  min-width: 0;
-  min-height: 40px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--cream-edge);
-  border-radius: var(--radius-control);
-  background: var(--surface-sunken);
-  font: inherit;
-  font-weight: var(--weight-label);
-  color: var(--ink);
-  cursor: pointer;
-}
-
-.flat-picker__select:focus-visible {
-  outline: 2px solid var(--green-700);
-  outline-offset: 2px;
-}
-
-.flat-picker__note {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-}
-
+/* The window's way into the flat on the sunlight panel (LookOutFromFlat). */
 .look-out {
   display: grid;
   gap: 6px;

@@ -60,10 +60,21 @@ export function FlatPicker({
 }) {
   const note = useId();
   const floorLabel = useId();
+  const titleId = useId();
   const atTop = floorsAboveGround !== null && floor >= floorsAboveGround;
   return (
-    <section className="flat-picker" aria-label="Look out from a flat">
-      <p className="flat-picker__title">Look out from a flat</p>
+    <section className="flat-picker" aria-labelledby={titleId}>
+      <div className="flat-picker__head">
+        <span className="flat-picker__icon" aria-hidden="true">
+          <Icon name="visibility" size={20} />
+        </span>
+        <span>
+          <span className="flat-picker__title" id={titleId}>
+            Look out from a flat
+          </span>
+          <span className="flat-picker__text">See the view from a selected floor</span>
+        </span>
+      </div>
       <div className="flat-picker__row">
         <div className="flat-picker__field">
           <span className="flat-picker__label" id={floorLabel}>
@@ -117,9 +128,11 @@ export function FlatPicker({
           </select>
         </label>
       </div>
-      <Button block disabled={!fit?.ok} aria-describedby={note} onClick={onEnter}>
+      {/* asks for both answers first: off until the floor and the side make a place the flat fits */}
+      <button type="button" className="flat-picker__go" disabled={!fit?.ok} aria-describedby={note} onClick={onEnter}>
         Look out
-      </Button>
+        <Icon name="arrow_forward" size={16} />
+      </button>
       <p className="flat-picker__note" id={note} aria-live="polite">
         {!side
           ? 'Choose the floor and which way the flat faces.'

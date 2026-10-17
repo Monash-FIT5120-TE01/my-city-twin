@@ -109,8 +109,15 @@ describe('the card', () => {
   });
 
   it('pairs each figure with its label, the unit set apart and smaller', () => {
-    expect(html).toContain('<dt>Height</dt><dd>172<span class="place-card__unit"> m</span></dd>');
-    expect(html).toContain('<dt>Office</dt><dd>57,810<span class="place-card__unit"> m²</span></dd>');
-    expect(html).toContain('<dt>Storeys</dt><dd>47</dd>');
+    // each figure leads with an icon of what it counts; the words and numbers are what is checked
+    const plain = html.replace(/<svg[\s\S]*?<\/svg>/g, '');
+    expect(plain).toContain('<dt>Height</dt><dd>172<span class="place-card__unit"> m</span></dd>');
+    expect(plain).toContain('<dt>Office</dt><dd>57,810<span class="place-card__unit"> m²</span></dd>');
+    expect(plain).toContain('<dt>Storeys</dt><dd>47</dd>');
+  });
+
+  it('offers its ways on as whole-card buttons, each named in words', () => {
+    expect(html).toContain('<h3 class="place-card__section">Explore this building</h3>');
+    expect(html).toMatch(/<button type="button" class="feature-card feature-card--sun">[\s\S]*Explore sunlight[\s\S]*Analyse sunlight and shadows/);
   });
 });
