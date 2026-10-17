@@ -134,9 +134,12 @@ export function indexObstacles(parts: readonly Part[], heightAhdM: number | Terr
         if (n > maxN) maxN = n;
       }
 
+      // on real ground every part is checked where the walker is: a raised one against its base and top,
+      // one reaching the ground against its top (a low block on the low side is under a walker uphill)
+      const onTerrain = typeof heightAhdM !== 'number';
       const obstacle: Obstacle = {
         rings, minE, minN, maxE, maxN,
-        raised: !reachesTheGround && typeof heightAhdM !== 'number' ? { baseAhdM: part.baseAhdM, topAhdM: part.topAhdM } : undefined,
+        raised: onTerrain ? { baseAhdM: reachesTheGround ? -Infinity : part.baseAhdM, topAhdM: part.topAhdM } : undefined,
       };
       count++;
 

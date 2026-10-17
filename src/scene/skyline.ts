@@ -339,32 +339,54 @@ export function sunReaches(
   return sun.altitudeDeg > skyline[bucket];
 }
 
-/** How far the ground itself is looked along for a horizon, metres; and the step, finer near. */
+/** How far the ground itself is looked along for a horizon, metres. */
 const GROUND_HORIZON_M = 2000;
 
 /**
- * The ground's own horizon (terrain.ts) laid into a skyline: for each degree of bearing, the highest the
- * ground rises as seen from the window. A low window on a slope has the hill above it in the uphill
- * direction, and the sun low in that direction is behind the hill before it is behind any building
- * (Codex review, 2026-10-18). Returns the same array, raised where the ground is higher than the buildings.
+ * The ground's own horizon (terrain.ts) from a point: for each degree of bearing, the highest the ground
+ * rises as seen from there. A low window on a slope has the hill above it uphill, and the sun low in that
+ * direction is behind the hill before it is behind any building (Codex review, 2026-10-18).
+ *
+ * Looked along three lines in each degree, a metre apart near the point and further apart with distance:
+ * a rise just past the window, or between two lines of one degree, is not stepped over. Computed once
+ * per point and laid into as many skylines as need it (withHorizon).
  */
+export function groundHorizon(
+  fromEN: [number, number],
+  fromAhdM: number,
+  groundAt: (east: number, north: number) => number,
+): Skyline {
+  const horizon = new Float32Array(HORIZON_BUCKETS).fill(-90);
+  for (let bucket = 0; bucket < HORIZON_BUCKETS; bucket++) {
+    let highest = -90;
+    for (const part of [0.17, 0.5, 0.83]) {
+      const bearing = (bucket + part) * DEG;
+      const dE = Math.sin(bearing);
+      const dN = Math.cos(bearing);
+      for (let d = 1; d <= GROUND_HORIZON_M; d += d < 30 ? 1 : d < 300 ? 5 : 25) {
+        const rise = groundAt(fromEN[0] + dE * d, fromEN[1] + dN * d) - fromAhdM;
+        const altitude = Math.atan2(rise, d) / DEG;
+        if (altitude > highest) highest = altitude;
+      }
+    }
+    horizon[bucket] = highest;
+  }
+  return horizon;
+}
+
+/** A skyline with a horizon laid into it: the higher of the two in each degree. Returns a new array. */
+export function withHorizon(skyline: Skyline, horizon: Skyline): Skyline {
+  const out = new Float32Array(skyline);
+  for (let i = 0; i < out.length; i++) if (horizon[i] > out[i]) out[i] = horizon[i];
+  return out;
+}
+
+/** groundHorizon and withHorizon in one, for a single skyline. */
 export function withGroundHorizon(
   skyline: Skyline,
   fromEN: [number, number],
   fromAhdM: number,
   groundAt: (east: number, north: number) => number,
 ): Skyline {
-  for (let bucket = 0; bucket < HORIZON_BUCKETS; bucket++) {
-    const bearing = (bucket + 0.5) * DEG;
-    const dE = Math.sin(bearing);
-    const dN = Math.cos(bearing);
-    let highest = -90;
-    for (let d = 5; d <= GROUND_HORIZON_M; d += d < 200 ? 5 : 20) {
-      const rise = groundAt(fromEN[0] + dE * d, fromEN[1] + dN * d) - fromAhdM;
-      const altitude = Math.atan2(rise, d) / DEG;
-      if (altitude > highest) highest = altitude;
-    }
-    if (highest > skyline[bucket]) skyline[bucket] = highest;
-  }
-  return skyline;
+  return withHorizon(skyline, groundHorizon(fromEN, fromAhdM, groundAt));
 }

@@ -17,8 +17,8 @@ import { resolve } from 'node:path';
 import { describe, it } from 'vitest';
 import { buildCityModel } from '../data/adapter';
 import type { ApiBuildingPart, ApiDevelopmentPart, ApiFeatureCollection } from '../data/api-types';
-import { facadesOf, floorAhdM, windowPlace } from './facades';
-import { buildSkyline, withGroundHorizon } from './skyline';
+import { clearOfBuildings, facadesOf, floorAhdM, windowPlace } from './facades';
+import { buildSkyline, groundHorizon, withGroundHorizon } from './skyline';
 import { sunlightAtPoint } from './sunlightAt';
 import { buildingGroundAhdM, heightAt, terrainOf } from './terrain';
 import { sunlightAtWindow } from './windowSunlight';
@@ -45,13 +45,15 @@ describe.skipIf(!process.env.TERRAIN_REPORT)('the figures on real ground', () =>
       const cn = ring.reduce((s, p) => s + p[1], 0) / ring.length;
       const at: [number, number] = [ce, cn - 40];
       const before = sunlightAtPoint(at, oldPlane, oldPlane, d.parts, DATE);
-      const now = sunlightAtPoint(at, heightAt(t, at[0], at[1]), t, d.parts, DATE);
+      const z = heightAt(t, at[0], at[1]);
+      const now = sunlightAtPoint(at, z, t, d.parts, DATE, groundHorizon(at, z, (e, n) => heightAt(t, e, n)));
       spots.push({ dev: d.streetAddress, groundNow: +heightAt(t, at[0], at[1]).toFixed(1), lostBefore: before.lostMin, lostNow: now.lostMin });
     }
 
     const byBuilding = new Map<string, typeof model.buildings>();
     for (const p of model.buildings) byBuilding.set(p.parentId, [...(byBuilding.get(p.parentId) ?? []), p]);
     const windows: { id: string; side: string; heightBefore: number; heightNow: number; sunBefore: number; sunNow: number }[] = [];
+    const skipped: { id: string; side: string; why: string }[] = [];
     for (const [id, parts] of byBuilding) {
       const base = Math.min(...parts.map((p) => p.baseAhdM));
       if (Math.max(...parts.map((p) => p.topAhdM)) - base < 40) continue;
@@ -65,9 +67,19 @@ describe.skipIf(!process.env.TERRAIN_REPORT)('the figures on real ground', () =>
       for (const f of facadesOf(parts, levelNow)) {
         const fb = sidesBefore.get(f.compass);
         if (!fb) continue;
-        const before = windowPlace(parts, fb, 3, null);
-        const now = windowPlace(parts, f, 3, null, ground);
-        if (!before || !now) continue;
+        // chosen the way the app chooses them: moved clear of the buildings, and (now) not under the street
+        const placedBefore = windowPlace(parts, fb, 3, null);
+        const placedNow = windowPlace(parts, f, 3, null, ground);
+        const before = placedBefore && clearOfBuildings(placedBefore, parts, others);
+        const now = placedNow && clearOfBuildings(placedNow, parts, others);
+        if (!before || !now) {
+          skipped.push({ id, side: f.compass, why: 'inside a building' });
+          continue;
+        }
+        if (heightAt(t, now.en[0], now.en[1]) > now.ahdM - 1.2 + 0.15) {
+          skipped.push({ id, side: f.compass, why: 'below the street now' });
+          continue;
+        }
         const sunBefore = sunlightAtWindow(before, buildSkyline(before.en, before.ahdM, others), null, DATE).sunAtWindowMin;
         const skyNow = withGroundHorizon(buildSkyline(now.en, now.ahdM, others), now.en, now.ahdM, (e, n) => heightAt(t, e, n));
         const sunNow = sunlightAtWindow(now, skyNow, null, DATE).sunAtWindowMin;
@@ -93,6 +105,8 @@ describe.skipIf(!process.env.TERRAIN_REPORT)('the figures on real ground', () =>
         sunBeforeMedianMin: median(windows.map((w) => w.sunBefore)),
         sunNowMedianMin: median(windows.map((w) => w.sunNow)),
         changedBy30MinOrMore: winDiff.filter((d) => Math.abs(d) >= 30).length,
+        notCompared: skipped.length,
+        notComparedBelowTheStreet: skipped.filter((x) => x.why.startsWith('below')).length,
       },
       spotsDetail: spots,
       windowsDetail: windows,

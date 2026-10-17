@@ -82,7 +82,7 @@ import { useBuildingDetail } from './data/useBuildingDetail';
 import { clearOfBuildings, facadesOf, floorAhdM, windowPlace } from './scene/facades';
 import { buildingCentres, buildingsUnder } from './data/replaces';
 import { buildingEntry } from './data/buildingEntry';
-import { buildSkyline, withGroundHorizon } from './scene/skyline';
+import { buildSkyline, groundHorizon, withHorizon } from './scene/skyline';
 import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { LandingPage } from './ui/LandingPage';
@@ -879,7 +879,8 @@ export default function App() {
   /** The point on the chosen side and floor the window is measured at. */
   /** The window's point is below the ground in front of it (terrain.ts): the floor is under the street there. */
   const windowUnderStreet = useCallback(
-    (place: { en: [number, number]; ahdM: number }) => (terrain ? heightAt(terrain, place.en[0], place.en[1]) > place.ahdM - 0.3 : false),
+    // by the floor (the window point is a sill above it), with the same allowance as the flat's balcony
+    (place: { en: [number, number]; ahdM: number }) => (terrain ? heightAt(terrain, place.en[0], place.en[1]) > place.ahdM - 1.2 + 0.15 : false),
     [terrain],
   );
 
@@ -902,8 +903,16 @@ export default function App() {
     const neighbours = standingCity.filter(
       (part) => part.parentId !== foundBuilding?.buildingId,
     );
-    return clearOfBuildings(place, homeParts, neighbours);
+    const clear = clearOfBuildings(place, homeParts, neighbours);
+    // and where it was moved to, if it was: further out may be further up the slope
+    return clear && windowUnderStreet(clear) ? null : clear;
   }, [chosenSide, homeParts, floor, floorsAboveGround, standingCity, foundBuilding, homeGround, windowUnderStreet]);
+
+  /** The ground's own horizon from the window (computed once, laid into both its skylines below). */
+  const windowHorizon = useMemo(
+    () => (windowAt && terrain ? groundHorizon(windowAt.en, windowAt.ahdM, (e, n) => heightAt(terrain, e, n)) : null),
+    [windowAt, terrain],
+  );
 
 
   /*
@@ -992,8 +1001,8 @@ export default function App() {
     if (!windowAt) return null;
     const sky = buildSkyline(windowAt.en, windowAt.ahdM, standingCity);
     // and the ground's own horizon: a low window on a slope has the hill above it uphill
-    return terrain ? withGroundHorizon(sky, windowAt.en, windowAt.ahdM, (e, n) => heightAt(terrain, e, n)) : sky;
-  }, [windowAt, standingCity, terrain]);
+    return windowHorizon ? withHorizon(sky, windowHorizon) : sky;
+  }, [windowAt, standingCity, windowHorizon]);
 
   /*
    * The same sky with every approved project added, so the two can be
@@ -1043,8 +1052,8 @@ export default function App() {
     const survivors = standingCity.filter((part) => !replaced.has(part.parentId));
     const proposals = model.developments.flatMap((development) => development.parts);
     const sky = buildSkyline(windowAt.en, windowAt.ahdM, [...survivors, ...proposals]);
-    return terrain ? withGroundHorizon(sky, windowAt.en, windowAt.ahdM, (e, n) => heightAt(terrain, e, n)) : sky;
-  }, [windowAt, model, standingCity, layers.developments, foundBuilding, terrain]);
+    return windowHorizon ? withHorizon(sky, windowHorizon) : sky;
+  }, [windowAt, model, standingCity, layers.developments, foundBuilding, windowHorizon]);
 
   /*
    * Why there is no figure, when there is none.
@@ -1117,7 +1126,12 @@ export default function App() {
   const measured = useMemo(
     () =>
       receptor && subjectParts.length > 0
-        ? sunlightAtPoint(receptor, terrain ? heightAt(terrain, receptor[0], receptor[1]) : groundAhdM, terrain ?? groundAhdM, subjectParts, date)
+        ? (() => {
+            const at = terrain ? heightAt(terrain, receptor[0], receptor[1]) : groundAhdM;
+            // the ground's own horizon there: sun behind the hill is neither had nor taken by the subject
+            const horizon = terrain ? groundHorizon(receptor, at, (e, n) => heightAt(terrain, e, n)) : undefined;
+            return sunlightAtPoint(receptor, at, terrain ?? groundAhdM, subjectParts, date, horizon);
+          })()
         : null,
     [receptor, subjectParts, date, groundAhdM, terrain],
   );

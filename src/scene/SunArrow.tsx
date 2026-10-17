@@ -82,7 +82,7 @@ export function SunArrow({ sun, anchorEN, groundAhdM, heightM }: SunArrowProps) 
     const flat = new ShapeGeometry(shape);
     flat.rotateZ(groundArrowRotation(sun.azimuthDeg));
     flat.translate(anchorEN[0], anchorEN[1], 0);
-    const draped = drapeOnGround(flat, groundAhdM, 0.7, 12);
+    const draped = drapeOnGround(flat, groundAhdM, 0.7, 5);
     flat.dispose();
     return draped;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the anchor by its numbers, not its array

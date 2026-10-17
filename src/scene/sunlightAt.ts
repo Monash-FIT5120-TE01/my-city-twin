@@ -206,6 +206,12 @@ export function sunlightAtPoint(
   groundAhdM: Ground,
   subject: Massing[],
   date: SimulationDate,
+  /**
+   * The ground's own horizon from the point (skyline.ts groundHorizon): a minute the sun is behind the
+   * hill is sun the point never had, so it is neither counted as sun nor as what the subject takes
+   * (Codex review, 2026-10-18).
+   */
+  horizon?: Float32Array,
 ): SunlightAtPoint {
   let withoutSubjectMin = 0;
   let withSubjectMin = 0;
@@ -231,6 +237,7 @@ export function sunlightAtPoint(
     );
 
     if (sun.altitudeDeg <= 0) continue;
+    if (horizon && sun.altitudeDeg <= horizon[Math.floor(((sun.azimuthDeg % 360) + 360) % 360) % horizon.length]) continue;
     withoutSubjectMin += STEP_MINUTES;
 
     if (blockedBySubject(receptorEN, receptorAhdM, groundAhdM, sun, subject)) {

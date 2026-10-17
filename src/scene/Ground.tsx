@@ -242,6 +242,42 @@ export function Ground({
   useEffect(() => () => pickGeometry?.dispose(), [pickGeometry]);
 
   /*
+   * The coarse surface finds roughly where the pointer meets the ground; the real ground is then met
+   * along the same ray, near there (a step search, then halving): read straight down from the coarse hit,
+   * a ridge between its points sent the spot to the wrong place (Codex review). East/north/up, or null
+   * off the edge of the drawn ground.
+   */
+  const meetGround = (ray: { origin: { x: number; y: number; z: number }; direction: { x: number; y: number; z: number } }, distance: number): [number, number, number] | null => {
+    const at = (t: number) => {
+      const e = ray.origin.x + ray.direction.x * t;
+      const n = -(ray.origin.z + ray.direction.z * t);
+      return [e, n, ray.origin.y + ray.direction.y * t - heightAt(terrain, e, n)] as const;
+    };
+    let lo = Math.max(0, distance - 80);
+    let above = at(lo)[2] > 0;
+    let hi = lo;
+    let found = false;
+    for (let t = lo + 2; t <= distance + 80; t += 2) {
+      if (above && at(t)[2] <= 0) {
+        hi = t;
+        lo = t - 2;
+        found = true;
+        break;
+      }
+      above = at(t)[2] > 0;
+    }
+    if (!found) lo = hi = distance;
+    for (let k = 0; k < 14 && found; k++) {
+      const mid = (lo + hi) / 2;
+      if (at(mid)[2] > 0) lo = mid;
+      else hi = mid;
+    }
+    const [e, n] = at(hi);
+    if (Math.hypot(e - centreE, n - centreN) > size / 2) return null;
+    return [e, n, heightAt(terrain, e, n)];
+  };
+
+  /*
    * The grain is tiled by metres, not by the map's coordinates. The vertex
    * UVs run 0..1 across the whole plane, so the repeat is how many tiles fit
    * across it — the reprojection is near enough linear at this scale for the
@@ -360,7 +396,12 @@ export function Ground({
           trackTap(pressedAt.current, event.nativeEvent);
           // Same reading back as the click below: the hit arrives in three's
           // world frame, and the ring lives inside <WorldFrame>.
-          group.position.set(event.point.x, -event.point.z, heightAt(terrain, event.point.x, -event.point.z));
+          const hit = meetGround(event.ray, event.distance);
+          if (!hit) {
+            show(false);
+            return;
+          }
+          group.position.set(hit[0], hit[1], hit[2]);
         })
       }
       onClick={
@@ -381,7 +422,8 @@ export function Ground({
 
           // The hit is in three's world frame; enuToWorld sent
           // (east, north, up) to (east, up, -north), so this reads it back.
-          onPick([event.point.x, -event.point.z]);
+          const hit = meetGround(event.ray, event.distance);
+          if (hit) onPick([hit[0], hit[1]]);
         })
       }
     >

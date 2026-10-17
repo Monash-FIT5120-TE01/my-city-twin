@@ -8,6 +8,7 @@ import { blocked, indexObstacles } from './obstacles';
 import { storeyHeightM } from './facades';
 import { fitRoomInModel } from './room/roomPlacement';
 import { withGroundHorizon } from './skyline';
+import { sunlightAtPoint } from './sunlightAt';
 import { buildTerrain, groundAt, groundUnder, heightAt, lowestUnder, type Terrain } from './terrain';
 
 let n = 0;
@@ -143,6 +144,14 @@ describe('walls on a slope', () => {
     expect(blocked(index, 8.5, 0.5)).toBe(true);
   });
 
+  it('a low block on the low side of a slope is under a walker standing higher up: not in the way there', () => {
+    const low = square(5, 0.5, 4, 5, 'low-block');
+    low.topAhdM = 10;   // ground 6..14 m under it: only its downhill end stands above eye height
+    const index = indexObstacles([low], slope, 1.7);
+    expect(blocked(index, 2, 0.5)).toBe(true);    // ground 7, eye 8.7: the block's side
+    expect(blocked(index, 8.5, 0.5)).toBe(false); // ground 13.5, eye 15.2: over it
+  });
+
   it('and walked under on the downhill side, where it is overhead: no invisible wall there', () => {
     const index = indexObstacles([raised], slope, 1.7);
     expect(blocked(index, 2, 0.5)).toBe(false);   // ground 7 m, eye 8.7 m, the part starts at 14 m
@@ -170,6 +179,20 @@ describe('floors and windows on a slope', () => {
 
   it('known storeys share out the height above the ground the floors start from', () => {
     expect(storeyHeightM([tower], 10, 15)).toBeCloseTo((90 - 15) / 10, 6);
+  });
+
+  it('a rise just in front of a window counts, not only ones five metres off', () => {
+    // 2 m north the ground is 0.5 m above the window; beyond, it falls away
+    const sky = withGroundHorizon(new Float32Array(360), [0, 0], 1, (_e, n) => (n > 1.5 && n < 2.5 ? 1.5 : 0));
+    expect(sky[0]).toBeGreaterThan(10);
+  });
+
+  it('sun behind the hill is neither had nor taken by a proposal', () => {
+    const hill = new Float32Array(360).fill(90);   // the ground hides the sun all round
+    const block = square(0, -30, 5, 0, 'block');
+    const r = sunlightAtPoint([0, -60], 0, 0, [block], { year: 2026, month: 6, day: 21 }, hill);
+    expect(r.withoutSubjectMin).toBe(0);
+    expect(r.lostMin).toBe(0);
   });
 
   it('the ground rising ahead of a window is a horizon the sun has to clear', () => {
