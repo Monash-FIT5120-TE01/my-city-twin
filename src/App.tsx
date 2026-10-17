@@ -96,8 +96,7 @@ import { TramAim } from './ui/TramAim';
 import { WalkPaceHint } from './ui/WalkPaceHint';
 import { readRoomCheck } from './scene/room/roomCheck';
 import { fitRoomInModel } from './scene/room/roomPlacement';
-import { ApartmentControls } from './ui/Apartment';
-import { LookOutFromFlat, type FlatFit } from './ui/LookOutFromFlat';
+import { FlatPicker, type FlatFit } from './ui/LookOutFromFlat';
 import './styles/room.css';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
@@ -261,8 +260,6 @@ export default function App() {
   const [roomReady, setRoomReady] = useState(false);
   /** The screen faded to black, on the way into the flat or out of it. */
   const [dark, setDark] = useState(false);
-  /** The floor and side picker opened in the building card. */
-  const [cardFlatOpen, setCardFlatOpen] = useState(false);
   /**
    * "Stand here?" over the map: asked once, right after a spot is chosen on
    * the ground. See StandPrompt.
@@ -1676,25 +1673,19 @@ export default function App() {
               }
             : undefined
         }
-        lookOut={
-          view === 'building'
-            ? {
-                open: cardFlatOpen,
-                onToggle: () => setCardFlatOpen((open) => !open),
-                picker: (
-                  <ApartmentControls
-                      floor={floor}
-                      onFloor={setFloor}
-                      floorsAboveGround={floorsAboveGround}
-                      sides={sides}
-                      chosenSide={windowSide}
-                      onSide={setWindowSide}
-                      floorHeightAssumed={windowAt?.floorHeightAssumed ?? floorsAboveGround === null}
-                    />
-                ),
-                action: flatFit && <LookOutFromFlat fit={flatFit} onEnter={enterFlat} />,
-              }
-            : undefined
+        flat={
+          view === 'building' ? (
+            <FlatPicker
+              floor={floor}
+              onFloor={setFloor}
+              floorsAboveGround={floorsAboveGround}
+              sides={sides}
+              side={windowSide}
+              onSide={setWindowSide}
+              fit={flatFit}
+              onEnter={enterFlat}
+            />
+          ) : undefined
         }
         onClose={() => setView('explore')}
       />

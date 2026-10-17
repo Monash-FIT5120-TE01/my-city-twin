@@ -164,21 +164,93 @@
   margin-top: 4px;
 }
 
-/* "Look out from a flat", and the floor and side picker it opens in the card. */
-.place-card__go--flat {
-  margin-top: 4px;
+/*
+ * "Look out from a flat" (FlatPicker): the floor and the side on one line, the button, one line of note.
+ * Under a hairline, so it reads as a second thing the card offers rather than more figures.
+ */
+.flat-picker {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--hairline);
 }
 
-.place-card__flat {
-  max-height: min(11rem, 26vh);
-  margin-top: var(--space-1);
-  padding-top: var(--space-1);
-  overflow-y: auto;
-  border-top: 1px solid var(--hairline);
+.flat-picker__title {
+  margin: 0;
+  font-weight: var(--weight-label);
+  color: var(--ink);
+}
+
+.flat-picker__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: var(--space-1);
+}
+
+.flat-picker__field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.flat-picker__label {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* The sunlight panel's stepper, a size down to fit beside the side. */
+.stepper.stepper--compact {
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  min-height: 40px;
+}
+
+.stepper--compact .stepper__step {
+  min-height: 40px;
+}
+
+.stepper--compact .stepper__value input {
+  min-height: 38px;
+  font-size: var(--text-body);
+}
+
+.flat-picker__select {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+  font: inherit;
+  font-weight: var(--weight-label);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.flat-picker__select:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.flat-picker__note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
 }
 
 .look-out {
   display: grid;
   gap: 6px;
   margin-top: var(--space-2);
+}
+
+/* the stepper's buttons do the stepping: no browser spinner squeezed in beside the number */
+.stepper--compact .stepper__value input {
+  appearance: textfield;
+}
+
+.stepper--compact .stepper__value input::-webkit-inner-spin-button,
+.stepper--compact .stepper__value input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
 }

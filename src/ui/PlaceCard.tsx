@@ -45,7 +45,7 @@ export function PlaceCard({
   variant,
   onSunlight,
   onSolar,
-  lookOut,
+  flat,
   onClose,
 }: {
   title: string;
@@ -59,12 +59,8 @@ export function PlaceCard({
   onSunlight: () => void;
   /** The solar panel check; only for a building standing today. */
   onSolar?: () => void;
-  /**
-   * "Look out from a flat": only for a building standing today. Pressing it opens a small picker in the
-   * card: the floor and the side (`picker`, scrolling if the card runs short of room), then the way in
-   * (`action`, always in view under it). App draws both.
-   */
-  lookOut?: { open: boolean; onToggle: () => void; picker: ReactNode; action: ReactNode };
+  /** "Look out from a flat" (FlatPicker): only for a building standing today. App draws it. */
+  flat?: ReactNode;
   /** Back to the map. */
   onClose: () => void;
 }) {
@@ -130,21 +126,7 @@ export function PlaceCard({
           Check solar panels
         </TextButton>
       )}
-      {lookOut && (
-        <TextButton
-          className="place-card__go place-card__go--flat"
-          aria-expanded={lookOut.open}
-          onClick={lookOut.onToggle}
-        >
-          Look out from a flat
-        </TextButton>
-      )}
-      {lookOut?.open && (
-        <>
-          <div className="place-card__flat">{lookOut.picker}</div>
-          {lookOut.action}
-        </>
-      )}
+      {flat}
       <DemoNote className="place-card__fine" />
     </Card>
   );

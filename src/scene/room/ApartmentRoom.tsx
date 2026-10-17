@@ -19,6 +19,8 @@
 import { Suspense, useEffect, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
+import { PMREMGenerator, type Texture } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EXISTING } from '../palette';
 import { NOTCH } from './apartmentLayout';
 import type { RoomPlacement } from './roomPlacement';
@@ -28,9 +30,32 @@ const MODEL_URL = `${BASE}models/apartment/apartment.glb`;
 const DRACO_URL = `${BASE}draco/`;
 
 type Glowing = { emissiveIntensity: number };
+type Reflecting = { envMap: Texture | null; envMapIntensity: number; needsUpdate: boolean };
+
+/*
+ * Reflections, for the flat only: a soft room-shaped environment (three's RoomEnvironment) on the shiny
+ * things — the marble, the ceramic, the metal, the glass — so they catch light the way they do in the
+ * photos rather than looking like painted card. Set on these materials, not on the scene: the city
+ * outside keeps the light it has always had. Matt surfaces get none; it would only wash them out.
+ */
+const REFLECTION: Record<string, number> = {
+  'apartment-gloss': 0.2,
+  'apartment-metal': 0.8,
+  'apartment-glass': 0.9,
+};
 
 function Model({ night, onReady }: { night: number; onReady?: () => void }) {
   const { scene } = useGLTF(MODEL_URL, DRACO_URL);
+  const gl = useThree((s) => s.gl);
+  const environment = useMemo(() => {
+    const pmrem = new PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const texture = pmrem.fromScene(room, 0.04).texture;
+    room.dispose();
+    pmrem.dispose();
+    return texture;
+  }, [gl]);
+  useEffect(() => () => environment.dispose(), [environment]);
   const { copy, glow } = useMemo(() => {
     const c = scene.clone(true);
     let g: Glowing | null = null;
@@ -38,6 +63,12 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
       const m = o as { isMesh?: boolean; name: string; castShadow: boolean; receiveShadow: boolean; material?: { transparent?: boolean } };
       // the lamp shades, the strip in the wardrobe (export_web.py "glow"): their own light, lit at night
       if (m.isMesh && m.name === 'apartment-glow') g = m.material as unknown as Glowing;
+      if (m.isMesh && REFLECTION[m.name] !== undefined) {
+        const r = m.material as unknown as Reflecting;
+        r.envMap = environment;
+        r.envMapIntensity = REFLECTION[m.name];
+        r.needsUpdate = true;
+      }
       if (m.isMesh) {
         // glass lets the sun in: a shadow map knows nothing of transparency, so glass would cast a solid one
         m.castShadow = !m.material?.transparent;
@@ -45,7 +76,7 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
       }
     });
     return { copy: c, glow: g as Glowing | null };
-  }, [scene]);
+  }, [scene, environment]);
   useEffect(() => {
     if (glow) glow.emissiveIntensity = night;
   }, [glow, night]);
