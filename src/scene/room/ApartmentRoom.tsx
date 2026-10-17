@@ -97,15 +97,21 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
  *
  * By day there is no fill light: the sky light (SceneCanvas's hemisphere and ambient) already reaches
  * every surface inside, as it does outside, and more would only flatten the sun on the floor.
+ *
+ * At the middle of the room's height, not up by the downlights: a point light 0.35 m under the ceiling
+ * lit a hot oval on it that fell away to dark within a metre or two (as the cube of the distance), a hard
+ * ring across the ceiling (2026-10-18). Real downlights shine down and the ceiling is lit by what comes
+ * back off the room; from the middle of the room the ceiling is lit evenly, as it then is.
  */
 const LIGHTS: { at: [number, number, number]; intensity: number }[] = [
-  { at: [2.5, 1.6, 2.35], intensity: 3.6 },   // living and kitchen
-  { at: [5.8, 1.8, 2.35], intensity: 3.6 },   // living, by the balcony
-  { at: [5.6, 5.2, 2.35], intensity: 3.0 },   // bedroom
-  { at: [1.1, 4.3, 2.35], intensity: 2.4 },   // bathroom, laundry and hall
+  { at: [2.5, 1.6, 1.7], intensity: 3.6 },   // living and kitchen
+  { at: [5.8, 1.8, 1.7], intensity: 3.6 },   // living, by the balcony
+  { at: [5.6, 5.2, 1.7], intensity: 3.0 },   // bedroom
+  { at: [1.1, 4.3, 1.7], intensity: 2.4 },   // bathroom, laundry and hall
 ];
 const LAMP_COLOUR = '#ffd9a8';
-const LAMP_REACH_M = 5;
+// far enough that the light fades out softly across the flat, not in a hard ring on the ceiling at 5 m
+const LAMP_REACH_M = 12;
 
 export function ApartmentRoom({
   placement,
