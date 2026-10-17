@@ -18,8 +18,9 @@
  */
 import { Suspense, useEffect, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
-import { PMREMGenerator, type Texture } from 'three';
+import { useGLTF, useTexture } from '@react-three/drei';
+import { PMREMGenerator, SRGBColorSpace, type Texture, type WebGLProgramParametersWithUniforms } from 'three';
+import lightmaps from '../../../public/models/apartment/light/lightmaps.json';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EXISTING } from '../palette';
 import { NOTCH } from './apartmentLayout';
@@ -51,7 +52,36 @@ const REFLECTION: Record<string, number> = {
  * left the corners and everything they did not face nearly black (2026-10-18). Only the flat's own
  * materials take it, so the city outside the window stays as dark as the night.
  */
-const NIGHT_FILL = 0.28;
+const NIGHT_FILL = 0;
+
+/*
+ * The light maps (export_web.py 4c): what Cycles finds reaching each surface, by day (the sky through the
+ * windows and the sun's light bounced about) and by night (the flat's thirteen lamps). Added to the light
+ * the site works out itself, blended by the hour: the walls get the warmth and the brightness they have
+ * in the Blender renders, which no light in the site could give them (nothing bounces in it). Stored
+ * scaled down (lightmaps.json) and brought back here; GAIN matches the renders' exposure to the site's.
+ */
+const LIGHT_CLASSES = lightmaps.classes as readonly string[];
+const LIGHT_URLS = LIGHT_CLASSES.flatMap((k) => [`${BASE}models/apartment/light/apartment-${k}-day.png`, `${BASE}models/apartment/light/apartment-${k}-night.png`]);
+const DAY_GAIN = 0.7;
+const NIGHT_GAIN = 1.0;
+/*
+ * By day the lamps' light at this share as well: the renders the flat was matched to had the lamps on
+ * through the day, and the sky alone (bluish, from one side) left the room cold and washed out.
+ */
+const DAY_LAMPS = 0.45;
+/** The baked occlusion is in the light maps already; the AO map is kept faint so it does not darken twice. */
+const AO_WITH_LIGHTMAP = 0.35;
+
+type Lightmapped = {
+  lightMap: Texture | null;
+  lightMapIntensity: number;
+  aoMapIntensity: number;
+  needsUpdate: boolean;
+  onBeforeCompile: (shader: WebGLProgramParametersWithUniforms) => void;
+  customProgramCacheKey: () => string;
+  userData: { night?: { value: number }; nightMap?: { value: Texture } };
+};
 
 function Model({ night, onReady }: { night: number; onReady?: () => void }) {
   const { scene } = useGLTF(MODEL_URL, DRACO_URL);
@@ -65,10 +95,12 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
     return texture;
   }, [gl]);
   useEffect(() => () => environment.dispose(), [environment]);
-  const { copy, glow, lit } = useMemo(() => {
+  const lightTextures = useTexture(LIGHT_URLS) as Texture[];
+  const { copy, glow, lit, mapped } = useMemo(() => {
     const c = scene.clone(true);
     let g: Glowing | null = null;
     const l: { material: Reflecting; base: number }[] = [];
+    const lm: Lightmapped[] = [];
     c.traverse((o) => {
       const m = o as { isMesh?: boolean; name: string; castShadow: boolean; receiveShadow: boolean; material?: { transparent?: boolean } };
       // the lamp shades, the strip in the wardrobe (export_web.py "glow"): their own light, lit at night
@@ -80,19 +112,58 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
         r.needsUpdate = true;
         l.push({ material: r, base: REFLECTION[m.name] ?? 0 });
       }
+      const cls = m.isMesh ? m.name.replace('apartment-', '') : '';
+      const at = LIGHT_CLASSES.indexOf(cls);
+      if (m.isMesh && at >= 0) {
+        const mat = m.material as unknown as Lightmapped;
+        const [day, night] = [lightTextures[at * 2], lightTextures[at * 2 + 1]];
+        for (const t of [day, night]) {
+          t.flipY = false;   // on the glTF's own UVs, which three reads unflipped
+          t.colorSpace = SRGBColorSpace;   // stored sRGB-encoded, for precision in the dark
+          t.channel = 0;
+          t.needsUpdate = true;
+        }
+        mat.lightMap = day;
+        mat.lightMapIntensity = 0;
+        mat.aoMapIntensity = AO_WITH_LIGHTMAP;
+        mat.userData.night = { value: 0 };
+        mat.userData.nightMap = { value: night };
+        // the night map beside the day one, mixed by the hour (three has one light map a material)
+        mat.onBeforeCompile = (shader) => {
+          shader.uniforms.nightLightMap = mat.userData.nightMap!;
+          shader.uniforms.nightLightMapIntensity = mat.userData.night!;
+          shader.fragmentShader = shader.fragmentShader
+            .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\n')
+            .replace('void main() {', 'uniform sampler2D nightLightMap;\nuniform float nightLightMapIntensity;\nvoid main() {');
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <lights_fragment_maps>',
+            `#include <lights_fragment_maps>
+            #ifdef USE_LIGHTMAP
+              irradiance += texture2D( nightLightMap, vLightMapUv ).rgb * nightLightMapIntensity;
+            #endif`,
+          );
+        };
+        mat.customProgramCacheKey = () => 'flat-two-lightmaps';
+        mat.needsUpdate = true;
+        lm.push(mat);
+      }
       if (m.isMesh) {
         // glass lets the sun in: a shadow map knows nothing of transparency, so glass would cast a solid one
         m.castShadow = !m.material?.transparent;
         m.receiveShadow = true;
       }
     });
-    return { copy: c, glow: g as Glowing | null, lit: l };
-  }, [scene, environment]);
+    return { copy: c, glow: g as Glowing | null, lit: l, mapped: lm };
+  }, [scene, environment, lightTextures]);
   useEffect(() => {
     if (glow) glow.emissiveIntensity = night;
     // the glass takes no night fill: lit up, it turned milky and hid the view (it is the view's window)
     for (const { material, base } of lit) material.envMapIntensity = base + (base === REFLECTION['apartment-glass'] ? 0 : NIGHT_FILL * night);
-  }, [glow, lit, night]);
+    for (const mat of mapped) {
+      mat.lightMapIntensity = lightmaps.scale.day * DAY_GAIN * (1 - night);
+      mat.userData.night!.value = lightmaps.scale.night * NIGHT_GAIN * (night + DAY_LAMPS * (1 - night));
+    }
+  }, [glow, lit, mapped, night]);
   // mounted means loaded: Suspense held this back until the model arrived
   useEffect(() => {
     onReady?.();
@@ -123,6 +194,8 @@ const LIGHTS: { at: [number, number, number]; intensity: number }[] = [
   { at: [1.1, 4.3, 1.7], intensity: 4.5 },   // bathroom, laundry and hall
 ];
 const LAMP_COLOUR = '#ffd9a8';
+/** What is left of them now the night light map carries the lamps' light: a little, for the shine on glossy things. */
+const LAMP_SHARE = 0.25;
 // far enough that the light fades out softly across the flat, not in a hard ring on the ceiling at 5 m
 const LAMP_REACH_M = 12;
 
@@ -158,7 +231,7 @@ export function ApartmentRoom({
         <Model night={night} onReady={onReady} />
       </Suspense>
       {LIGHTS.map(({ at, intensity }) => (
-        <pointLight key={at.join()} position={at} color={LAMP_COLOUR} intensity={intensity * night} distance={LAMP_REACH_M} decay={2} />
+        <pointLight key={at.join()} position={at} color={LAMP_COLOUR} intensity={intensity * night * LAMP_SHARE} distance={LAMP_REACH_M} decay={2} />
       ))}
       {/* the corner of the cut-out block the flat does not fill, made solid again */}
       <mesh position={notch.centre as unknown as [number, number, number]} castShadow receiveShadow>

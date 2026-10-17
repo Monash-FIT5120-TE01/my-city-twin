@@ -1,0 +1,13 @@
+{
+ "scale": {
+  "day": 1.4204813241958618,
+  "night": 1.4819042682647705
+ },
+ "classes": [
+  "arch",
+  "flat",
+  "gloss",
+  "matte",
+  "metal"
+ ]
+}
