@@ -14,8 +14,12 @@
 import { BufferAttribute, BufferGeometry, Matrix4, Vector3, type InstancedMesh, type Mesh, type Object3D } from 'three';
 import type { Compact } from './lod';
 
-/** No triangle edge longer than this on a baked mesh, metres: under the ground grid's 10 m. */
-const MAX_EDGE_M = 8;
+/*
+ * No triangle edge longer than this on a baked mesh, metres. At 8 m (under the ground grid's 10 m) the
+ * streetscape went from about 0.96M points to 7.4M, too much for a headset; at 20 m it is 2.8M, and the
+ * ground, smooth over hundreds of metres, does not come up through the roads in between (2026-10-18).
+ */
+const MAX_EDGE_M = 20;
 
 /**
  * The geometry with every triangle that has an edge longer than `max` (in plan) cut by halving that edge,

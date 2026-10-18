@@ -146,7 +146,7 @@ export async function buildSurfaces(doc: SurfacesDoc, breathe: () => Promise<voi
   const near = new Group(); near.name = 'surfaces-near';
   const far = new Group(); far.name = 'surfaces-far';
   // seen only from far off: laid on the ground in coarser pieces than the near slabs (onGround.ts)
-  far.userData.cutEdgeM = 16;
+  far.userData.cutEdgeM = 40;
   root.add(far, near);
   let since = performance.now();
   const tick = async () => { if (performance.now() - since > 40) { await breathe(); since = performance.now(); } };
