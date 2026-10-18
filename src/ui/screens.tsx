@@ -43,7 +43,7 @@
  *       nothing.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CityModel, Development } from '../data/model';
 import type { Landmark } from '../data/landmarks';
 import { clock12Label } from '../data/now';
@@ -779,6 +779,9 @@ export function SunlightSheet({
    * back new; a window side already chosen (App keeps it) means it was the window being asked about.
    */
   const [measuring, setMeasuring] = useState<'spot' | 'window'>(() => (apartment?.side ? 'window' : 'spot'));
+  /** The notes under the answer, closed behind "See details" as on the solar panel check. */
+  const [details, setDetails] = useState(false);
+  const detailsId = useId();
   const onMeasuring = (next: 'spot' | 'window') => setMeasuring(next);
 
   const preset = matchingSeason(date);
@@ -1217,16 +1220,53 @@ export function SunlightSheet({
         sentence would be false there — and the things it cannot see are
         different ones: balconies, awnings, the shape of a roof.
       */}
-      <p className="sheet__fine">
-        {measuring === 'window'
-          ? apartment?.sunlight
-            ? `${apartment.hostDemolished ? 'The approved plan replaces this building, so there is no “once built” figure to compare against. ' : ''}Sampled every ${apartment.sunlight.stepMinutes} minutes, counting every building in the model including this one. Measured at one representative point on that side — a flat at the far end of the same wall may differ. Buildings are flat-topped blocks: balconies, awnings, window reveals and the shape of the roof are not modelled, and nor is cloud. `
-            : ''
-          : measured
-            ? spotFinePrint(measured.stepMinutes)
-            : ''}
-        {NOT_AN_ASSESSMENT}
-      </p>
+      {/*
+        The same "See details" the solar panel check closes its notes behind (solar.css): what was counted
+        and what the model leaves out, under headings, rather than a paragraph of small print.
+      */}
+      <section className="solar-details sheet__notes">
+        <h3 className="solar-details__heading">
+          <button
+            type="button"
+            className="solar-details__toggle"
+            aria-expanded={details}
+            aria-controls={detailsId}
+            onClick={() => setDetails((d) => !d)}
+          >
+            {details ? 'Hide details' : 'See details'}
+            <Icon name={details ? 'expand_less' : 'expand_more'} size={18} />
+          </button>
+        </h3>
+        <div id={detailsId} className="solar-details__body" hidden={!details}>
+          {measuring === 'window' && apartment?.sunlight ? (
+            <>
+              {apartment.hostDemolished && (
+                <p>The approved plan replaces this building, so there is no “once built” figure to compare against.</p>
+              )}
+              <h4>How we counted</h4>
+              <p>
+                Sampled every {apartment.sunlight.stepMinutes} minutes, counting every building in the model,
+                including this one.
+              </p>
+              <p>
+                Measured at one representative point on that side: a flat at the far end of the same wall may
+                differ.
+              </p>
+              <h4>What is not modelled</h4>
+              <p>
+                Buildings are flat-topped blocks: balconies, awnings, window reveals and the shape of the roof
+                are not modelled, and nor is cloud.
+              </p>
+            </>
+          ) : measuring === 'spot' && measured ? (
+            <>
+              <h4>How we counted</h4>
+              <p>{spotFinePrint(measured.stepMinutes)}</p>
+            </>
+          ) : null}
+          <p className="solar-details__last">{NOT_AN_ASSESSMENT}</p>
+        </div>
+      </section>
       {/*
         On a phone the strip of fine print under the map is hidden, and with
         it the screen's only way to the sources. This is the same link, shown

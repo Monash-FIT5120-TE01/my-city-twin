@@ -360,3 +360,9 @@
   }
 }
 
+
+/* The notes under the answer, behind "See details" as on the solar panel check (solar.css). */
+.sheet__notes {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--hairline);
+}
