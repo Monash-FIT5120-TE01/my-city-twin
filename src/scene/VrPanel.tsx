@@ -1402,7 +1402,7 @@ function Menu({
                   {middle}
                 </Glass>
                 <Glass width={SIDE_WIDTH} height={CARD_HEIGHT} padding={24} gap={7}>
-                  <TimeCard menu={menu} />
+                  <TimeCard menu={menu} shown={shown} />
                 </Glass>
               </Container>
               <Container flexDirection="row" alignItems="center" gap={14}>

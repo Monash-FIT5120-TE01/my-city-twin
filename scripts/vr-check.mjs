@@ -220,6 +220,26 @@ async function instrument() {
       t.aimAt(hand, rig.localToWorld(local));
       return true;
     };
+    /*
+     * A share of the way along the day bar (0 = the first hour, 1 = the last). From the middles of "-10 min" and
+     * "+10 min" (middles, which do not change as the menu turns, unlike a box's corner): halfway between them
+     * is the card's middle, and the bar's picture is centred on it; the picture ends 7 mm above the buttons'
+     * top, and the bar runs 12-280 mm across its 292, its middle 45 mm above its foot.
+     */
+    t.aimAtDayBar = (hand, share) => {
+      const minus = t.findText('-10 min');
+      const plus = t.findText('+10 min');
+      const rig = t.state().scene.getObjectByName('vr-menu');
+      if (!minus || !plus || !rig) return false;
+      rig.updateWorldMatrix(true, false);
+      const middleOf = (o) => rig.worldToLocal(new three.Box3().setFromObject(o).getCenter(new three.Vector3()));
+      const a = middleOf(minus);
+      const b = middleOf(plus);
+      const at = a.clone().add(b).multiplyScalar(0.5);
+      at.set(at.x + (0.012 + share * 0.268 - 0.146), at.y + 0.03 + 0.007 + 0.045, at.z);
+      t.aimAt(hand, rig.localToWorld(at));
+      return true;
+    };
     t.aimAtText = (hand, text) => {
       const target = t.findText(text);
       if (!target) return false;
@@ -725,6 +745,17 @@ try {
   check('"Summer" sets a December date', /December/.test(when ?? ''), when);
   check('"+10 min" moves the time exactly ten minutes', toMinutes(hourAfter) - toMinutes(hourBefore) === 10,
     `${hourBefore} → ${hourAfter}`);
+
+  // The day bar: with the hour moved by hand the note is gone and the sun's arc is drawn. A press on the bar
+  // a quarter of the way along (06:00-20:00) sets the hour there.
+  await frames(5);
+  await shoot('02c-day-bar');
+  await call(() => window.__vrCheck.aimAtDayBar('right', 3 / 14));
+  await frames(3);
+  await pull('right');
+  // within one step of 09:00: the laser is aimed from the buttons' text, a few millimetres either way
+  seen = await textsOnce((now) => Math.abs(toMinutes(hourIn(now)) - 540) <= 10);
+  check('A press on the day bar sets the hour there', Math.abs(toMinutes(hourIn(seen)) - 540) <= 10, `${hourIn(seen)} (aimed at 09:00)`);
 
   // 4b. The laser on a button: can the reader see where it is?
   await call(() => window.__vrCheck.aimAtText('right', 'Summer'));

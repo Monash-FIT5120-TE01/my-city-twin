@@ -133,6 +133,11 @@ export interface VrMenu {
   /** Said above the time when the hour on screen is not the one asked for. */
   note: string | null;
   onNudgeMinutes: (minutes: number) => void;
+  /** Straight to an hour: a press or a slide on the day bar. Snapped to the control's step and window. */
+  onSetMinutes: (minutes: number) => void;
+  /** How high the sun stands at the hour on show, and at the middle of the day: the arc's height. Degrees. */
+  sunAltitudeDeg: number;
+  noonAltitudeDeg: number;
   /**
    * The clock as a number, and the day it sits in: where the handle goes on
    * the time rail and which part of the rail is daylight. Minutes since

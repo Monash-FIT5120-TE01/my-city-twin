@@ -42,6 +42,9 @@ const PATHS = {
   stand: ['M12 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4', 'M12 8v7', 'M8 11h8', 'M9 21l3-6 3 6'],
   // Three dots: zero-length strokes with round caps.
   more: ['M5 12h0.01', 'M12 12h0.01', 'M19 12h0.01'],
+  // Play the day: a triangle pointing on. Pause: two bars.
+  play: ['M8 5v14l11-7z'],
+  pause: ['M9 5v14M15 5v14'],
 } as const;
 
 export type IconName = keyof typeof PATHS;

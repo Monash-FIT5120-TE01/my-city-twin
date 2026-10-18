@@ -132,7 +132,8 @@ export function Button({
       height={height}
       minWidth={height}
       // Sharing a row, a little narrower, so "+10 min" stays on one line.
-      paddingX={grow ? 8 : tone === 'quiet' ? 14 : 22}
+      // An icon alone is a circle, as wide as it is tall.
+      paddingX={!label ? 0 : grow ? 8 : tone === 'quiet' ? 14 : 22}
       gap={10}
       flexDirection="row"
       flexGrow={grow ? 1 : 0}
@@ -148,9 +149,11 @@ export function Button({
       active={{ backgroundColor: tone === 'primary' ? GREEN_PRESSED : PRESSED }}
     >
       {icon && <Icon name={icon} color={ink} size={22} />}
-      <Text fontSize={20} fontWeight={tone === 'secondary' || tone === 'quiet' ? 'semi-bold' : 'bold'} color={ink}>
-        {plain(label)}
-      </Text>
+      {label && (
+        <Text fontSize={20} fontWeight={tone === 'secondary' || tone === 'quiet' ? 'semi-bold' : 'bold'} color={ink}>
+          {plain(label)}
+        </Text>
+      )}
     </Container>
   );
 }

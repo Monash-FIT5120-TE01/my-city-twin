@@ -594,6 +594,16 @@ export default function App() {
     [date],
   );
 
+  /** How high the sun gets on the chosen day: halfway between rise and set (the headset's day bar). */
+  const noonAltitudeDeg = useMemo(() => {
+    const noon = Math.round(((daylight.rise ?? EARLIEST_MINUTES) + (daylight.set ?? LATEST_MINUTES)) / 2);
+    return solarPosition(civilToInstant(SITE.timeZone, date.year, date.month, date.day, Math.floor(noon / 60), noon % 60), {
+      lat: SITE.lat,
+      lon: SITE.lon,
+      elevationM: SITE.elevationM,
+    }).altitudeDeg;
+  }, [date, daylight]);
+
   /** Where the sun is in the Melbourne sky at the date and hour on screen. */
   const sun = useMemo(
     () =>
@@ -1736,6 +1746,9 @@ export default function App() {
         timeLabel: clockLabel(minutes),
         note: nowNote,
         onNudgeMinutes: nudgeMinutes,
+        onSetMinutes: (next) => chooseMinutes(intoWindow(Math.round(next / 10) * 10)),
+        sunAltitudeDeg: sun.altitudeDeg,
+        noonAltitudeDeg,
         minutes,
         railStart: EARLIEST_MINUTES,
         railEnd: LATEST_MINUTES,
