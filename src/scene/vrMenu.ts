@@ -21,8 +21,34 @@
 
 import type { SeasonPreset } from './solar';
 
-/** Where the player is: over the city on a platform, or on the footpath. */
-export type VrStage = 'above' | 'street';
+/** Where the player is: over the city on a platform, on the footpath, or inside the example flat. */
+export type VrStage = 'above' | 'street' | 'room';
+
+/**
+ * The example flat (scene/room/), as the headset reaches it: a building standing today chosen with the
+ * beam, its floor and side, and the way in and out. The same floor and side the page's flat picker sets.
+ */
+export interface VrFlat {
+  /** The building chosen, as the list writes an address; null while none is (or a project is). */
+  building: string | null;
+  /** The beam is waiting for a building. */
+  choosing: boolean;
+  onChoose: () => void;
+  onCancelChoose: () => void;
+  floor: number;
+  /** The top floor as modelled, when known. */
+  floorsAboveGround: number | null;
+  onFloor: (floor: number) => void;
+  /** The sides the building has at that floor, as compass names ("NE"). */
+  sides: string[];
+  side: string | null;
+  onSide: (compass: string) => void;
+  /** Why the flat does not fit there, in words; null when it does, or before a side is chosen. */
+  problem: string | null;
+  canEnter: boolean;
+  onEnter: () => void;
+  onLeave: () => void;
+}
 
 /** One approved development, as a row in the panel's list. */
 export interface VrPlaceOption {
@@ -94,6 +120,9 @@ export interface VrMenu {
   measured: VrMeasurement | null;
   /** What the figure does not count. Said beside it, not behind a link. */
   finePrint: string;
+
+  /** Null on the comparison screen and the like, where there is no flat to reach. */
+  flat: VrFlat | null;
 
   onStand: () => void;
   onRise: () => void;

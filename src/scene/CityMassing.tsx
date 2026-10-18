@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { Group, Mesh, Plane } from 'three';
+import { Mesh as MeshClass, type Group, type Mesh, type Plane } from 'three';
+import type { ThreeEvent } from '@react-three/fiber';
 import type { CityModel, Development } from '../data/model';
-import { mergeMassingsOwned } from './massing';
+import { mergeMassingsOwned, ownerAt } from './massing';
+import { ownedRaycast } from './ownedRaycast';
 import { terrainOf } from './terrain';
 import { RoofCheck } from './RoofCheck';
 import { SolarOnRoof } from './SolarOnRoof';
@@ -40,6 +42,12 @@ interface CityMassingProps {
    * buildings are not to be opened — see BuildingPicker.
    */
   onSelectBuilding?: (buildingId: string) => void;
+  /**
+   * In a headset, while the menu is asking for a building (to look out from one of its flats): one pull
+   * of the trigger on a building standing today, by its id. Undefined the rest of the time, when the beam
+   * passes over the city without testing it.
+   */
+  onPickBuildingInVr?: (buildingId: string) => void;
   /** The spot being measured, if one has been picked. */
   receptor: [number, number] | null;
   /**
@@ -98,6 +106,7 @@ export function CityMassing({
   showAllProposals,
   onSelectDevelopment,
   onSelectBuilding,
+  onPickBuildingInVr,
   receptor,
   windowAt,
   onPickReceptor,
@@ -204,6 +213,32 @@ export function CityMassing({
    * vertex attributes — so toggling the layer a few times used to cost that
    * much GPU memory each time, with nothing left holding it.
    */
+  /*
+   * The headset's beam choosing a building: the merged meshes take the trigger only while it is, and are
+   * tested by building box first (ownedRaycast.ts), not triangle by triangle as three does it.
+   */
+  const pickInVr = onPickBuildingInVr;
+  useEffect(() => {
+    if (!pickInVr) return;
+    const parts = [
+      { mesh: builtMesh.current, owned: built },
+      { mesh: unresolvedMesh.current, owned: unresolved },
+    ];
+    for (const { mesh, owned } of parts) if (mesh && owned) mesh.raycast = ownedRaycast(mesh, owned);
+    return () => {
+      for (const { mesh } of parts) if (mesh) mesh.raycast = MeshClass.prototype.raycast;
+    };
+  }, [pickInVr, built, unresolved]);
+  const pickOn = (owned: typeof built) =>
+    pickInVr && owned
+      ? (event: ThreeEvent<MouseEvent>) => {
+          event.stopPropagation();
+          if (event.faceIndex == null) return;
+          const owner = ownerAt(owned, event.faceIndex);
+          if (owner) pickInVr(owner.parentId);
+        }
+      : undefined;
+
   useEffect(
     () => () => {
       built?.geometry.dispose();
@@ -280,7 +315,7 @@ export function CityMassing({
       {solar && <SolarOnRoof view={solar} />}
 
       {built && (
-        <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry}>
+        <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry} onClick={pickOn(built)}>
           <meshStandardMaterial color={EXISTING} roughness={0.82} metalness={0} />
         </mesh>
       )}
@@ -291,7 +326,7 @@ export function CityMassing({
         an absent shadow reads to a resident as sunlight.
       */}
       {unresolved && (
-        <mesh ref={unresolvedMesh} castShadow receiveShadow geometry={unresolved.geometry}>
+        <mesh ref={unresolvedMesh} castShadow receiveShadow geometry={unresolved.geometry} onClick={pickOn(unresolved)}>
           <meshStandardMaterial color={UNRESOLVED} roughness={0.95} metalness={0} />
         </mesh>
       )}

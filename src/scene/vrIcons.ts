@@ -32,6 +32,8 @@ const PATHS = {
   arrow: ['M5 12h14', 'M13 6l6 6-6 6'],
   reset: ['M4.5 12a7.5 7.5 0 1 0 2.2-5.3', 'M4 4v5h5'],
   ruler: ['M3 17 17 3l4 4L7 21z', 'M7 13l2 2M10 10l2 2M13 7l2 2'],
+  // A house: the roof, the walls, the door.
+  home: ['M3 11 12 4l9 7', 'M5.5 9.5V20h13V9.5', 'M10 20v-5h4v5'],
   // Three dots: zero-length strokes with round caps.
   more: ['M5 12h0.01', 'M12 12h0.01', 'M19 12h0.01'],
 } as const;

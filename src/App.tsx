@@ -97,6 +97,7 @@ import { WalkPaceHint } from './ui/WalkPaceHint';
 import { readRoomCheck } from './scene/room/roomCheck';
 import { fitRoomInModel } from './scene/room/roomPlacement';
 import { FlatPicker, type FlatFit } from './ui/LookOutFromFlat';
+import { flatProblemText } from './ui/flatProblemText';
 import './styles/room.css';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
@@ -448,8 +449,16 @@ export default function App() {
   const wasInVr = useRef(false);
   useEffect(() => {
     if (wasInVr.current && !inVr && vrStage === 'street') setWalking(true);
+    /*
+     * Out of the flat, though. On a monitor the flat is walked with the pointer locked, which only a
+     * click can start; put back in it without one, the reader would be stuck in a dark room.
+     */
+    if (wasInVr.current && !inVr && roomAt) {
+      setRoomAt(null);
+      setRoomReady(false);
+    }
     wasInVr.current = inVr;
-  }, [inVr, vrStage]);
+  }, [inVr, vrStage, roomAt]);
 
   /*
    * Armed, and only where being armed means anything.
@@ -989,6 +998,70 @@ export default function App() {
       }));
     }, fadeOutMs);
   }, [fadeOutMs]);
+  /*
+   * In a headset (the menu's Flat card). No black on the page, which a headset does not draw: the flat is
+   * asked for while the "Going into the flat" pill is up (SceneCanvas), it loads, and only then is the
+   * player moved into it, so they never arrive in an empty building. Out again: moved back above the
+   * building, and the flat let go once that move has landed (onVrPlaced), with the view still dark.
+   */
+  const [vrChoosingBuilding, setVrChoosingBuilding] = useState(false);
+  const [vrRoomPending, setVrRoomPending] = useState(false);
+  const enterFlatInVr = () => {
+    if (!foundBuilding || !windowSide || !flatFit?.ok) return;
+    setRoomReady(false);
+    setRoomAt({ floor, side: windowSide, buildingId: foundBuilding.buildingId });
+    setVrRoomPending(true);
+  };
+  useEffect(() => {
+    if (!vrRoomPending || !roomReady || !roomPlacement) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- the flat arrives from the loader, outside React
+    setVrRoomPending(false);
+    setVrStage('room');
+    setVrTrip((n) => n + 1);
+  }, [vrRoomPending, roomReady, roomPlacement]);
+  const leaveFlatInVr = () => {
+    setVrRoomPending(false);
+    moveInVr('above');
+  };
+  const onVrPlaced = () => {
+    if (vrStage !== 'room' && roomAt && !vrRoomPending) {
+      setRoomAt(null);
+      setRoomReady(false);
+    }
+  };
+  const onRoomFailed = () => {
+    if (!inVr) {
+      leaveRoom();
+      return;
+    }
+    setVrRoomPending(false);
+    setRoomAt(null);
+    setRoomReady(false);
+    if (vrStage === 'room') moveInVr('above');
+  };
+  /** The beam's building, in a headset: chosen as a search would choose it, but kept on the sunlight page. */
+  const pickBuildingInVr = (buildingId: string) => {
+    const building = model ? buildingEntry(model, buildingId) : null;
+    setVrChoosingBuilding(false);
+    if (!building) return;
+    setSelectedKey(null);
+    setSelectedBuildingId(building.buildingId);
+    setLookAt({ east: building.anchorEN[0], north: building.anchorEN[1], heightM: building.heightM });
+    setHasChosen(true);
+    setReceptor(null);
+    setChoosing(false);
+    setView('sunlight');
+  };
+  // a building chosen in the headset has no side yet, and there is no list to pick one from first: its
+  // first side, so the card can say at once whether the flat fits
+  useEffect(() => {
+    if (!inVr || sides.length === 0) return;
+    if (windowSide === null || !sides.some((side) => side.compass === windowSide)) {
+      // oxlint-disable-next-line react/set-state-in-effect -- follows the building chosen
+      setWindowSide(sides[0].compass);
+    }
+  }, [inVr, sides, windowSide]);
+
   // asked for somewhere it does not fit (the development check), or the building changed under it: out
   useEffect(() => {
     if (roomFit && 'refused' in roomFit) {
@@ -1654,6 +1727,25 @@ export default function App() {
             }
           : null,
         finePrint: `${measured ? spotFinePrint(measured.stepMinutes) : ''}${NOT_AN_ASSESSMENT}`,
+        flat: {
+          building: foundBuilding ? shortAddress(foundBuilding.streetAddress) : null,
+          choosing: vrChoosingBuilding,
+          onChoose: () => {
+            setChoosing(false);
+            setVrChoosingBuilding(true);
+          },
+          onCancelChoose: () => setVrChoosingBuilding(false),
+          floor,
+          floorsAboveGround,
+          onFloor: setFloor,
+          sides: sides.map((side) => side.compass),
+          side: windowSide,
+          onSide: setWindowSide,
+          problem: flatFit && !flatFit.ok ? flatProblemText(flatFit.problem) : null,
+          canEnter: flatFit?.ok === true,
+          onEnter: enterFlatInVr,
+          onLeave: leaveFlatInVr,
+        },
         onStand: () => {
           setChoosing(false);
           moveInVr('street');
@@ -1882,7 +1974,9 @@ export default function App() {
           room={roomPlacement}
           onLeaveRoom={leaveRoom}
           onRoomReady={onRoomReady}
-          onRoomFailed={leaveRoom}
+          onRoomFailed={onRoomFailed}
+          onPickBuildingInVr={vrChoosingBuilding ? pickBuildingInVr : undefined}
+          onVrPlaced={onVrPlaced}
           /*
             For the wrist clock and the A/B buttons. The page's own time bar
             does not exist in a headset; the panel shows the hour too, but it

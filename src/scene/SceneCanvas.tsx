@@ -59,8 +59,8 @@ import { roomObstacles } from './room/roomObstacles';
 import { roomShadowOf } from './room/roomShadow';
 import { heightAt, terrainOf } from './terrain';
 import { toEN, type RoomPlacement } from './room/roomPlacement';
-import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { XR } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, MOUSE } from 'three';
@@ -108,6 +108,33 @@ import { useReducedMotion } from '../ui/useReducedMotion';
  * header of VrPanel.tsx.
  */
 const VrFurniture = lazy(() => import('./VrPanel'));
+
+/** How far from the flat's middle the walker may go, metres: the flat and its balcony, and no further. */
+const ROOM_BOUNDS_M = 7.5;
+/** The fastest the headset's stick walks inside the flat, m/s: a brisk walk, as on a monitor. */
+const ROOM_PACE_MS = 2.0;
+/** The headset's near plane inside the flat, metres. The walls and the furniture are within reach. */
+const ROOM_NEAR_M = 0.05;
+
+/*
+ * The near plane, while this is mounted. In a headset three takes the near plane from the page's camera
+ * every frame (WebXRManager.updateCamera), and that camera's is set for looking at a whole city from
+ * hundreds of metres off; indoors it would cut away the room in front of the eyes.
+ */
+function NearPlane({ metres }: { metres: number }) {
+  const camera = useThree((state) => state.camera);
+  useEffect(() => {
+    const before = camera.near;
+    // oxlint-disable-next-line react/immutability -- the camera is three's object, owned by the canvas, not React state
+    camera.near = metres;
+    camera.updateProjectionMatrix();
+    return () => {
+      camera.near = before;
+      camera.updateProjectionMatrix();
+    };
+  }, [camera, metres]);
+  return null;
+}
 import { groundElevationOf } from './massing';
 import { enuToWorld } from './frame';
 import { ViewInset, type ScreenInset } from './ViewInset';
@@ -161,6 +188,13 @@ interface SceneCanvasProps {
   onRoomReady?: () => void;
   /** The flat's model could not be loaded. */
   onRoomFailed?: () => void;
+  /**
+   * In a headset, while the menu is asking for a building to look out from: the building the beam was on
+   * when the trigger was pulled. See CityMassing.
+   */
+  onPickBuildingInVr?: (buildingId: string) => void;
+  /** In a headset, a move has landed (VrWalk's onPlaced): the flat can go once the player has left it. */
+  onVrPlaced?: () => void;
   /**
    * The viewpoint had to be put down this far from the measured spot.
    *
@@ -286,6 +320,8 @@ export function SceneCanvas({
   onLeaveRoom = () => undefined,
   onRoomReady,
   onRoomFailed,
+  onPickBuildingInVr,
+  onVrPlaced,
   onStandMoved,
   approach = false,
   viewCommands,
@@ -565,13 +601,33 @@ export function SceneCanvas({
     },
     onStand: () => setLoading({ title: 'Going down to the street', detail: 'Loading the street', run: vrMenu.onStand }),
     onRise: () => setLoading({ title: 'Going up above the city', detail: 'Loading the view', run: vrMenu.onRise }),
+    flat: vrMenu.flat && {
+      ...vrMenu.flat,
+      // the move lands only once the flat has loaded (App), so the pill stays up until then
+      onEnter: () => setLoading({ title: 'Going into the flat', detail: 'Loading the flat', run: vrMenu.flat!.onEnter }),
+      onLeave: () => setLoading({ title: 'Leaving the flat', detail: 'Loading the view', run: vrMenu.flat!.onLeave }),
+    },
   };
   /** Bumped when the grip is held: the panels ask whether to leave. */
   const [askToLeave, setAskToLeave] = useState(0);
 
   const [inVr, setInVr] = useState(false);
-  // the flat is walked on a monitor only; a headset has its own ways in (none to the flat yet)
+  // in the flat on a monitor (StreetView walks it), and in a headset (VrWalk does, once the move has landed)
   const inRoom = placedRoom !== null && !inVr;
+  const inRoomVr = placedRoom !== null && inVr && vrStage === 'room';
+  const insideFlat = inRoom || inRoomVr;
+  /*
+   * Drawn in a headset whenever App has a flat for it, not only once the reader is inside: it loads while
+   * the "Going into the flat" pill is up, and stays while they are being moved back out (App lets it go
+   * when that move lands).
+   */
+  const roomDrawn = placedRoom !== null && (inRoom || inVr);
+  /** Bumped each time the flat's model is in place, so the headset's shadow map is drawn with it. */
+  const [roomDrawnCount, setRoomDrawnCount] = useState(0);
+  const roomReady = useCallback(() => {
+    setRoomDrawnCount((n) => n + 1);
+    onRoomReady?.();
+  }, [onRoomReady]);
   /*
    * Not for a view without the headset wrapper (`noHeadset`). Told a session
    * had started, it would mount VrWalk — whose controller hooks need the
@@ -610,7 +666,14 @@ export function SceneCanvas({
    * put down on, facing the subject.
    */
   const vrPlacement =
-    vrStage === 'street'
+    vrStage === 'room' && placedRoom
+      ? // in the living room, by the coffee table, facing the balcony: where the monitor's walk starts
+        streetPlacement(
+          placedRoom.startEN,
+          [placedRoom.startEN[0] + placedRoom.facingEN[0], placedRoom.startEN[1] + placedRoom.facingEN[1]],
+          placedRoom.placement.floorAhdM,
+        )
+      : vrStage === 'street'
       ? streetPlacement(standPoint, [targetE, targetN], heightAt(terrain, standPoint[0], standPoint[1]))
       : overlookFor([targetE, targetN], wholeCity ? null : subjectHeight, wholeCity ? ground : targetGround);
 
@@ -663,8 +726,8 @@ export function SceneCanvas({
   const roomNight = Math.min(1, Math.max(0, (2 - sun.altitudeDeg) / 6));
   // inside the flat: a sharp shadow map round it, still deep enough for the whole city (room/roomShadow.ts)
   const roomShadow = useMemo(
-    () => (inRoom && placedRoom ? roomShadowOf(placedRoom.centreEN, placedRoom.placement.floorAhdM, shadow) : null),
-    [inRoom, placedRoom, shadow],
+    () => (insideFlat && placedRoom ? roomShadowOf(placedRoom.centreEN, placedRoom.placement.floorAhdM, shadow) : null),
+    [insideFlat, placedRoom, shadow],
   );
 
   return (
@@ -756,7 +819,8 @@ export function SceneCanvas({
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
             solar={solar}
-            room={inRoom && placedRoom ? { ...placedRoom, night: roomNight, onReady: onRoomReady, onFailed: onRoomFailed } : null}
+            room={roomDrawn && placedRoom ? { ...placedRoom, night: roomNight, onReady: roomReady, onFailed: onRoomFailed } : null}
+            onPickBuildingInVr={inVr ? onPickBuildingInVr : undefined}
           />
 
           {/*
@@ -768,7 +832,7 @@ export function SceneCanvas({
           */}
           {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={terrain} />}
 
-          {showSunArrow && !wholeCity && !inRoom && (
+          {showSunArrow && !wholeCity && !insideFlat && (
             <SunArrow
               sun={sun}
               anchorEN={[targetE, targetN]}
@@ -827,7 +891,7 @@ export function SceneCanvas({
           views look like two different places (2026-10-13). Same pin, same
           height in both, so the eye can go straight across.
         */}
-        {marker && !inRoom && (marker.kind === 'building' || showProposed || markerCard || link !== null) && (
+        {marker && !insideFlat && (marker.kind === 'building' || showProposed || markerCard || link !== null) && (
           <SiteMarker subject={marker} groundAhdM={terrain} card={markerCard} />
         )}
 
@@ -860,7 +924,7 @@ export function SceneCanvas({
             startFacingEN={placedRoom.facingEN}
             groundAhdM={placedRoom.placement.floorAhdM}
             boundsCentreEN={placedRoom.centreEN}
-            boundsRadiusM={7.5}
+            boundsRadiusM={ROOM_BOUNDS_M}
             obstacles={placedRoom.obstacles}
             onExit={onLeaveRoom}
           />
@@ -872,6 +936,8 @@ export function SceneCanvas({
         */}
         {/* Writes down where the headset stops, for ?vrdebug only. See VrStallProbe. */}
         {inVr && <VrStallProbe />}
+        {/* the flat's walls are a stride away: the headset's near plane comes in while the reader is inside */}
+        {inRoomVr && <NearPlane metres={ROOM_NEAR_M} />}
         {inVr && (
           <VrShadowCache
             shadowKey={[
@@ -885,6 +951,8 @@ export function SceneCanvas({
               placed,
               vrStage,
               shadow.extentM.toFixed(0),
+              roomDrawn,
+              roomDrawnCount,
             ].join('|')}
           />
         )}
@@ -893,10 +961,12 @@ export function SceneCanvas({
             placement={vrPlacement}
             groundAt={vrStage === 'street' ? groundOf : undefined}
             trip={vrTrip}
-            boundsCentreEN={[shadow.centre[0], shadow.centre[1]]}
-            boundsRadiusM={citySpan * 1.2}
-            // Over the roofs there is nothing to walk into.
-            obstacles={vrStage === 'street' ? obstacles : null}
+            boundsCentreEN={inRoomVr && placedRoom ? placedRoom.centreEN : [shadow.centre[0], shadow.centre[1]]}
+            boundsRadiusM={inRoomVr ? ROOM_BOUNDS_M : citySpan * 1.2}
+            // a walk in the flat: no running between rooms a few strides across
+            paceCapMs={inRoomVr ? ROOM_PACE_MS : undefined}
+            // Over the roofs there is nothing to walk into; in the flat, its own walls.
+            obstacles={inRoomVr && placedRoom ? placedRoom.obstacles : vrStage === 'street' ? obstacles : null}
             timeLabel={timeLabel}
             dateLabel={dateLabel}
             onNudgeMinutes={onNudgeMinutes}
@@ -909,7 +979,10 @@ export function SceneCanvas({
               setAskToLeave((n) => n + 1);
             }}
             onTogglePanel={togglePanel}
-            onPlaced={() => setPlaced((n) => n + 1)}
+            onPlaced={() => {
+              setPlaced((n) => n + 1);
+              onVrPlaced?.();
+            }}
           >
             <VrLoader job={loading} placed={placed} onDone={() => setLoading(null)} />
             {/* In the street: which street, which way, what next — and the names on the corners. See VrStreetSigns. */}

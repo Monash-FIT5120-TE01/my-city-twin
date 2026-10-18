@@ -211,6 +211,11 @@ interface VrWalkProps {
   boundsCentreEN: [number, number];
   boundsRadiusM: number;
   /**
+   * The fastest the stick walks, m/s, where running would be too much: inside the flat, whose rooms are a
+   * few strides across. Absent in the street, where a full push runs.
+   */
+  paceCapMs?: number;
+  /**
    * Everything solid at street level — the city as DRAWN. See obstacles.ts.
    * Null above the city, where the platform flies over the roofs.
    */
@@ -248,6 +253,7 @@ export function VrWalk({
   trip,
   boundsCentreEN,
   boundsRadiusM,
+  paceCapMs = Infinity,
   obstacles,
   timeLabel,
   dateLabel,
@@ -596,7 +602,7 @@ export function VrWalk({
      * stick's travel below walking pace and puts the run where the hardware
      * has an edge you can feel.
      */
-    const pace = paceFor(Math.hypot(walkX, walkY));
+    const pace = Math.min(paceFor(Math.hypot(walkX, walkY)), paceCapMs);
     if (pace === 0) return;
 
     /*

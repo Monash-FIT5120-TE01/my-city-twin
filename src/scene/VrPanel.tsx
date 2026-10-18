@@ -65,7 +65,7 @@ import { Container, Text, type VanillaContainer } from '@react-three/uikit';
 import { Picture } from './vrPicture';
 import { Euler, Matrix4, Quaternion, SRGBColorSpace, TextureLoader, Vector3, type Group, type Texture } from 'three';
 import { worldToEnu } from './frame';
-import type { VrMenu, VrPlaceOption, VrStage } from './vrMenu';
+import type { VrFlat, VrMenu, VrPlaceOption, VrStage } from './vrMenu';
 import { PANEL_RENDER_ORDER } from './vrPointer';
 import { usePanelRig } from './vrRig';
 import { TUTORIAL, tutorialImage } from './vrTutorial';
@@ -174,6 +174,7 @@ function Subtitle({ children }: { children: string }) {
 }
 
 function StandButton({ menu, atSpot = false }: { menu: VrMenu; atSpot?: boolean }) {
+  if (menu.stage === 'room' && menu.flat) return <Button label="Leave the flat" icon="exit" onClick={menu.flat.onLeave} />;
   return menu.stage === 'above' ? (
     <Button label={atSpot ? 'Stand at the spot' : 'Stand in the street'} icon="down" onClick={menu.onStand} />
   ) : (
@@ -410,13 +411,101 @@ function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void })
   );
 }
 
+// ── Flat (left) ────────────────────────────────────────────────────────────
+
+/*
+ * Looking out from a flat: a building standing today, chosen with the beam (opening this card arms it,
+ * as Measure arms the ground), then its floor and side, then in. Inside, the way back out. Where the flat
+ * does not fit, the button is not offered and the card says why, as the page's flat picker does.
+ */
+function FlatCard({ menu, flat }: { menu: VrMenu; flat: VrFlat }) {
+  if (menu.stage === 'room') {
+    return (
+      <>
+        <Title>In the flat</Title>
+        {flat.building && <Subtitle>{flat.building}</Subtitle>}
+        <Card gap={8}>
+          <Label size={17} weight="semi-bold">
+            {`Floor ${flat.floor}${flat.side ? ` | ${flat.side} side` : ''}`}
+          </Label>
+          <Label size={15} color={INK_2}>
+            An example one-bedroom layout, not this building's real plan. Hold A or B to watch the sun move across the floor.
+          </Label>
+        </Card>
+        <Container flexGrow={1} />
+        <Button label="Leave the flat" tone="primary" icon="exit" onClick={flat.onLeave} />
+      </>
+    );
+  }
+  if (!flat.building || flat.choosing) {
+    return (
+      <>
+        <Title>Look out from a flat</Title>
+        <Subtitle>See the view from a chosen floor</Subtitle>
+        <Card tone="amber" gap={8}>
+          <Label size={19} weight="bold">
+            Point at a building and pull the trigger.
+          </Label>
+          <Label size={16} color={INK_2}>
+            Any building standing today. Then choose the floor and the side to look out from.
+          </Label>
+        </Card>
+        <Container flexGrow={1} />
+        {flat.building && flat.choosing && <Button label="Keep this building" onClick={flat.onCancelChoose} />}
+      </>
+    );
+  }
+  const atTop = flat.floorsAboveGround !== null && flat.floor >= flat.floorsAboveGround;
+  return (
+    <>
+      <Title>Look out from a flat</Title>
+      <Subtitle>{flat.building}</Subtitle>
+      <Label size={15} color={INK_2} weight="semi-bold">
+        Floor
+      </Label>
+      <Container flexDirection="row" alignItems="center" gap={10}>
+        <Button label="Down" icon="minus" onClick={() => flat.onFloor(Math.max(1, flat.floor - 1))} />
+        <Container flexGrow={1} alignItems="center">
+          <Text fontSize={30} fontWeight="bold" color={INK}>
+            {String(flat.floor)}
+          </Text>
+        </Container>
+        <Button label="Up" icon="plus" onClick={() => (atTop ? undefined : flat.onFloor(flat.floor + 1))} />
+      </Container>
+      <Label size={15} color={INK_2} weight="semi-bold">
+        Facing
+      </Label>
+      {flat.sides.length > 0 ? (
+        // four to a row: eight sides in one row would be too narrow to aim at
+        Array.from({ length: Math.ceil(flat.sides.length / 4) }, (_, row) => (
+          <Segmented<string>
+            key={row}
+            fixed
+            options={flat.sides.slice(row * 4, row * 4 + 4).map((compass) => ({ value: compass, label: compass }))}
+            value={flat.side}
+            onChange={flat.onSide}
+          />
+        ))
+      ) : (
+        <Label size={15}>This building has no walls to look out from at this floor.</Label>
+      )}
+      <Label size={14} color={INK_2}>
+        {flat.problem ?? "An example one-bedroom layout, not this building's real plan."}
+      </Label>
+      <Container flexGrow={1} />
+      {flat.canEnter && <Button label="Look out from this flat" tone="primary" icon="home" onClick={flat.onEnter} />}
+      <Button label="Choose another building" icon="places" onClick={flat.onChoose} />
+    </>
+  );
+}
+
 // ── More (left) ────────────────────────────────────────────────────────────
 
 function MoreCard({ menu, onLeave }: { menu: VrMenu; onLeave: () => void }) {
   return (
     <>
       <Title>More</Title>
-      <Subtitle>{menu.stage === 'above' ? 'You are above the city.' : 'You are on the street.'}</Subtitle>
+      <Subtitle>{menu.stage === 'above' ? 'You are above the city.' : menu.stage === 'room' ? 'You are in the flat.' : 'You are on the street.'}</Subtitle>
       <StandButton menu={menu} />
       <Container flexGrow={1} />
       <Container flexDirection="column" gap={2}>
@@ -465,11 +554,12 @@ function HelpCard({ onTutorial }: { onTutorial: () => void }) {
 
 // ── The navigation, and Close beside it ────────────────────────────────────
 
-type Tab = 'explore' | 'measure' | 'help' | 'more';
+type Tab = 'explore' | 'measure' | 'flat' | 'help' | 'more';
 
 const TABS: { tab: Tab; label: string; icon: IconName }[] = [
   { tab: 'explore', label: 'Explore', icon: 'map' },
   { tab: 'measure', label: 'Measure', icon: 'ruler' },
+  { tab: 'flat', label: 'Flat', icon: 'home' },
   { tab: 'help', label: 'Help', icon: 'help' },
   { tab: 'more', label: 'More', icon: 'more' },
 ];
@@ -870,6 +960,23 @@ function Menu({
     if (!shown || menu.armed) setStandAsk(false);
   }, [shown, menu.armed]);
 
+  /*
+   * Opening Flat arms the beam for a building, while there is none and the reader is not inside one;
+   * leaving it disarms it, as Measure does with the ground. Putting the menu away does not: the city is
+   * easier to aim at with the menu out of the way.
+   */
+  const flat = menu.flat;
+  const wantsBuilding = shown && !tutorial && tab === 'flat' && flat !== null && flat.building === null && !flat.choosing && menu.stage !== 'room';
+  const onChooseBuilding = flat?.onChoose;
+  useEffect(() => {
+    if (wantsBuilding) onChooseBuilding?.();
+  }, [wantsBuilding, onChooseBuilding]);
+  const choosingBuilding = flat?.choosing ?? false;
+  const onCancelBuilding = flat?.onCancelChoose;
+  useEffect(() => {
+    if (choosingBuilding && (tab !== 'flat' || menu.stage === 'room')) onCancelBuilding?.();
+  }, [choosingBuilding, tab, menu.stage, onCancelBuilding]);
+
   const openTab = (next: Tab) => {
     setStandAsk(false);
     if (tab === 'measure' && next !== 'measure' && menu.armed) menu.onCancelMeasure();
@@ -885,7 +992,9 @@ function Menu({
     menu.place && subjectEN ? { key: subjectKey ?? menu.place.label, label: menu.place.label, detail: menu.place.detail, en: subjectEN } : null;
 
   const left =
-    tab === 'measure' ? (
+    tab === 'flat' && flat ? (
+      <FlatCard menu={menu} flat={flat} />
+    ) : tab === 'measure' ? (
       <MeasureCard menu={menu} onPlaces={() => openTab('explore')} />
     ) : tab === 'more' ? (
       <MoreCard menu={menu} onLeave={() => onLeaving(true)} />
