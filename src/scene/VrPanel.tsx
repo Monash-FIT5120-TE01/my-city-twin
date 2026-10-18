@@ -17,17 +17,25 @@
  * ONE MENU OF THREE CARDS
  *   Three cards side by side, flat, moved and closed as one:
  *
- *     left     Places — the approved developments, a list that scrolls
- *     middle   City map — the city as built in the app, the place chosen
- *              pinned on it, the reader's position and heading
+ *     left     what the tab is about — the buildings near a spot, a search,
+ *              the place chosen, or More
+ *     middle   City map — press it to drop a spot; the building chosen is
+ *              filled and pinned; or Help, under More
  *     right    Sun & time — always there, whatever the others show
  *
- *   Under them a navigation bar (Explore, Measure, Help, More) and, beside it,
- *   Close; under that one white bar that the beam carries the whole menu by
- *   (vrRig.ts). Measure and More change the left card; Help changes the
- *   middle one; the time card never changes. Close does what X on the left
- *   controller does: the whole menu goes, and the small map in the corner of
- *   the eye stays.
+ *   Under them the navigation (Map, Search, Place, More) and Close; under that
+ *   one white bar that carries the whole menu (vrRig.ts). Close does what X on
+ *   the left controller does.
+ *
+ * FROM THE MAP TO A PLACE (2026-10-19, ProjectDoc/vr-ui-redesign/nav-search.html)
+ *   The tabs are what the reader is doing, not the product's features: find a
+ *   place on the map or by its address, then do things with it. Press the map:
+ *   a spot, and the buildings within 150 m of it on the left (projects and
+ *   buildings standing today); "Stand here" at the foot of the map goes down
+ *   to that spot. Choose a building: it is filled on the map, and "Details"
+ *   opens Place — measuring the sun, the flat, the project on or off, standing
+ *   in front of it. Measure and Flat used to be tabs of their own that did
+ *   nothing until a building had been chosen somewhere else.
  *
  * THE LIST SCROLLS — WITHOUT CHOOSING WHAT IT LANDS ON
  *   It scrolled once before, by dragging with the beam, and letting go of a
@@ -37,10 +45,8 @@
  *   down scrolls too.
  *
  * MEASURING
- *   Opening Measure arms the ground straight away — there is no page of
- *   instructions to press past; the card says what to do and shows the
- *   answer when there is one. Leaving Measure disarms it. With no building
- *   chosen, it says so.
+ *   "Measure the sun" in Place arms the ground straight away — the card says
+ *   what to do and shows the answer when there is one. Leaving it disarms it.
  *
  * LEAVING
  *   Always asked. "Leave VR" (under More) and the grip held for a second both
@@ -60,17 +66,16 @@
 
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useXRInputSourceState } from '@react-three/xr';
+import { useXR, useXRInputSourceState } from '@react-three/xr';
 import { Container, Text, type VanillaContainer } from '@react-three/uikit';
 import { Picture } from './vrPicture';
 import { Euler, Matrix4, Quaternion, SRGBColorSpace, TextureLoader, Vector3, type Group, type Texture } from 'three';
-import { worldToEnu } from './frame';
-import type { VrFlat, VrMenu, VrPlaceOption, VrStage } from './vrMenu';
+import type { VrFlat, VrHit, VrMenu, VrSelected, VrStage } from './vrMenu';
 import { PANEL_RENDER_ORDER } from './vrPointer';
 import { usePanelRig } from './vrRig';
 import { TUTORIAL, tutorialImage } from './vrTutorial';
 import { TimeCard } from './VrTimePanel';
-import { MapCard, MiniMap, type CityForMap, type MapSubject } from './VrMapPanel';
+import { MapCard, MiniMap, SPOT_REACH_M, type CityForMap, type MapSubject } from './VrMapPanel';
 import { Button, Card, Glass, Grabber, Icon, KeyChip, Label, Segmented } from './vrKit';
 import { AMBER, AMBER_INK, CONTROL_ORDER, EDGE, GLASS_EDGE, GREEN, GREEN_PRESSED, GREEN_SOFT, INK, INK_2, PAPER, PIXEL_M, PRESSED, SUNKEN, TRACK, plain } from './vrTokens';
 import type { IconName } from './vrIcons';
@@ -88,9 +93,6 @@ const ROW_WIDTH = SIDE_WIDTH * 2 + MAP_WIDTH + CARD_GAP * 2;
  * edges are about 32 degrees either side — a turn of the eyes, not the head.
  */
 const MENU_DISTANCE_M = 1.0;
-
-/** Frames to wait after a move lands before measuring where the head is. */
-const HEAD_SETTLE_FRAMES = 2;
 
 /** The right stick scrolls a list this fast at full push, mm per second. */
 const STICK_SCROLL_MM_S = 700;
@@ -182,28 +184,55 @@ function StandButton({ menu, atSpot = false }: { menu: VrMenu; atSpot?: boolean 
   );
 }
 
-// ── Places (left) ──────────────────────────────────────────────────────────
+// ── Near a spot (left, under Map) ──────────────────────────────────────────
 
-type Sort = 'nearest' | 'tallest' | 'name';
+type Kind = 'All' | 'Planned' | 'Existing';
 
-function PlaceRow({
-  option,
-  distanceM,
+/** One building in a list: a project or one standing today, near a spot or found by search. */
+interface ListedBuilding {
+  kind: 'development' | 'building';
+  key: string;
+  label: string;
+  heightM: number;
+  en: [number, number];
+}
+
+/** What stands within SPOT_REACH_M of a spot, nearest first: the projects, and the buildings with an address. */
+function buildingsNear(city: CityForMap | null, spot: [number, number]): (ListedBuilding & { distanceM: number })[] {
+  if (!city) return [];
+  const away = (en: [number, number]) => Math.hypot(en[0] - spot[0], en[1] - spot[1]);
+  const listed: (ListedBuilding & { distanceM: number })[] = [];
+  for (const development of city.developments) {
+    const distanceM = away(development.anchorEN);
+    if (distanceM <= SPOT_REACH_M) listed.push({ kind: 'development', key: development.devKey, label: development.streetAddress, heightM: development.maxHeightM, en: development.anchorEN, distanceM });
+  }
+  for (const building of city.searchable) {
+    const distanceM = away(building.anchorEN);
+    if (distanceM <= SPOT_REACH_M) listed.push({ kind: 'building', key: building.buildingId, label: building.streetAddress, heightM: building.heightM, en: building.anchorEN, distanceM });
+  }
+  return listed.sort((a, b) => a.distanceM - b.distanceM);
+}
+
+/** "9-29 Swanston Street", without the suburb, state and postcode the register adds. */
+function streetLine(address: string): string {
+  return address.replace(/,?\s*(MELBOURNE|VIC|VICTORIA|3000|3008|AUSTRALIA)\b/gi, '').replace(/[,\s]+$/, '').trim();
+}
+
+function BuildingRow({
+  item,
+  meta,
   chosen,
   list,
   onChoose,
 }: {
-  option: VrPlaceOption;
-  distanceM: number | null;
+  item: ListedBuilding;
+  meta: string;
   chosen: boolean;
   list: { current: VanillaContainer | null };
   onChoose: () => void;
 }) {
   const pressedAt = useRef<number | null>(null);
-  const parts = [`${option.heightM.toFixed(0)} m tall`];
-  if (distanceM !== null) {
-    parts.unshift(distanceM < 1000 ? `${Math.round(distanceM / 10) * 10} m away` : `${(distanceM / 1000).toFixed(1)} km away`);
-  }
+  const planned = item.kind === 'development';
   return (
     <Container
       onPointerDown={() => {
@@ -234,83 +263,317 @@ function PlaceRow({
       hover={{ borderColor: INK, backgroundColor: chosen ? GREEN_SOFT : PAPER }}
       active={{ backgroundColor: PRESSED }}
     >
-      {/* Two blocks of different heights: a building. Boxes, not a picture — this lives in a scrolling list (vrPicture.tsx). */}
+      {/* Two blocks: a building. Green for a project, grey for one standing — and "Planned" in words as well. */}
       <Container width={46} height={46} borderRadius={14} backgroundColor={PAPER} flexDirection="row" alignItems="flex-end" justifyContent="center" gap={3} paddingBottom={11} flexShrink={0}>
-        <Container width={9} height={16} borderRadius={2} backgroundColor={GREEN} />
-        <Container width={11} height={24} borderRadius={2} backgroundColor={GREEN} />
+        <Container width={9} height={16} borderRadius={2} backgroundColor={planned ? GREEN : EDGE} />
+        <Container width={11} height={24} borderRadius={2} backgroundColor={planned ? GREEN : EDGE} />
       </Container>
       <Container flexDirection="column" gap={3} flexGrow={1} flexShrink={1}>
         <Label size={18} weight="bold">
-          {option.label}
+          {item.label}
         </Label>
         <Label size={18} color={INK_2}>
-          {parts.join(' | ')}
+          {meta}
         </Label>
+        {planned && (
+          <Container alignSelf="flex-start" paddingX={8} borderRadius={10} borderWidth={2} borderColor={GREEN}>
+            <Text fontSize={18} fontWeight="bold" color={GREEN}>
+              Planned
+            </Text>
+          </Container>
+        )}
       </Container>
-      {chosen && (
-        <Container width={30} height={30} borderRadius={15} backgroundColor={GREEN} alignItems="center" justifyContent="center" flexShrink={0}>
-          <Text fontSize={18} fontWeight="bold" color={PAPER}>
-            v
-          </Text>
-        </Container>
-      )}
     </Container>
   );
 }
 
-function PlacesCard({
+function NearSpotCard({
   menu,
-  headEN,
-  sort,
-  onSort,
-  onChosen,
+  city,
+  spot,
+  kind,
+  onKind,
   listRef,
+  onSearch,
 }: {
   menu: VrMenu;
-  headEN: [number, number] | null;
-  sort: Sort;
-  onSort: (sort: Sort) => void;
-  onChosen: (label: string) => void;
+  city: CityForMap | null;
+  spot: [number, number] | null;
+  kind: Kind;
+  onKind: (kind: Kind) => void;
   listRef: { current: VanillaContainer | null };
+  onSearch: () => void;
 }) {
-  const distance = (option: VrPlaceOption) =>
-    headEN ? Math.hypot(option.en[0] - headEN[0], option.en[1] - headEN[1]) : null;
-  const sorted = [...menu.options].sort((a, b) =>
-    sort === 'tallest'
-      ? b.heightM - a.heightM
-      : sort === 'nearest' && headEN
-        ? (distance(a) ?? 0) - (distance(b) ?? 0)
-        : 0,
-  );
+  if (!spot) {
+    return (
+      <>
+        <Title>Map</Title>
+        <Subtitle>Explore Melbourne</Subtitle>
+        <Card tone="amber" gap={8}>
+          <Label size={20} weight="bold">
+            Point at the city map and pull the trigger.
+          </Label>
+          <Label size={20} color={INK_2}>
+            The buildings around that spot are listed here.
+          </Label>
+        </Card>
+        <Container flexGrow={1} />
+        <Button label="Search an address" tone="outline" icon="search" onClick={onSearch} />
+      </>
+    );
+  }
+  const near = buildingsNear(city, spot).filter((item) => kind === 'All' || (kind === 'Planned') === (item.kind === 'development'));
   return (
     <>
-      <Title>Places</Title>
-      <Subtitle>Explore Melbourne</Subtitle>
-      <Segmented<Sort>
+      <Title>Near this spot</Title>
+      <Subtitle>{`${near.length} within ${SPOT_REACH_M} m`}</Subtitle>
+      <Segmented<Kind>
         fixed
         options={[
-          { value: 'nearest', label: 'Nearest' },
-          { value: 'tallest', label: 'Tallest' },
-          { value: 'name', label: 'A-Z' },
+          { value: 'All', label: 'All' },
+          { value: 'Planned', label: 'Planned' },
+          { value: 'Existing', label: 'Existing' },
         ]}
-        value={sort}
-        onChange={onSort}
+        value={kind}
+        onChange={onKind}
       />
       <ScrollList listRef={listRef}>
-        {sorted.map((option) => (
-          <PlaceRow
-            key={option.key}
-            option={option}
-            distanceM={distance(option)}
-            chosen={option.label === menu.place?.label}
-            list={listRef}
-            onChoose={() => {
-              onChosen(option.label);
-              menu.onChoose(option.key);
-            }}
-          />
-        ))}
+        {near.length === 0 ? (
+          <Label size={20} color={INK_2}>
+            None here. Try another spot.
+          </Label>
+        ) : (
+          near.map((item) => (
+            <BuildingRow
+              key={`${item.kind}:${item.key}`}
+              item={{ ...item, label: streetLine(item.label) }}
+              meta={`${item.distanceM < 10 ? 'Here' : `${Math.round(item.distanceM / 10) * 10} m`} | ${item.heightM.toFixed(0)} m tall`}
+              chosen={menu.selected?.key === item.key && menu.selected.kind === item.kind}
+              list={listRef}
+              onChoose={() => menu.onPick({ kind: item.kind, key: item.key })}
+            />
+          ))
+        )}
       </ScrollList>
+    </>
+  );
+}
+
+// ── Search (left) ──────────────────────────────────────────────────────────
+
+/*
+ * Typing in a headset: the headset's own keyboard, not one of ours (user decision, 2026-10-19). A text
+ * field of the page — hidden, but in the document — is focused when the field on the card is pressed, and
+ * the browser shows its system keyboard over the session; what is typed arrives as the field's value
+ * (developers.meta.com, "System Keyboard in WebXR"). A browser that says it has none
+ * (isSystemKeyboardSupported false) is told so on the card. On a desktop, the computer's keyboard types.
+ */
+function useSystemKeyboard(onText: (text: string) => void) {
+  const field = useRef<HTMLInputElement | null>(null);
+  const latest = useRef(onText);
+  useEffect(() => {
+    latest.current = onText;
+  });
+  useEffect(() => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label', 'Search an address in the headset');
+    // in the document, so it can be focused, but nowhere anyone can see it
+    input.style.cssText = 'position:fixed;left:-1000px;top:0;width:1px;height:1px;opacity:0;';
+    input.addEventListener('input', () => latest.current(input.value));
+    document.body.append(input);
+    field.current = input;
+    return () => input.remove();
+  }, []);
+  return {
+    open: (text: string) => {
+      const input = field.current;
+      if (!input) return;
+      input.value = text;
+      input.focus();
+    },
+    clear: () => {
+      if (field.current) field.current.value = '';
+      latest.current('');
+    },
+  };
+}
+
+function SearchCard({
+  menu,
+  query,
+  onQuery,
+  listRef,
+  onHit,
+}: {
+  menu: VrMenu;
+  query: string;
+  onQuery: (query: string) => void;
+  listRef: { current: VanillaContainer | null };
+  onHit: (hit: VrHit) => void;
+}) {
+  const keyboard = useSystemKeyboard(onQuery);
+  const session = useXR((state) => state.session) as (XRSession & { isSystemKeyboardSupported?: boolean }) | undefined;
+  const noKeyboard = session?.isSystemKeyboardSupported === false;
+  const hits = menu.search(query).slice(0, 8);
+  return (
+    <>
+      <Title>Search</Title>
+      <Subtitle>An address or a street</Subtitle>
+      <Container
+        onClick={(event) => {
+          event.stopPropagation();
+          keyboard.open(query);
+        }}
+        cursor="text"
+        pointerEventsOrder={CONTROL_ORDER}
+        height={64}
+        flexShrink={0}
+        flexDirection="row"
+        alignItems="center"
+        gap={10}
+        paddingX={18}
+        borderRadius={32}
+        borderWidth={3}
+        borderColor={INK}
+        backgroundColor={PAPER}
+        hover={{ backgroundColor: SUNKEN }}
+      >
+        <Icon name="search" color={INK_2} size={24} />
+        <Container flexGrow={1} flexShrink={1}>
+          <Label size={20} color={query ? INK : INK_2}>
+            {query || 'Point here to type'}
+          </Label>
+        </Container>
+        {query && <Button label="" icon="close" tone="quiet" height={44} onClick={keyboard.clear} />}
+      </Container>
+      {noKeyboard ? (
+        <Card tone="amber">
+          <Label size={20}>This headset cannot show its keyboard here. Use the map instead.</Label>
+        </Card>
+      ) : query.trim().length < 2 ? (
+        <Label size={20} color={INK_2}>
+          The headset keyboard opens. Matches show as you type.
+        </Label>
+      ) : (
+        <ScrollList listRef={listRef}>
+          {hits.length === 0 ? (
+            <Label size={20} color={INK_2}>
+              No address matches. Try fewer letters.
+            </Label>
+          ) : (
+            hits.map((hit) => (
+              <BuildingRow
+                key={`${hit.kind}:${hit.key}`}
+                item={{ kind: hit.kind === 'development' ? 'development' : 'building', key: hit.key, label: hit.label, heightM: 0, en: hit.en }}
+                meta={hit.detail.replace(/ · /g, ' | ')}
+                chosen={hit.kind !== 'landmark' && menu.selected?.key === hit.key}
+                list={listRef}
+                onChoose={() => onHit(hit)}
+              />
+            ))
+          )}
+        </ScrollList>
+      )}
+    </>
+  );
+}
+
+// ── Place (left) ───────────────────────────────────────────────────────────
+
+/** What can be done with the building chosen, or with a spot. The way to Measure and to the flat. */
+function PlaceCard({
+  menu,
+  selected,
+  spot,
+  onMeasure,
+  onFlat,
+  onMap,
+  onSearch,
+}: {
+  menu: VrMenu;
+  selected: VrSelected | null;
+  spot: [number, number] | null;
+  onMeasure: () => void;
+  onFlat: () => void;
+  onMap: () => void;
+  onSearch: () => void;
+}) {
+  if (!selected && !spot) {
+    return (
+      <>
+        <Title>Place</Title>
+        <Subtitle>Nothing chosen yet</Subtitle>
+        <Card tone="amber" gap={8}>
+          <Label size={20} weight="bold">
+            Choose a building or a spot first.
+          </Label>
+          <Label size={20} color={INK_2}>
+            Point at the map, or search an address.
+          </Label>
+        </Card>
+        <Container flexGrow={1} />
+        <Button label="Open the map" tone="primary" icon="map" onClick={onMap} />
+        <Button label="Search an address" tone="outline" icon="search" onClick={onSearch} />
+      </>
+    );
+  }
+  if (!selected && spot) {
+    return (
+      <>
+        <Title>Place</Title>
+        <Subtitle>A spot on the map</Subtitle>
+        <Card>
+          <Label size={20}>Stand on it, or choose a building near it on the map.</Label>
+        </Card>
+        <Container flexGrow={1} />
+        <Button label="Stand here" tone="primary" icon="stand" onClick={() => menu.onStandAt(spot)} />
+        <Button label="Back to the map" tone="outline" icon="map" onClick={onMap} />
+      </>
+    );
+  }
+  const chosen = selected!;
+  const planned = chosen.kind === 'development';
+  return (
+    <>
+      <Title>{chosen.label}</Title>
+      <Container flexDirection="row" alignItems="center" gap={8} flexShrink={0}>
+        <Container flexShrink={0} paddingX={8} borderRadius={10} borderWidth={2} borderColor={planned ? GREEN : INK_2}>
+          <Text fontSize={18} fontWeight="bold" color={planned ? GREEN : INK_2}>
+            {planned ? 'Planned' : 'Existing'}
+          </Text>
+        </Container>
+        <Container flexShrink={1}>
+          <Label size={18} color={INK_2}>
+            {chosen.detail}
+          </Label>
+        </Container>
+      </Container>
+      {planned && (
+        <>
+          <Label size={18} color={INK_2} weight="semi-bold">
+            On show
+          </Label>
+          <Segmented<'off' | 'on'>
+            fixed
+            options={[
+              { value: 'off', label: 'Today' },
+              { value: 'on', label: 'With project' },
+            ]}
+            value={menu.plan.shown ? 'on' : 'off'}
+            onChange={(value) => menu.plan.onShow(value === 'on')}
+          />
+        </>
+      )}
+      <Container flexGrow={1} />
+      {menu.stage === 'street' ? (
+        <Button label="Go back up" tone="primary" icon="up" onClick={menu.onRise} />
+      ) : (
+        <Button label="Stand in front" tone="primary" icon="stand" onClick={menu.onStand} />
+      )}
+      <Button label="Measure the sun" tone="outline" icon="measure" onClick={onMeasure} />
+      {!planned && menu.flat && <Button label="Look out from a flat" tone="outline" icon="home" onClick={onFlat} />}
     </>
   );
 }
@@ -364,7 +627,7 @@ function Answer({ menu, noun }: { menu: VrMenu; noun: string }) {
   );
 }
 
-function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void }) {
+function MeasureCard({ menu, onPlaces, onBack }: { menu: VrMenu; onPlaces: () => void; onBack: () => void }) {
   const place = menu.place;
   if (!place) {
     return (
@@ -379,13 +642,16 @@ function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void })
           </Label>
         </Card>
         <Container flexGrow={1} />
-        <Button label="Choose a place" tone="primary" icon="places" onClick={onPlaces} />
+        <Button label="Open the map" tone="primary" icon="map" onClick={onPlaces} />
       </>
     );
   }
   return (
     <>
-      <Title>Measure</Title>
+      <Container flexDirection="row" alignItems="center" justifyContent="space-between" flexShrink={0}>
+        <Title>Measure</Title>
+        <Button label="Back" tone="quiet" height={48} onClick={onBack} />
+      </Container>
       <Subtitle>{place.label}</Subtitle>
       {menu.measured && !menu.armed ? (
         <>
@@ -418,7 +684,7 @@ function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void })
  * as Measure arms the ground), then its floor and side, then in. Inside, the way back out. Where the flat
  * does not fit, the button is not offered and the card says why, as the page's flat picker does.
  */
-function FlatCard({ menu, flat }: { menu: VrMenu; flat: VrFlat }) {
+function FlatCard({ menu, flat, onBack }: { menu: VrMenu; flat: VrFlat; onBack: () => void }) {
   if (menu.stage === 'room') {
     return (
       <>
@@ -461,7 +727,10 @@ function FlatCard({ menu, flat }: { menu: VrMenu; flat: VrFlat }) {
   const atTop = flat.floorsAboveGround !== null && flat.floor >= flat.floorsAboveGround;
   return (
     <>
-      <Title>Look out from a flat</Title>
+      <Container flexDirection="row" alignItems="center" justifyContent="space-between" flexShrink={0}>
+        <Title>Choose a flat</Title>
+        <Button label="Back" tone="quiet" height={48} onClick={onBack} />
+      </Container>
       <Subtitle>{flat.building}</Subtitle>
       <Label size={18} color={INK_2} weight="semi-bold">
         Floor
@@ -559,20 +828,21 @@ function HelpCard({ onTutorial }: { onTutorial: () => void }) {
 // ── The navigation, and Close beside it ────────────────────────────────────
 
 /*
- * Four tabs, not five (2026-10-19): with Flat added, five made each tab 96 x 68 mm with 14 mm words, small to
- * aim at and to read. Help went into More: its middle card is the controls and the tutorial again, which every
- * Enter VR shows anyway (ProjectDoc/vr-ui-redesign/flat-menu-fix.html).
+ * Four tabs, and what the reader is doing, not the product's features (2026-10-19): Map and Search to find a
+ * place, Place to do things with it, More for the rest. Measure and Flat were tabs that did nothing until a
+ * building had been chosen somewhere else; they are in Place now. Help is in More: its middle card is the
+ * controls and the tutorial again, which every Enter VR shows anyway.
  */
-type Tab = 'explore' | 'measure' | 'flat' | 'more';
+type Tab = 'map' | 'search' | 'place' | 'more';
 
 const TABS: { tab: Tab; label: string; icon: IconName }[] = [
-  { tab: 'explore', label: 'Explore', icon: 'map' },
-  { tab: 'measure', label: 'Measure', icon: 'ruler' },
-  { tab: 'flat', label: 'Flat', icon: 'home' },
+  { tab: 'map', label: 'Map', icon: 'map' },
+  { tab: 'search', label: 'Search', icon: 'search' },
+  { tab: 'place', label: 'Place', icon: 'building' },
   { tab: 'more', label: 'More', icon: 'more' },
 ];
 
-function Navigation({ at, onTab }: { at: Tab; onTab: (tab: Tab) => void }) {
+function Navigation({ at, onTab, marked }: { at: Tab; onTab: (tab: Tab) => void; marked: Tab | null }) {
   return (
     <Container flexDirection="row" gap={6} padding={8} borderRadius={36} backgroundColor={PAPER} borderWidth={2} borderColor={GLASS_EDGE}>
       {TABS.map(({ tab, label, icon }) => {
@@ -586,6 +856,7 @@ function Navigation({ at, onTab }: { at: Tab; onTab: (tab: Tab) => void }) {
             }}
             cursor="pointer"
             pointerEventsOrder={CONTROL_ORDER}
+            positionType="relative"
             width={132}
             height={88}
             flexDirection="column"
@@ -600,6 +871,10 @@ function Navigation({ at, onTab }: { at: Tab; onTab: (tab: Tab) => void }) {
             active={{ backgroundColor: on ? GREEN_PRESSED : PRESSED }}
           >
             <Icon name={icon} color={on ? PAPER : INK_2} size={32} />
+            {/* Something is chosen there: a dot with a white ring, so it shows on green and on white. */}
+            {marked === tab && (
+              <Container positionType="absolute" positionTop={10} positionRight={34} width={18} height={18} borderRadius={9} borderWidth={3} borderColor={PAPER} backgroundColor={AMBER} />
+            )}
             <Text fontSize={19} fontWeight="bold" color={on ? PAPER : INK_2}>
               {label}
             </Text>
@@ -882,7 +1157,6 @@ function Menu({
   menu,
   shown,
   summon,
-  placed,
   tutorial,
   onTutorial,
   leaving,
@@ -896,7 +1170,6 @@ function Menu({
   menu: VrMenu;
   shown: boolean;
   summon: number;
-  placed: number;
   tutorial: boolean;
   onTutorial: (on: boolean) => void;
   leaving: boolean;
@@ -908,40 +1181,22 @@ function Menu({
   subjectEN: [number, number] | null;
 }) {
   const { rig, startGrab } = usePanelRig({ asideRad: 0, summon, distanceM: MENU_DISTANCE_M });
-  const head = useRef(new Vector3());
   const listRef = useRef<VanillaContainer | null>(null);
-  const [tab, setTab] = useState<Tab>('explore');
-  const [sort, setSort] = useState<Sort>('nearest');
+  const [tab, setTab] = useState<Tab>('map');
+  /** A spot pressed on the map: what the list under Map is about. */
+  const [spot, setSpot] = useState<[number, number] | null>(null);
+  const [kind, setKind] = useState<Kind>('All');
+  const [query, setQuery] = useState('');
+  /** Inside Place: the building's card, or measuring the sun, or choosing a flat in it. */
+  const [placeView, setPlaceView] = useState<'info' | 'measure' | 'flat'>('info');
 
   /*
-   * Where the reader is standing, for "nearest" — taken when the list opens
-   * or is re-sorted, and after every move lands, not continuously, so the
-   * rows never reorder under a laser that is lining one of them up.
+   * Measuring the sun (in Place) arms the ground; leaving it disarms it. Arming again once a spot is
+   * measured would hide the answer, so it waits for "Measure another spot".
    */
-  const [headEN, setHeadEN] = useState<[number, number] | null>(null);
-  const measureIn = useRef(HEAD_SETTLE_FRAMES);
-  useEffect(() => {
-    measureIn.current = HEAD_SETTLE_FRAMES;
-  }, [placed]);
-  useFrame((state) => {
-    if (measureIn.current > 0 && --measureIn.current === 0) {
-      state.camera.getWorldPosition(head.current);
-      const [east, north] = worldToEnu([head.current.x, head.current.y, head.current.z]);
-      setHeadEN([east, north]);
-    }
-  });
-  /** Measure where the head is on the next frame. */
-  const remeasure = () => {
-    measureIn.current = 1;
-  };
-
-  /*
-   * Opening Measure arms the ground; leaving it disarms it. Arming again once
-   * a spot is measured would hide the answer, so it waits for "Measure
-   * another spot".
-   */
+  const measuring = tab === 'place' && placeView === 'measure';
   const placeLabel = menu.place?.label ?? null;
-  const wantsArming = shown && !tutorial && tab === 'measure' && placeLabel !== null && !menu.armed && !menu.measured;
+  const wantsArming = shown && !tutorial && measuring && placeLabel !== null && !menu.armed && !menu.measured;
   const onMeasure = menu.onMeasure;
   useEffect(() => {
     if (wantsArming) onMeasure();
@@ -960,8 +1215,8 @@ function Menu({
     if (!spotKey || spotKey === askedFor.current) return;
     askedFor.current = spotKey;
     // oxlint-disable-next-line react/set-state-in-effect -- the spot arrives from the ground, outside the menu
-    if (shown && tab === 'measure') setStandAsk(true);
-  }, [spotKey, shown, tab]);
+    if (shown && measuring) setStandAsk(true);
+  }, [spotKey, shown, measuring]);
   useEffect(() => {
     // Put away, or measuring again: the question was about the last spot.
     // oxlint-disable-next-line react/set-state-in-effect -- follows the menu and the ground
@@ -969,12 +1224,12 @@ function Menu({
   }, [shown, menu.armed]);
 
   /*
-   * Opening Flat arms the beam for a building, while there is none and the reader is not inside one;
-   * leaving it disarms it, as Measure does with the ground. Putting the menu away does not: the city is
-   * easier to aim at with the menu out of the way.
+   * Choosing a flat from Place, in a building with none chosen yet, arms the beam for a building; leaving
+   * it disarms it. Putting the menu away does not: the city is easier to aim at with the menu out of the way.
    */
   const flat = menu.flat;
-  const wantsBuilding = shown && !tutorial && tab === 'flat' && flat !== null && flat.building === null && !flat.choosing && menu.stage !== 'room';
+  const choosingFlat = tab === 'place' && placeView === 'flat';
+  const wantsBuilding = shown && !tutorial && choosingFlat && flat !== null && flat.building === null && !flat.choosing && menu.stage !== 'room';
   const onChooseBuilding = flat?.onChoose;
   useEffect(() => {
     if (wantsBuilding) onChooseBuilding?.();
@@ -982,48 +1237,136 @@ function Menu({
   const choosingBuilding = flat?.choosing ?? false;
   const onCancelBuilding = flat?.onCancelChoose;
   useEffect(() => {
-    if (choosingBuilding && (tab !== 'flat' || menu.stage === 'room')) onCancelBuilding?.();
-  }, [choosingBuilding, tab, menu.stage, onCancelBuilding]);
+    if (choosingBuilding && (!choosingFlat || menu.stage === 'room')) onCancelBuilding?.();
+  }, [choosingBuilding, choosingFlat, menu.stage, onCancelBuilding]);
 
+  const leavePlaceView = () => {
+    if (measuring && menu.armed) menu.onCancelMeasure();
+    setPlaceView('info');
+  };
   const openTab = (next: Tab) => {
     setStandAsk(false);
-    if (tab === 'measure' && next !== 'measure' && menu.armed) menu.onCancelMeasure();
-    if (next === 'explore') remeasure();
+    if (next !== tab) leavePlaceView();
     setTab(next);
   };
+  // a new building chosen: its own card, not the last one's measuring or flat
+  const selectedKey = menu.selected ? `${menu.selected.kind}:${menu.selected.key}` : null;
+  const shownFor = useRef(selectedKey);
+  useEffect(() => {
+    if (selectedKey === shownFor.current) return;
+    shownFor.current = selectedKey;
+    // oxlint-disable-next-line react/set-state-in-effect -- the choice arrives from the map, the list or the city
+    setPlaceView('info');
+  }, [selectedKey]);
 
-
-  const placesShown = tab === 'explore';
-  useStickScroll(listRef, shown && !tutorial && !leaving && placesShown);
+  const listShown = (tab === 'map' && spot !== null) || (tab === 'search' && query.trim().length >= 2);
+  useStickScroll(listRef, shown && !tutorial && !leaving && listShown);
 
   const subject: MapSubject | null =
-    menu.place && subjectEN ? { key: subjectKey ?? menu.place.label, label: menu.place.label, detail: menu.place.detail, en: subjectEN } : null;
+    menu.selected?.kind === 'development' && menu.place && subjectEN
+      ? { key: subjectKey ?? menu.place.label, label: menu.place.label, detail: menu.place.detail, en: subjectEN }
+      : menu.selected
+        ? { key: menu.selected.key, label: menu.selected.label, detail: menu.selected.detail, en: menu.selected.en }
+        : null;
 
   const left =
-    tab === 'flat' && flat ? (
-      <FlatCard menu={menu} flat={flat} />
-    ) : tab === 'measure' ? (
-      <MeasureCard menu={menu} onPlaces={() => openTab('explore')} />
+    menu.stage === 'room' && flat ? (
+      <FlatCard menu={menu} flat={flat} onBack={() => setPlaceView('info')} />
+    ) : tab === 'search' ? (
+      <SearchCard
+        menu={menu}
+        query={query}
+        onQuery={setQuery}
+        listRef={listRef}
+        onHit={(hit) => {
+          if (hit.kind === 'landmark') {
+            // a named place: a spot on the map, with what stands around it
+            setSpot(hit.en);
+            setTab('map');
+            return;
+          }
+          setSpot(hit.en);
+          menu.onPick({ kind: hit.kind, key: hit.key });
+          setTab('place');
+        }}
+      />
+    ) : tab === 'place' && placeView === 'measure' ? (
+      <MeasureCard menu={menu} onPlaces={() => openTab('map')} onBack={leavePlaceView} />
+    ) : tab === 'place' && placeView === 'flat' && flat ? (
+      <FlatCard menu={menu} flat={flat} onBack={leavePlaceView} />
+    ) : tab === 'place' ? (
+      <PlaceCard
+        menu={menu}
+        selected={menu.selected}
+        spot={spot}
+        onMeasure={() => setPlaceView('measure')}
+        onFlat={() => setPlaceView('flat')}
+        onMap={() => openTab('map')}
+        onSearch={() => openTab('search')}
+      />
     ) : tab === 'more' ? (
       <MoreCard menu={menu} onLeave={() => onLeaving(true)} />
     ) : (
-      <PlacesCard
-        menu={menu}
-        headEN={headEN}
-        sort={sort}
-        onSort={(next) => {
-          setSort(next);
-          remeasure();
-        }}
-        listRef={listRef}
-        onChosen={() => undefined}
-      />
+      <NearSpotCard menu={menu} city={city} spot={spot} kind={kind} onKind={setKind} listRef={listRef} onSearch={() => openTab('search')} />
     );
+
+  // the foot of the map: what can be done with the building chosen, or with the spot
+  const footer = menu.selected ? (
+    // the name on a line of its own, the two buttons under it: side by side, a long address took three lines
+    <Container flexDirection="column" gap={8} flexGrow={1}>
+      <Container flexDirection="row" gap={10} alignItems="baseline">
+        <Label size={19} weight="bold">
+          {menu.selected.label}
+        </Label>
+      </Container>
+      <Label size={18} color={INK_2}>
+        {menu.selected.detail}
+      </Label>
+      <Container flexDirection="row" gap={10}>
+        <Button label="Stand here" tone="outline" icon="stand" grow onClick={menu.onStand} />
+        <Button label="Details" tone="primary" grow onClick={() => openTab('place')} />
+      </Container>
+    </Container>
+  ) : spot ? (
+    <>
+      <Container flexDirection="column" gap={2} flexGrow={1} flexShrink={1}>
+        <Label size={19} weight="bold">
+          Spot chosen
+        </Label>
+        <Label size={18} color={INK_2}>
+          The buildings around it are on the left.
+        </Label>
+      </Container>
+      <Button label="Stand here" tone="primary" icon="stand" onClick={() => menu.onStandAt(spot)} />
+    </>
+  ) : (
+    <Container flexDirection="column" gap={2} flexGrow={1} flexShrink={1}>
+      <Label size={19} weight="bold">
+        Point at the map
+      </Label>
+      <Label size={18} color={INK_2}>
+        Pull the trigger to choose a spot.
+      </Label>
+    </Container>
+  );
+
   const middle =
     tab === 'more' ? (
       <HelpCard onTutorial={() => onTutorial(true)} />
     ) : (
-      <MapCard city={city} subject={subject} shown={shown && !tutorial} onViewPlace={() => openTab('measure')} />
+      <MapCard
+        city={city}
+        subject={subject}
+        buildingKey={menu.selected?.kind === 'building' ? menu.selected.key : null}
+        spot={spot}
+        onSpot={(en) => {
+          setSpot(en);
+          // the list of what stands there is under Map
+          if (tab !== 'map') openTab('map');
+        }}
+        shown={shown && !tutorial}
+        footer={footer}
+      />
     );
 
   const width = tutorial ? MAP_WIDTH : ROW_WIDTH;
@@ -1063,7 +1406,7 @@ function Menu({
                 </Glass>
               </Container>
               <Container flexDirection="row" alignItems="center" gap={14}>
-                <Navigation at={tab} onTab={openTab} />
+                <Navigation at={tab} onTab={openTab} marked={menu.selected && tab !== 'place' ? 'place' : null} />
                 {/* The whole menu at once — the same as X on the left controller. */}
                 <Button label="Close" icon="close" tone="quiet" height={104} onClick={onClose} />
               </Container>
@@ -1219,7 +1562,6 @@ export default function VrFurniture({
   stage,
   shown,
   summon,
-  placed,
   askToLeave,
   city,
   subjectKey,
@@ -1231,7 +1573,6 @@ export default function VrFurniture({
   stage: VrStage;
   shown: boolean;
   summon: number;
-  placed: number;
   /** Bumped when the grip is held: ask whether to leave. */
   askToLeave: number;
   city: CityForMap | null;
@@ -1269,7 +1610,6 @@ export default function VrFurniture({
             menu={menu}
             shown={shown}
             summon={summon}
-            placed={placed}
             tutorial={tutorial}
             onTutorial={setTutorial}
             leaving={leaving}

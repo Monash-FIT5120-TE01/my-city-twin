@@ -51,6 +51,31 @@ export interface VrFlat {
 }
 
 /** One approved development, as a row in the panel's list. */
+/**
+ * What the Place card is about: a project or a building standing today, chosen on the map, in the list
+ * of what stands near a spot, or by search (ProjectDoc/vr-ui-redesign/nav-search.html, 2026-10-19).
+ */
+export interface VrSelected {
+  kind: 'development' | 'building';
+  /** The project's devKey, or the building's id. */
+  key: string;
+  /** Its address, as the lists write it. */
+  label: string;
+  /** "Approved | 120 m", "Standing today | 66 m". */
+  detail: string;
+  en: [number, number];
+  heightM: number;
+}
+
+/** One answer to a search: a project, a building or a named place. */
+export interface VrHit {
+  kind: 'development' | 'building' | 'landmark';
+  key: string;
+  label: string;
+  detail: string;
+  en: [number, number];
+}
+
 export interface VrPlaceOption {
   key: string;
   /** The street line of its address. */
@@ -88,6 +113,17 @@ export interface VrMenu {
   } | null;
   options: VrPlaceOption[];
   onChoose: (key: string) => void;
+
+  /** The project or building the Place card is about, or null. */
+  selected: VrSelected | null;
+  /** Choose one without going there: the map's list and search choose; "Stand in front" goes. */
+  onPick: (pick: { kind: 'development' | 'building'; key: string }) => void;
+  /** Down to the footpath at a spot chosen on the map (the nearest free point to it). */
+  onStandAt: (en: [number, number]) => void;
+  /** Addresses, projects and named places matching what was typed; empty under two letters. */
+  search: (query: string) => VrHit[];
+  /** Whether the approved projects are drawn ("With the project" / "Without"), as the page's Map layers. */
+  plan: { shown: boolean; onShow: (shown: boolean) => void };
 
   seasons: SeasonPreset[];
   season: SeasonPreset['key'] | null;

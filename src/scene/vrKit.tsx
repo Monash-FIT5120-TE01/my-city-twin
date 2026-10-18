@@ -91,7 +91,7 @@ export function Icon({ name, color = INK, size = 24 }: { name: IconName; color?:
   return <Picture texture={iconTexture(name, color)} width={size} height={size} />;
 }
 
-export type Tone = 'primary' | 'secondary' | 'amber' | 'quiet';
+export type Tone = 'primary' | 'secondary' | 'amber' | 'quiet' | 'outline';
 
 /**
  * A capsule. Primary is the product's green, for the one action that moves
@@ -116,8 +116,10 @@ export function Button({
   /** Who wins the laser where things overlap: a dialog's buttons outrank what is under the dialog. */
   order?: number;
 }) {
-  const fill = { primary: GREEN, secondary: SUNKEN, amber: AMBER_SOFT, quiet: PAPER }[tone];
-  const ink = { primary: PAPER, secondary: INK, amber: AMBER_INK, quiet: INK }[tone];
+  // outline: white with a green edge and green words, for a second action that must still read as a button on white
+  const fill = { primary: GREEN, secondary: SUNKEN, amber: AMBER_SOFT, quiet: PAPER, outline: PAPER }[tone];
+  const ink = { primary: PAPER, secondary: INK, amber: AMBER_INK, quiet: INK, outline: GREEN }[tone];
+  const edge = tone === 'outline' ? GREEN : fill;
   return (
     <Container
       onClick={(event) => {
@@ -140,13 +142,13 @@ export function Button({
       justifyContent="center"
       borderRadius={height / 2}
       borderWidth={3}
-      borderColor={fill}
+      borderColor={edge}
       backgroundColor={fill}
-      hover={{ borderColor: tone === 'primary' ? GREEN_PRESSED : tone === 'amber' ? AMBER_INK : INK, backgroundColor: tone === 'primary' ? GREEN_HOVER : tone === 'quiet' ? SUNKEN : fill }}
+      hover={{ borderColor: tone === 'primary' || tone === 'outline' ? GREEN_PRESSED : tone === 'amber' ? AMBER_INK : INK, backgroundColor: tone === 'primary' ? GREEN_HOVER : tone === 'quiet' ? SUNKEN : tone === 'outline' ? GREEN_SOFT : fill }}
       active={{ backgroundColor: tone === 'primary' ? GREEN_PRESSED : PRESSED }}
     >
       {icon && <Icon name={icon} color={ink} size={22} />}
-      <Text fontSize={20} fontWeight={tone === 'primary' || tone === 'amber' ? 'bold' : 'semi-bold'} color={ink}>
+      <Text fontSize={20} fontWeight={tone === 'secondary' || tone === 'quiet' ? 'semi-bold' : 'bold'} color={ink}>
         {plain(label)}
       </Text>
     </Container>

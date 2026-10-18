@@ -161,6 +161,8 @@ export interface MapMarks {
   labelPx: number;
   /** A pin on the place chosen — its shape, not only its colour, says which mark it is. */
   pin?: [number, number] | null;
+  /** A spot pressed on the map: a ring on it, and a dashed circle as far as the list around it reaches. */
+  spot?: { en: [number, number]; radiusM: number } | null;
 }
 
 const COLOURS = {
@@ -169,6 +171,7 @@ const COLOURS = {
   development: '#b9dccd',
   subject: '#14624a',
   you: '#1a73e8',
+  spot: '#e89a21',
   landmark: '#8a5e0c',
   ink: '#16181a',
 };
@@ -244,6 +247,27 @@ export function drawMarks(ctx: CanvasRenderingContext2D, view: MapView, marks: M
     ctx.strokeText(landmark.name, tx, y);
     ctx.fillStyle = COLOURS.ink;
     ctx.fillText(landmark.name, tx, y);
+  }
+
+  // A spot pressed on the map: what the list beside it is about. A ring, not a pin, so the two never read alike.
+  if (marks.spot) {
+    const [x, y] = toPixel(view, marks.spot.en);
+    ctx.beginPath();
+    ctx.arc(x, y, marks.spot.radiusM / view.metresPerPx, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(232, 154, 33, 0.10)';
+    ctx.fill();
+    ctx.setLineDash([px * 0.45, px * 0.35]);
+    ctx.lineWidth = px * 0.12;
+    ctx.strokeStyle = COLOURS.landmark;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(x, y, px * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = px * 0.32;
+    ctx.strokeStyle = COLOURS.spot;
+    ctx.stroke();
   }
 
   // The place chosen: a pin standing on it.

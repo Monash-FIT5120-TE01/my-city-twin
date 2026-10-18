@@ -34,6 +34,12 @@ const PATHS = {
   ruler: ['M3 17 17 3l4 4L7 21z', 'M7 13l2 2M10 10l2 2M13 7l2 2'],
   // A house: the roof, the walls, the door.
   home: ['M3 11 12 4l9 7', 'M5.5 9.5V20h13V9.5', 'M10 20v-5h4v5'],
+  // A magnifier.
+  search: ['M10.5 4.5a6 6 0 1 0 0 12a6 6 0 1 0 0-12', 'M15 15l5 5'],
+  // A tall building with windows and a door.
+  building: ['M5 21V6l7-3 7 3v15', 'M9 9h2M13 9h2M9 13h2M13 13h2', 'M10 21v-4h4v4'],
+  // A person standing: head, body, arms, legs.
+  stand: ['M12 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4', 'M12 8v7', 'M8 11h8', 'M9 21l3-6 3 6'],
   // Three dots: zero-length strokes with round caps.
   more: ['M5 12h0.01', 'M12 12h0.01', 'M19 12h0.01'],
 } as const;

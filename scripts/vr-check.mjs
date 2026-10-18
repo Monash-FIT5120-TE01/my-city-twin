@@ -203,6 +203,23 @@ async function instrument() {
       rig.updateWorldMatrix(true, false);
       return rig.localToWorld(new three.Vector3(0, -(822 / 2 - 20) / 1000, 0));
     };
+    /*
+     * The middle of the city map's picture, give or take (dx, dy) metres across it. From the card's title: the
+     * frame is 508 x 556 mm, its left edge under the title's, its top 50 mm under the title row's top.
+     */
+    t.aimAtMap = (hand, dx = 0, dy = 0) => {
+      const title = t.findText('City map');
+      const rig = t.state().scene.getObjectByName('vr-menu');
+      if (!title || !rig) return false;
+      rig.updateWorldMatrix(true, false);
+      const box = new three.Box3().setFromObject(title);
+      const local = rig.worldToLocal(box.getCenter(new three.Vector3()));
+      const left = rig.worldToLocal(box.min.clone()).x;
+      const top = local.y + (box.max.y - box.min.y) / 2;
+      local.set(left + 0.254 + dx, top - 0.05 - 0.278 + dy, local.z);
+      t.aimAt(hand, rig.localToWorld(local));
+      return true;
+    };
     t.aimAtText = (hand, text) => {
       const target = t.findText(text);
       if (!target) return false;
@@ -578,8 +595,8 @@ try {
 
   // One menu of three cards once the tutorial is done: Places, City map, Sun & time.
   seen = await textsOnce((now) => now.includes('City map') && now.includes('Sun & time'));
-  check('After the tutorial, the menu shows Places, City map and Sun & time together',
-    seen.includes('Places') && seen.includes('City map') && seen.includes('Sun & time'));
+  check('After the tutorial, the menu shows Map, City map and Sun & time together',
+    seen.includes('Map') && seen.includes('City map') && seen.includes('Sun & time'));
   await shoot('01d-three-panels');
 
   // Help brings the tutorial back; Skip puts it away again from any page.
@@ -592,7 +609,7 @@ try {
   await press('Skip', async () => !(await texts()).includes('Welcome to Live Melbourne'));
   seen = await texts();
   check('Skip closes the tutorial', !seen.includes('Welcome to Live Melbourne') && seen.includes('Show the tutorial again'));
-  await press('Explore', async () => (await texts()).includes('Explore Melbourne'));
+  await press('Map', async () => (await texts()).includes('Explore Melbourne'));
   const above = await head();
   check('Standing above the city', above[1] > 300, `head height ${above[1].toFixed(0)} m`);
   await shoot('01-arrive');
@@ -635,20 +652,26 @@ try {
 
   // 2. Pointing at a proposal in the city, panel put away.
   await pointAtAProposal();
-  seen = await textsOnce((now) => now.includes('View place'));
+  seen = await textsOnce((now) => now.includes('Details'));
   const addressIn = (now) => now.find((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
-  check('With the menu closed, pointing at a proposal in the city chooses it', seen.includes('View place'), addressIn(seen));
+  check('With the menu closed, pointing at a proposal in the city chooses it', seen.includes('Details'), addressIn(seen));
   check('Entering VR at night switches to 12:00 and the panel says why',
     hourIn(seen) === '12:00' && seen.some((text) => /^The sun is down/.test(text)),
     `${hourIn(seen)} / ${seen.find((text) => /^The sun is down/.test(text)) ?? 'no explanation'}`);
 
-  // 3. The list: back to it, its pages, its order, and choosing from it.
-  await press('Explore', async () => (await texts()).includes('Explore Melbourne'));
-  seen = await textsOnce((now) => now.includes('Explore Melbourne'));
-  check('"Explore" shows the place list', seen.includes('Explore Melbourne'));
+  // 3. The map: a press drops a spot, and what stands within 150 m of it is listed, nearest first.
+  await press('Map', async () => (await texts()).includes('City map'));
+  const subjectTitle = addressIn(await texts());
+  await call(() => window.__vrCheck.aimAtMap('right'));
+  await frames(3);
+  await pull('right');
+  seen = await textsOnce((now) => now.includes('Near this spot'));
+  check('Pressing the city map drops a spot and lists what stands near it', seen.includes('Near this spot'),
+    seen.find((text) => /within 150 m/.test(text)) ?? 'no list');
+  await shoot('02a-near-spot');
 
   // The list scrolls: the right stick pushed down carries the rows up.
-  const firstRow = seen.find((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
+  const firstRow = seen.find((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text) && text !== subjectTitle);
   const rowBefore = await call((text) => window.__vrCheck.worldOf(text), firstRow);
   await call(() => window.__vrCheck.device().controllers.right.updateAxes('thumbstick', 0, 1));
   await frames(12);
@@ -656,45 +679,38 @@ try {
   await frames(3);
   const rowAfter = await call((text) => window.__vrCheck.worldOf(text), firstRow);
   const scrolledM = rowBefore && rowAfter ? rowAfter[1] - rowBefore[1] : 0;
-  check('Pushing the right stick down scrolls the place list', scrolledM > 0.02, `${firstRow} moved ${(scrolledM * 1000).toFixed(0)} mm`);
+  check('Pushing the right stick down scrolls the list near the spot', scrolledM > 0.02, `${firstRow} moved ${(scrolledM * 1000).toFixed(0)} mm`);
   await call(() => window.__vrCheck.device().controllers.right.updateAxes('thumbstick', 0, -1));
   await frames(20);
   await call(() => window.__vrCheck.device().controllers.right.updateAxes('thumbstick', 0, 0));
-  seen = await textsOnce((now) => now.includes('Explore Melbourne'));
+  seen = await textsOnce((now) => now.includes('Near this spot'));
 
-  // Nearest first: the distances down the list never go down.
-  // A row says "370 m away | 40 m tall": the distance is read from inside the line.
+  // Nearest first: a row says "120 m | 66 m tall" (or "Here | ..."); the distances down the list never go down.
   const away = seen
-    .map((text) => /([\d.]+) (k?m) away/.exec(text))
+    .map((text) => /^(Here|(\d+) m) \| /.exec(text))
     .filter(Boolean)
-    .map(([, value, unit]) => (unit === 'km' ? parseFloat(value) * 1000 : parseFloat(value)));
-  check('"Nearest" sorts by distance', away.length >= 3 && away.every((d, i) => i === 0 || d >= away[i - 1]),
+    .map(([, here, metres]) => (here === 'Here' ? 0 : Number(metres)));
+  check('The list near a spot is nearest first', away.length >= 3 && away.every((d, i) => i === 0 || d >= away[i - 1]),
     away.map((d) => `${d} m`).join(', '));
 
-  const rows = seen.filter((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
-  const row = rows[1];
-  await call(() => { window.__vrCheck.loader = { seen: 0, furthest: 0 }; });
-  await profiled('choosing a place, until the move has landed', async () => {
-    await press(row, async () => {
-      const now = await texts();
-      return now.includes(row) && now.includes('View place');
-    });
-    // The move itself comes a few frames after the press and its work after that; held for long enough to see it.
-    if (profile) await page.waitForTimeout(1500);
-  });
-  seen = await textsOnce((now) => now.includes('View place'));
-  check('Choosing a row puts that place on the map card', seen.includes(row) && seen.includes('View place'), row);
-  // Gone again once the move has landed.
-  const loaderUp = () => call(() => window.__vrCheck.state().scene.getObjectByName('vr-loader')?.visible ?? false);
-  const gone = !(await until(loaderUp, (up) => !up, 60));
-  const going = { ...(await call(() => window.__vrCheck.loader)), gone };
-  check('Choosing a place shows "Going to ..." in front of the eyes, then takes it away',
-    going.seen > 0 && going.furthest > 0.9 && going.furthest < 1.5 && going.offCentreDeg < 15 && going.gone,
-    `up for ${going.seen} frames, ${going.furthest.toFixed(2)} m away, ${going.offCentreDeg?.toFixed(0)} deg off centre`);
-  const overPlace = await headOnce((at) => Math.hypot(at[0] - above[0], at[2] - above[2]) > 50);
-  check('Moves above the chosen place', Math.hypot(overPlace[0] - above[0], overPlace[2] - above[2]) > 50,
-    `${Math.hypot(overPlace[0] - above[0], overPlace[2] - above[2]).toFixed(0)} m moved`);
+  // "Planned" narrows it to the projects; choosing one fills it on the map, offers Details, and does not move anybody.
+  await pressOnce('Planned');
+  seen = await textsOnce((now) => now.includes('Near this spot'));
+  const headBefore = await head();
+  const planned = seen.filter((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
+  const row = planned.find((text) => text === subjectTitle) ?? planned[0];
+  await press(row, async () => (await texts()).includes('Details'));
+  seen = await textsOnce((now) => now.includes('Details'));
+  const headAfter = await head();
+  check('Choosing a row chooses that building without moving the viewer', seen.includes(row) && seen.includes('Details') && Math.hypot(headAfter[0] - headBefore[0], headAfter[2] - headBefore[2]) < 1, row);
   await shoot('02-place');
+
+  // Details: Place, with what can be done with it.
+  await press('Details', async () => (await texts()).includes('Measure the sun'));
+  seen = await textsOnce((now) => now.includes('Measure the sun'));
+  check('Details opens Place: stand in front, measure the sun, the project on or off',
+    seen.includes('Stand in front') && seen.includes('Measure the sun') && seen.includes('With project'));
+  await shoot('02b-place-card');
 
   // 4. Season and hour.
   // The run starts in June, so pressing Winter would prove nothing: Summer.
@@ -745,7 +761,8 @@ try {
 
   // 4b. With --flat-shots: the flat, in pictures.
   if (flatShots) {
-    await press('Flat', async () => (await texts()).some((text) => /building|Building/.test(text)));
+    await press('Place', async () => (await texts()).includes('Look out from a flat') || (await texts()).includes('Measure the sun'));
+    if ((await texts()).includes('Look out from a flat')) await press('Look out from a flat', async () => (await texts()).includes('Choose a flat'));
     await frames(5);
     await shoot('flat-1-choose');
     // A building standing today, under the beam: a ray from the head down into the city, onto the first thing that answers a click.
@@ -797,14 +814,16 @@ try {
       }
     }
     console.log(`flat pictures: ${hit ? 'a building was found under the beam' : 'no building under the beam'}`);
-    await press('Explore', async () => (await texts()).includes('Explore Melbourne'));
+    await press('Map', async () => (await texts()).includes('City map'));
   }
 
-  // 5. Measuring a spot.
-  await press('Measure', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
+  // 5. Measuring a spot: Place > Measure the sun.
+  await press('Place', async () => (await texts()).includes('Measure the sun'));
+  const heightText = (await texts()).find((text) => /\| \d+ m$/.test(text));
+  await press('Measure the sun', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
   seen = await textsOnce((now) => now.includes('Point at the ground and pull the trigger.'));
-  check('Opening Measure arms the ground straight away', seen.includes('Point at the ground and pull the trigger.'));
-  await aimAtGroundAhead(Number(/(\d+) m/.exec(seen.find((text) => /Approved development/.test(text)) ?? '')?.[1] ?? 60));
+  check('"Measure the sun" arms the ground straight away', seen.includes('Point at the ground and pull the trigger.'));
+  await aimAtGroundAhead(Number(/\| (\d+) m$/.exec(heightText ?? '')?.[1] ?? 60));
   await frames(3);
   await pull('right');
   seen = await textsOnce((now) => now.includes('Measure another spot'));
@@ -1062,19 +1081,22 @@ try {
   seen = await textsOnce((now) => now.includes('Welcome to Live Melbourne'));
   check('The tutorial is shown again on the next Enter VR', seen.includes('Welcome to Live Melbourne'));
   await press('Skip', async () => !(await texts()).includes('Welcome to Live Melbourne'));
-  seen = await textsOnce((now) => now.includes('View place'));
+  seen = await textsOnce((now) => now.includes('Details'));
   const buildingTitle = '206-218 Bourke Street';
-  await press('Measure', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
+  const buildingHeight = Number(/\| (\d+) m$/.exec(seen.find((text) => /^Standing today \| \d+ m$/.test(text)) ?? '')?.[1] ?? 30);
+  await press('Details', async () => (await texts()).includes('Measure the sun'));
+  await press('Measure the sun', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
   await textsOnce((now) => now.includes('Point at the ground and pull the trigger.'));
-  await aimAtGroundAhead(Number(/(\d+) m/.exec(seen.find((text) => /Existing building/.test(text)) ?? '')?.[1] ?? 30));
+  await aimAtGroundAhead(buildingHeight);
   await frames(3);
   await pull('right');
   seen = await textsOnce((now) => now.includes('Measure another spot'));
   check('A spot can be measured for an existing building', seen.includes('Measure another spot'), buildingTitle);
   await pointAtAProposal();
   seen = await textsOnce((now) => !now.includes(buildingTitle));
+  // the new building's own card, not the last one's figure
   check('Pointing at another proposal clears the previous spot',
-    !seen.includes(buildingTitle) && seen.includes('Point at the ground and pull the trigger.') && !seen.includes('Measure another spot'),
+    !seen.includes(buildingTitle) && !seen.includes('Measure another spot'),
     `${buildingTitle} → ${addressIn(seen)}`);
   await shoot('06-rechosen');
 } catch (error) {

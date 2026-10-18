@@ -28,22 +28,24 @@
  * and uploading one every frame would cost the headset for nothing.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Container, Text } from '@react-three/uikit';
 import { Picture } from './vrPicture';
 import { DoubleSide, Matrix4, Vector3, type Group } from 'three';
 import { canvasTexture, paintTexture } from './vrIcons';
-import type { BuildingMassing, Development, PolygonEN } from '../data/model';
+import type { BuildingMassing, Development, PolygonEN, SearchableBuilding } from '../data/model';
 import { worldToEnu } from './frame';
 import { LANDMARKS } from './vrLandmarks';
 import { artNear, drawBase, drawMap, drawMarks, startCityTiles, subjectPath, toPixel, type CityTiles } from './vrMapDraw';
-import { Button, Label } from './vrKit';
-import { GLASS_EDGE, INK, INK_2, PAPER } from './vrTokens';
+import { Button } from './vrKit';
+import { CONTROL_ORDER, GLASS_EDGE, INK, INK_2, PAPER } from './vrTokens';
 import { PANEL_RENDER_ORDER } from './vrPointer';
 
 export interface CityForMap {
   buildings: BuildingMassing[];
+  /** One entry per building with an address: the list beside a spot pressed on the map. */
+  searchable: SearchableBuilding[];
   developments: Development[];
   extent: { minE: number; minN: number; maxE: number; maxN: number };
 }
@@ -80,9 +82,17 @@ function cityPaths(city: CityForMap) {
  * looked at. Each frame it is used it adds a few milliseconds' worth more
  * until the city is in; `art` then picks the squares a picture reaches.
  */
-function useCityArt(city: CityForMap | null, subjectKey: string | null) {
+function useCityArt(city: CityForMap | null, subjectKey: string | null, buildingKey: string | null = null) {
   const made = city ? cityPaths(city) : null;
-  const subject = useMemo(() => (made ? subjectPath(made.footprints, subjectKey) : null), [made, subjectKey]);
+  // the one being looked at, filled in the subject's colour: a project's footprints, or a building's parts
+  const subject = useMemo(() => {
+    if (!made || !city) return null;
+    if (buildingKey) {
+      const footprints = city.buildings.filter((part) => part.parentId === buildingKey).flatMap((part) => part.footprint);
+      return subjectPath([{ key: buildingKey, footprints }], buildingKey);
+    }
+    return subjectPath(made.footprints, subjectKey);
+  }, [made, city, subjectKey, buildingKey]);
   return {
     /** Call once a frame: builds a little more. Returns whether the city is all in. */
     build: () => (made ? made.tiles.done() || made.tiles.step(BUILD_MS_PER_FRAME) : false),
@@ -140,20 +150,38 @@ export interface MapSubject {
 /** The map's own frame inside the card, mm. */
 const FRAME_W = 508;
 const FRAME_H = 556;
+/** The list beside a spot pressed on the map reaches this far, metres. */
+export const SPOT_REACH_M = 150;
 
+/*
+ * The city map, and the way into a place (ProjectDoc/vr-ui-redesign/map-first.html, 2026-10-19): pressing
+ * the map drops a spot there — a ring, with a dashed circle as far as the list on the left reaches — and
+ * the panel at the foot of the map (`footer`, from the menu) says what can be done with it. The building
+ * chosen is filled in the subject's colour as well as pinned.
+ *
+ * WHERE THE PRESS LANDED: the press is taken on a clear sheet over the picture, whose UI library hands the
+ * point on it back as a fraction across and down (uv); with the view it was drawn with, that is a place.
+ */
 export function MapCard({
   city,
   subject,
+  buildingKey,
+  spot,
+  onSpot,
   shown,
-  onViewPlace,
+  footer,
 }: {
   city: CityForMap | null;
   subject: MapSubject | null;
+  /** A building standing today that is chosen: filled like the subject. */
+  buildingKey: string | null;
+  spot: [number, number] | null;
+  onSpot: (en: [number, number]) => void;
   shown: boolean;
-  /** "View place": what the reader can do with it — the Measure section. */
-  onViewPlace: () => void;
+  /** What sits at the foot of the map: the spot's or the chosen building's actions. */
+  footer: ReactNode;
 }) {
-  const paths = useCityArt(city, subject?.key ?? null);
+  const paths = useCityArt(city, subject?.key ?? null, buildingKey);
   const texture = useCanvasTexture(FRAME_W * DENSITY, FRAME_H * DENSITY, true);
   /*
    * The footprints are drawn once into a canvas of their own and only drawn
@@ -163,29 +191,33 @@ export function MapCard({
   const base = useRef<{ canvas: HTMLCanvasElement; key: string } | null>(null);
   const [step, setStep] = useState(START_STEP);
   /*
-   * Centred on the place chosen, so choosing one shows where it is; the
-   * target button centres on the reader instead, until another place is
-   * chosen. Held with the place it was pressed for, so a new choice ends it
-   * without an effect to tidy up.
+   * Centred on the spot pressed, else the place chosen, so choosing shows where it is; the target button
+   * centres on the reader instead until something else is chosen. Held with what it was pressed for, so a
+   * new choice ends it without an effect to tidy up.
    */
+  const focusKey = spot ? `${spot[0].toFixed(1)},${spot[1].toFixed(1)}` : (subject?.key ?? null);
   const [onMeFor, setOnMeFor] = useState<string | null | undefined>(undefined);
-  const onMe = !subject || onMeFor === subject.key;
+  const onMe = focusKey === null || onMeFor === focusKey;
   const gate = useRedrawGate(0.5, 3, 20 * DEG);
   const at = useRef(new Vector3());
   const look = useRef(new Vector3());
+  /** The view last drawn: where a press on the picture lands. */
+  const drawnView = useRef<{ centreEN: [number, number]; metresPerPx: number } | null>(null);
 
   useFrame((state) => {
     // Built while hidden too, so the map is ready when the card first shows.
     const whole = paths.build();
     if (!shown || !city) return;
     const you = readReader(state.camera, at.current, look.current);
-    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, `${step}:${subject?.key}:${onMe}:${whole}`)) return;
+    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, `${step}:${focusKey}:${buildingKey}:${onMe}:${whole}`)) return;
     const { minE, minN, maxE, maxN } = city.extent;
-    // The widest step frames the whole city; the others centre on the place, or on the reader.
-    const centre: [number, number] = step === 0 ? [(minE + maxE) / 2, (minN + maxN) / 2] : onMe || !subject ? you.en : subject.en;
+    // The widest step frames the whole city; the others centre on the spot, the place, or the reader.
+    const centre: [number, number] =
+      step === 0 ? [(minE + maxE) / 2, (minN + maxN) / 2] : onMe ? you.en : (spot ?? subject?.en ?? you.en);
     const view = { width: FRAME_W * DENSITY, height: FRAME_H * DENSITY, centreEN: centre, metresPerPx: ZOOM_STEPS[step], upHeadingRad: 0 };
+    drawnView.current = { centreEN: centre, metresPerPx: ZOOM_STEPS[step] };
     // Drawn again once the city is all in: until then it holds what was built so far.
-    const baseKey = `${step}|${centre[0].toFixed(1)}|${centre[1].toFixed(1)}|${subject?.key}|${whole}`;
+    const baseKey = `${step}|${centre[0].toFixed(1)}|${centre[1].toFixed(1)}|${subject?.key}|${buildingKey}|${whole}`;
     if (!base.current || base.current.key !== baseKey) {
       const canvas = base.current?.canvas ?? document.createElement('canvas');
       canvas.width = view.width;
@@ -200,7 +232,13 @@ export function MapCard({
     paintTexture(texture, (ctx) => {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(layer, 0, 0);
-      drawMarks(ctx, view, { you, landmarks: LANDMARKS, labelPx: 30, pin: subject?.en ?? null });
+      drawMarks(ctx, view, {
+        you,
+        landmarks: LANDMARKS,
+        labelPx: 30,
+        pin: subject?.en ?? null,
+        spot: spot ? { en: spot, radiusM: SPOT_REACH_M } : null,
+      });
     });
   });
 
@@ -216,11 +254,32 @@ export function MapCard({
       </Container>
       <Container width={FRAME_W} height={FRAME_H} borderRadius={28} overflow="hidden" positionType="relative" flexShrink={0}>
         <Picture texture={texture} width={FRAME_W} height={FRAME_H} radius={28} />
+        {/* A clear sheet over the picture that takes the press, and says where on the picture it was. */}
+        <Container
+          positionType="absolute"
+          positionLeft={0}
+          positionTop={0}
+          width={FRAME_W}
+          height={FRAME_H}
+          zIndex={1}
+          cursor="crosshair"
+          pointerEventsOrder={CONTROL_ORDER}
+          onClick={(event) => {
+            event.stopPropagation();
+            const uv = (event as unknown as { uv?: { x: number; y: number } }).uv;
+            const view = drawnView.current;
+            if (!uv || !view) return;
+            // across from the left, down from the top; north is up the picture
+            const dx = (uv.x - 0.5) * FRAME_W * DENSITY * view.metresPerPx;
+            const dy = (0.5 - uv.y) * FRAME_H * DENSITY * view.metresPerPx;
+            onSpot([view.centreEN[0] + dx, view.centreEN[1] + dy]);
+          }}
+        />
         {/* Over the picture: without a z-index the picture, drawn later, covered their fill. */}
         <Container positionType="absolute" positionRight={14} positionTop={14} flexDirection="column" gap={8} zIndex={2}>
           <Button label="+" tone="quiet" height={56} onClick={() => setStep((s) => Math.min(ZOOM_STEPS.length - 1, s + 1))} />
           <Button label="-" tone="quiet" height={56} onClick={() => setStep((s) => Math.max(0, s - 1))} />
-          <Button label="" icon="measure" tone="quiet" height={56} onClick={() => setOnMeFor(subject?.key ?? null)} />
+          <Button label="" icon="measure" tone="quiet" height={56} onClick={() => setOnMeFor(focusKey)} />
         </Container>
         <Container
           positionType="absolute"
@@ -230,22 +289,14 @@ export function MapCard({
           zIndex={2}
           flexDirection="row"
           alignItems="center"
-          gap={12}
+          gap={10}
           paddingY={12}
           paddingLeft={20}
           paddingRight={12}
           borderRadius={24}
           backgroundColor={PAPER}
         >
-          <Container flexDirection="column" gap={2} flexGrow={1} flexShrink={1}>
-            <Label size={19} weight="bold">
-              {subject ? subject.label : 'No place chosen'}
-            </Label>
-            <Label size={18} color={INK_2}>
-              {subject ? subject.detail : 'Choose one in Places, or point at a green building.'}
-            </Label>
-          </Container>
-          {subject && <Button label="View place" tone="primary" icon="arrow" onClick={onViewPlace} />}
+          {footer}
         </Container>
       </Container>
     </>

@@ -124,7 +124,7 @@ import { exitVr, useInVr, useVrSupported, xrStore } from './scene/xrStore';
 import type { VrMenu, VrStage } from './scene/vrMenu';
 import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './ui/words';
 import type { Development, SearchableBuilding } from './data/model';
-import { shortAddress, type SearchHit } from './data/search';
+import { searchCity, shortAddress, type SearchHit } from './data/search';
 import { useSolarComparison, type PlannedDevelopment, type SolarScene } from './scene/useSolarComparison';
 import { SolarSheet } from './ui/SolarSheet';
 import { ActivitySearchResults, StreetActivitySheet } from './ui/StreetActivitySheet';
@@ -402,6 +402,8 @@ export default function App() {
   }, [view, walking, inVr]);
   const [vrStage, setVrStage] = useState<VrStage>('above');
   const [vrTrip, setVrTrip] = useState(0);
+  /** A spot chosen on the headset's map to stand at: where "Stand here" goes, ahead of the measured spot and the subject. */
+  const [vrStandAt, setVrStandAt] = useState<[number, number] | null>(null);
   const moveInVr = (stage: VrStage) => {
     setVrStage(stage);
     setVrTrip((n) => n + 1);
@@ -1678,6 +1680,51 @@ export default function App() {
           // Over the new place, looking at it.
           if (development) chooseInVr(development, true);
         },
+        // ── the map, search and Place (VrPanel): choose without going; go only on "Stand" ──
+        selected: foundBuilding
+          ? {
+              kind: 'building',
+              key: foundBuilding.buildingId,
+              label: shortAddress(foundBuilding.streetAddress),
+              detail: `Standing today | ${foundBuilding.heightM.toFixed(0)} m`,
+              en: foundBuilding.anchorEN,
+              heightM: foundBuilding.heightM,
+            }
+          : focus
+            ? {
+                kind: 'development',
+                key: focus.devKey,
+                label: shortAddress(focus.streetAddress),
+                detail: `${stageOf(focus)} | ${focus.maxHeightM.toFixed(0)} m`,
+                en: focus.anchorEN,
+                heightM: focus.maxHeightM,
+              }
+            : null,
+        onPick: ({ kind, key }) => {
+          if (kind === 'building') {
+            pickBuildingInVr(key);
+            return;
+          }
+          const development = model.developments.find((d) => d.devKey === key);
+          if (development) {
+            setSelectedBuildingId(null);
+            chooseInVr(development, false);
+          }
+        },
+        onStandAt: (en) => {
+          setChoosing(false);
+          setVrStandAt(en);
+          moveInVr('street');
+        },
+        search: (query) =>
+          searchCity(model, query, landmarks).map((hit) =>
+            hit.kind === 'development'
+              ? { kind: 'development', key: hit.development.devKey, label: hit.label, detail: hit.detail, en: hit.development.anchorEN }
+              : hit.kind === 'building'
+                ? { kind: 'building', key: hit.building.buildingId, label: hit.label, detail: hit.detail, en: hit.building.anchorEN }
+                : { kind: 'landmark', key: hit.landmark.name, label: hit.label, detail: hit.detail, en: hit.landmark.en },
+          ),
+        plan: { shown: layers.developments, onShow: (shown) => setLayers({ ...layers, developments: shown }) },
         seasons: SEASONS,
         season: matchingSeason(date)?.key ?? null,
         onSeason: (key) => {
@@ -1748,6 +1795,8 @@ export default function App() {
         },
         onStand: () => {
           setChoosing(false);
+          // in front of the subject (or at the measured spot), not at a spot chosen on the map earlier
+          setVrStandAt(null);
           moveInVr('street');
         },
         onRise: () => moveInVr('above'),
@@ -1987,6 +2036,8 @@ export default function App() {
           onNudgeMinutes={nudgeMinutes}
           vrStage={vrStage}
           vrTrip={vrTrip}
+          // only in a headset: the page's own walking stands where it always has
+          vrStandAt={inVr ? vrStandAt : null}
           vrMenu={vrMenu}
           viewCommands={viewCommands}
           refit={refit}

@@ -258,6 +258,8 @@ interface SceneCanvasProps {
   vrStage: VrStage;
   /** Changes whenever the headset player should be moved. See VrWalk. */
   vrTrip: number;
+  /** A spot chosen on the headset's map: "Stand here" stands there, before the measured spot and the subject. */
+  vrStandAt?: [number, number] | null;
   /** What the headset's panel shows and does. */
   vrMenu: VrMenu | null;
   /**
@@ -335,6 +337,7 @@ export function SceneCanvas({
   onNudgeMinutes,
   vrStage,
   vrTrip,
+  vrStandAt = null,
   vrMenu,
 }: SceneCanvasProps) {
   const ground = useMemo(() => groundElevationOf(model.buildings), [model.buildings]);
@@ -449,8 +452,8 @@ export function SceneCanvas({
    * same answer.
    */
   const standAt = useMemo<[number, number]>(
-    () => receptor ?? [targetE, targetN],
-    [receptor, targetE, targetN],
+    () => vrStandAt ?? receptor ?? [targetE, targetN],
+    [vrStandAt, receptor, targetE, targetN],
   );
 
   /*
@@ -601,6 +604,7 @@ export function SceneCanvas({
     },
     onStand: () => setLoading({ title: 'Going down to the street', detail: 'Loading the street', run: vrMenu.onStand }),
     onRise: () => setLoading({ title: 'Going up above the city', detail: 'Loading the view', run: vrMenu.onRise }),
+    onStandAt: (en) => setLoading({ title: 'Going down to this spot', detail: 'Loading the street', run: () => vrMenu.onStandAt(en) }),
     flat: vrMenu.flat && {
       ...vrMenu.flat,
       // the move lands only once the flat has loaded (App), so the pill stays up until then
@@ -998,7 +1002,6 @@ export function SceneCanvas({
                   city={model}
                   subjectKey={focus?.devKey ?? null}
                   subjectEN={wholeCity ? null : [targetE, targetN]}
-                  placed={placed}
                   onHide={() => setPanelShown(false)}
                   onShow={showPanel}
                 />
