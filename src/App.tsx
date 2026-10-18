@@ -137,7 +137,7 @@ import './styles/ui.css';
 import './styles/solar.css';
 import './styles/street-activity.css';
 import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
-import { HintChip, KeyHint, WalkHints } from './ui/KeyHints';
+import { HintChip, KeyHint, WalkHints, WheelHint } from './ui/KeyHints';
 import { Icon } from './ui/kit/Icon';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
@@ -2080,7 +2080,7 @@ export default function App() {
             ) : (
               <>
                 <KeyHint keys={['W', 'A', 'S', 'D']} label="Walk" />
-                <KeyHint keys={['Scroll']} label="Speed" />
+                <WheelHint label="Speed" />
                 <KeyHint keys={['Shift']} label="Hurry" />
                 <KeyHint keys={['Space']} label="Jump" />
                 <KeyHint keys={['Esc']} label="Come back up" />

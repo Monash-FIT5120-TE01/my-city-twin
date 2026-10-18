@@ -171,3 +171,8 @@
     border-radius: 16px;
   }
 }
+
+.wheel-hint {
+  flex: none;
+  margin: -4px -2px;
+}
