@@ -768,7 +768,7 @@ export function SceneCanvas({
           */}
           {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={terrain} />}
 
-          {showSunArrow && !wholeCity && (
+          {showSunArrow && !wholeCity && !inRoom && (
             <SunArrow
               sun={sun}
               anchorEN={[targetE, targetN]}

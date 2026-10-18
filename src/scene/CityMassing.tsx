@@ -269,8 +269,9 @@ export function CityMassing({
       )}
       {room && <ApartmentRoom placement={room.placement} night={room.night} onReady={room.onReady} onFailed={room.onFailed} />}
 
-      {receptor && <ReceptorMarker point={receptor} groundAhdM={terrain} />}
-      {windowAt && (
+      {/* the measuring marks are for looking at the city from above: not in the view from the flat */}
+      {receptor && !room && <ReceptorMarker point={receptor} groundAhdM={terrain} />}
+      {windowAt && !room && (
         <WindowMarker en={windowAt.en} ahdM={windowAt.ahdM} facingDeg={windowAt.facingDeg} />
       )}
 
