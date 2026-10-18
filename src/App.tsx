@@ -2080,6 +2080,7 @@ export default function App() {
             ) : (
               <>
                 <KeyHint keys={['W', 'A', 'S', 'D']} label="Walk" />
+                <KeyHint keys={['Scroll']} label="Speed" />
                 <KeyHint keys={['Shift']} label="Hurry" />
                 <KeyHint keys={['Space']} label="Jump" />
                 <KeyHint keys={['Esc']} label="Come back up" />
