@@ -39,8 +39,17 @@ export interface VrFlat {
   /** The top floor as modelled, when known. */
   floorsAboveGround: number | null;
   onFloor: (floor: number) => void;
-  /** The sides the building has at that floor, as compass names ("NE"). */
+  /** The highest floor to offer: the storeys on record, else as many as the building's height holds. */
+  topFloor: number;
+  /** The sides the building has at that floor, as compass names ("North-east"). */
   sides: string[];
+  /** The same sides on the ground: the middle of each, and the way it faces (degrees from north). */
+  facades: { compass: string; midpointEN: [number, number]; bearingDeg: number }[];
+  /**
+   * Whether the flat fits on a side at a floor: a few milliseconds the first time each is asked, kept after
+   * that. Null before a building is chosen. The card asks a few each frame rather than all at once.
+   */
+  fits: ((side: string, floor: number) => boolean) | null;
   side: string | null;
   onSide: (compass: string) => void;
   /** Why the flat does not fit there, in words; null when it does, or before a side is chosen. */

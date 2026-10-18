@@ -163,6 +163,8 @@ export interface MapMarks {
   pin?: [number, number] | null;
   /** A spot pressed on the map: a ring on it, and a dashed circle as far as the list around it reaches. */
   spot?: { en: [number, number]; radiusM: number } | null;
+  /** The way a flat's windows look: a dashed fan out from the middle of the side, facing bearingDeg. */
+  fan?: { en: [number, number]; bearingDeg: number; radiusM: number } | null;
 }
 
 const COLOURS = {
@@ -268,6 +270,26 @@ export function drawMarks(ctx: CanvasRenderingContext2D, view: MapView, marks: M
     ctx.lineWidth = px * 0.32;
     ctx.strokeStyle = COLOURS.spot;
     ctx.stroke();
+  }
+
+  // A flat's outlook: a fan of the view out of its windows, 64 degrees wide.
+  if (marks.fan) {
+    const [x, y] = toPixel(view, marks.fan.en);
+    const r = marks.fan.radiusM / view.metresPerPx;
+    // compass bearing (clockwise from north) to the picture's angle (clockwise from east, north up)
+    const towards = ((marks.fan.bearingDeg - 90) * Math.PI) / 180 - view.upHeadingRad;
+    const half = (32 * Math.PI) / 180;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.arc(x, y, r, towards - half, towards + half);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(232, 154, 33, 0.18)';
+    ctx.fill();
+    ctx.setLineDash([px * 0.4, px * 0.3]);
+    ctx.lineWidth = px * 0.12;
+    ctx.strokeStyle = COLOURS.spot;
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // The place chosen: a pin standing on it.

@@ -321,6 +321,21 @@ export function fitRoomInModel(
   /** The real ground (terrain.ts): floors counted from the building's ground on it. Without it, its record. */
   terrain?: Terrain,
 ): RoomFit | null {
+  return roomFitter(buildings, buildingId, floorsAboveGround, terrain)?.(side, floor, windowAtEN) ?? null;
+}
+
+/**
+ * fitRoomInModel for one building, many times: the building's parts and its neighbours are found once
+ * (the search through the whole city is most of a single answer's cost), and each floor and side asked
+ * about after that is only fitRoom. For the headset's flat picker, which asks about every floor of a
+ * tower on one side to draw it (VrPanel FlatCard). Null when the model has no such building.
+ */
+export function roomFitter(
+  buildings: readonly Massing[],
+  buildingId: string,
+  floorsAboveGround: number | null,
+  terrain?: Terrain,
+): ((side: string, floor: number, windowAtEN?: [number, number] | null) => RoomFit) | null {
   const host = buildings.filter((b) => b.parentId === buildingId);
   if (!host.length) return null;
   /*
@@ -334,23 +349,26 @@ export function fitRoomInModel(
     const o = boxOf([b]);
     return o.e1 >= h.e0 - NEAR_M && o.e0 <= h.e1 + NEAR_M && o.n1 >= h.n0 - NEAR_M && o.n0 <= h.n1 + NEAR_M;
   });
-  const fit = fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, terrain ? buildingGroundAhdM(host, terrain) : undefined);
-  /*
-   * On a slope the floors start from the low side, and a low floor on the uphill side is under the street
-   * there: the balcony would be dug into the ground (Codex review, 2026-10-18). Its floor must be at or
-   * above the ground in front of the facade.
-   */
-  if (fit.ok && terrain) {
-    const p = fit.placement;
-    // the whole balcony, out to its rail, and the room's floor along the facade, every half metre
-    // every half metre, and the outer edges themselves (the rail at x 9.3, the balcony's north side)
-    const steps = (from: number, to: number) => [...Array.from({ length: Math.floor((to - from) / 0.5) + 1 }, (_, i) => from + i * 0.5), to];
-    for (const x of steps(6.0, 9.3)) {
-      for (const y of x < 7.5 ? steps(-0.1, 6.9) : steps(0.2, 3.3)) {
-        const [e, n] = toEN(p, x, y);
-        if (heightAt(terrain, e, n) > p.floorAhdM + BELOW_STREET_M) return { ok: false, problem: 'below-the-street' };
+  const groundAhdM = terrain ? buildingGroundAhdM(host, terrain) : undefined;
+  return (side, floor, windowAtEN = null) => {
+    const fit = fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, groundAhdM);
+    /*
+     * On a slope the floors start from the low side, and a low floor on the uphill side is under the street
+     * there: the balcony would be dug into the ground (Codex review, 2026-10-18). Its floor must be at or
+     * above the ground in front of the facade.
+     */
+    if (fit.ok && terrain) {
+      const p = fit.placement;
+      // the whole balcony, out to its rail, and the room's floor along the facade, every half metre
+      // every half metre, and the outer edges themselves (the rail at x 9.3, the balcony's north side)
+      const steps = (from: number, to: number) => [...Array.from({ length: Math.floor((to - from) / 0.5) + 1 }, (_, i) => from + i * 0.5), to];
+      for (const x of steps(6.0, 9.3)) {
+        for (const y of x < 7.5 ? steps(-0.1, 6.9) : steps(0.2, 3.3)) {
+          const [e, n] = toEN(p, x, y);
+          if (heightAt(terrain, e, n) > p.floorAhdM + BELOW_STREET_M) return { ok: false, problem: 'below-the-street' };
+        }
       }
     }
-  }
-  return fit;
+    return fit;
+  };
 }

@@ -95,7 +95,7 @@ import { TramHint } from './ui/TramHint';
 import { TramAim } from './ui/TramAim';
 import { WalkPaceHint } from './ui/WalkPaceHint';
 import { readRoomCheck } from './scene/room/roomCheck';
-import { fitRoomInModel } from './scene/room/roomPlacement';
+import { fitRoomInModel, roomFitter } from './scene/room/roomPlacement';
 import { FlatPicker, type FlatFit } from './ui/LookOutFromFlat';
 import { flatProblemText } from './ui/flatProblemText';
 import './styles/room.css';
@@ -953,6 +953,27 @@ export default function App() {
     return fit.ok ? { ok: true } : { ok: false, problem: fit.problem };
   }, [foundBuilding, windowSide, floor, floorsAboveGround, windowAt, standingCity, terrain]);
 
+  /*
+   * Whether the flat fits at any floor and side of the building chosen, for the headset's flat picker,
+   * which draws every floor of a tower on one side (VrPanel FlatCard). The building and its neighbours are
+   * found once; each answer is kept. Only in a headset: the page asks about one floor and side at a time.
+   */
+  const flatFits = useMemo(() => {
+    if (!inVr || !foundBuilding) return null;
+    const fitter = roomFitter(standingCity, foundBuilding.buildingId, floorsAboveGround, terrain ?? undefined);
+    if (!fitter) return null;
+    const known = new Map<string, boolean>();
+    return (side: string, at: number) => {
+      const key = `${side}|${at}`;
+      let fits = known.get(key);
+      if (fits === undefined) {
+        fits = fitter(side, at).ok;
+        known.set(key, fits);
+      }
+      return fits;
+    };
+  }, [inVr, foundBuilding, standingCity, floorsAboveGround, terrain]);
+
   const roomFit = useMemo(() => {
     if (!roomAt) return null;
     if (!model || !foundBuilding) return { waiting: true as const };
@@ -1797,8 +1818,12 @@ export default function App() {
           onCancelChoose: () => setVrChoosingBuilding(false),
           floor,
           floorsAboveGround,
+          // the storeys on record, else as many as its height holds at 3.2 m
+          topFloor: floorsAboveGround ?? Math.max(1, Math.floor((foundBuilding?.heightM ?? 3.2) / 3.2)),
           onFloor: setFloor,
           sides: sides.map((side) => side.compass),
+          facades: sides.map((side) => ({ compass: side.compass, midpointEN: side.midpointEN, bearingDeg: side.bearingDeg })),
+          fits: flatFits,
           side: windowSide,
           onSide: setWindowSide,
           problem: flatFit && !flatFit.ok ? flatProblemText(flatFit.problem) : null,

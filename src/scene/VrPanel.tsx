@@ -75,10 +75,10 @@ import { PANEL_RENDER_ORDER } from './vrPointer';
 import { usePanelRig } from './vrRig';
 import { TUTORIAL, tutorialImage } from './vrTutorial';
 import { TimeCard } from './VrTimePanel';
-import { MapCard, MiniMap, SPOT_REACH_M, type CityForMap, type MapSubject } from './VrMapPanel';
+import { MapCard, MiniMap, SPOT_REACH_M, type CityForMap, type MapSides, type MapSubject } from './VrMapPanel';
 import { Button, Card, Glass, Grabber, Icon, KeyChip, Label, Segmented } from './vrKit';
 import { AMBER, AMBER_INK, CONTROL_ORDER, EDGE, GLASS_EDGE, GREEN, GREEN_PRESSED, GREEN_SOFT, INK, INK_2, PAPER, PIXEL_M, PRESSED, SUNKEN, TRACK, plain } from './vrTokens';
-import type { IconName } from './vrIcons';
+import { canvasTexture, paintTexture, type IconName } from './vrIcons';
 
 /** The cards: the same height, so they line up; the map wider than the two either side. */
 const CARD_HEIGHT = 660;
@@ -680,11 +680,301 @@ function MeasureCard({ menu, onPlaces, onBack }: { menu: VrMenu; onPlaces: () =>
 // ── Flat (left) ────────────────────────────────────────────────────────────
 
 /*
- * Looking out from a flat: a building standing today, chosen with the beam (opening this card arms it,
- * as Measure arms the ground), then its floor and side, then in. Inside, the way back out. Where the flat
- * does not fit, the button is not offered and the card says why, as the page's flat picker does.
+ * Looking out from a flat (ProjectDoc/vr-ui-redesign/flat-picker-tall.html, 2026-10-19): a building
+ * standing today, chosen with the beam (opening this card arms it, as Measure arms the ground), then its
+ * floor here and its side on the map, then in. Inside, the way back out.
+ *
+ * A TOWER OF 65 FLOORS: drawn whole in 382 mm a floor is under 6 mm, far smaller than a laser can aim at
+ * (about 60 mm). So the drawing is for getting near — a press jumps there, and held and moved it goes a
+ * floor for every 14 mm of the hand — and the five floors round the one chosen are listed large beside it
+ * for the exact one. Low, Middle, High and Top go straight to those heights of what is possible on the side
+ * chosen; Up and Down, held, go faster the longer they are held.
  */
-function FlatCard({ menu, flat, onBack }: { menu: VrMenu; flat: VrFlat; onBack: () => void }) {
+
+/** Answers already worked out, kept for each building's function (VrMenu flat.fits). */
+const FIT_ANSWERS = new WeakMap<object, Map<string, boolean>>();
+/** How long the card may spend a frame finding out where the flat fits, ms. */
+const FIT_BUDGET_MS = 3;
+
+/**
+ * Whether the flat fits on a side at a floor, as far as known yet: the floors and sides asked for are
+ * worked out a few each frame, in the order asked, and the card drawn again as they come in.
+ */
+function useFlatFits(fits: VrFlat['fits'], wanted: [string, number][], active: boolean) {
+  const [, setVersion] = useState(0);
+  const wantedRef = useRef(wanted);
+  useEffect(() => {
+    wantedRef.current = wanted;
+  });
+  useFrame(() => {
+    if (!active || !fits) return;
+    let answers = FIT_ANSWERS.get(fits);
+    if (!answers) {
+      answers = new Map();
+      FIT_ANSWERS.set(fits, answers);
+    }
+    const start = performance.now();
+    let added = false;
+    for (const [side, floor] of wantedRef.current) {
+      const key = `${side}|${floor}`;
+      if (answers.has(key)) continue;
+      answers.set(key, fits(side, floor));
+      added = true;
+      if (performance.now() - start > FIT_BUDGET_MS) break;
+    }
+    if (added) setVersion((v) => v + 1);
+  });
+  return (side: string | null, floor: number): boolean | null => {
+    if (!fits || !side) return null;
+    return FIT_ANSWERS.get(fits)?.get(`${side}|${floor}`) ?? null;
+  };
+}
+type FitsKnown = ReturnType<typeof useFlatFits>;
+
+/** The five floors listed large: the one chosen in the middle, kept five at the top and the bottom. */
+function zoomFloors(floor: number, top: number): number[] {
+  const low = Math.max(1, Math.min(floor - 2, top - 4));
+  const list: number[] = [];
+  for (let f = Math.min(top, low + 4); f >= low; f--) list.push(f);
+  return list;
+}
+
+const ELEV_W = 96;
+const ELEV_H = 382;
+/** The building's drawing inside the picture: its left, width, and the floor line's lift, mm. */
+const ELEV_X = 6;
+const ELEV_BAR_W = 52;
+const ELEV_FOOT = 6;
+const ELEV_DENSITY = 2;
+/** Moving the hand this far up or down the drawing, held, is one floor. */
+const ELEV_DRAG_MM = 14;
+const NOPE_FILL = '#e2e4e1';
+const NOPE_LINE = '#a7aba4';
+const FITS_FILL = '#cfe5da';
+
+function drawElevation(ctx: CanvasRenderingContext2D, floor: number, top: number, known: (f: number) => boolean | null) {
+  ctx.setTransform(ELEV_DENSITY, 0, 0, ELEV_DENSITY, 0, 0);
+  ctx.clearRect(0, 0, ELEV_W, ELEV_H);
+  const fh = (ELEV_H - ELEV_FOOT * 2) / top;
+  const y = (f: number) => ELEV_H - ELEV_FOOT - f * fh;
+  const gap = fh > 4 ? 1 : 0;
+  for (let f = 1; f <= top; f++) {
+    const fits = known(f);
+    const yy = y(f);
+    const h = Math.max(1, fh - gap);
+    // chosen: the dark green; fits: pale green; not possible: grey with diagonal lines; not known yet: the track
+    ctx.fillStyle = f === floor ? GREEN : fits === true ? FITS_FILL : fits === false ? NOPE_FILL : TRACK;
+    ctx.fillRect(ELEV_X, yy, ELEV_BAR_W, h);
+    if (fits === false && f !== floor) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(ELEV_X, yy, ELEV_BAR_W, h);
+      ctx.clip();
+      ctx.strokeStyle = NOPE_LINE;
+      ctx.lineWidth = 1.4;
+      for (let x = -h; x < ELEV_BAR_W; x += 6) {
+        ctx.beginPath();
+        ctx.moveTo(ELEV_X + x, yy + h);
+        ctx.lineTo(ELEV_X + x + h, yy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  // the ground
+  ctx.fillStyle = INK;
+  ctx.fillRect(0, ELEV_H - ELEV_FOOT, ELEV_X * 2 + ELEV_BAR_W, 3);
+  // the five floors listed large, bracketed
+  const rows = zoomFloors(floor, top);
+  const y0 = y(rows[0]) - 3;
+  const y1 = y(rows[rows.length - 1]) + fh + 3;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(ELEV_X - 4, y0);
+  ctx.lineTo(ELEV_X + ELEV_BAR_W + 4, y0);
+  ctx.lineTo(ELEV_X + ELEV_BAR_W + 4, y1);
+  ctx.lineTo(ELEV_X - 4, y1);
+  ctx.stroke();
+  // floor numbers: the first, every tenth (fifth in a low building), the top
+  ctx.font = `600 18px system-ui, "Segoe UI", sans-serif`;
+  ctx.fillStyle = INK_2;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const every = top > 30 ? 10 : 5;
+  const marks = [1, ...Array.from({ length: Math.floor(top / every) }, (_, i) => (i + 1) * every), top];
+  // from the top down, so a tenth just under the top is the one left out, not the top
+  let lastY = -Infinity;
+  for (const f of [...new Set(marks)].sort((p, q) => q - p)) {
+    const yy = Math.max(10, Math.min(ELEV_H - 10, y(f) + fh / 2));
+    if (yy - lastY < 18) continue;
+    ctx.fillText(String(f), ELEV_X + ELEV_BAR_W + 10, yy);
+    lastY = yy;
+  }
+}
+
+/** The building, every floor: a press jumps to a floor, held and moved it goes a floor at a time. */
+function Elevation({ floor, top, known, onFloor }: { floor: number; top: number; known: (f: number) => boolean | null; onFloor: (f: number) => void }) {
+  const [texture] = useState(() => canvasTexture(ELEV_W * ELEV_DENSITY, ELEV_H * ELEV_DENSITY, true));
+  useEffect(() => () => texture.dispose(), [texture]);
+  const states = Array.from({ length: top }, (_, i) => known(i + 1));
+  const key = `${floor}|${top}|${states.map((v) => (v === null ? '?' : v ? '1' : '0')).join('')}`;
+  useEffect(() => {
+    paintTexture(texture, (ctx) => drawElevation(ctx, floor, top, (f) => states[f - 1] ?? null));
+    // the key says everything drawn
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [texture, key]);
+
+  const drag = useRef<{ fromMm: number; floor: number } | null>(null);
+  const mmFrom = (event: unknown) => {
+    const uv = (event as { uv?: { y: number } }).uv;
+    return uv ? (1 - uv.y) * ELEV_H : null;
+  };
+  const floorAt = (mm: number) => {
+    const fh = (ELEV_H - ELEV_FOOT * 2) / top;
+    return Math.min(top, Math.max(1, Math.ceil((ELEV_H - ELEV_FOOT - mm) / fh)));
+  };
+  return (
+    <Container width={ELEV_W} height={ELEV_H} positionType="relative" flexShrink={0}>
+      <Picture texture={texture} width={ELEV_W} height={ELEV_H} />
+      <Container
+        positionType="absolute"
+        positionLeft={0}
+        positionTop={0}
+        width={ELEV_W}
+        height={ELEV_H}
+        zIndex={1}
+        cursor="ns-resize"
+        pointerEventsOrder={CONTROL_ORDER}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          const mm = mmFrom(event);
+          if (mm === null) return;
+          (event.target as { setPointerCapture?: (id: number) => void }).setPointerCapture?.(event.pointerId);
+          const at = floorAt(mm);
+          drag.current = { fromMm: mm, floor: at };
+          if (at !== floor) onFloor(at);
+        }}
+        onPointerMove={(event) => {
+          const mm = mmFrom(event);
+          if (!drag.current || mm === null) return;
+          const next = Math.min(top, Math.max(1, drag.current.floor + Math.round((drag.current.fromMm - mm) / ELEV_DRAG_MM)));
+          if (next !== floor) onFloor(next);
+        }}
+        onPointerUp={() => {
+          drag.current = null;
+        }}
+        onPointerLeave={() => {
+          drag.current = null;
+        }}
+        onClick={(event) => event.stopPropagation()}
+      />
+    </Container>
+  );
+}
+
+/** Up or Down: a floor a press; held, a floor every 400 ms at first, then faster, down to 60 ms. */
+function HoldButton({ label, icon, onStep }: { label: string; icon: IconName; onStep: () => void }) {
+  const timer = useRef<number | null>(null);
+  const step = useRef(onStep);
+  useEffect(() => {
+    step.current = onStep;
+  });
+  const stop = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => stop, []);
+  const run = (n: number) => {
+    step.current();
+    timer.current = window.setTimeout(() => run(n + 1), Math.max(60, 400 - n * 60));
+  };
+  return (
+    <Container
+      height={48}
+      flexDirection="row"
+      alignItems="center"
+      justifyContent="center"
+      gap={8}
+      borderRadius={24}
+      borderWidth={3}
+      borderColor={SUNKEN}
+      backgroundColor={SUNKEN}
+      hover={{ borderColor: INK }}
+      active={{ backgroundColor: PRESSED }}
+      cursor="pointer"
+      pointerEventsOrder={CONTROL_ORDER}
+      flexShrink={0}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        stop();
+        run(0);
+      }}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <Icon name={icon} color={INK} size={22} />
+      <Text fontSize={20} fontWeight="semi-bold" color={INK}>
+        {label}
+      </Text>
+    </Container>
+  );
+}
+
+/** One of the five floors listed large. Not possible on this side: grey, and said in words. */
+function FloorRow({ floor, chosen, fits, onFloor }: { floor: number; chosen: boolean; fits: boolean | null; onFloor: (f: number) => void }) {
+  const nope = fits === false && !chosen;
+  return (
+    <Container
+      height={50}
+      flexDirection="row"
+      alignItems="center"
+      justifyContent="space-between"
+      paddingX={14}
+      borderRadius={16}
+      borderWidth={3}
+      borderColor={chosen ? GREEN_PRESSED : nope ? EDGE : fits ? GREEN : GLASS_EDGE}
+      backgroundColor={chosen ? GREEN : nope ? SUNKEN : PAPER}
+      hover={{ backgroundColor: chosen ? GREEN : nope ? PRESSED : GREEN_SOFT }}
+      cursor="pointer"
+      pointerEventsOrder={CONTROL_ORDER}
+      flexShrink={0}
+      onClick={(event) => {
+        event.stopPropagation();
+        onFloor(floor);
+      }}
+    >
+      <Text fontSize={chosen ? 22 : 20} fontWeight="bold" color={chosen ? PAPER : nope ? INK_2 : fits ? GREEN : INK_2}>
+        {chosen ? `Floor ${floor}` : String(floor)}
+      </Text>
+      {nope && (
+        <Text fontSize={18} color={INK_2}>
+          Not on this side
+        </Text>
+      )}
+    </Container>
+  );
+}
+
+type Height = 'low' | 'middle' | 'high' | 'top';
+
+/** Low, Middle, High and Top of the floors where the flat fits on the side chosen (all of them until known). */
+function heightsOf(top: number, fitsAt: (f: number) => boolean | null): Record<Height, number> {
+  const ok: number[] = [];
+  for (let f = 1; f <= top; f++) if (fitsAt(f) === true) ok.push(f);
+  const lo = ok.length ? ok[0] : 1;
+  const hi = ok.length ? ok[ok.length - 1] : top;
+  // to the nearest floor where it fits, if that floor itself is known not to
+  const near = (f: number) => {
+    const at = Math.min(hi, Math.max(lo, f));
+    if (!ok.length || fitsAt(at) !== false) return at;
+    return ok.reduce((best, g) => (Math.abs(g - at) < Math.abs(best - at) ? g : best), ok[0]);
+  };
+  return { low: near(lo + 3), middle: near(Math.round((lo + hi) / 2)), high: near(hi - 5), top: near(hi) };
+}
+
+function FlatCard({ menu, flat, known, onBack }: { menu: VrMenu; flat: VrFlat; known: FitsKnown; onBack: () => void }) {
   if (menu.stage === 'room') {
     return (
       <>
@@ -724,50 +1014,49 @@ function FlatCard({ menu, flat, onBack }: { menu: VrMenu; flat: VrFlat; onBack: 
       </>
     );
   }
-  const atTop = flat.floorsAboveGround !== null && flat.floor >= flat.floorsAboveGround;
+  const top = flat.topFloor;
+  const fitsAt = (f: number) => known(flat.side, f);
+  const heights = heightsOf(top, fitsAt);
+  const at = (Object.keys(heights) as Height[]).find((h) => heights[h] === flat.floor) ?? null;
+  const go = (f: number) => flat.onFloor(Math.min(top, Math.max(1, f)));
   return (
     <>
       <Container flexDirection="row" alignItems="center" justifyContent="space-between" flexShrink={0}>
         <Title>Choose a flat</Title>
         <Button label="Back" tone="quiet" height={48} onClick={onBack} />
       </Container>
-      <Subtitle>{flat.building}</Subtitle>
-      <Label size={18} color={INK_2} weight="semi-bold">
-        Floor
-      </Label>
-      <Container flexDirection="row" alignItems="center" gap={10}>
-        <Button label="Down" icon="minus" onClick={() => flat.onFloor(Math.max(1, flat.floor - 1))} />
-        <Container flexGrow={1} alignItems="center">
-          <Text fontSize={40} fontWeight="bold" color={INK}>
-            {String(flat.floor)}
-          </Text>
+      <Container flexDirection="row" alignItems="center" gap={8} flexShrink={0}>
+        <Container flexGrow={1} flexShrink={1}>
+          <Label size={18} color={INK_2}>
+            {`${flat.building} | ${top} floors`}
+          </Label>
         </Container>
-        <Button label="Up" icon="plus" onClick={() => (atTop ? undefined : flat.onFloor(flat.floor + 1))} />
+        <Button label="Change" tone="quiet" height={44} onClick={flat.onChoose} />
       </Container>
-      <Label size={18} color={INK_2} weight="semi-bold">
-        Facing
-      </Label>
-      {flat.sides.length > 0 ? (
-        // four to a row: eight sides in one row would be too narrow to aim at
-        Array.from({ length: Math.ceil(flat.sides.length / 4) }, (_, row) => (
-          <Segmented<string>
-            key={row}
-            fixed
-            options={flat.sides.slice(row * 4, row * 4 + 4).map((compass) => ({ value: compass, label: compass }))}
-            value={flat.side}
-            onChange={flat.onSide}
-          />
-        ))
-      ) : (
-        <Label size={20}>No walls to look out from at this floor.</Label>
-      )}
+      <Container flexDirection="row" gap={10} alignItems="flex-start" flexShrink={0}>
+        <Elevation floor={flat.floor} top={top} known={fitsAt} onFloor={go} />
+        <Container flexDirection="column" gap={6} flexGrow={1}>
+          <HoldButton label="Up" icon="up" onStep={() => go(flat.floor + 1)} />
+          {zoomFloors(flat.floor, top).map((f) => (
+            <FloorRow key={f} floor={f} chosen={f === flat.floor} fits={fitsAt(f)} onFloor={go} />
+          ))}
+          <HoldButton label="Down" icon="down" onStep={() => go(flat.floor - 1)} />
+        </Container>
+      </Container>
+      <Segmented<Height>
+        fixed
+        options={[
+          { value: 'low', label: 'Low' },
+          { value: 'middle', label: 'Middle' },
+          { value: 'high', label: 'High' },
+          { value: 'top', label: 'Top' },
+        ]}
+        value={at}
+        onChange={(h) => go(heights[h])}
+      />
       <Label size={18} color={INK_2}>
         {flat.problem ?? 'An example layout, not the real plan.'}
       </Label>
-      <Container flexGrow={1} />
-      {/* No icons on these two: with one, the words broke onto a second line at 20 mm. */}
-      {flat.canEnter && <Button label="Look out from this flat" tone="primary" onClick={flat.onEnter} />}
-      <Button label="Choose another building" onClick={flat.onChoose} />
     </>
   );
 }
@@ -1234,6 +1523,43 @@ function Menu({
   useEffect(() => {
     if (wantsBuilding) onChooseBuilding?.();
   }, [wantsBuilding, onChooseBuilding]);
+  /*
+   * Choosing the flat's floor and side: whether it fits is worked out a little each frame — the sides at
+   * the floor chosen first (the map's buttons), then the five floors listed large, then every floor of
+   * the building on the side chosen (the drawing).
+   */
+  const pickingFlat = choosingFlat && flat !== null && flat.building !== null && !flat.choosing && menu.stage !== 'room';
+  const fitsWanted: [string, number][] = [];
+  if (pickingFlat && flat) {
+    for (const side of flat.sides) fitsWanted.push([side, flat.floor]);
+    if (flat.side) {
+      for (const f of zoomFloors(flat.floor, flat.topFloor)) fitsWanted.push([flat.side, f]);
+      for (let f = 1; f <= flat.topFloor; f++) fitsWanted.push([flat.side, f]);
+    }
+  }
+  const known = useFlatFits(flat?.fits ?? null, fitsWanted, shown && pickingFlat);
+  /*
+   * A building just chosen: a middle floor, and a side the flat fits on there, so the card opens on a
+   * flat that can be gone into. Once for each building.
+   */
+  const startedFor = useRef<string | null>(null);
+  const flatFits = flat?.fits ?? null;
+  const flatBuilding = pickingFlat ? (flat?.building ?? null) : null;
+  useEffect(() => {
+    if (!flat || !flatBuilding || !flatFits || startedFor.current === flatBuilding) return;
+    startedFor.current = flatBuilding;
+    const middle = Math.max(2, Math.round(flat.topFloor / 2));
+    for (const f of [middle, middle + 1, middle - 1, middle + 2, middle - 2]) {
+      if (f < 1 || f > flat.topFloor) continue;
+      const side = flat.sides.find((compass) => flatFits(compass, f));
+      if (side) {
+        flat.onFloor(f);
+        flat.onSide(side);
+        return;
+      }
+    }
+    flat.onFloor(middle);
+  }, [flat, flatBuilding, flatFits]);
   const choosingBuilding = flat?.choosing ?? false;
   const onCancelBuilding = flat?.onCancelChoose;
   useEffect(() => {
@@ -1271,7 +1597,7 @@ function Menu({
 
   const left =
     menu.stage === 'room' && flat ? (
-      <FlatCard menu={menu} flat={flat} onBack={() => setPlaceView('info')} />
+      <FlatCard menu={menu} flat={flat} known={known} onBack={() => setPlaceView('info')} />
     ) : tab === 'search' ? (
       <SearchCard
         menu={menu}
@@ -1293,7 +1619,7 @@ function Menu({
     ) : tab === 'place' && placeView === 'measure' ? (
       <MeasureCard menu={menu} onPlaces={() => openTab('map')} onBack={leavePlaceView} />
     ) : tab === 'place' && placeView === 'flat' && flat ? (
-      <FlatCard menu={menu} flat={flat} onBack={leavePlaceView} />
+      <FlatCard menu={menu} flat={flat} known={known} onBack={leavePlaceView} />
     ) : tab === 'place' ? (
       <PlaceCard
         menu={menu}
@@ -1310,8 +1636,39 @@ function Menu({
       <NearSpotCard menu={menu} city={city} spot={spot} kind={kind} onKind={setKind} listRef={listRef} onSearch={() => openTab('search')} />
     );
 
-  // the foot of the map: what can be done with the building chosen, or with the spot
-  const footer = menu.selected ? (
+  // the map choosing the flat's side: the building's sides at the floor chosen, round its middle
+  const mapSides: MapSides | null =
+    pickingFlat && flat && flat.facades.length
+      ? (() => {
+          const centre: [number, number] = [
+            flat.facades.reduce((sum, f) => sum + f.midpointEN[0], 0) / flat.facades.length,
+            flat.facades.reduce((sum, f) => sum + f.midpointEN[1], 0) / flat.facades.length,
+          ];
+          const reach = Math.max(...flat.facades.map((f) => Math.hypot(f.midpointEN[0] - centre[0], f.midpointEN[1] - centre[1])));
+          return {
+            centreEN: centre,
+            sizeM: Math.max(16, reach * 2.3),
+            sides: flat.facades.map((f) => ({ ...f, fits: known(f.compass, flat.floor) })),
+            chosen: flat.side,
+            onSide: flat.onSide,
+          };
+        })()
+      : null;
+
+  // the foot of the map: going into the flat; or what can be done with the building chosen, or the spot
+  const footer = pickingFlat && flat ? (
+    <>
+      <Container flexDirection="column" gap={2} flexGrow={1} flexShrink={1}>
+        <Label size={19} weight="bold">
+          {`Floor ${flat.floor}${flat.side ? ` | ${flat.side}` : ''}`}
+        </Label>
+        <Label size={18} color={INK_2}>
+          {flat.canEnter ? 'The fan shows the view.' : 'Choose another floor or side.'}
+        </Label>
+      </Container>
+      {flat.canEnter && <Button label="Go into the flat" tone="primary" onClick={flat.onEnter} />}
+    </>
+  ) : menu.selected ? (
     // the name on a line of its own, the two buttons under it: side by side, a long address took three lines
     <Container flexDirection="column" gap={8} flexGrow={1}>
       <Container flexDirection="row" gap={10} alignItems="baseline">
@@ -1366,6 +1723,7 @@ function Menu({
         }}
         shown={shown && !tutorial}
         footer={footer}
+        sides={mapSides}
       />
     );
 

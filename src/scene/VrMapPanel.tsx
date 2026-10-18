@@ -39,7 +39,7 @@ import { worldToEnu } from './frame';
 import { LANDMARKS } from './vrLandmarks';
 import { artNear, drawBase, drawMap, drawMarks, startCityTiles, subjectPath, toPixel, type CityTiles } from './vrMapDraw';
 import { Button } from './vrKit';
-import { CONTROL_ORDER, GLASS_EDGE, INK, INK_2, PAPER } from './vrTokens';
+import { CONTROL_ORDER, EDGE, GLASS_EDGE, GREEN, GREEN_PRESSED, GREEN_SOFT, INK, INK_2, PAPER, PRESSED, SUNKEN } from './vrTokens';
 import { PANEL_RENDER_ORDER } from './vrPointer';
 
 export interface CityForMap {
@@ -153,6 +153,28 @@ const FRAME_H = 556;
 /** The list beside a spot pressed on the map reaches this far, metres. */
 export const SPOT_REACH_M = 150;
 
+/**
+ * The map choosing a side of a building for the flat (ProjectDoc/vr-ui-redesign/flat-picker-tall.html):
+ * the building large, a button round it for each side it has at the floor chosen, and a fan the way the
+ * windows of the side chosen look.
+ */
+export interface MapSides {
+  /** The building's middle, and how far across it is, metres. */
+  centreEN: [number, number];
+  sizeM: number;
+  /** Each side; fits is null until known. */
+  sides: { compass: string; midpointEN: [number, number]; bearingDeg: number; fits: boolean | null }[];
+  chosen: string | null;
+  onSide: (compass: string) => void;
+}
+/** Where the building sits in the frame choosing a side, mm from its top left; how wide it is drawn. */
+const SIDES_AT: [number, number] = [FRAME_W / 2, 220];
+const SIDES_BUILDING_MM = 150;
+/** The side buttons, mm: their size, and how far from the building's middle they stand. */
+const SIDE_W = 124;
+const SIDE_H = 60;
+const SIDE_RING_MM = 180;
+
 /*
  * The city map, and the way into a place (ProjectDoc/vr-ui-redesign/map-first.html, 2026-10-19): pressing
  * the map drops a spot there — a ring, with a dashed circle as far as the list on the left reaches — and
@@ -170,6 +192,7 @@ export function MapCard({
   onSpot,
   shown,
   footer,
+  sides = null,
 }: {
   city: CityForMap | null;
   subject: MapSubject | null;
@@ -180,6 +203,8 @@ export function MapCard({
   shown: boolean;
   /** What sits at the foot of the map: the spot's or the chosen building's actions. */
   footer: ReactNode;
+  /** Choosing a side for the flat: the map is about that building, and presses go to the side buttons. */
+  sides?: MapSides | null;
 }) {
   const paths = useCityArt(city, subject?.key ?? null, buildingKey);
   const texture = useCanvasTexture(FRAME_W * DENSITY, FRAME_H * DENSITY, true);
@@ -209,22 +234,33 @@ export function MapCard({
     const whole = paths.build();
     if (!shown || !city) return;
     const you = readReader(state.camera, at.current, look.current);
-    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, `${step}:${focusKey}:${buildingKey}:${onMe}:${whole}`)) return;
+    const fanSide = sides?.sides.find((side) => side.compass === sides.chosen && side.fits) ?? null;
+    const sidesKey = sides ? `${sides.centreEN.join()}|${sides.sizeM}|${fanSide?.compass}|${fanSide?.midpointEN.join()}` : '';
+    if (!gate(you.en, you.headingRad, state.clock.elapsedTime, `${step}:${focusKey}:${buildingKey}:${onMe}:${whole}:${sidesKey}`)) return;
     const { minE, minN, maxE, maxN } = city.extent;
-    // The widest step frames the whole city; the others centre on the spot, the place, or the reader.
-    const centre: [number, number] =
-      step === 0 ? [(minE + maxE) / 2, (minN + maxN) / 2] : onMe ? you.en : (spot ?? subject?.en ?? you.en);
-    const view = { width: FRAME_W * DENSITY, height: FRAME_H * DENSITY, centreEN: centre, metresPerPx: ZOOM_STEPS[step], upHeadingRad: 0 };
-    drawnView.current = { centreEN: centre, metresPerPx: ZOOM_STEPS[step] };
+    /*
+     * The widest step frames the whole city; the others centre on the spot, the place, or the reader.
+     * Choosing a side, the building fills the middle of the upper frame, clear of the panel at the foot.
+     */
+    const metresPerPx = sides ? Math.max(0.05, sides.sizeM / (SIDES_BUILDING_MM * DENSITY)) : ZOOM_STEPS[step];
+    const centre: [number, number] = sides
+      ? [sides.centreEN[0], sides.centreEN[1] - (FRAME_H / 2 - SIDES_AT[1]) * DENSITY * metresPerPx]
+      : step === 0
+        ? [(minE + maxE) / 2, (minN + maxN) / 2]
+        : onMe
+          ? you.en
+          : (spot ?? subject?.en ?? you.en);
+    const view = { width: FRAME_W * DENSITY, height: FRAME_H * DENSITY, centreEN: centre, metresPerPx, upHeadingRad: 0 };
+    drawnView.current = { centreEN: centre, metresPerPx };
     // Drawn again once the city is all in: until then it holds what was built so far.
-    const baseKey = `${step}|${centre[0].toFixed(1)}|${centre[1].toFixed(1)}|${subject?.key}|${buildingKey}|${whole}`;
+    const baseKey = `${metresPerPx.toFixed(3)}|${centre[0].toFixed(1)}|${centre[1].toFixed(1)}|${subject?.key}|${buildingKey}|${whole}`;
     if (!base.current || base.current.key !== baseKey) {
       const canvas = base.current?.canvas ?? document.createElement('canvas');
       canvas.width = view.width;
       canvas.height = view.height;
       const ctx = canvas.getContext('2d');
       // The whole city for the widest step; otherwise only what the view and a margin can reach.
-      const drawn = paths.art(step === 0 ? null : centre, (Math.hypot(view.width, view.height) / 2) * ZOOM_STEPS[step]);
+      const drawn = paths.art(step === 0 && !sides ? null : centre, (Math.hypot(view.width, view.height) / 2) * metresPerPx);
       if (ctx && drawn) drawBase(ctx, drawn, view);
       base.current = { canvas, key: baseKey };
     }
@@ -236,8 +272,10 @@ export function MapCard({
         you,
         landmarks: LANDMARKS,
         labelPx: 30,
-        pin: subject?.en ?? null,
-        spot: spot ? { en: spot, radiusM: SPOT_REACH_M } : null,
+        // choosing a side, the building is filled and has buttons round it: no pin over it
+        pin: sides ? null : (subject?.en ?? null),
+        spot: spot && !sides ? { en: spot, radiusM: SPOT_REACH_M } : null,
+        fan: fanSide && sides ? { en: fanSide.midpointEN, bearingDeg: fanSide.bearingDeg, radiusM: sides.sizeM * 0.9 } : null,
       });
     });
   });
@@ -246,7 +284,7 @@ export function MapCard({
     <>
       <Container flexDirection="row" alignItems="center" justifyContent="space-between" flexShrink={0}>
         <Text fontSize={30} fontWeight="bold" color={INK}>
-          City map
+          {sides ? 'Which side?' : 'City map'}
         </Text>
         <Text fontSize={18} fontWeight="bold" color={INK_2}>
           N ^
@@ -255,7 +293,7 @@ export function MapCard({
       <Container width={FRAME_W} height={FRAME_H} borderRadius={28} overflow="hidden" positionType="relative" flexShrink={0}>
         <Picture texture={texture} width={FRAME_W} height={FRAME_H} radius={28} />
         {/* A clear sheet over the picture that takes the press, and says where on the picture it was. */}
-        <Container
+        {!sides && <Container
           positionType="absolute"
           positionLeft={0}
           positionTop={0}
@@ -274,13 +312,16 @@ export function MapCard({
             const dy = (0.5 - uv.y) * FRAME_H * DENSITY * view.metresPerPx;
             onSpot([view.centreEN[0] + dx, view.centreEN[1] + dy]);
           }}
-        />
+        />}
         {/* Over the picture: without a z-index the picture, drawn later, covered their fill. */}
-        <Container positionType="absolute" positionRight={14} positionTop={14} flexDirection="column" gap={8} zIndex={2}>
-          <Button label="+" tone="quiet" height={56} onClick={() => setStep((s) => Math.min(ZOOM_STEPS.length - 1, s + 1))} />
-          <Button label="-" tone="quiet" height={56} onClick={() => setStep((s) => Math.max(0, s - 1))} />
-          <Button label="" icon="measure" tone="quiet" height={56} onClick={() => setOnMeFor(focusKey)} />
-        </Container>
+        {!sides && (
+          <Container positionType="absolute" positionRight={14} positionTop={14} flexDirection="column" gap={8} zIndex={2}>
+            <Button label="+" tone="quiet" height={56} onClick={() => setStep((s) => Math.min(ZOOM_STEPS.length - 1, s + 1))} />
+            <Button label="-" tone="quiet" height={56} onClick={() => setStep((s) => Math.max(0, s - 1))} />
+            <Button label="" icon="measure" tone="quiet" height={56} onClick={() => setOnMeFor(focusKey)} />
+          </Container>
+        )}
+        {sides?.sides.map((side) => <SideButton key={side.compass} side={side} chosen={side.compass === sides.chosen} onSide={sides.onSide} />)}
         <Container
           positionType="absolute"
           positionLeft={14}
@@ -300,6 +341,61 @@ export function MapCard({
         </Container>
       </Container>
     </>
+  );
+}
+
+/*
+ * One side of the building, as a button standing out from its middle the way the side faces: the
+ * side's name, and "Not possible" under it where the flat does not fit there at this floor. Chosen is
+ * filled green with white words; not possible is grey with grey words — the words say it, not the colour.
+ */
+function SideButton({
+  side,
+  chosen,
+  onSide,
+}: {
+  side: MapSides['sides'][number];
+  chosen: boolean;
+  onSide: (compass: string) => void;
+}) {
+  const b = (side.bearingDeg * Math.PI) / 180;
+  const x = SIDES_AT[0] + SIDE_RING_MM * Math.sin(b) - SIDE_W / 2;
+  const y = SIDES_AT[1] - SIDE_RING_MM * Math.cos(b) - SIDE_H / 2;
+  const nope = side.fits === false;
+  const fill = chosen ? GREEN : nope ? SUNKEN : PAPER;
+  const ink = chosen ? PAPER : nope ? INK_2 : GREEN;
+  return (
+    <Container
+      positionType="absolute"
+      positionLeft={x}
+      positionTop={y}
+      width={SIDE_W}
+      height={SIDE_H}
+      zIndex={2}
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      borderRadius={SIDE_H / 2}
+      borderWidth={3}
+      borderColor={chosen ? GREEN_PRESSED : nope ? EDGE : GREEN}
+      backgroundColor={fill}
+      hover={{ backgroundColor: chosen ? GREEN : nope ? PRESSED : GREEN_SOFT }}
+      cursor="pointer"
+      pointerEventsOrder={CONTROL_ORDER}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSide(side.compass);
+      }}
+    >
+      <Text fontSize={18} fontWeight="bold" color={ink}>
+        {side.compass}
+      </Text>
+      {nope && (
+        <Text fontSize={18} color={ink}>
+          Not possible
+        </Text>
+      )}
+    </Container>
   );
 }
 

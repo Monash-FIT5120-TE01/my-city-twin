@@ -790,49 +790,52 @@ try {
   );
   await shoot('02b-pointing-at-button');
 
-  // 4b. With --flat-shots: the flat, in pictures.
+  // 4b. With --flat-shots: the flat, in pictures. A building standing today from the list near a spot on
+  // the map, then Details > Look out from a flat: the card opens on a floor and side where the flat fits.
   if (flatShots) {
-    await press('Place', async () => (await texts()).includes('Look out from a flat') || (await texts()).includes('Measure the sun'));
-    if ((await texts()).includes('Look out from a flat')) await press('Look out from a flat', async () => (await texts()).includes('Choose a flat'));
+    await press('Map', async () => (await texts()).includes('City map'));
+    await call(() => window.__vrCheck.aimAtMap('right'));
+    await frames(3);
+    await pull('right');
+    await textsOnce((now) => now.includes('Near this spot'));
+    await pressOnce('Existing');
     await frames(5);
-    await shoot('flat-1-choose');
-    // A building standing today, under the beam: a ray from the head down into the city, onto the first thing that answers a click.
-    const hit = await call(() => {
-      const t = window.__vrCheck, three = t.three, scene = t.state().scene, cam = t.state().camera;
-      const eye = cam.getWorldPosition(new three.Vector3());
-      const look = cam.getWorldDirection(new three.Vector3()).setY(0).normalize();
-      const ray = new three.Raycaster();
-      for (const down of [0.5, 0.6, 0.7, 0.8]) for (const side of [0, 0.15, -0.15, 0.3, -0.3]) {
-        const dir = look.clone().applyAxisAngle(new three.Vector3(0, 1, 0), side).multiplyScalar(Math.cos(down)).setY(-Math.sin(down)).normalize();
-        ray.set(eye, dir);
-        const first = ray.intersectObjects(scene.children, true).find((h) => h.object.visible && h.object.__r3f?.handlers?.onClick && !h.object.name.startsWith('vr'));
-        if (first) return first.point.toArray();
+    seen = await texts();
+    const standing = seen.filter((text) => /^\d[\d-]* [A-Z]/.test(text) && !/ of /.test(text));
+    let inside = false;
+    for (const row of standing.slice(0, 4)) {
+      await press(row, async () => (await texts()).includes('Details'));
+      await press('Details', async () => (await texts()).includes('Look out from a flat'));
+      await press('Look out from a flat', async () => (await texts()).includes('Choose a flat'));
+      // the sides and floors are worked out a few each frame
+      await frames(40);
+      seen = await texts();
+      const floorLine = seen.find((text) => /^Floor \d+/.test(text));
+      check('"Look out from a flat" opens on a floor and a side where the flat fits', seen.includes('Go into the flat'), `${row}: ${floorLine ?? 'no floor'}`);
+      await shoot('flat-1-choose');
+      if (!seen.includes('Go into the flat')) {
+        await press('Back', async () => (await texts()).includes('Look out from a flat'));
+        await press('Map', async () => (await texts()).includes('Near this spot'));
+        continue;
       }
-      return null;
-    });
-    if (hit) {
-      await pull('left', 'x-button');
-      await frames(5);
-      await call((p) => window.__vrCheck.aimAt('right', new window.__vrCheck.three.Vector3(...p)), hit);
+      // Up, held: more than one floor
+      const before = Number(/^Floor (\d+)/.exec(floorLine ?? '')?.[1]);
+      await call(() => window.__vrCheck.aimAtText('right', 'Up'));
       await frames(3);
-      await pull('right');
-      await pull('left', 'x-button');
+      await call(() => window.__vrCheck.device().controllers.right.updateButtonValue('trigger', 1));
+      await new Promise((done) => setTimeout(done, 1500));
+      await call(() => window.__vrCheck.device().controllers.right.updateButtonValue('trigger', 0));
       await frames(10);
+      seen = await texts();
+      const after = Number(/^Floor (\d+)/.exec(seen.find((text) => /^Floor \d+/.test(text)) ?? '')?.[1]);
+      check('Holding Up climbs several floors, faster as it is held', after - before >= 3, `${before} → ${after}`);
       await shoot('flat-2-floor-and-side');
-      // Floors and sides tried until one fits: not every side of every floor has room for the flat.
-      const SIDES = ['North', 'East', 'South', 'West', 'North-east', 'South-east', 'South-west', 'North-west'];
-      for (let floor = 0; floor < 4 && !(await texts()).includes('Look out from this flat'); floor++) {
-        if (floor > 0) { await pressOnce('Up'); await frames(5); }
-        for (const side of SIDES) {
-          if (!(await texts()).includes(side)) continue;
-          await pressOnce(side);
-          await frames(5);
-          if ((await texts()).includes('Look out from this flat')) break;
-        }
-      }
+      await press('Top', async () => true);
+      await frames(20);
       await shoot('flat-3-ready');
-      if ((await texts()).includes('Look out from this flat')) {
-        await press('Look out from this flat', async () => (await texts()).includes('Leave the flat'));
+      seen = await texts();
+      if (seen.includes('Go into the flat')) {
+        await press('Go into the flat', async () => (await texts()).includes('Leave the flat'));
         await frames(60);
         await shoot('flat-4-inside-menu');
         await pull('left', 'x-button');
@@ -842,9 +845,11 @@ try {
         await frames(10);
         await press('Leave the flat', async () => !(await texts()).includes('Leave the flat'));
         await frames(30);
+        inside = true;
       }
+      break;
     }
-    console.log(`flat pictures: ${hit ? 'a building was found under the beam' : 'no building under the beam'}`);
+    console.log(`flat pictures: ${inside ? 'went into a flat' : 'did not get into a flat'}`);
     await press('Map', async () => (await texts()).includes('City map'));
   }
 
