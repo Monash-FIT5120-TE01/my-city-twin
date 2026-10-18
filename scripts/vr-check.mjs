@@ -57,6 +57,8 @@ const gpu = process.argv.includes('--gpu');
 const profile = process.argv.includes('--profile');
 /** Opens the first page with ?vrdebug, and prints what its log noted about moves and stalls at the end. */
 const vrdebug = process.argv.includes('--vrdebug');
+/** Walks the Flat card (choose a building, floor and side, go in, come out) and takes a picture at each step. */
+const flatShots = process.argv.includes('--flat-shots');
 let debugLines = [];
 
 mkdirSync(OUT, { recursive: true });
@@ -225,6 +227,22 @@ async function instrument() {
     rootStore.getState().internal.subscribe(
       {
         current: () => {
+          // A tram followed frame by frame (6a): its drawn front, and the simulation's clock.
+          const watch = t.tramWatch;
+          const layer = window.__trams;
+          if (watch && layer && watch.frames.length < 60) {
+            // Not while the timetable is still being run on fast to catch up (the warm-up): seconds a frame then.
+            const warming = watch.lastTime === undefined || layer.sim.time - watch.lastTime > 0.5;
+            watch.lastTime = layer.sim.time;
+            // Anything followed before or during it is started over: the tram may have left in the meantime.
+            if (warming) { watch.id = null; watch.frames = []; }
+            const tram = warming ? null : layer.sim.trams.find((x) => (watch.id === null ? x.v > 3 : x.id === watch.id));
+            if (tram) {
+              watch.id = tram.id;
+              watch.frames.push({ s: layer.shownS(tram), time: layer.sim.time });
+            }
+            // A tram that has left is not swapped for another: two trams' fronts are not one tram's steps.
+          }
           const loader = t.state().scene.getObjectByName('vr-loader');
           if (loader?.visible) {
             t.loader.seen += 1;
@@ -565,9 +583,12 @@ try {
   await shoot('01d-three-panels');
 
   // Help brings the tutorial back; Skip puts it away again from any page.
-  await press('Help', async () => (await texts()).includes('Show the tutorial again'));
+  // Help is inside More since 2026-10-19: More's middle card is the controls and the tutorial again.
+  await press('More', async () => (await texts()).includes('Show the tutorial again'));
+  await frames(5);
+  await shoot('01e-more-and-help');
   await press('Show the tutorial again', async () => (await texts()).includes('Welcome to Live Melbourne'));
-  check('Help opens the tutorial again', (await texts()).includes('Welcome to Live Melbourne'));
+  check('More > Show the tutorial again opens the tutorial', (await texts()).includes('Welcome to Live Melbourne'));
   await press('Skip', async () => !(await texts()).includes('Welcome to Live Melbourne'));
   seen = await texts();
   check('Skip closes the tutorial', !seen.includes('Welcome to Live Melbourne') && seen.includes('Show the tutorial again'));
@@ -722,6 +743,63 @@ try {
   );
   await shoot('02b-pointing-at-button');
 
+  // 4b. With --flat-shots: the flat, in pictures.
+  if (flatShots) {
+    await press('Flat', async () => (await texts()).some((text) => /building|Building/.test(text)));
+    await frames(5);
+    await shoot('flat-1-choose');
+    // A building standing today, under the beam: a ray from the head down into the city, onto the first thing that answers a click.
+    const hit = await call(() => {
+      const t = window.__vrCheck, three = t.three, scene = t.state().scene, cam = t.state().camera;
+      const eye = cam.getWorldPosition(new three.Vector3());
+      const look = cam.getWorldDirection(new three.Vector3()).setY(0).normalize();
+      const ray = new three.Raycaster();
+      for (const down of [0.5, 0.6, 0.7, 0.8]) for (const side of [0, 0.15, -0.15, 0.3, -0.3]) {
+        const dir = look.clone().applyAxisAngle(new three.Vector3(0, 1, 0), side).multiplyScalar(Math.cos(down)).setY(-Math.sin(down)).normalize();
+        ray.set(eye, dir);
+        const first = ray.intersectObjects(scene.children, true).find((h) => h.object.visible && h.object.__r3f?.handlers?.onClick && !h.object.name.startsWith('vr'));
+        if (first) return first.point.toArray();
+      }
+      return null;
+    });
+    if (hit) {
+      await pull('left', 'x-button');
+      await frames(5);
+      await call((p) => window.__vrCheck.aimAt('right', new window.__vrCheck.three.Vector3(...p)), hit);
+      await frames(3);
+      await pull('right');
+      await pull('left', 'x-button');
+      await frames(10);
+      await shoot('flat-2-floor-and-side');
+      // Floors and sides tried until one fits: not every side of every floor has room for the flat.
+      const SIDES = ['North', 'East', 'South', 'West', 'North-east', 'South-east', 'South-west', 'North-west'];
+      for (let floor = 0; floor < 4 && !(await texts()).includes('Look out from this flat'); floor++) {
+        if (floor > 0) { await pressOnce('Up'); await frames(5); }
+        for (const side of SIDES) {
+          if (!(await texts()).includes(side)) continue;
+          await pressOnce(side);
+          await frames(5);
+          if ((await texts()).includes('Look out from this flat')) break;
+        }
+      }
+      await shoot('flat-3-ready');
+      if ((await texts()).includes('Look out from this flat')) {
+        await press('Look out from this flat', async () => (await texts()).includes('Leave the flat'));
+        await frames(60);
+        await shoot('flat-4-inside-menu');
+        await pull('left', 'x-button');
+        await frames(20);
+        await shoot('flat-5-inside');
+        await pull('left', 'x-button');
+        await frames(10);
+        await press('Leave the flat', async () => !(await texts()).includes('Leave the flat'));
+        await frames(30);
+      }
+    }
+    console.log(`flat pictures: ${hit ? 'a building was found under the beam' : 'no building under the beam'}`);
+    await press('Explore', async () => (await texts()).includes('Explore Melbourne'));
+  }
+
   // 5. Measuring a spot.
   await press('Measure', async () => (await texts()).includes('Point at the ground and pull the trigger.'));
   seen = await textsOnce((now) => now.includes('Point at the ground and pull the trigger.'));
@@ -804,21 +882,16 @@ try {
   }
   // 6a. The trams in the street: stepped 15 times a second but drawn every frame between steps (TramLayer),
   // so a moving tram's drawn front never runs backwards and never jumps.
-  const tramTrack = [];
-  for (let k = 0; k < 40; k++) {
-    tramTrack.push(await call(() => {
-      const layer = window.__trams;
-      const moving = layer?.sim.trams.find((t) => t.v > 3);
-      return moving ? { id: moving.id, s: layer.shownS(moving), v: moving.v, time: layer.sim.time } : null;
-    }));
-    await frames(1);
-  }
-  const runs = tramTrack.filter(Boolean);
-  const followed = runs.filter((r) => r.id === runs[0]?.id);
+  // Watched inside the frame loop (see instrument): sampled from out here, frames slipped by between samples.
+  await call(() => { window.__vrCheck.tramWatch = { id: null, frames: [] }; });
+  await until(() => call(() => window.__vrCheck.tramWatch.frames.length), (n) => n >= 40, 400);
+  const tramTrack = await call(() => window.__vrCheck.tramWatch.frames);
+  await call(() => { window.__vrCheck.tramWatch = null; });
+  const followed = tramTrack;
   // Pairs across the warm-up (the timetable run on fast, undrawn, when the street is first entered) are left out.
-  const steps = followed.slice(1).filter((r, i) => r.time - followed[i].time < 0.5).map((r, i, list) => r.s - (followed[followed.indexOf(r) - 1].s));
+  const steps = followed.slice(1).map((r, i) => ({ d: r.s - followed[i].s, dt: r.time - followed[i].time })).filter((x) => x.dt < 0.5).map((x) => x.d);
   check('Trams in the street move smoothly between simulation steps',
-    followed.length >= 10 && steps.every((d) => d >= -0.01 && d < 3),
+    steps.length >= 10 && steps.every((d) => d >= -0.01 && d < 3),
     followed.length ? `${followed.length} frames, steps ${Math.min(...steps).toFixed(2)}..${Math.max(...steps).toFixed(2)} m` : 'no moving tram');
 
   // 6b. Walking aids: with the menu away, the street bar over the view, and signs on the corners nearby.
@@ -827,23 +900,29 @@ try {
     () => call(() => {
       const scene = window.__vrCheck.state().scene;
       const signs = scene.getObjectByName('vr-corner-signs');
-      // Each blade stood upright: its text's up is the world's up, and it hangs above the eye.
+      /*
+       * Each blade stood upright (its text's up is the world's up) and above the head of someone standing at
+       * its corner: measured from the foot of its own pole. Not from the reader's eyes — the ground has its
+       * real heights (2026-10-18), and a corner down the hill has its signs lower than the reader's eyes.
+       */
+      const V = window.__vrCheck.three.Vector3;
       let upright = true;
       let lowestM = Infinity;
-      signs?.traverse((o) => {
-        if (!o.isMesh || o.geometry.type !== 'PlaneGeometry') return;
-        const up = new window.__vrCheck.three.Vector3(0, 1, 0).transformDirection(o.matrixWorld);
-        if (up.y < 0.99) upright = false;
-        lowestM = Math.min(lowestM, o.getWorldPosition(new window.__vrCheck.three.Vector3()).y);
-      });
-      const eye = window.__vrCheck.state().camera.getWorldPosition(new window.__vrCheck.three.Vector3()).y;
-      return { bar: Boolean(scene.getObjectByName('vr-street-bar')?.visible), signs: signs?.children.length ?? 0, upright, aboveEyeM: lowestM - eye };
+      for (const sign of signs?.children ?? []) {
+        const foot = sign.getWorldPosition(new V()).y;
+        sign.traverse((o) => {
+          if (!o.isMesh || o.geometry.type !== 'PlaneGeometry') return;
+          if (new V(0, 1, 0).transformDirection(o.matrixWorld).y < 0.99) upright = false;
+          lowestM = Math.min(lowestM, o.getWorldPosition(new V()).y - foot);
+        });
+      }
+      return { bar: Boolean(scene.getObjectByName('vr-street-bar')?.visible), signs: signs?.children.length ?? 0, upright, aboveGroundM: lowestM };
     }),
     (now) => now.bar && now.signs > 0,
     40,
   );
   check('In the street with the menu away, the street bar shows and nearby corners carry upright signs above head height',
-    aids.bar && aids.signs > 0 && aids.upright && aids.aboveEyeM > 0.5, `${aids.signs} signs, lowest blade ${aids.aboveEyeM?.toFixed(1)} m above the eyes`);
+    aids.bar && aids.signs > 0 && aids.upright && aids.aboveGroundM > 2.2, `${aids.signs} signs, lowest blade ${aids.aboveGroundM?.toFixed(1)} m above its own corner's ground`);
   await frames(10);
   await shoot('04-street-bar');
   await pull('left', 'x-button');

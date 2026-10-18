@@ -42,6 +42,16 @@ describe('the headset menu', () => {
     }
   });
 
+  /*
+   * Read at 1 m, 1 mm is 0.057 degrees; under 18 mm (about 1 degree) words blur on a headset's screen
+   * (ProjectDoc/vr-ui-redesign/flat-menu-fix.html, 2026-10-19).
+   */
+  it.each(['VrPanel.tsx', 'vrKit.tsx', 'VrMapPanel.tsx', 'VrTimePanel.tsx'])('%s writes nothing smaller than 18 mm', (file) => {
+    const words = [...source(file).matchAll(/<(?:Text|Label)\b[^>]*?(?:fontSize|size)=\{(\d+)\}/g)].map((match) => Number(match[1]));
+    expect(words.length).toBeGreaterThan(0);
+    expect(words.filter((size) => size < 18)).toEqual([]);
+  });
+
   it('keeps a failure inside the menu from taking the scene down', () => {
     expect(panel).toMatch(/<PanelBoundary>/);
     expect(panel).toMatch(/getDerivedStateFromError/);

@@ -80,7 +80,7 @@ export function Label({
 /** The small capitals over each panel's title: what this panel is. */
 export function Eyebrow({ children }: { children: string }) {
   return (
-    <Label size={14} color={INK_2} weight="bold" spacing={1}>
+    <Label size={18} color={INK_2} weight="bold" spacing={1}>
       {children.toUpperCase()}
     </Label>
   );
@@ -146,7 +146,7 @@ export function Button({
       active={{ backgroundColor: tone === 'primary' ? GREEN_PRESSED : PRESSED }}
     >
       {icon && <Icon name={icon} color={ink} size={22} />}
-      <Text fontSize={18} fontWeight={tone === 'primary' || tone === 'amber' ? 'bold' : 'semi-bold'} color={ink}>
+      <Text fontSize={20} fontWeight={tone === 'primary' || tone === 'amber' ? 'bold' : 'semi-bold'} color={ink}>
         {plain(label)}
       </Text>
     </Container>
@@ -186,7 +186,7 @@ export function Segmented<T extends string>({
             pointerEventsOrder={CONTROL_ORDER}
             flexGrow={1}
             flexBasis={column ? undefined : 0}
-            height={52}
+            height={56}
             alignItems="center"
             justifyContent="center"
             borderRadius={26}
@@ -196,7 +196,7 @@ export function Segmented<T extends string>({
             hover={{ borderColor: INK, backgroundColor: PAPER }}
             active={{ backgroundColor: PRESSED }}
           >
-            <Text fontSize={17} fontWeight={on ? 'bold' : 'semi-bold'} color={on ? INK : INK_2}>
+            <Text fontSize={19} fontWeight={on ? 'bold' : 'semi-bold'} color={on ? INK : INK_2}>
               {plain(option.label)}
             </Text>
           </Container>
@@ -211,7 +211,7 @@ export function Chip({ label, dot = GREEN }: { label: string; dot?: string }) {
   return (
     <Container flexDirection="row" alignItems="center" gap={8} height={40} paddingX={16} borderRadius={20} backgroundColor={SUNKEN} flexShrink={0}>
       <Container width={10} height={10} borderRadius={5} backgroundColor={dot} />
-      <Text fontSize={15} fontWeight="semi-bold" color={INK}>
+      <Text fontSize={18} fontWeight="semi-bold" color={INK}>
         {plain(label)}
       </Text>
     </Container>
@@ -221,8 +221,8 @@ export function Chip({ label, dot = GREEN }: { label: string; dot?: string }) {
 /** A button name in a legend, on the amber the tutorial pictures light it in. */
 export function KeyChip({ name, width = 120 }: { name: string; width?: number }) {
   return (
-    <Container flexShrink={0} width={width} height={34} paddingX={10} alignItems="center" justifyContent="center" borderRadius={17} backgroundColor={AMBER_SOFT}>
-      <Text fontSize={15} fontWeight="bold" color={AMBER_INK}>
+    <Container flexShrink={0} width={width} height={38} paddingX={10} alignItems="center" justifyContent="center" borderRadius={19} backgroundColor={AMBER_SOFT}>
+      <Text fontSize={18} fontWeight="bold" color={AMBER_INK}>
         {plain(name)}
       </Text>
     </Container>

@@ -241,7 +241,7 @@ export function MapCard({
             <Label size={19} weight="bold">
               {subject ? subject.label : 'No place chosen'}
             </Label>
-            <Label size={14} color={INK_2}>
+            <Label size={18} color={INK_2}>
               {subject ? subject.detail : 'Choose one in Places, or point at a green building.'}
             </Label>
           </Container>

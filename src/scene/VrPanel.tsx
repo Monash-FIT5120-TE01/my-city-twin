@@ -167,7 +167,7 @@ function Title({ children }: { children: string }) {
 
 function Subtitle({ children }: { children: string }) {
   return (
-    <Label size={17} color={INK_2}>
+    <Label size={19} color={INK_2}>
       {children}
     </Label>
   );
@@ -240,16 +240,16 @@ function PlaceRow({
         <Container width={11} height={24} borderRadius={2} backgroundColor={GREEN} />
       </Container>
       <Container flexDirection="column" gap={3} flexGrow={1} flexShrink={1}>
-        <Label size={17} weight="bold">
+        <Label size={18} weight="bold">
           {option.label}
         </Label>
-        <Label size={14} color={INK_2}>
+        <Label size={18} color={INK_2}>
           {parts.join(' | ')}
         </Label>
       </Container>
       {chosen && (
         <Container width={30} height={30} borderRadius={15} backgroundColor={GREEN} alignItems="center" justifyContent="center" flexShrink={0}>
-          <Text fontSize={16} fontWeight="bold" color={PAPER}>
+          <Text fontSize={18} fontWeight="bold" color={PAPER}>
             v
           </Text>
         </Container>
@@ -339,13 +339,13 @@ function Answer({ menu, noun }: { menu: VrMenu; noun: string }) {
           <Text fontSize={40} fontWeight="bold" color={INK}>
             {plain(measured.figure ?? '')}
           </Text>
-          <Label size={16}>{measured.caption ?? ''}</Label>
+          <Label size={18}>{measured.caption ?? ''}</Label>
           {[
             { name: `Without this ${noun}`, minutes: measured.withoutMin, fill: AMBER },
             { name: 'With it', minutes: measured.withMin, fill: AMBER_INK },
           ].map((row) => (
             <Container key={row.name} flexDirection="column" gap={4}>
-              <Label size={14} color={INK_2}>
+              <Label size={18} color={INK_2}>
                 {`${row.name} | ${hours(row.minutes)}`}
               </Label>
               <Container height={12}>
@@ -354,7 +354,7 @@ function Answer({ menu, noun }: { menu: VrMenu; noun: string }) {
             </Container>
           ))}
           {measured.shadowWindow && (
-            <Label size={14} color={INK_2}>
+            <Label size={18} color={INK_2}>
               {measured.shadowWindow}
             </Label>
           )}
@@ -374,7 +374,7 @@ function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void })
           <Label size={19} weight="bold">
             No building selected
           </Label>
-          <Label size={16} color={INK_2}>
+          <Label size={18} color={INK_2}>
             Choose a building in Places, or point at a green building in the city and pull the trigger.
           </Label>
         </Card>
@@ -390,7 +390,7 @@ function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void })
       {menu.measured && !menu.armed ? (
         <>
           <Answer menu={menu} noun={place.noun} />
-          <Label size={12} color={INK_2}>
+          <Label size={18} color={INK_2}>
             {menu.finePrint}
           </Label>
         </>
@@ -399,13 +399,13 @@ function MeasureCard({ menu, onPlaces }: { menu: VrMenu; onPlaces: () => void })
           <Label size={19} weight="bold">
             Point at the ground and pull the trigger.
           </Label>
-          <Label size={16} color={INK_2}>
+          <Label size={18} color={INK_2}>
             A ring follows the beam on the ground. The spot you pick is measured for the whole day.
           </Label>
         </Card>
       )}
       <Container flexGrow={1} />
-      {menu.measured && !menu.armed && <Button label="Measure another spot" tone="primary" icon="measure" onClick={menu.onMeasure} />}
+      {menu.measured && !menu.armed && <Button label="Measure another spot" tone="primary" onClick={menu.onMeasure} />}
       <StandButton menu={menu} atSpot={Boolean(menu.measured)} />
     </>
   );
@@ -425,11 +425,14 @@ function FlatCard({ menu, flat }: { menu: VrMenu; flat: VrFlat }) {
         <Title>In the flat</Title>
         {flat.building && <Subtitle>{flat.building}</Subtitle>}
         <Card gap={8}>
-          <Label size={17} weight="semi-bold">
+          <Label size={20} weight="semi-bold">
             {`Floor ${flat.floor}${flat.side ? ` | ${flat.side} side` : ''}`}
           </Label>
-          <Label size={15} color={INK_2}>
-            An example one-bedroom layout, not this building's real plan. Hold A or B to watch the sun move across the floor.
+          <Label size={20} color={INK_2}>
+            Hold A or B to watch the sun move across the floor.
+          </Label>
+          <Label size={18} color={INK_2}>
+            An example layout, not the real plan.
           </Label>
         </Card>
         <Container flexGrow={1} />
@@ -441,13 +444,13 @@ function FlatCard({ menu, flat }: { menu: VrMenu; flat: VrFlat }) {
     return (
       <>
         <Title>Look out from a flat</Title>
-        <Subtitle>See the view from a chosen floor</Subtitle>
+        <Subtitle>See the view from a floor</Subtitle>
         <Card tone="amber" gap={8}>
-          <Label size={19} weight="bold">
+          <Label size={20} weight="bold">
             Point at a building and pull the trigger.
           </Label>
-          <Label size={16} color={INK_2}>
-            Any building standing today. Then choose the floor and the side to look out from.
+          <Label size={20} color={INK_2}>
+            Any building standing today.
           </Label>
         </Card>
         <Container flexGrow={1} />
@@ -460,19 +463,19 @@ function FlatCard({ menu, flat }: { menu: VrMenu; flat: VrFlat }) {
     <>
       <Title>Look out from a flat</Title>
       <Subtitle>{flat.building}</Subtitle>
-      <Label size={15} color={INK_2} weight="semi-bold">
+      <Label size={18} color={INK_2} weight="semi-bold">
         Floor
       </Label>
       <Container flexDirection="row" alignItems="center" gap={10}>
         <Button label="Down" icon="minus" onClick={() => flat.onFloor(Math.max(1, flat.floor - 1))} />
         <Container flexGrow={1} alignItems="center">
-          <Text fontSize={30} fontWeight="bold" color={INK}>
+          <Text fontSize={40} fontWeight="bold" color={INK}>
             {String(flat.floor)}
           </Text>
         </Container>
         <Button label="Up" icon="plus" onClick={() => (atTop ? undefined : flat.onFloor(flat.floor + 1))} />
       </Container>
-      <Label size={15} color={INK_2} weight="semi-bold">
+      <Label size={18} color={INK_2} weight="semi-bold">
         Facing
       </Label>
       {flat.sides.length > 0 ? (
@@ -487,14 +490,15 @@ function FlatCard({ menu, flat }: { menu: VrMenu; flat: VrFlat }) {
           />
         ))
       ) : (
-        <Label size={15}>This building has no walls to look out from at this floor.</Label>
+        <Label size={20}>No walls to look out from at this floor.</Label>
       )}
-      <Label size={14} color={INK_2}>
-        {flat.problem ?? "An example one-bedroom layout, not this building's real plan."}
+      <Label size={18} color={INK_2}>
+        {flat.problem ?? 'An example layout, not the real plan.'}
       </Label>
       <Container flexGrow={1} />
-      {flat.canEnter && <Button label="Look out from this flat" tone="primary" icon="home" onClick={flat.onEnter} />}
-      <Button label="Choose another building" icon="places" onClick={flat.onChoose} />
+      {/* No icons on these two: with one, the words broke onto a second line at 20 mm. */}
+      {flat.canEnter && <Button label="Look out from this flat" tone="primary" onClick={flat.onEnter} />}
+      <Button label="Choose another building" onClick={flat.onChoose} />
     </>
   );
 }
@@ -510,7 +514,7 @@ function MoreCard({ menu, onLeave }: { menu: VrMenu; onLeave: () => void }) {
       <Container flexGrow={1} />
       <Container flexDirection="column" gap={2}>
         {menu.credits.map((line) => (
-          <Label key={line} size={13} color={INK_2}>
+          <Label key={line} size={18} color={INK_2}>
             {line}
           </Label>
         ))}
@@ -541,7 +545,7 @@ function HelpCard({ onTutorial }: { onTutorial: () => void }) {
           <Container key={key} flexDirection="row" gap={14} alignItems="center" minHeight={54} paddingX={12} borderRadius={20} backgroundColor={SUNKEN}>
             <KeyChip name={key} width={150} />
             <Container flexShrink={1}>
-              <Label size={16}>{does}</Label>
+              <Label size={18}>{does}</Label>
             </Container>
           </Container>
         ))}
@@ -554,13 +558,17 @@ function HelpCard({ onTutorial }: { onTutorial: () => void }) {
 
 // ── The navigation, and Close beside it ────────────────────────────────────
 
-type Tab = 'explore' | 'measure' | 'flat' | 'help' | 'more';
+/*
+ * Four tabs, not five (2026-10-19): with Flat added, five made each tab 96 x 68 mm with 14 mm words, small to
+ * aim at and to read. Help went into More: its middle card is the controls and the tutorial again, which every
+ * Enter VR shows anyway (ProjectDoc/vr-ui-redesign/flat-menu-fix.html).
+ */
+type Tab = 'explore' | 'measure' | 'flat' | 'more';
 
 const TABS: { tab: Tab; label: string; icon: IconName }[] = [
   { tab: 'explore', label: 'Explore', icon: 'map' },
   { tab: 'measure', label: 'Measure', icon: 'ruler' },
   { tab: 'flat', label: 'Flat', icon: 'home' },
-  { tab: 'help', label: 'Help', icon: 'help' },
   { tab: 'more', label: 'More', icon: 'more' },
 ];
 
@@ -578,8 +586,8 @@ function Navigation({ at, onTab }: { at: Tab; onTab: (tab: Tab) => void }) {
             }}
             cursor="pointer"
             pointerEventsOrder={CONTROL_ORDER}
-            width={96}
-            height={68}
+            width={132}
+            height={88}
             flexDirection="column"
             alignItems="center"
             justifyContent="center"
@@ -591,8 +599,8 @@ function Navigation({ at, onTab }: { at: Tab; onTab: (tab: Tab) => void }) {
             hover={{ borderColor: on ? GREEN_PRESSED : INK, backgroundColor: on ? GREEN : SUNKEN }}
             active={{ backgroundColor: on ? GREEN_PRESSED : PRESSED }}
           >
-            <Icon name={icon} color={on ? PAPER : INK_2} size={26} />
-            <Text fontSize={14} fontWeight="bold" color={on ? PAPER : INK_2}>
+            <Icon name={icon} color={on ? PAPER : INK_2} size={32} />
+            <Text fontSize={19} fontWeight="bold" color={on ? PAPER : INK_2}>
               {label}
             </Text>
           </Container>
@@ -644,7 +652,7 @@ function LeaveDialog({ width, onLeave, onStay }: { width: number; onLeave: () =>
         <Text fontSize={28} fontWeight="bold" color={INK}>
           Leave VR?
         </Text>
-        <Label size={17} color={INK_2}>
+        <Label size={18} color={INK_2}>
           You will go back to the web page, at the place you were looking at.
         </Label>
         <Container height={6} />
@@ -698,7 +706,7 @@ function StandAsk({ left, onStand, onNotNow }: { left: number; onStand: () => vo
       <Text fontSize={26} fontWeight="bold" color={INK}>
         Stand here?
       </Text>
-      <Label size={17} color={INK_2}>
+      <Label size={18} color={INK_2}>
         See this spot from the footpath, at eye level.
       </Label>
       <Container height={4} />
@@ -784,7 +792,7 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
   return (
     <>
       <Container flexDirection="row" alignItems="center" justifyContent="space-between">
-        <Label size={14} color={INK_2} weight="semi-bold">
+        <Label size={18} color={INK_2} weight="semi-bold">
           {`Controls | ${at + 1} of ${TUTORIAL.length}`}
         </Label>
         {!last && <Button label="Skip" height={52} onClick={onDone} />}
@@ -792,7 +800,7 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
 
       <Container flexDirection="column" gap={6}>
         <Title>{page.title}</Title>
-        <Label size={17} color={INK_2}>
+        <Label size={18} color={INK_2}>
           {page.body}
         </Label>
       </Container>
@@ -806,7 +814,7 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
             <Container key={key} flexDirection="row" alignItems="center" gap={10}>
               <KeyChip name={key} />
               <Container flexShrink={1}>
-                <Label size={16}>{does}</Label>
+                <Label size={18}>{does}</Label>
               </Container>
             </Container>
           ))}
@@ -832,7 +840,7 @@ function Tutorial({ pictures, onDone }: { pictures: (Texture | undefined)[]; onD
           hover={{ borderColor: INK }}
           active={{ backgroundColor: practised ? GREEN_PRESSED : PRESSED }}
         >
-          <Text fontSize={17} fontWeight="bold" color={practised ? PAPER : GREEN}>
+          <Text fontSize={18} fontWeight="bold" color={practised ? PAPER : GREEN}>
             {practised ? 'Well done - that is every button here.' : 'Try it: point here and pull the trigger'}
           </Text>
         </Container>
@@ -980,12 +988,12 @@ function Menu({
   const openTab = (next: Tab) => {
     setStandAsk(false);
     if (tab === 'measure' && next !== 'measure' && menu.armed) menu.onCancelMeasure();
-    if (next === 'explore' || next === 'help') remeasure();
+    if (next === 'explore') remeasure();
     setTab(next);
   };
 
 
-  const placesShown = tab === 'explore' || tab === 'help';
+  const placesShown = tab === 'explore';
   useStickScroll(listRef, shown && !tutorial && !leaving && placesShown);
 
   const subject: MapSubject | null =
@@ -1012,7 +1020,7 @@ function Menu({
       />
     );
   const middle =
-    tab === 'help' ? (
+    tab === 'more' ? (
       <HelpCard onTutorial={() => onTutorial(true)} />
     ) : (
       <MapCard city={city} subject={subject} shown={shown && !tutorial} onViewPlace={() => openTab('measure')} />
@@ -1050,14 +1058,14 @@ function Menu({
                 <Glass width={MAP_WIDTH} height={CARD_HEIGHT} padding={24} gap={14}>
                   {middle}
                 </Glass>
-                <Glass width={SIDE_WIDTH} height={CARD_HEIGHT} padding={24} gap={10}>
+                <Glass width={SIDE_WIDTH} height={CARD_HEIGHT} padding={24} gap={7}>
                   <TimeCard menu={menu} />
                 </Glass>
               </Container>
               <Container flexDirection="row" alignItems="center" gap={14}>
                 <Navigation at={tab} onTab={openTab} />
                 {/* The whole menu at once — the same as X on the left controller. */}
-                <Button label="Close" icon="close" tone="quiet" height={84} onClick={onClose} />
+                <Button label="Close" icon="close" tone="quiet" height={104} onClick={onClose} />
               </Container>
             </>
           )}
@@ -1273,7 +1281,8 @@ export default function VrFurniture({
             subjectEN={subjectEN}
           />
         </group>
-        <MiniMap city={city} subjectKey={subjectKey} shown={!shown} />
+        {/* Not in the flat: a few metres to walk, and the small map sat over the view out of the window. */}
+        <MiniMap city={city} subjectKey={subjectKey} shown={!shown && stage !== 'room'} />
         <VrMenuButton shown={!shown} onOpen={onShow} />
       </PanelBoundary>
     </>

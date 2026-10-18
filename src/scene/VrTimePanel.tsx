@@ -113,10 +113,10 @@ function DayRail({ menu }: { menu: VrMenu }) {
         <Container positionType="absolute" positionLeft={`${at(menu.minutes)}%`} marginLeft={-13} positionTop={1} width={26} height={26} borderRadius={13} borderWidth={3} borderColor={INK} backgroundColor={PAPER} />
       </Container>
       <Container flexDirection="row" justifyContent="space-between">
-        <Label size={14} color={INK_2} weight="semi-bold">
+        <Label size={18} color={INK_2} weight="semi-bold">
           {clockOf(menu.railStart)}
         </Label>
-        <Label size={14} color={INK_2} weight="semi-bold">
+        <Label size={18} color={INK_2} weight="semi-bold">
           {clockOf(menu.railEnd)}
         </Label>
       </Container>
@@ -135,22 +135,22 @@ export function TimeCard({ menu }: { menu: VrMenu }) {
       <Container flexDirection="row" flexShrink={0}>
         <Container flexDirection="row" alignItems="center" gap={6} height={30} paddingX={12} borderRadius={15} backgroundColor={menu.isNow ? GREEN_SOFT : AMBER_SOFT}>
           <Container width={8} height={8} borderRadius={4} backgroundColor={menu.isNow ? GREEN : AMBER_INK} />
-          <Text fontSize={14} fontWeight="bold" color={menu.isNow ? GREEN : AMBER_INK}>
+          <Text fontSize={18} fontWeight="bold" color={menu.isNow ? GREEN : AMBER_INK}>
             {menu.isNow ? 'Now' : 'Preview'}
           </Text>
         </Container>
       </Container>
       <Container flexDirection="column" alignItems="center" gap={4} flexShrink={0}>
-        <Text fontSize={54} fontWeight="bold" color={INK}>
+        <Text fontSize={48} fontWeight="bold" color={INK}>
           {plain(menu.timeLabel)}
         </Text>
-        <Label size={17} color={INK_2}>
+        <Label size={18} color={INK_2}>
           {menu.dateLabel}
         </Label>
       </Container>
       {menu.note ? (
         <Container padding={10} borderRadius={16} backgroundColor={AMBER_SOFT} flexShrink={0}>
-          <Label size={14} color={AMBER_INK} weight="semi-bold">
+          <Label size={18} color={AMBER_INK} weight="semi-bold">
             {menu.note}
           </Label>
         </Container>
@@ -164,9 +164,10 @@ export function TimeCard({ menu }: { menu: VrMenu }) {
         <Button label="-10 min" tone="amber" grow onClick={() => menu.onNudgeMinutes(-10)} />
         <Button label="+10 min" tone="amber" grow onClick={() => menu.onNudgeMinutes(10)} />
       </Container>
-      <Label size={15} color={INK_2} weight="semi-bold">
-        Season
-      </Label>
+      {/*
+        No "Season" heading over these since the words went up to 18 mm (2026-10-19): the card ran out of
+        height, and Summer, Autumn, Winter and Spring say what they are.
+      */}
       {[menu.seasons.slice(0, 2), menu.seasons.slice(2)].map((pair, row) => (
         <Segmented
           key={row}
