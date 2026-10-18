@@ -137,7 +137,7 @@ import './styles/ui.css';
 import './styles/solar.css';
 import './styles/street-activity.css';
 import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
-import { HintChip, KeyHint, WalkHints, WheelHint } from './ui/KeyHints';
+import { GestureHint, HintChip, KeyHint, WalkHints, WheelHint } from './ui/KeyHints';
 import { Icon } from './ui/kit/Icon';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
@@ -1882,6 +1882,7 @@ export default function App() {
           room={roomPlacement}
           onLeaveRoom={leaveRoom}
           onRoomReady={onRoomReady}
+          onRoomFailed={leaveRoom}
           /*
             For the wrist clock and the A/B buttons. The page's own time bar
             does not exist in a headset; the panel shows the hour too, but it
@@ -2036,8 +2037,8 @@ export default function App() {
           actions={
             byTouch ? (
               <>
-                <KeyHint keys={['Stick']} label="Walk" />
-                <KeyHint keys={['Drag']} label="Look round" />
+                <GestureHint icon="navigation" gesture="Stick" label="Walk" />
+                <GestureHint icon="arrow_forward" gesture="Drag" label="Look round" />
               </>
             ) : (
               <>
@@ -2074,8 +2075,8 @@ export default function App() {
           actions={
             byTouch ? (
               <>
-                <KeyHint keys={['Stick']} label="Walk" />
-                <KeyHint keys={['Drag']} label="Look round" />
+                <GestureHint icon="navigation" gesture="Stick" label="Walk" />
+                <GestureHint icon="arrow_forward" gesture="Drag" label="Look round" />
               </>
             ) : (
               <>

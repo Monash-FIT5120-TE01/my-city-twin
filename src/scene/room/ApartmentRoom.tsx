@@ -16,7 +16,7 @@
  * The Draco decoder is served from this site (public/draco/), never fetched
  * from anywhere else.
  */
-import { Suspense, useEffect, useMemo } from 'react';
+import { Component, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { useThree } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { PMREMGenerator, SRGBColorSpace, type Texture, type WebGLProgramParametersWithUniforms } from 'three';
@@ -126,8 +126,14 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
         mat.lightMap = day;
         mat.lightMapIntensity = 0;
         mat.aoMapIntensity = AO_WITH_LIGHTMAP;
-        mat.userData.night = { value: 0 };
-        mat.userData.nightMap = { value: night };
+        /*
+         * The uniform objects are made once and kept: the shader, compiled once and cached, holds on to
+         * the ones it first saw. Making new ones on the next visit left the night light at the last
+         * visit's strength (Codex review, 2026-10-18).
+         */
+        mat.userData.night ??= { value: 0 };
+        mat.userData.nightMap ??= { value: night };
+        mat.userData.nightMap.value = night;
         // the night map beside the day one, mixed by the hour (three has one light map a material)
         mat.onBeforeCompile = (shader) => {
           shader.uniforms.nightLightMap = mat.userData.nightMap!;
@@ -199,15 +205,40 @@ const LAMP_SHARE = 0.25;
 // far enough that the light fades out softly across the flat, not in a hard ring on the ceiling at 5 m
 const LAMP_REACH_M = 12;
 
+/*
+ * A file that will not load (a dropped connection, a missing image) throws out of the model's Suspense.
+ * Caught here, it is reported to App, which takes the reader back out through the fade; uncaught, the
+ * screen stayed dark on "Loading the flat" (Codex review, 2026-10-18).
+ */
+class LoadBoundary extends Component<{ onFailed?: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error('The flat could not be loaded:', error);
+    this.props.onFailed?.();
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 export function ApartmentRoom({
   placement,
   night = 0,
   onReady,
+  onFailed,
 }: {
   placement: RoomPlacement;
   night?: number;
   /** Called once the model has loaded and been put in the scene. */
   onReady?: () => void;
+  /** The model or its light maps could not be loaded. */
+  onFailed?: () => void;
 }) {
   const gl = useThree((s) => s.gl);
   // the massing's clipping planes only act while local clipping is on
@@ -227,9 +258,11 @@ export function ApartmentRoom({
 
   return (
     <group position={[placement.originEN[0], placement.originEN[1], placement.floorAhdM]} rotation={[0, 0, placement.angle]}>
-      <Suspense fallback={null}>
-        <Model night={night} onReady={onReady} />
-      </Suspense>
+      <LoadBoundary onFailed={onFailed}>
+        <Suspense fallback={null}>
+          <Model night={night} onReady={onReady} />
+        </Suspense>
+      </LoadBoundary>
       {LIGHTS.map(({ at, intensity }) => (
         <pointLight key={at.join()} position={at} color={LAMP_COLOUR} intensity={intensity * night * LAMP_SHARE} distance={LAMP_REACH_M} decay={2} />
       ))}

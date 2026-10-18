@@ -159,6 +159,8 @@ interface SceneCanvasProps {
   onLeaveRoom?: () => void;
   /** The flat's model has loaded and is drawn: the way in can stop being dark. */
   onRoomReady?: () => void;
+  /** The flat's model could not be loaded. */
+  onRoomFailed?: () => void;
   /**
    * The viewpoint had to be put down this far from the measured spot.
    *
@@ -283,6 +285,7 @@ export function SceneCanvas({
   room = null,
   onLeaveRoom = () => undefined,
   onRoomReady,
+  onRoomFailed,
   onStandMoved,
   approach = false,
   viewCommands,
@@ -753,7 +756,7 @@ export function SceneCanvas({
             highlightedBuildingId={highlightedBuildingId}
             showHighlighted={showHighlighted}
             solar={solar}
-            room={inRoom && placedRoom ? { ...placedRoom, night: roomNight, onReady: onRoomReady } : null}
+            room={inRoom && placedRoom ? { ...placedRoom, night: roomNight, onReady: onRoomReady, onFailed: onRoomFailed } : null}
           />
 
           {/*

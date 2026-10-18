@@ -26,6 +26,19 @@ export function KeyHint({ keys, label }: { keys: string[]; label: string }) {
   );
 }
 
+/** A touch gesture (the stick, a drag): an icon and words, not a keycap, which reads as a key to press. */
+export function GestureHint({ icon, gesture, label }: { icon: IconName; gesture: string; label: string }) {
+  return (
+    <span className="key-hint">
+      <span className="gesture-hint">
+        <Icon name={icon} size={16} />
+        {gesture}
+      </span>
+      <span className="key-hint__label">{label}</span>
+    </span>
+  );
+}
+
 /*
  * The mouse with its wheel picked out and an arrow just above and below the wheel (not beside the mouse,
  * which read as moving the mouse up and down): rolling the wheel sets the pace. Drawn here rather

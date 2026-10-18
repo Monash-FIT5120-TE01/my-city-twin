@@ -96,6 +96,11 @@ export function PlaceCard({
     let shift = 0;
     let id = 0;
     const tick = () => {
+      // not the copy on screen (a phone shows the docked one): nothing to keep in view, look again later
+      if (card.offsetParent === null) {
+        id = window.setTimeout(() => (id = window.requestAnimationFrame(tick)), 500) as unknown as number;
+        return;
+      }
       const r = card.getBoundingClientRect();
       if (r.height > 0) {
         const top = r.top - shift;
@@ -113,7 +118,10 @@ export function PlaceCard({
       id = window.requestAnimationFrame(tick);
     };
     id = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(id);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.clearTimeout(id);
+    };
   }, [variant]);
 
   return (
