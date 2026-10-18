@@ -216,6 +216,13 @@ interface VrWalkProps {
    */
   paceCapMs?: number;
   /**
+   * Hold the HEAD to the walls too, not only the stick's steps: a real step across the room that would
+   * put the head through a wall moves the floor back by as much. For the flat, whose walls are a stride
+   * apart and whose outside is the building cut open (Codex review, 2026-10-19). Not in the street, where
+   * a step into a building's corner is harmless and the tram ride moves the floor on its own.
+   */
+  holdHead?: boolean;
+  /**
    * Everything solid at street level — the city as DRAWN. See obstacles.ts.
    * Null above the city, where the platform flies over the roofs.
    */
@@ -254,6 +261,7 @@ export function VrWalk({
   boundsCentreEN,
   boundsRadiusM,
   paceCapMs = Infinity,
+  holdHead = false,
   obstacles,
   timeLabel,
   dateLabel,
@@ -340,6 +348,9 @@ export function VrWalk({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip]);
 
+  /** Where the head last stood clear of the walls, east/north; null until the first frame after a move. */
+  const clearHead = useRef<[number, number] | null>(null);
+
   /** Whether X was down last frame, so one press toggles once. */
   const xWasDown = useRef(false);
 
@@ -413,7 +424,10 @@ export function VrWalk({
     }
     // Nothing else while being moved: a step taken now would be measured
     // from where the player is about to stop being.
-    if (target) return;
+    if (target) {
+      clearHead.current = null;
+      return;
+    }
 
     /*
      * ── THE PANEL ───────────────────────────────────────────────────────
@@ -480,6 +494,32 @@ export function VrWalk({
     // Where the person actually is, which is the origin plus however far they
     // have physically walked across their room.
     const at = state.camera.getWorldPosition(head.current);
+
+    /*
+     * ── THE HEAD AGAINST THE WALLS ──────────────────────────────────────
+     *
+     * From where the head last stood clear to where it is now, by the same swept test the stick's steps
+     * take; whatever the walls take off that is taken off the floor's position, so the head stays on this
+     * side of them. Applied as a difference, like a step (see WALKING below).
+     */
+    if (holdHead && obstacles) {
+      const e = at.x, n = -at.z;
+      const from = clearHead.current;
+      if (from) {
+        const [heldE, heldN] = slide(obstacles, from[0], from[1], e, n);
+        if (heldE !== e || heldN !== n) {
+          group.position.x += heldE - e;
+          group.position.z -= heldN - n;
+          at.x = heldE;
+          at.z = -heldN;
+        }
+        clearHead.current = [heldE, heldN];
+      } else {
+        clearHead.current = [e, n];
+      }
+    } else {
+      clearHead.current = null;
+    }
 
     /*
      * ── TRAMS (streetscape/trams) ───────────────────────────────────────

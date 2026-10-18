@@ -643,6 +643,8 @@ export function SceneCanvas({
         ? undefined
         : xrStore().subscribe((state, previous) => {
             setInVr(state.session != null);
+            // a move asked for and not made when the session ended is not made in the next one (Codex review, 2026-10-19)
+            if (state.session == null && previous.session != null) setLoading(null);
             if (state.session != null && previous.session == null) {
               setPanelShown(true);
               // 72 Hz, where the headset offers it — see vrFrameRate.ts.
@@ -969,6 +971,8 @@ export function SceneCanvas({
             boundsRadiusM={inRoomVr ? ROOM_BOUNDS_M : citySpan * 1.2}
             // a walk in the flat: no running between rooms a few strides across
             paceCapMs={inRoomVr ? ROOM_PACE_MS : undefined}
+            // and a real step towards a wall stops at it too: past it is the building cut open
+            holdHead={inRoomVr}
             // Over the roofs there is nothing to walk into; in the flat, its own walls.
             obstacles={inRoomVr && placedRoom ? placedRoom.obstacles : vrStage === 'street' ? obstacles : null}
             timeLabel={timeLabel}

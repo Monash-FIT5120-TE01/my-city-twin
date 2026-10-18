@@ -61,4 +61,18 @@ describe('ownedRaycast', () => {
     expect(ours[0].distance).toBeCloseTo(theirs[0].distance);
     expect(partOf(owned.ends, ours[0].faceIndex!)).toBe(partOf(owned.ends, theirs[0].faceIndex!));
   });
+
+  it('passes over a hit nearer than the raycaster allows, for the next one behind it', () => {
+    const { positions, owned } = twoBoxes();
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new BufferAttribute(positions, 3));
+    const mesh = new Mesh(geometry);
+    mesh.updateMatrixWorld();
+    // from inside the first box, looking along +x: its far wall at 0.5, the second box at 4.5
+    const raycaster = new Raycaster(new Vector3(0, 0, 0), new Vector3(1, 0, 0), 1, 100);
+    const ours: ReturnType<Raycaster['intersectObject']> = [];
+    ownedRaycast(mesh, owned)(raycaster, ours);
+    expect(ours[0].distance).toBeCloseTo(4.5);
+    expect(partOf(owned.ends, ours[0].faceIndex!)).toBe(1);
+  });
 });

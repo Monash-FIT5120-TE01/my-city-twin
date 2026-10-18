@@ -64,7 +64,7 @@
  *   only once a session has started.
  */
 
-import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useXR, useXRInputSourceState } from '@react-three/xr';
 import { Container, Text, type VanillaContainer } from '@react-three/uikit';
@@ -1018,6 +1018,9 @@ function FlatCard({ menu, flat, known, onBack }: { menu: VrMenu; flat: VrFlat; k
   const fitsAt = (f: number) => known(flat.side, f);
   const heights = heightsOf(top, fitsAt);
   const at = (Object.keys(heights) as Height[]).find((h) => heights[h] === flat.floor) ?? null;
+  // every floor on this side known, and none fits: no jumps that would all land where it does not (Codex review, 2026-10-19)
+  let noneFit = flat.side !== null;
+  for (let f = 1; f <= top && noneFit; f++) if (fitsAt(f) !== false) noneFit = false;
   const go = (f: number) => flat.onFloor(Math.min(top, Math.max(1, f)));
   return (
     <>
@@ -1043,17 +1046,23 @@ function FlatCard({ menu, flat, known, onBack }: { menu: VrMenu; flat: VrFlat; k
           <HoldButton label="Down" icon="down" onStep={() => go(flat.floor - 1)} />
         </Container>
       </Container>
-      <Segmented<Height>
-        fixed
-        options={[
-          { value: 'low', label: 'Low' },
-          { value: 'middle', label: 'Middle' },
-          { value: 'high', label: 'High' },
-          { value: 'top', label: 'Top' },
-        ]}
-        value={at}
-        onChange={(h) => go(heights[h])}
-      />
+      {noneFit ? (
+        <Label size={18} weight="semi-bold">
+          The flat does not fit at any floor on this side. Try another side.
+        </Label>
+      ) : (
+        <Segmented<Height>
+          fixed
+          options={[
+            { value: 'low', label: 'Low' },
+            { value: 'middle', label: 'Middle' },
+            { value: 'high', label: 'High' },
+            { value: 'top', label: 'Top' },
+          ]}
+          value={at}
+          onChange={(h) => go(heights[h])}
+        />
+      )}
       <Label size={18} color={INK_2}>
         {flat.problem ?? 'An example layout, not the real plan.'}
       </Label>
@@ -1529,7 +1538,23 @@ function Menu({
    * the building on the side chosen (the drawing).
    */
   const pickingFlat = choosingFlat && flat !== null && flat.building !== null && !flat.choosing && menu.stage !== 'room';
+  /*
+   * A building just chosen opens on a middle floor and a side the flat fits on there, so the card opens on
+   * a flat that can be gone into. Once for each answer function — a new building, or the same one once its
+   * real floor count has arrived — and found through the same few-a-frame queue as everything else, not
+   * all at once on the frame the building was chosen (Codex review, 2026-10-19).
+   */
+  const [startedFor, setStartedFor] = useState<object | null>(null);
+  const flatFits = flat?.fits ?? null;
+  const starting = pickingFlat && flat !== null && flatFits !== null && startedFor !== flatFits;
+  const startMiddle = flat ? Math.max(1, Math.min(flat.topFloor, Math.round(flat.topFloor / 2))) : 1;
+  const topFloor = flat?.topFloor ?? 1;
+  const startFloors = useMemo(
+    () => (starting ? [startMiddle, startMiddle + 1, startMiddle - 1, startMiddle + 2, startMiddle - 2].filter((f) => f >= 1 && f <= topFloor) : []),
+    [starting, startMiddle, topFloor],
+  );
   const fitsWanted: [string, number][] = [];
+  if (starting && flat) for (const f of startFloors) for (const side of flat.sides) fitsWanted.push([side, f]);
   if (pickingFlat && flat) {
     for (const side of flat.sides) fitsWanted.push([side, flat.floor]);
     if (flat.side) {
@@ -1537,29 +1562,27 @@ function Menu({
       for (let f = 1; f <= flat.topFloor; f++) fitsWanted.push([flat.side, f]);
     }
   }
-  const known = useFlatFits(flat?.fits ?? null, fitsWanted, shown && pickingFlat);
-  /*
-   * A building just chosen: a middle floor, and a side the flat fits on there, so the card opens on a
-   * flat that can be gone into. Once for each building.
-   */
-  const startedFor = useRef<string | null>(null);
-  const flatFits = flat?.fits ?? null;
-  const flatBuilding = pickingFlat ? (flat?.building ?? null) : null;
+  const known = useFlatFits(flatFits, fitsWanted, shown && pickingFlat);
   useEffect(() => {
-    if (!flat || !flatBuilding || !flatFits || startedFor.current === flatBuilding) return;
-    startedFor.current = flatBuilding;
-    const middle = Math.max(2, Math.round(flat.topFloor / 2));
-    for (const f of [middle, middle + 1, middle - 1, middle + 2, middle - 2]) {
-      if (f < 1 || f > flat.topFloor) continue;
-      const side = flat.sides.find((compass) => flatFits(compass, f));
-      if (side) {
-        flat.onFloor(f);
-        flat.onSide(side);
-        return;
+    if (!starting || !flat || !flatFits) return;
+    for (const f of startFloors) {
+      for (const side of flat.sides) {
+        const fits = known(side, f);
+        // still being worked out: look again when the next answers come in
+        if (fits === null) return;
+        if (fits) {
+          // oxlint-disable-next-line react/set-state-in-effect -- the answers arrive a few a frame, outside React
+          setStartedFor(() => flatFits); // a function: React would call one handed over bare
+          flat.onFloor(f);
+          flat.onSide(side);
+          return;
+        }
       }
     }
-    flat.onFloor(middle);
-  }, [flat, flatBuilding, flatFits]);
+    setStartedFor(() => flatFits); // a function: React would call one handed over bare
+    flat.onFloor(startMiddle);
+    // `known` is new on every render, and every render may bring the answers being waited for
+  }, [starting, flat, flatFits, known, startFloors, startMiddle]);
   const choosingBuilding = flat?.choosing ?? false;
   const onCancelBuilding = flat?.onCancelChoose;
   useEffect(() => {

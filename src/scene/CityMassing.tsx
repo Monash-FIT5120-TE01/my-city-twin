@@ -217,9 +217,14 @@ export function CityMassing({
    * The headset's beam choosing a building: the merged meshes take the trigger only while it is, and are
    * tested by building box first (ownedRaycast.ts), not triangle by triangle as three does it.
    */
-  const pickInVr = onPickBuildingInVr;
+  // the handler read through a ref, so App's new function on every render does not re-arm the meshes
+  const pickInVrRef = useRef(onPickBuildingInVr);
   useEffect(() => {
-    if (!pickInVr) return;
+    pickInVrRef.current = onPickBuildingInVr;
+  });
+  const picking = onPickBuildingInVr !== undefined;
+  useEffect(() => {
+    if (!picking) return;
     const parts = [
       { mesh: builtMesh.current, owned: built },
       { mesh: unresolvedMesh.current, owned: unresolved },
@@ -228,14 +233,14 @@ export function CityMassing({
     return () => {
       for (const { mesh } of parts) if (mesh) mesh.raycast = MeshClass.prototype.raycast;
     };
-  }, [pickInVr, built, unresolved]);
+  }, [picking, built, unresolved]);
   const pickOn = (owned: typeof built) =>
-    pickInVr && owned
+    picking && owned
       ? (event: ThreeEvent<MouseEvent>) => {
           event.stopPropagation();
           if (event.faceIndex == null) return;
           const owner = ownerAt(owned, event.faceIndex);
-          if (owner) pickInVr(owner.parentId);
+          if (owner) pickInVrRef.current?.(owner.parentId);
         }
       : undefined;
 
@@ -293,7 +298,21 @@ export function CityMassing({
         it straight back inside the proposal, both solids casting shadow.
       */}
       {showHighlighted && !(highlightedBuildingId && replaced.has(highlightedBuildingId)) && (
-        <group ref={highlightGroup}>
+        <group
+          ref={highlightGroup}
+          /*
+           * The building already chosen is drawn apart from the merged city, so the beam would go through
+           * it to the one behind: it answers the trigger itself (Codex review, 2026-10-19).
+           */
+          onClick={
+            picking && highlightedBuildingId
+              ? (event) => {
+                  event.stopPropagation();
+                  pickInVrRef.current?.(highlightedBuildingId);
+                }
+              : undefined
+          }
+        >
           <HighlightedBuilding
             buildings={model.buildings}
             buildingId={highlightedBuildingId}

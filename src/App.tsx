@@ -459,6 +459,13 @@ export default function App() {
       setRoomAt(null);
       setRoomReady(false);
     }
+    // nor half-way in, and not still "in the flat" when the next session starts (Codex review, 2026-10-19)
+    if (wasInVr.current && !inVr) {
+      setVrRoomPending(false);
+      setVrChoosingBuilding(false);
+      afterLeavingFlat.current = null;
+      if (vrStage === 'room') setVrStage('above');
+    }
     wasInVr.current = inVr;
   }, [inVr, vrStage, roomAt]);
 
@@ -946,12 +953,18 @@ export default function App() {
    * same measuring point as the window's figure, so the flat is never put where the figure is not about
    * (roomPlacement.ts 'window-moved'). A few milliseconds: the neighbours are cut down to those near.
    */
+  /*
+   * In a headset there is no window figure for the flat to agree with (the menu has none), so the window's
+   * point is left out there, as it is in the headset's list of every floor and side (flatFits): the list
+   * and the way in then give the same answer (Codex review, 2026-10-19).
+   */
+  const windowForFlat = inVr ? null : (windowAt?.en ?? null);
   const flatFit = useMemo<FlatFit | null>(() => {
     if (!foundBuilding || !windowSide) return null;
-    const fit = fitRoomInModel(standingCity, foundBuilding.buildingId, windowSide, floor, floorsAboveGround, windowAt?.en ?? null, terrain ?? undefined);
+    const fit = fitRoomInModel(standingCity, foundBuilding.buildingId, windowSide, floor, floorsAboveGround, windowForFlat, terrain ?? undefined);
     if (!fit) return null;
     return fit.ok ? { ok: true } : { ok: false, problem: fit.problem };
-  }, [foundBuilding, windowSide, floor, floorsAboveGround, windowAt, standingCity, terrain]);
+  }, [foundBuilding, windowSide, floor, floorsAboveGround, windowForFlat, standingCity, terrain]);
 
   /*
    * Whether the flat fits at any floor and side of the building chosen, for the headset's flat picker,
@@ -981,12 +994,12 @@ export default function App() {
     const sameAsWindow = roomAt.floor === floor && roomAt.side === windowSide;
     const fit = fitRoomInModel(
       standingCity, foundBuilding.buildingId, roomAt.side, roomAt.floor, floorsAboveGround,
-      sameAsWindow ? (windowAt?.en ?? null) : null,
+      sameAsWindow ? windowForFlat : null,
       terrain ?? undefined,
     );
     if (!fit) return { refused: 'no such building' };
     return fit.ok ? { placement: fit.placement } : { refused: fit.problem };
-  }, [roomAt, model, foundBuilding, floor, windowSide, floorsAboveGround, windowAt, standingCity, terrain]);
+  }, [roomAt, model, foundBuilding, floor, windowSide, floorsAboveGround, windowForFlat, standingCity, terrain]);
   const roomPlacement = roomFit && 'placement' in roomFit ? roomFit.placement : null;
 
   /*
@@ -1039,6 +1052,11 @@ export default function App() {
    */
   const [vrChoosingBuilding, setVrChoosingBuilding] = useState(false);
   const [vrRoomPending, setVrRoomPending] = useState(false);
+  /*
+   * Something chosen from inside the flat — another building, a project — that would take the flat away
+   * under the reader's feet: held until the move back out has landed, then done (Codex review, 2026-10-19).
+   */
+  const afterLeavingFlat = useRef<(() => void) | null>(null);
   const enterFlatInVr = () => {
     if (!foundBuilding || !windowSide || !flatFit?.ok) return;
     setRoomReady(false);
@@ -1046,37 +1064,76 @@ export default function App() {
     setVrRoomPending(true);
   };
   useEffect(() => {
-    if (!vrRoomPending || !roomReady || !roomPlacement) return;
+    if (!inVr || !vrRoomPending || !roomReady || !roomPlacement) return;
     // oxlint-disable-next-line react/set-state-in-effect -- the flat arrives from the loader, outside React
     setVrRoomPending(false);
     setVrStage('room');
     setVrTrip((n) => n + 1);
-  }, [vrRoomPending, roomReady, roomPlacement]);
+  }, [inVr, vrRoomPending, roomReady, roomPlacement]);
   const leaveFlatInVr = () => {
     setVrRoomPending(false);
     moveInVr('above');
+  };
+  /** Do `then` now, or — from inside the flat — once the move back out of it has landed. */
+  const outOfFlatFirst = (then: () => void) => {
+    if (vrStage !== 'room') {
+      then();
+      return;
+    }
+    afterLeavingFlat.current = then;
+    leaveFlatInVr();
   };
   const onVrPlaced = () => {
     if (vrStage !== 'room' && roomAt && !vrRoomPending) {
       setRoomAt(null);
       setRoomReady(false);
     }
+    if (vrStage !== 'room' && afterLeavingFlat.current) {
+      const then = afterLeavingFlat.current;
+      afterLeavingFlat.current = null;
+      then();
+    }
+  };
+  /*
+   * The way in given up: the flat would not load, took too long, or stopped fitting (another building
+   * chosen while it loaded). Nothing left waiting; and the "Going into the flat" pill, which goes when a
+   * move lands, is answered by a move to where the reader already is.
+   */
+  const abandonFlatInVr = () => {
+    setVrRoomPending(false);
+    setRoomAt(null);
+    setRoomReady(false);
+    moveInVr(vrStage === 'room' ? 'above' : vrStage);
   };
   const onRoomFailed = () => {
     if (!inVr) {
       leaveRoom();
       return;
     }
-    setVrRoomPending(false);
-    setRoomAt(null);
-    setRoomReady(false);
-    if (vrStage === 'room') moveInVr('above');
+    abandonFlatInVr();
   };
+  // a flat that has not loaded in twelve seconds is not coming: out, rather than a pill that goes by itself
+  useEffect(() => {
+    if (!inVr || !vrRoomPending) return;
+    const id = window.setTimeout(() => {
+      console.info('The flat took too long to load; going back.');
+      abandonFlatInVr();
+    }, 12_000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per wait, not on every render
+  }, [inVr, vrRoomPending]);
   /** The beam's building, in a headset: chosen as a search would choose it, but kept on the sunlight page. */
-  const pickBuildingInVr = (buildingId: string) => {
+  const pickBuildingInVr = (buildingId: string) => outOfFlatFirst(() => chooseBuildingInVr(buildingId));
+  const chooseBuildingInVr = (buildingId: string) => {
     const building = model ? buildingEntry(model, buildingId) : null;
     setVrChoosingBuilding(false);
     if (!building) return;
+    // another building while the flat was still loading: that way in is off
+    if (vrRoomPending && roomAt?.buildingId !== building.buildingId) {
+      setVrRoomPending(false);
+      setRoomAt(null);
+      setRoomReady(false);
+    }
     setSelectedKey(null);
     setSelectedBuildingId(building.buildingId);
     setLookAt({ east: building.anchorEN[0], north: building.anchorEN[1], heightM: building.heightM });
@@ -1099,9 +1156,14 @@ export default function App() {
   useEffect(() => {
     if (roomFit && 'refused' in roomFit) {
       console.info('The flat does not fit there:', roomFit.refused);
-      setRoomAt(null);
-      setDark(false);
+      // in a headset, by the same way out as a failed load, so nothing is left waiting or standing in it
+      if (inVr) abandonFlatInVr();
+      else {
+        setRoomAt(null);
+        setDark(false);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- on the answer changing, not on every render
   }, [roomFit]);
 
   /** The sky from the window today: the expensive step, independent of the date. */
@@ -1708,8 +1770,8 @@ export default function App() {
           .map(({ street: _street, ...option }) => option),
         onChoose: (key) => {
           const development = model.developments.find((d) => d.devKey === key);
-          // Over the new place, looking at it.
-          if (development) chooseInVr(development, true);
+          // Over the new place, looking at it — out of the flat first, if the reader is in it.
+          if (development) outOfFlatFirst(() => chooseInVr(development, true));
         },
         // ── the map, search and Place (VrPanel): choose without going; go only on "Stand" ──
         selected: foundBuilding
@@ -1738,8 +1800,10 @@ export default function App() {
           }
           const development = model.developments.find((d) => d.devKey === key);
           if (development) {
-            setSelectedBuildingId(null);
-            chooseInVr(development, false);
+            outOfFlatFirst(() => {
+              setSelectedBuildingId(null);
+              chooseInVr(development, false);
+            });
           }
         },
         onStandAt: (en) => {
