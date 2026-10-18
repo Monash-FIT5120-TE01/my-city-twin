@@ -2043,6 +2043,8 @@ export default function App() {
             ) : (
               <>
                 <KeyHint keys={['W', 'A', 'S', 'D']} label="Walk" />
+                <WheelHint label="Speed" />
+                <KeyHint keys={['Shift']} label="Hurry" />
                 <KeyHint keys={['[', ']']} label="−/+ 10 min" />
                 <KeyHint keys={['Esc']} label="Leave the flat" />
               </>
@@ -2056,6 +2058,7 @@ export default function App() {
               <HintChip icon={<Icon name="stairs" size={14} />}>
                 Floor <strong>{roomAt.floor}</strong> · {roomAt.side} side
               </HintChip>
+              {!byTouch && <WalkPaceHint />}
             </>
           }
         >

@@ -15,6 +15,8 @@ const HURRY_MAX_MS = 20;
 
 class WalkPace {
   private index = START;
+  /** The fastest step the wheel may reach on this walk (the flat holds it lower than the street). */
+  private top = PACES_MS.length - 1;
   private listeners = new Set<() => void>();
   readonly subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   readonly getPace = () => PACES_MS[this.index];
@@ -24,9 +26,15 @@ class WalkPace {
   hurry(): number { return Math.min(HURRY_MAX_MS, PACES_MS[this.index] * HURRY); }
 
   /** One step faster (+1) or slower (−1), held at either end. */
-  step(by: 1 | -1): void { this.set(Math.max(0, Math.min(PACES_MS.length - 1, this.index + by))); }
-  /** Back to a person's pace, on the way into the street. */
-  reset(): void { this.set(START); }
+  step(by: 1 | -1): void { this.set(Math.max(0, Math.min(this.top, this.index + by))); }
+  /**
+   * Back to the starting pace, on the way in: a person's pace in the street, or a given one (m/s, one of
+   * the paces) with a ceiling for the wheel, as in the flat.
+   */
+  reset(startMs = 1.4, maxMs = PACES_MS[PACES_MS.length - 1]): void {
+    this.top = Math.max(0, PACES_MS.indexOf(maxMs));
+    this.set(Math.max(0, PACES_MS.indexOf(startMs)));
+  }
 
   private set(index: number): void {
     if (index === this.index) return;

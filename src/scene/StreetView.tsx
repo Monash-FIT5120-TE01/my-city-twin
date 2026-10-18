@@ -146,8 +146,14 @@ interface StreetViewProps {
   startFacingEN?: [number, number];
 }
 
-/** The fastest pace inside the flat, m/s: a brisk walk, whatever the wheel says. */
-const ROOM_MAX_MS = 1.4;
+/*
+ * Inside the flat: a walk starts a little brisker than in the street (at 1.4 m/s crossing the room felt
+ * slow) and the wheel goes up to 3 m/s; Shift hurries to at most 4.5 m/s. Any faster and the walls come
+ * at you before you can turn.
+ */
+const ROOM_START_MS = 2.0;
+const ROOM_MAX_MS = 3.0;
+const ROOM_HURRY_MS = 4.5;
 
 export function StreetView({
   startEN,
@@ -294,7 +300,8 @@ export function StreetView({
    */
   useEffect(() => {
     if (touch) return;
-    walkPace.reset();
+    if (inRoom) walkPace.reset(ROOM_START_MS, ROOM_MAX_MS);
+    else walkPace.reset();
     let banked = 0;
     const wheel = (event: WheelEvent) => {
       // a line or a page of scrolling, as some mice report it, counts as a notch
@@ -306,7 +313,7 @@ export function StreetView({
     };
     window.addEventListener('wheel', wheel, { passive: true });
     return () => window.removeEventListener('wheel', wheel);
-  }, [touch]);
+  }, [touch, inRoom]);
 
   /*
    * Looking round by touch: a drag on the city turns the view (left and right, and up and down within
@@ -435,7 +442,7 @@ export function StreetView({
     const chosen = keyAhead || keyAcross
       ? keys.has('ShiftLeft') || keys.has('ShiftRight') ? walkPace.hurry() : walkPace.walk()
       : TOUCH_WALK_MS;
-    const pace = inRoom ? Math.min(chosen, ROOM_MAX_MS) : chosen;
+    const pace = inRoom ? Math.min(chosen, ROOM_HURRY_MS) : chosen;
     const speed = pace * delta * push;
     // Normalised, so pressing two keys (or pushing the stick corner-wise) does not walk faster diagonally.
     const scale = 1 / Math.hypot(ahead, across);
