@@ -42,6 +42,7 @@ export function LowShadowCache({ shadowKey }: { shadowKey: string }) {
   const drawn = useRef<{ key: string | null; at: number }>({ key: null, at: 0 });
 
   useEffect(() => {
+    // oxlint-disable-next-line react/immutability -- the renderer is three's object, owned by the canvas, not React state
     gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
     return () => {
@@ -52,6 +53,7 @@ export function LowShadowCache({ shadowKey }: { shadowKey: string }) {
   useFrame(() => {
     const now = performance.now();
     if (shadowKey === drawn.current.key || now - drawn.current.at < THROTTLE_MS) return;
+    // oxlint-disable-next-line react/immutability -- the renderer is three's object, owned by the canvas, not React state
     gl.shadowMap.needsUpdate = true;
     drawn.current = { key: shadowKey, at: now };
   });
