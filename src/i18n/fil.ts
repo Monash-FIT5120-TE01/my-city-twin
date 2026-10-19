@@ -226,7 +226,7 @@ const words: Messages = {
   "kit.analysisNav": "Ano ang aalamin para sa gusaling ito",
   "kit.sunlight": "Sikat ng araw",
   "kit.solarPanels": "Solar panel",
-  "kit.improveMap": "Pagandahin ang mapang ito",
+  "kit.improveMap": "Pagandahin ang mapa",
 
   "sources.link": "Mga source at limitasyon",
   "sources.aboutData": "Tungkol sa data",
