@@ -217,7 +217,7 @@ export function SolarSheet({ title, locality, meta, check, compare, withPlans, p
           </div>
           <dl className="solar-tiles">
             <div><dt>Whole roof</dt><dd>{m2(check.roofM2)} <span>m²</span></dd></div>
-            <div><dt>Big enough</dt><dd>{m2(check.candidateM2)} <span>m²</span></dd></div>
+            <div><dt>Space for panels</dt><dd>{m2(check.candidateM2)} <span>m²</span></dd></div>
           </dl>
           {check.done && (
             <dl className="solar-levels" aria-label="How much of a year's light the roof keeps">
