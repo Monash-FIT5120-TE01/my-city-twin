@@ -57,7 +57,7 @@
  *   exists to explain.
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EdgesGeometry, type BufferGeometry } from 'three';
 import type { Development } from '../data/model';
 import { mergeMassings } from './massing';
@@ -68,6 +68,10 @@ import { addStripes, stripesCacheKey } from './stripes';
 import { useDisplay } from '../settings/display';
 import { useInVr } from './xrStore';
 import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
+import { detectDevice } from './streetscape/lod';
+
+/** Whether a project under the pointer is drawn brighter: on a desktop only (user decision, 2026-10-20). */
+const HOVERS = detectDevice() === 'desktop';
 
 interface DevelopmentMassingsProps {
   developments: Development[];
@@ -146,6 +150,8 @@ export function DevelopmentMassings({
   /** Whether the latest click was a clean one, for the double click after it. */
   const lastClickClean = useRef(false);
   const inVr = useInVr();
+  /** The project under the mouse pointer, drawn brighter. */
+  const [hoveredDev, setHoveredDev] = useState<string | null>(null);
 
   // A pointer cursor left behind when this unmounts under the pointer.
   useEffect(() => {
@@ -167,6 +173,7 @@ export function DevelopmentMassings({
          * gone and nothing responds. See COLOUR SAYS WHAT CAN BE DONE above.
          */
         const invites = !focused && interactive;
+        const hovered = hoveredDev === development.devId;
         const tone = toneOf(development.status, colourSafe);
         const striped = colourSafe && development.status === 'UNDER CONSTRUCTION';
         const outline = outlines?.get(development);
@@ -220,10 +227,18 @@ export function DevelopmentMassings({
                 ? (event) => {
                     event.stopPropagation();
                     document.body.style.cursor = 'pointer';
+                    if (HOVERS) setHoveredDev(development.devId);
                   }
                 : undefined
             }
-            onPointerOut={interactive ? () => { document.body.style.cursor = ''; } : undefined}
+            onPointerOut={
+              interactive
+                ? () => {
+                    document.body.style.cursor = '';
+                    setHoveredDev((now) => (now === development.devId ? null : now));
+                  }
+                : undefined
+            }
           >
             {/*
               The focused proposal carries the lightest shade; the rest are stated
@@ -239,7 +254,8 @@ export function DevelopmentMassings({
               roughness={focused ? 0.4 : 0.55}
               metalness={0}
               emissive={tone.glow}
-              emissiveIntensity={focused ? 0.3 : invites ? tone.glowStrength : 0.05}
+              // lit up under the mouse pointer, as a building standing today is (CityMassing)
+              emissiveIntensity={focused ? 0.3 : invites ? tone.glowStrength + (hovered ? 0.45 : 0) : 0.05}
               transparent
               opacity={focused ? 0.95 : invites ? 0.9 : 0.78}
             />

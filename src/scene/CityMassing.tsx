@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Mesh as MeshClass, type Group, type Mesh, type Plane } from 'three';
 import type { ThreeEvent } from '@react-three/fiber';
 import type { CityModel, Development } from '../data/model';
-import { mergeMassingsOwned, ownerAt } from './massing';
+import { mergeMassings, mergeMassingsOwned, ownerAt } from './massing';
 import { ownedRaycast } from './ownedRaycast';
 import { terrainOf } from './terrain';
 import { RoofCheck } from './RoofCheck';
@@ -26,7 +26,8 @@ import { HighlightedBuilding } from './HighlightedBuilding';
 import { ApartmentRoom } from './room/ApartmentRoom';
 import type { RoomPlacement } from './room/roomPlacement';
 import { BuildingPicker } from './BuildingPicker';
-import { EXISTING, EXISTING_SAFE, UNRESOLVED, UNRESOLVED_SAFE } from './palette';
+import { EXISTING, EXISTING_SAFE, HOVER_LIT, UNRESOLVED, UNRESOLVED_SAFE } from './palette';
+import { SelectionEdges } from './SelectionEdges';
 import { useDisplay } from '../settings/display';
 
 interface CityMassingProps {
@@ -125,8 +126,21 @@ export function CityMassing({
   const roofCheck = useMemo(() => roofCheckOn(), []);
   // the colour-blind friendly set of colours, if the reader has asked for it (settings/display.ts)
   const { colourSafe } = useDisplay();
+
   // the ground at its real heights (terrain.ts): the surface, and the foot of every building
   const terrain = useMemo(() => terrainOf(model), [model]);
+  /*
+   * The building under the mouse pointer (BuildingPicker), drawn lit over the welded city, so the one a
+   * double click would open is seen first (user request, 2026-10-20). Its parts only, made when the
+   * pointer moves onto another building.
+   */
+  const [hovered, setHovered] = useState<string | null>(null);
+  const hoverParts = useMemo(
+    () => (!hovered || hovered === highlightedBuildingId ? null : model.buildings.filter((part) => part.parentId === hovered)),
+    [hovered, highlightedBuildingId, model.buildings],
+  );
+  const hoverGeometry = useMemo(() => (hoverParts ? mergeMassings(hoverParts, terrain) : null), [hoverParts, terrain]);
+  useEffect(() => () => hoverGeometry?.dispose(), [hoverGeometry]);
 
   /*
     * Keyed on the numbers, not on the object. The model is rebuilt when the
@@ -336,6 +350,24 @@ export function CityMassing({
       {roofCheck && <RoofCheck buildings={roofBuildings} developments={roofDevelopments} />}
       {solar && <SolarOnRoof view={solar} />}
 
+      {hoverGeometry && (
+        <mesh geometry={hoverGeometry} renderOrder={1}>
+          {/* drawn over the same faces of the welded city: pulled forward a little, so it wins */}
+          <meshStandardMaterial
+            color={HOVER_LIT}
+            emissive={HOVER_LIT}
+            emissiveIntensity={0.55}
+            roughness={0.7}
+            metalness={0}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
+        </mesh>
+      )}
+      {/* and outlined as the chosen building is: by day the city is pale already, and lit alone it hardly shows */}
+      {hoverGeometry && hoverParts && <SelectionEdges parts={hoverParts} floorAhdM={terrain} />}
+
       {built && (
         <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry} onClick={pickOn(built)}>
           <meshStandardMaterial color={colourSafe ? EXISTING_SAFE : EXISTING} roughness={0.82} metalness={0} />
@@ -398,6 +430,7 @@ export function CityMassing({
         ]}
         blockers={projectsGroup}
         highlighted={{ object: highlightGroup, id: highlightedBuildingId }}
+        onHover={setHovered}
         onSelect={interactive && !walking && !room ? onSelectBuilding : undefined}
       />
     </group>
