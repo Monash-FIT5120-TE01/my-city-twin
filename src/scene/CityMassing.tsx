@@ -26,8 +26,7 @@ import { HighlightedBuilding } from './HighlightedBuilding';
 import { ApartmentRoom } from './room/ApartmentRoom';
 import type { RoomPlacement } from './room/roomPlacement';
 import { BuildingPicker } from './BuildingPicker';
-import { EXISTING, EXISTING_SAFE, HOVER_LIT, UNRESOLVED, UNRESOLVED_SAFE } from './palette';
-import { SelectionEdges } from './SelectionEdges';
+import { EXISTING, EXISTING_SAFE, HOVER_GLOW, HOVER_LIT, UNRESOLVED, UNRESOLVED_SAFE } from './palette';
 import { useDisplay } from '../settings/display';
 
 interface CityMassingProps {
@@ -356,7 +355,7 @@ export function CityMassing({
           <meshStandardMaterial
             color={HOVER_LIT}
             emissive={HOVER_LIT}
-            emissiveIntensity={0.55}
+            emissiveIntensity={HOVER_GLOW}
             roughness={0.7}
             metalness={0}
             polygonOffset
@@ -365,8 +364,6 @@ export function CityMassing({
           />
         </mesh>
       )}
-      {/* and outlined as the chosen building is: by day the city is pale already, and lit alone it hardly shows */}
-      {hoverGeometry && hoverParts && <SelectionEdges parts={hoverParts} floorAhdM={terrain} />}
 
       {built && (
         <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry} onClick={pickOn(built)}>
