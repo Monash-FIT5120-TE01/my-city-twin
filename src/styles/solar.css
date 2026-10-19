@@ -267,6 +267,8 @@
   margin-right: 8px;
   border-radius: 3px;
   vertical-align: -1px;
+  /* the same thin edge on every level: the golden yellow (L* 88) is otherwise close to the card (L* about 96) */
+  box-shadow: inset 0 0 0 1px rgba(21, 63, 51, 0.35);
 }
 
 /* the details */
