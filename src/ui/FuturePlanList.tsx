@@ -32,6 +32,9 @@ import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from '
 import type { FuturePlan } from '../data/useFuturePlans';
 import { CloseButton } from './kit/CloseButton';
 import { Icon, type IconName } from './kit/Icon';
+import { richText } from './KeyHints';
+import { formatNumber, t, useLocale } from '../i18n/i18n';
+import type { MessageKey } from '../i18n/en';
 
 /** The position in a list, for the CSS stagger. */
 export const nth = (i: number) => ({ '--i': i }) as CSSProperties;
@@ -54,10 +57,10 @@ export interface PlanFilters {
 
 export const NO_FILTERS: PlanFilters = { query: '', kind: 'all', theme: null };
 
-const KINDS: { kind: Kind; label: string; short: string }[] = [
-  { kind: 'all', label: 'All plans', short: 'All' },
-  { kind: 'projects', label: 'Projects', short: 'Projects' },
-  { kind: 'programmes', label: 'City-wide programmes', short: 'Programmes' },
+const KINDS: { kind: Kind; label: MessageKey; short: MessageKey }[] = [
+  { kind: 'all', label: 'future.kinds.all', short: 'future.kinds.allShort' },
+  { kind: 'projects', label: 'future.kinds.projects', short: 'future.kinds.projectsShort' },
+  { kind: 'programmes', label: 'future.kinds.programmes', short: 'future.kinds.programmesShort' },
 ];
 
 const ofKind = (plans: FuturePlan[], kind: Kind) =>
@@ -89,6 +92,8 @@ export function PlanFinder({
   filters: PlanFilters;
   onFilters: (next: PlanFilters) => void;
 }) {
+  // Drawn again in a new language; the theme chips are ordered by their names in it.
+  const locale = useLocale();
   const { query, kind, theme } = filters;
   const setQuery = (next: string) => onFilters({ ...filters, query: next });
   const setTheme = (next: Family | null) => onFilters({ ...filters, theme: next });
@@ -122,7 +127,7 @@ export function PlanFinder({
     // types; counted with the search, so a chip never promises plans that the
     // search then hides.
     return [...counts]
-      .sort((a, b) => b[1] - a[1] || FAMILY_NAMES[a[0]].localeCompare(FAMILY_NAMES[b[0]]))
+      .sort((a, b) => b[1] - a[1] || familyName(a[0]).localeCompare(familyName(b[0])))
       .map(
         ([family]) =>
           [
@@ -130,7 +135,7 @@ export function PlanFinder({
             ofThisKind.filter((p) => themeFamily(p.topic) === family && matches(p, words)).length,
           ] as const,
       );
-  }, [ofThisKind, words]);
+  }, [ofThisKind, words, locale]);
 
   const shown = ofThisKind.filter(
     (p) => (!theme || themeFamily(p.topic) === theme) && matches(p, words),
@@ -146,11 +151,11 @@ export function PlanFinder({
   const groups =
     kind === 'all'
       ? [
-          { key: 'projects', title: 'Projects', note: null, plans: shown.filter((p) => !isProgramme(p)) },
+          { key: 'projects', title: t('future.group.projects'), note: null, plans: shown.filter((p) => !isProgramme(p)) },
           {
             key: 'programmes',
-            title: 'City-wide programmes',
-            note: 'Ongoing work across many streets, and plans still being watched — not single projects.',
+            title: t('future.group.programmes'),
+            note: t('future.group.programmesNote'),
             plans: shown.filter(isProgramme),
           },
         ].filter((g) => g.plans.length > 0)
@@ -160,15 +165,15 @@ export function PlanFinder({
     <>
       <div className="future__hero">
         <div className="future__hero-words">
-          <p className="future__eyebrow">Melbourne CBD · Future plans</p>
+          <p className="future__eyebrow">{t('future.eyebrow')}</p>
           <h1 className="page-title" id="future-page-title" ref={heading} tabIndex={-1}>
-            A changing city. Your everyday questions.
+            {t('future.title')}
           </h1>
-          <p className="page-lede">Choose a plan. Ask what it could mean for your day.</p>
+          <p className="page-lede">{t('future.lede')}</p>
         </div>
         <div className="future__search">
           <label className="future__search-label" htmlFor="future-plan-search">
-            Search plans
+            {t('future.search.label')}
           </label>
           <div className="future__find">
             <SearchMark />
@@ -177,30 +182,30 @@ export function PlanFinder({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search plan name or theme"
+              placeholder={t('future.search.placeholder')}
               aria-describedby="future-search-help"
               autoComplete="off"
             />
-            {query && <CloseButton label="Clear the search" onClick={() => setQuery('')} />}
+            {query && <CloseButton label={t('future.search.clear')} onClick={() => setQuery('')} />}
           </div>
           <p id="future-search-help" className="future__search-help">
-            Matches plan names and themes.
+            {t('future.search.help')}
           </p>
         </div>
       </div>
 
       <section className="future__browse" aria-labelledby="future-list-title">
         <div className="future__browse-head">
-          <p className="future__eyebrow">Explore a plan</p>
+          <p className="future__eyebrow">{t('future.browse.eyebrow')}</p>
           <h2 className="panel-title" id="future-list-title">
-            Which change are you curious about?
+            {t('future.browse.title')}
           </h2>
-          <p className="future__lead">Choose a plan, then pick a question to explore what’s changing.</p>
+          <p className="future__lead">{t('future.browse.lead')}</p>
         </div>
 
         {/* Stays at the top of the page while the cards scroll under it. */}
         <div className="future__bar">
-          <div className="future__kinds" role="group" aria-label="Kind of plan">
+          <div className="future__kinds" role="group" aria-label={t('future.kinds.label')}>
             {KINDS.map(({ kind: k, label, short }) => {
               const on = kind === k;
               return (
@@ -212,15 +217,15 @@ export function PlanFinder({
                   onClick={() => onFilters({ ...filters, kind: k, theme: null })}
                 >
                   {on && <Tick />}
-                  <span className="future__wide">{label}</span>
-                  <span className="future__narrow">{short}</span>
+                  <span className="future__wide">{t(label)}</span>
+                  <span className="future__narrow">{t(short)}</span>
                   <span className="future__n">{ofKind(plans, k).length}</span>
                 </button>
               );
             })}
           </div>
 
-          <ul className="future__themes" role="list" aria-label="Theme">
+          <ul className="future__themes" role="list" aria-label={t('future.themes.label')}>
             {themes.map(([name, count]) => {
               const on = theme === name;
               return (
@@ -232,7 +237,7 @@ export function PlanFinder({
                     onClick={() => setTheme(on ? null : name)}
                   >
                     {on ? <Tick /> : <FamilyMark family={name} />}
-                    {FAMILY_NAMES[name]}
+                    {familyName(name)}
                     <span className="future__n">{count}</span>
                   </button>
                 </li>
@@ -242,11 +247,14 @@ export function PlanFinder({
 
           <div className="future__result">
             <p aria-live="polite">
-              Showing <strong>{shown.length}</strong> of {plans.length} plans
+              {richText(t('future.result.showing'), {
+                shown: formatNumber(shown.length),
+                total: formatNumber(plans.length),
+              })}
             </p>
             {narrowed && (
               <button type="button" className="future__reset" onClick={clear}>
-                Clear filters
+                {t('future.result.clear')}
               </button>
             )}
           </div>
@@ -254,10 +262,10 @@ export function PlanFinder({
 
         {shown.length === 0 ? (
           <div className="future__none">
-            <p className="card-title">No plans match.</p>
-            <p>Try another word, or clear the filters to see every plan.</p>
+            <p className="card-title">{t('future.none.title')}</p>
+            <p>{t('future.none.body')}</p>
             <button type="button" className="future__reset" onClick={clear}>
-              Clear filters
+              {t('future.result.clear')}
             </button>
           </div>
         ) : (
@@ -302,6 +310,7 @@ function PlanCard({
   words: string[];
   onOpen: (id: number) => void;
 }) {
+  useLocale();
   return (
     <button
       type="button"
@@ -317,7 +326,7 @@ function PlanCard({
       </span>
       <span className="future__plan-name">{marked(plan.name, words)}</span>
       <span className="future__plan-go">
-        Open a conversation
+        {t('future.card.open')}
         <span className="future__plan-arrow" aria-hidden="true">
           <Icon name="arrow_forward" size={18} />
         </span>
@@ -365,18 +374,8 @@ type Family =
   | 'tech'
   | 'planning';
 
-/** The broad themes, by name, for the chips. */
-const FAMILY_NAMES: Record<Family, string> = {
-  streets: 'Streets & public space',
-  transport: 'Transport & stations',
-  parks: 'Parks & recreation',
-  water: 'Riverfront & waterfront',
-  trees: 'Trees & greening',
-  bridges: 'Bridges',
-  walking: 'Walking & cycling',
-  tech: 'City infrastructure',
-  planning: 'Planning',
-};
+/** The broad theme's name, for the chips, in the language chosen. */
+const familyName = (family: Family): string => t(`future.family.${family}`);
 
 /**
  * Which broad theme a topic belongs to, read from its words. The first that

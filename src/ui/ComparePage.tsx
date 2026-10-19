@@ -34,6 +34,8 @@ import { Card } from './kit/Card';
 import { DemoNote } from './kit/DemoNote';
 import { PageHead } from './kit/PageHead';
 import { TimeBar } from './screens';
+import { useT } from '../i18n/i18n';
+import { dayMonthYearLabel, seasonWord } from '../i18n/format';
 import '../styles/compare.css';
 
 /** Where a window sits on the screen, in CSS pixels from the app's corner. */
@@ -44,14 +46,9 @@ export interface FrameRect {
   height: number;
 }
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-/** "21 June 2026" — the whole date, for a control that stands on its own. */
-function longDate({ day, month, year }: SimulationDate): string {
-  return `${day} ${MONTHS[month - 1]} ${year}`;
+/** "21 June 2026" — the whole date, for a control that stands on its own, in the language chosen. */
+function longDate(date: SimulationDate): string {
+  return dayMonthYearLabel(date);
 }
 
 export function ComparePage({
@@ -92,6 +89,7 @@ export function ComparePage({
    */
   onFrames: (frames: { today: FrameRect; after: FrameRect }) => void;
 }) {
+  const t = useT();
   const root = useRef<HTMLElement>(null);
   const today = useRef<HTMLDivElement>(null);
   const after = useRef<HTMLDivElement>(null);
@@ -155,14 +153,14 @@ export function ComparePage({
         */}
         <PageHead
           id="compare-title"
-          title="Compare sunlight"
+          title={t('compare.title')}
           lede={`${title} · ${kindLabel}`}
-          back={{ label: 'Back to sunlight', onClick: onBack }}
+          back={{ label: t('compare.back'), onClick: onBack }}
         />
         <div className="compare__aside">
           <p className="compare__together">
             <Icon name="link" size={18} />
-            Views move together
+            {t('compare.together')}
           </p>
           <MapKey />
         </div>
@@ -170,18 +168,18 @@ export function ComparePage({
 
       <div className="compare__views">
         <Card as="figure" className="compare__view">
-          <h2 className="card-title compare__view-title">What is here today</h2>
+          <h2 className="card-title compare__view-title">{t('compare.today.title')}</h2>
           {/* Empty: App lays the "today" canvas over this box. */}
           <div className="compare__frame" ref={today} />
           <figcaption className="compare__caption">
-            The city as it stands. Approved and in-progress projects are not shown.
+            {t('compare.today.caption')}
           </figcaption>
         </Card>
         <Card as="figure" className="compare__view">
-          <h2 className="card-title compare__view-title">Planned projects at full height</h2>
+          <h2 className="card-title compare__view-title">{t('compare.after.title')}</h2>
           <div className="compare__frame" ref={after} />
           <figcaption className="compare__caption">
-            Approved and in-progress projects at their planned height.
+            {t('compare.after.caption')}
           </figcaption>
         </Card>
       </div>
@@ -194,7 +192,7 @@ export function ComparePage({
         */}
         <label className="compare__when">
           <Icon name="calendar_month" size={18} />
-          <span className="visually-hidden">Date</span>
+          <span className="visually-hidden">{t('compare.date')}</span>
           <select
             value={preset?.key ?? 'custom'}
             onChange={(event) => {
@@ -205,7 +203,7 @@ export function ComparePage({
             {!preset && <option value="custom">{longDate(date)}</option>}
             {SEASONS.map((season) => (
               <option key={season.key} value={season.key}>
-                {longDate(sameDayInMonth(date, season.month))}, {season.label}
+                {t('compare.dateWithSeason', { date: longDate(sameDayInMonth(date, season.month)), season: seasonWord(season.month) })}
               </option>
             ))}
           </select>
@@ -224,7 +222,7 @@ export function ComparePage({
         </div>
 
         <Button variant="mint" size="lg" className="compare__spot" onClick={onChooseSpot}>
-          Choose another spot
+          {t('compare.chooseSpot')}
         </Button>
       </Card>
 

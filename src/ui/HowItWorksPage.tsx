@@ -38,6 +38,7 @@ import { DemoNote } from './kit/DemoNote';
 import { MapKey } from './kit/MapKey';
 import { PageHead } from './kit/PageHead';
 import { Pill } from './kit/Pill';
+import { useT } from '../i18n/i18n';
 import '../styles/how.css';
 
 /** The map's credit, for the photographs of it. */
@@ -62,6 +63,7 @@ export function HowItWorksPage({
   /** Back to the sunlight screen; absent when no place has been chosen yet. */
   onBack?: () => void;
 }) {
+  const t = useT();
   return (
     <section className="page how" aria-labelledby="how-title">
       <div className="how__inner">
@@ -69,8 +71,8 @@ export function HowItWorksPage({
           {/* The heading takes the keyboard on arrival (PageHead). */}
           <PageHead
             id="how-title"
-            title="Your city, understood."
-            lede="Find a building. Follow the sun. Compare what changes."
+            title={t('how.title')}
+            lede={t('how.lede')}
           />
           <div className="how__film">
             <SkylineFilm reducedMotion={reducedMotion} />
@@ -80,7 +82,7 @@ export function HowItWorksPage({
         <ol className="how__steps">
           <Card as="li" className="how__step">
             <figure className="how__picture">
-              <img src={bundled('how/find.jpg')} alt="A building in the city model, outlined after a search." />
+              <img src={bundled('how/find.jpg')} alt={t('how.find.alt')} />
               <Pill size="xs" className="how__chip">
                 <SearchIcon />
                 25-45 Collins Street
@@ -88,8 +90,8 @@ export function HowItWorksPage({
             </figure>
             <div className="how__words">
               <span className="how__number" aria-hidden="true">01</span>
-              <h2 className="card-title how__step-title">Find any building</h2>
-              <p>Search an address to open its page. Or explore the map and double-click any building.</p>
+              <h2 className="card-title how__step-title">{t('how.find.title')}</h2>
+              <p>{t('how.find.text')}</p>
             </div>
           </Card>
 
@@ -97,15 +99,15 @@ export function HowItWorksPage({
             <figure className="how__picture">
               <img
                 src={bundled('how/sun.jpg')}
-                alt="A tower's shadow on the street, with a spot ringed on the ground beside it."
+                alt={t('how.sun.alt')}
               />
             </figure>
             <div className="how__words">
               <span className="how__number" aria-hidden="true">02</span>
-              <h2 className="card-title how__step-title">Follow the sun</h2>
-              <p>Set a date and time, then choose a spot on the ground.</p>
+              <h2 className="card-title how__step-title">{t('how.sun.title')}</h2>
+              <p>{t('how.sun.text')}</p>
               {/* What the app is set to now — not a control here, a picture of one. */}
-              <p className="how__when" aria-label={`Set to ${dateText}, ${timeText}, ${season}`}>
+              <p className="how__when" aria-label={t('how.sun.setTo', { date: dateText, time: timeText, season })}>
                 <span>{dateText}</span>
                 <span>{timeText}</span>
                 <span>{season}</span>
@@ -116,45 +118,42 @@ export function HowItWorksPage({
           <Card as="li" className="how__step">
             <div className="how__pair">
               <figure className="how__picture">
-                <img src={bundled('how/today.jpg')} alt="The neighbourhood as it stands today." />
+                <img src={bundled('how/today.jpg')} alt={t('how.compare.todayAlt')} />
                 <Pill as="figcaption" size="xs" className="how__chip">
-                  Today
+                  {t('how.compare.today')}
                 </Pill>
               </figure>
               <figure className="how__picture">
                 <img
                   src={bundled('how/after.jpg')}
-                  alt="The same view with the approved projects built."
+                  alt={t('how.compare.afterAlt')}
                 />
                 <Pill as="figcaption" size="xs" className="how__chip">
-                  After planned projects are built
+                  {t('how.compare.after')}
                 </Pill>
               </figure>
             </div>
             <div className="how__words">
               <span className="how__number" aria-hidden="true">03</span>
-              <h2 className="card-title how__step-title">Compare the change</h2>
-              <p>
-                Choose Compare side by side. See today beside the future neighbourhood, with linked
-                views.
-              </p>
+              <h2 className="card-title how__step-title">{t('how.compare.title')}</h2>
+              <p>{t('how.compare.text')}</p>
             </div>
           </Card>
         </ol>
 
-        <p className="how__credit">Map pictures {MAP_CREDIT}</p>
+        <p className="how__credit">{t('how.mapPictures', { credit: MAP_CREDIT })}</p>
 
         <Card className="how__legend">
-          <MapKey full title="Read the map legend" note="Double-click any building to open it." />
+          <MapKey full title={t('how.legendTitle')} note={t('how.legendNote')} />
         </Card>
 
         <div className="how__actions">
           <Button size="lg" arrow onClick={onExplore}>
-            Explore the city
+            {t('how.explore')}
           </Button>
           {onBack && (
             <Button variant="secondary" size="lg" onClick={onBack}>
-              Back to sunlight
+              {t('how.back')}
             </Button>
           )}
         </div>

@@ -33,17 +33,11 @@ import {
 } from '../data/streetActivity';
 import type { SimulationDate } from '../scene/solar';
 import { RAMP_GRADIENT } from '../scene/activityPalette';
-import { countLabel, dateKey, dateLabelOf, hourLabel, whenLabel } from './activityFormat';
+import { countLabel, dateKey, dateLabelOf, dayChipLabel, hourLabel, whenLabel } from './activityFormat';
+import { useT } from '../i18n/i18n';
 
 /** How wide a stretch with no data must be for "No data" to be written on it, pixels. */
 const NO_DATA_LABEL_PX = 56;
-
-/** "Fri 16": a day's button, short enough for a row of eight or nine. */
-function dayChip({ year, month, day }: SimulationDate): string {
-  return new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', weekday: 'short', day: 'numeric' })
-    .format(new Date(Date.UTC(year, month - 1, day, 12)))
-    .replace(',', '');
-}
 
 const sameDay = (a: SimulationDate, b: SimulationDate) => a.year === b.year && a.month === b.month && a.day === b.day;
 
@@ -66,6 +60,7 @@ export function ActivityTimeBar({
   playing: boolean;
   onPlay: () => void;
 }) {
+  const t = useT();
   const dates = datesCovered(activity);
   const date = melbourneClock(at).date;
   const slots = slotsOn(activity, date);
@@ -146,14 +141,14 @@ export function ActivityTimeBar({
     <div className="timebar activity-timebar">
       <div className="timebar__dock activity-timebar__dock">
         <div className="activity-timebar__left">
-          <div className="activity-switch activity-switch--dark" role="group" aria-label="Recorded or forecast">
+          <div className="activity-switch activity-switch--dark" role="group" aria-label={t('activity.timebar.mode')}>
             <button
               type="button"
               aria-pressed={mode === 'recorded'}
               disabled={latest === null}
               onClick={() => latest !== null && onChange(latest)}
             >
-              Recorded
+              {t('activity.mode.recorded')}
             </button>
             <button
               type="button"
@@ -161,14 +156,14 @@ export function ActivityTimeBar({
               disabled={firstForecast === null}
               onClick={() => firstForecast !== null && onChange(firstForecast)}
             >
-              Forecast
+              {t('activity.mode.forecast')}
             </button>
           </div>
           <p className="activity-timebar__now">
             <strong>{clock}</strong>
             <span>
-              {mode ? (mode === 'recorded' ? 'Recorded' : 'Forecast') : 'No data'}
-              <span className="activity-timebar__zone"> · Melbourne time</span>
+              {mode ? (mode === 'recorded' ? t('activity.mode.recorded') : t('activity.mode.forecast')) : t('activity.timebar.noData')}
+              <span className="activity-timebar__zone"> · {t('activity.timebar.melbourneTime')}</span>
             </span>
           </p>
         </div>
@@ -179,7 +174,7 @@ export function ActivityTimeBar({
             className="timebar__play"
             onClick={onPlay}
             aria-pressed={playing}
-            aria-label={playing ? 'Pause hourly changes' : 'Play hourly changes'}
+            aria-label={playing ? t('activity.timebar.pause') : t('activity.timebar.play')}
           >
             <Icon name={playing ? 'pause' : 'play_arrow'} size={20} />
           </button>
@@ -189,7 +184,7 @@ export function ActivityTimeBar({
             disabled={latest === null || at === latest}
             onClick={() => latest !== null && onChange(latest)}
           >
-            Latest
+            {t('activity.timebar.latest')}
           </button>
         </div>
 
@@ -198,13 +193,13 @@ export function ActivityTimeBar({
           week of forecast — with a step either way. The hour stays the same
           across days (toDate).
         */}
-        <div className="activity-days" role="group" aria-label="Day">
+        <div className="activity-days" role="group" aria-label={t('activity.timebar.days')}>
           <button
             type="button"
             className="activity-days__step"
             onClick={() => toDate(dates[dayIndex - 1])}
             disabled={dayIndex <= 0}
-            aria-label="Previous day"
+            aria-label={t('activity.timebar.previousDay')}
           >
             <Icon name="chevron_left" size={18} />
           </button>
@@ -218,10 +213,10 @@ export function ActivityTimeBar({
                   type="button"
                   className="activity-days__day"
                   aria-pressed={chosen}
-                  aria-label={`${isToday ? 'Today, ' : ''}${dateLabelOf(d)}`}
+                  aria-label={isToday ? t('activity.timebar.todayLabel', { date: dateLabelOf(d) }) : dateLabelOf(d)}
                   onClick={() => toDate(d)}
                 >
-                  {isToday ? 'Today' : dayChip(d)}
+                  {isToday ? t('activity.timebar.today') : dayChipLabel(d)}
                 </button>
               );
             })}
@@ -231,7 +226,7 @@ export function ActivityTimeBar({
             className="activity-days__step"
             onClick={() => toDate(dates[dayIndex + 1])}
             disabled={dayIndex < 0 || dayIndex >= dates.length - 1}
-            aria-label="Next day"
+            aria-label={t('activity.timebar.nextDay')}
           >
             <Icon name="chevron_right" size={18} />
           </button>
@@ -254,7 +249,7 @@ export function ActivityTimeBar({
                     className={`activity-rail__run activity-rail__run--${r.kind}${narrow ? ' activity-rail__run--narrow' : ''}`}
                     style={{ left: `${r.from}%`, width: `${r.to - r.from}%` }}
                   >
-                    {wide && <span className="activity-rail__nodata">No data</span>}
+                    {wide && <span className="activity-rail__nodata">{t('activity.timebar.noData')}</span>}
                   </span>
                 );
               })}
@@ -270,8 +265,13 @@ export function ActivityTimeBar({
                 const slot = slots[Number(e.target.value)];
                 if (slot) onChange(slot.at);
               }}
-              aria-label="Hour"
-              aria-valuetext={`${whenLabel(at)}, ${mode ? (mode === 'recorded' ? 'recorded' : 'forecast') : 'no data'}`}
+              aria-label={t('activity.timebar.hour')}
+              aria-valuetext={t(
+                mode === 'recorded' ? 'activity.timebar.hourRecorded'
+                : mode === 'forecast' ? 'activity.timebar.hourForecast'
+                : 'activity.timebar.hourNone',
+                { when: whenLabel(at) },
+              )}
             />
           </div>
           <p className="timebar__scale" aria-hidden="true">
@@ -291,22 +291,22 @@ export function ActivityTimeBar({
 
         {/* The map's ramp, on the scale it is drawn to: no one, to the most in any hour anywhere. */}
         <div className="activity-key" role="group" aria-labelledby="activity-key-title">
-          <span className="activity-key__title" id="activity-key-title">Foot traffic</span>
+          <span className="activity-key__title" id="activity-key-title">{t('activity.timebar.footTraffic')}</span>
           <span className="activity-key__ramp">
             <span className="activity-key__bar" style={{ background: RAMP_GRADIENT }} aria-hidden="true" />
             <span className="activity-key__scale">
-              0 → {countLabel(ceiling)} movements/h
-              <span className="visually-hidden">, from light teal to dark red</span>
+              {t('activity.timebar.scale', { max: countLabel(ceiling) })}
+              <span className="visually-hidden">{t('activity.timebar.scaleColours')}</span>
             </span>
           </span>
           <span className="activity-key__item activity-key__item--muted">
             <span className="activity-key__line" aria-hidden="true" />
-            Recorded
+            {t('activity.mode.recorded')}
             <span className="activity-key__line activity-key__line--forecast" aria-hidden="true" />
-            Forecast
+            {t('activity.mode.forecast')}
             {/* The rail's thin dotted stretch: hours the API has neither a count nor a forecast for. */}
             <span className="activity-key__line activity-key__line--none" aria-hidden="true" />
-            No data
+            {t('activity.timebar.noData')}
           </span>
         </div>
       </div>

@@ -96,7 +96,7 @@ import { WalkPaceHint } from './ui/WalkPaceHint';
 import { readRoomCheck } from './scene/room/roomCheck';
 import { fitRoomInModel, roomFitter } from './scene/room/roomPlacement';
 import { FlatPicker, type FlatFit } from './ui/LookOutFromFlat';
-import { flatProblemText } from './ui/flatProblemText';
+import { compassWord, flatProblemText } from './ui/flatProblemText';
 import './styles/room.css';
 import { TouchWalk } from './ui/TouchWalk';
 import { walksByTouch } from './scene/touchWalk';
@@ -117,11 +117,20 @@ import {
   type WindowProblem,
 } from './ui/screens';
 import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
-import { EARLIEST_MINUTES, LATEST_MINUTES, clock12Label, clockLabel, intoWindow, outsideWindowNote, presentMoment } from './data/now';
+import {
+  EARLIEST_MINUTES,
+  LATEST_MINUTES,
+  clock12Label,
+  clockLabel,
+  intoWindow,
+  outsideWindowNote,
+  presentMoment,
+  type PresentMoment,
+} from './data/now';
 import { useMapboxConfig } from './data/mapboxConfig';
 import { exitVr, useInVr, useVrSupported, xrStore } from './scene/xrStore';
 import type { VrMenu, VrStage } from './scene/vrMenu';
-import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './ui/words';
+import { NOT_AN_ASSESSMENT, inEnglish, spotFinePrint, spotWords, type Say } from './ui/words';
 import type { Development, SearchableBuilding } from './data/model';
 import { searchCity, shortAddress, type SearchHit } from './data/search';
 import { useSolarComparison, type PlannedDevelopment, type SolarScene } from './scene/useSolarComparison';
@@ -137,7 +146,7 @@ import './styles/ui.css';
 import './styles/solar.css';
 import './styles/street-activity.css';
 import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
-import { GestureHint, HintChip, KeyHint, WalkHints, WheelHint } from './ui/KeyHints';
+import { GestureHint, HintChip, KeyHint, WalkHints, WheelHint, richText } from './ui/KeyHints';
 import { Icon } from './ui/kit/Icon';
 import { formatNumber, useT } from './i18n/i18n';
 import { dayMonthLabel, dayMonthYearLabel, seasonWord } from './i18n/format';
@@ -145,6 +154,17 @@ import { dayMonthLabel, dayMonthYearLabel, seasonWord } from './i18n/format';
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
 const MIDDAY_MINUTES = 12 * 60;
+
+/**
+ * A note about the hour on screen, kept as words to say rather than as words said: the page says it
+ * in the language chosen (and again when that changes), the headset in English, its font's only one.
+ */
+type NowNote = (say: Say) => string;
+
+/** The note for a present moment the time control cannot show as it is, or none. */
+function nowNoteFor(moment: PresentMoment): NowNote | null {
+  return moment.clamped ? (say) => outsideWindowNote(moment, say) ?? '' : null;
+}
 
 export default function App() {
   // the interface's words in the language chosen (i18n/); App is drawn again when it changes
@@ -154,7 +174,9 @@ export default function App() {
   const landmarks = useLandmarks(model);
 
   // Read once, on the first render: the address bar is the initial state.
-  const [initial] = useState(() => readUrlState());
+  // The one instant "now" was read at, so the note about it below describes the same moment.
+  const [startedAt] = useState(() => new Date());
+  const [initial] = useState(() => readUrlState(startedAt));
 
   const [view, setView] = useState<ViewName>(initial.view);
   const [selectedKey, setSelectedKey] = useState<string | null>(initial.devKey);
@@ -370,7 +392,9 @@ export default function App() {
    * control, because from then on the time on screen is theirs and the note
    * would be describing a state that no longer exists.
    */
-  const [nowNote, setNowNote] = useState(initial.nowNote);
+  const [nowNote, setNowNote] = useState<NowNote | null>(() =>
+    initial.nowNote === null ? null : nowNoteFor(presentMoment(startedAt)),
+  );
 
   /*
    * Only to decide whether the map credit belongs on screen. The scene loads
@@ -672,9 +696,8 @@ export default function App() {
          */
         if (sun.altitudeDeg < LOW_SUN_DEG) {
           setMinutes(MIDDAY_MINUTES);
-          setNowNote(
-            `The sun is down in Melbourne at ${clockLabel(minutes)}. Showing 12:00 - change the time below.`,
-          );
+          const downAt = clockLabel(minutes);
+          setNowNote(() => (say: Say) => say('app.now.sunDown', { time: downAt }));
         }
         setWalking(false);
         setFocusMode(false);
@@ -1572,7 +1595,11 @@ export default function App() {
   );
 
   /** The moment on screen, for the front page's fine print. */
-  const when = `${dayMonthYearLabel(date)}, ${clockLabel(minutes)} · ${seasonWord(date.month)}`;
+  const when = t('app.front.when', {
+    date: dayMonthYearLabel(date),
+    time: clockLabel(minutes),
+    season: seasonWord(date.month),
+  });
 
   /** What the front page is given in both branches below. */
   const frontProps = {
@@ -1834,7 +1861,8 @@ export default function App() {
         },
         dateLabel: dateLabel(date),
         timeLabel: clockLabel(minutes),
-        note: nowNote,
+        // In English: the headset's font has no other letters.
+        note: nowNote?.(inEnglish) ?? null,
         onNudgeMinutes: nudgeMinutes,
         onSetMinutes: (next) => chooseMinutes(intoWindow(Math.round(next / 10) * 10)),
         sunAltitudeDeg: sun.altitudeDeg,
@@ -1856,7 +1884,7 @@ export default function App() {
             onNow: () => {
               chooseDate(present.date);
               chooseMinutes(present.minutes);
-              setNowNote(outsideWindowNote(present));
+              setNowNote(() => nowNoteFor(present));
             },
           };
         })(),
@@ -1869,14 +1897,14 @@ export default function App() {
         onCancelMeasure: () => setChoosing(false),
         measured: measured
           ? {
-              ...spotWords(measured, noun),
+              ...spotWords(measured, noun, inEnglish),
               withoutMin: measured.withoutSubjectMin,
               withMin: measured.withSubjectMin,
               // New for every spot, so the headset asks "Stand here?" once per spot.
               spotKey: receptor ? `${receptor[0].toFixed(2)},${receptor[1].toFixed(2)}` : '',
             }
           : null,
-        finePrint: `${measured ? spotFinePrint(measured.stepMinutes) : ''}${NOT_AN_ASSESSMENT}`,
+        finePrint: `${measured ? spotFinePrint(measured.stepMinutes, inEnglish) : ''}${NOT_AN_ASSESSMENT}`,
         flat: {
           building: foundBuilding ? shortAddress(foundBuilding.streetAddress) : null,
           choosing: vrChoosingBuilding,
@@ -2279,26 +2307,26 @@ export default function App() {
 
       {/* ── IN THE FLAT: the keys, and that the plan is an example rather than this building's */}
       <div className={`room-fade${dark ? ' room-fade--dark' : ''}${reducedMotion ? ' room-fade--quick' : ''}`} aria-hidden={!dark}>
-        {dark && roomAt && !roomReady && !leaving && <p className="room-fade__note" role="status">Loading the flat</p>}
+        {dark && roomAt && !roomReady && !leaving && <p className="room-fade__note" role="status">{t('app.room.loading')}</p>}
       </div>
       {roomPlacement && byTouch && <TouchWalk onBackUp={leaveRoom} />}
       {roomPlacement && roomAt && (
         <WalkHints
-          title="Inside the flat"
+          title={t('app.room.title')}
           icon="apartment"
           actions={
             byTouch ? (
               <>
-                <GestureHint icon="navigation" gesture="Stick" label="Walk" />
-                <GestureHint icon="arrow_forward" gesture="Drag" label="Look round" />
+                <GestureHint icon="navigation" gesture={t('app.walk.stick')} label={t('app.walk.walk')} />
+                <GestureHint icon="arrow_forward" gesture={t('app.walk.drag')} label={t('app.walk.lookRound')} />
               </>
             ) : (
               <>
-                <KeyHint keys={['W', 'A', 'S', 'D']} label="Walk" />
-                <WheelHint label="Speed" />
-                <KeyHint keys={['Shift']} label="Hurry" />
-                <KeyHint keys={['[', ']']} label="−/+ 10 min" />
-                <KeyHint keys={['Esc']} label="Leave the flat" />
+                <KeyHint keys={['W', 'A', 'S', 'D']} label={t('app.walk.walk')} />
+                <WheelHint label={t('app.walk.speed')} />
+                <KeyHint keys={['Shift']} label={t('app.walk.hurry')} />
+                <KeyHint keys={['[', ']']} label={t('app.room.nudgeTime')} />
+                <KeyHint keys={['Esc']} label={t('app.room.leave')} />
               </>
             )
           }
@@ -2308,13 +2336,13 @@ export default function App() {
                 <strong>{clockLabel(minutes)}</strong>
               </HintChip>
               <HintChip icon={<Icon name="stairs" size={14} />}>
-                Floor <strong>{roomAt.floor}</strong> · {roomAt.side} side
+                {richText(t('app.room.floorSide'), { floor: formatNumber(roomAt.floor), side: compassWord(roomAt.side) })}
               </HintChip>
               {!byTouch && <WalkPaceHint />}
             </>
           }
         >
-          <p className="walk-hints__note">An example one-bedroom layout, not this building's real plan</p>
+          <p className="walk-hints__note">{t('app.room.exampleLayout')}</p>
         </WalkHints>
       )}
 
@@ -2325,21 +2353,21 @@ export default function App() {
       {walking && !byTouch && !inVr && <TramAim />}
       {walking && (
         <WalkHints
-          title="In the street"
+          title={t('app.street.title')}
           icon="directions_walk"
           actions={
             byTouch ? (
               <>
-                <GestureHint icon="navigation" gesture="Stick" label="Walk" />
-                <GestureHint icon="arrow_forward" gesture="Drag" label="Look round" />
+                <GestureHint icon="navigation" gesture={t('app.walk.stick')} label={t('app.walk.walk')} />
+                <GestureHint icon="arrow_forward" gesture={t('app.walk.drag')} label={t('app.walk.lookRound')} />
               </>
             ) : (
               <>
-                <KeyHint keys={['W', 'A', 'S', 'D']} label="Walk" />
-                <WheelHint label="Speed" />
-                <KeyHint keys={['Shift']} label="Hurry" />
-                <KeyHint keys={['Space']} label="Jump" />
-                <KeyHint keys={['Esc']} label="Come back up" />
+                <KeyHint keys={['W', 'A', 'S', 'D']} label={t('app.walk.walk')} />
+                <WheelHint label={t('app.walk.speed')} />
+                <KeyHint keys={['Shift']} label={t('app.walk.hurry')} />
+                <KeyHint keys={['Space']} label={t('app.street.jump')} />
+                <KeyHint keys={['Esc']} label={t('app.street.comeBackUp')} />
               </>
             )
           }
@@ -2368,7 +2396,7 @@ export default function App() {
           {vrSupported && (
             <>
               <button type="button" className="walking-hint__vr" onClick={enterVr}>
-                Enter VR
+                {t('header.enterVr')}
               </button>
               {/*
                 Said before the headset goes on. The panel inside shows what
@@ -2377,11 +2405,9 @@ export default function App() {
                 not after it.
               */}
               <span className="walk-hints__note">
-                Left stick walks, push it to the stop to run · right stick
-                turns · <strong>A</strong> and <strong>B</strong> move the
-                hour · hold either <strong>grip</strong> to come back.
+                {richText(t('app.street.vrControls'))}
                 <br />
-                Moving by stick makes some people feel unwell.
+                {t('app.street.vrComfort')}
               </span>
             </>
           )}
@@ -2393,8 +2419,7 @@ export default function App() {
              * describe the same place.
              */
             <p className="walk-hints__note">
-              Standing {Math.round(standMoved)} m from the measured spot — the nearest ground with no building
-              modelled on it
+              {t('app.street.standMoved', { metres: formatNumber(Math.round(standMoved)) })}
             </p>
           )}
         </WalkHints>
@@ -2486,7 +2511,7 @@ export default function App() {
       {/* Not under the layer panel, which opens in the same corner. */}
       {!chromeHidden && view === 'explore' && !layersOpen && (
         <Pill as="p" className="explore-hint" role="note" tabIndex={-1}>
-          Search an address, or double-click any building to select it.
+          {t('app.explore.hint')}
         </Pill>
       )}
 
@@ -2508,10 +2533,10 @@ export default function App() {
           title={place.label}
           kindLabel={
             place.kind === 'building'
-              ? 'Existing building'
+              ? t('app.kind.existing')
               : focus?.status === 'UNDER CONSTRUCTION'
-                ? 'Under construction'
-                : 'Approved development'
+                ? t('app.kind.underConstruction')
+                : t('app.kind.approved')
           }
           date={date}
           onDate={chooseDate}
@@ -2660,7 +2685,7 @@ export default function App() {
             }
             date={date}
             onDate={chooseDate}
-            nowNote={nowNote}
+            nowNote={nowNote?.(t) ?? null}
             dateLabel={dayMonthLabel(date)}
             measured={measured}
             onClearPoint={() => {
@@ -2768,7 +2793,7 @@ export default function App() {
           className="focus-toggle focus-toggle--exit"
           onClick={() => setFocusMode(false)}
         >
-          Exit focus mode <kbd>Esc</kbd>
+          {richText(t('app.focus.exit'), { key: <kbd>Esc</kbd> })}
         </button>
       ) : null}
     </div>

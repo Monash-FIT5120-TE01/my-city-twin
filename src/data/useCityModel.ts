@@ -51,6 +51,7 @@ import type {
   ApiDevelopmentPart,
   ApiFeatureCollection,
 } from './api-types';
+import { formatNumber, t } from '../i18n/i18n';
 
 export const API_BASE =
   import.meta.env.VITE_API_BASE ?? 'https://api.mycitytwin.com';
@@ -95,13 +96,14 @@ export interface CityModelState {
   refreshing: boolean;
 }
 
-const INITIAL: LoadProgress = {
+/* The labels are written in the language chosen when they are set: the loading screen is over in seconds. */
+const initial = (): LoadProgress => ({
   phase: 'downloading',
   percent: 0,
-  label: 'Contacting the city model',
+  label: t('model.contacting'),
   loadedBytes: 0,
   totalBytes: null,
-};
+});
 
 /**
  * Loads the city, snapshot first.
@@ -116,7 +118,7 @@ export function useCityModel(): CityModelState {
     model: null,
     report: null,
     error: null,
-    progress: INITIAL,
+    progress: initial(),
     refreshing: false,
   });
   const started = useRef(false);
@@ -136,7 +138,7 @@ export function useCityModel(): CityModelState {
 
     (async () => {
       try {
-        setProgress({ phase: 'downloading', label: 'Approved developments', percent: 1 });
+        setProgress({ phase: 'downloading', label: t('model.developments'), percent: 1 });
 
         const developments = await fetchJsonWithProgress<
           ApiFeatureCollection<ApiDevelopmentPart>
@@ -145,7 +147,7 @@ export function useCityModel(): CityModelState {
           setProgress({ percent: Math.round(share * WEIGHT.developments) });
         });
 
-        setProgress({ label: 'Melbourne CBD building footprints' });
+        setProgress({ label: t('model.buildings') });
 
         const buildings = await fetchJsonWithProgress<
           ApiFeatureCollection<ApiBuildingPart>
@@ -160,7 +162,7 @@ export function useCityModel(): CityModelState {
 
         setProgress({
           phase: 'modelling',
-          label: 'Placing 1,548 buildings',
+          label: t('model.placing', { count: formatNumber(1548) }),
           percent: WEIGHT.developments + WEIGHT.buildings,
         });
         // Let the bar paint before the main thread goes into the projection.
@@ -174,14 +176,14 @@ export function useCityModel(): CityModelState {
           report,
           error: null,
           refreshing: true,
-          progress: { ...s.progress, phase: 'ready', percent: 100, label: 'Ready' },
+          progress: { ...s.progress, phase: 'ready', percent: 100, label: t('model.ready') },
         }));
       } catch (err) {
         setState((s) => ({
           ...s,
-          error: `Could not load the city: ${err instanceof Error ? err.message : String(err)}`,
+          error: t('model.failedWithReason', { reason: err instanceof Error ? err.message : String(err) }),
           refreshing: true,
-          progress: { ...s.progress, phase: 'failed', label: 'Could not load the city' },
+          progress: { ...s.progress, phase: 'failed', label: t('model.failed') },
         }));
       }
 

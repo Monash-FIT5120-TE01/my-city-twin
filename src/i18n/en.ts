@@ -3,6 +3,12 @@
  * A key names where the words are used; {name} is filled in when they are said.
  */
 import { parts } from './sections/parts';
+import { pages } from './sections/pages';
+import { landing } from './sections/landing';
+import { solar } from './sections/solar';
+import { activity } from './sections/activity';
+import { future } from './sections/future';
+import { sentences } from './sections/sentences';
 import { sunlight } from './sections/sunlight';
 
 export const en = {
@@ -25,6 +31,12 @@ export const en = {
   "search.noneNoLandmarks": "Nothing matches that. {buildings} buildings and {projects} approved projects can be searched by address; some older buildings have no address on record.",
   ...sunlight,
   ...parts,
+  ...pages,
+  ...landing,
+  ...solar,
+  ...activity,
+  ...future,
+  ...sentences,
 } as const;
 
 export type MessageKey = keyof typeof en;

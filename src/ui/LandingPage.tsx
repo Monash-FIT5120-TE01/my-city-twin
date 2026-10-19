@@ -67,17 +67,14 @@ import { TextButton } from './kit/TextButton';
 import { SearchField } from './kit/SearchField';
 import { LandingMore } from './LandingMore';
 import '../styles/landing.css';
-import { useT } from '../i18n/i18n';
+import { formatNumber, useT } from '../i18n/i18n';
 
 /** The three steps along the bottom, in the order the app is used. */
 const STEPS = [
-  { title: 'Find a place', body: 'Search for an address or explore the map.' },
-  { title: 'Select any building', body: 'Double-click a building to open its page.' },
-  {
-    title: 'Compare sunlight',
-    body: 'See how planned developments could affect sunlight on your street.',
-  },
-];
+  { title: 'landing.steps.findTitle', body: 'landing.steps.findBody' },
+  { title: 'landing.steps.selectTitle', body: 'landing.steps.selectBody' },
+  { title: 'landing.steps.compareTitle', body: 'landing.steps.compareBody' },
+] as const;
 
 /**
  * How much of the city's window must stay clear of the header for the map
@@ -316,11 +313,11 @@ export function LandingPage({
           <SkylineFilm reducedMotion={reducedMotion} />
 
           <h1 className="landing__title" id="landing-title">
-            Your street. A new perspective.
+            {t('landing.hero.title')}
           </h1>
 
           <p className="landing__body">
-            Explore nearby developments. Follow the sunlight.
+            {t('landing.hero.body')}
           </p>
 
           {/*
@@ -353,7 +350,7 @@ export function LandingPage({
                   <span className="landing__chosen-label">{chosen.label}</span>
                   <small>{chosen.detail}</small>
                 </span>
-                <CloseButton label={`Clear ${chosen.label}`} onClick={onClearChosen} />
+                <CloseButton label={t('landing.hero.clearChosen', { place: chosen.label })} onClick={onClearChosen} />
               </div>
             )}
           </SearchField>
@@ -363,7 +360,7 @@ export function LandingPage({
             each searches for itself, and the results open under the field.
           */}
           <div className="landing__try">
-            <p className="landing__try-label">Try a street</p>
+            <p className="landing__try-label">{t('landing.hero.tryStreet')}</p>
             <div className="landing__try-streets">
               {TRY_STREETS.map((street) => (
                 <Pill
@@ -383,7 +380,7 @@ export function LandingPage({
           </div>
 
           <Button size="lg" block arrow className="landing__cta" onClick={sunlight}>
-            Explore sunlight
+            {t('landing.hero.exploreSunlight')}
           </Button>
 
           {/*
@@ -392,7 +389,7 @@ export function LandingPage({
           */}
           <p className="landing__hint" aria-live="polite">
             {askedTooSoon && !chosen
-              ? 'Search for an address above, then choose it from the list.'
+              ? t('landing.hero.chooseFirst')
               : ''}
           </p>
 
@@ -408,12 +405,12 @@ export function LandingPage({
                */
               onClick={onEnterVr}
             >
-              Enter in VR
+              {t('landing.hero.enterVr')}
             </Button>
           )}
 
           <TextButton className="landing__explore" onClick={onExplore}>
-            Just explore the map
+            {t('landing.hero.justExplore')}
           </TextButton>
         </div>
 
@@ -425,7 +422,7 @@ export function LandingPage({
           className="landing__steps"
           id={HOW_IT_WORKS_ID}
           tabIndex={-1}
-          aria-label="How it works"
+          aria-label={t('landing.steps.label')}
         >
           <ol role="list">
             {STEPS.map((step, index) => (
@@ -434,8 +431,8 @@ export function LandingPage({
                   {index + 1}
                 </span>
                 <span>
-                  <span className="landing__step-title">{step.title}</span>
-                  <span className="landing__step-body">{step.body}</span>
+                  <span className="landing__step-title">{t(step.title)}</span>
+                  <span className="landing__step-body">{t(step.body)}</span>
                 </span>
               </li>
             ))}
@@ -522,15 +519,16 @@ export function SkylineFilm({ reducedMotion }: { reducedMotion: boolean }) {
  * denominator to show, and the bar sweeps instead of guessing one.
  */
 function Loading({ progress, error }: { progress: LoadProgress; error: string | null }) {
+  const t = useT();
   const failed = progress.phase === 'failed' || error !== null;
   const indeterminate = progress.phase === 'downloading' && progress.totalBytes === null;
   return (
     <div className="landing__loading" role="status" aria-live="polite">
       <p className="landing__loading-title">
-        {failed ? 'The city model did not load' : 'Building the city model'}
+        {failed ? t('landing.loading.failed') : t('landing.loading.building')}
       </p>
       {failed ? (
-        <p className="landing__loading-meta">{error ?? 'The snapshot could not be read.'}</p>
+        <p className="landing__loading-meta">{error ?? t('landing.loading.unreadable')}</p>
       ) : (
         <>
           <div
@@ -539,7 +537,7 @@ function Loading({ progress, error }: { progress: LoadProgress; error: string | 
             aria-valuenow={indeterminate ? undefined : progress.percent}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Loading the city model"
+            aria-label={t('landing.loading.progressLabel')}
           >
             <div
               className="landing__fill"
@@ -548,7 +546,7 @@ function Loading({ progress, error }: { progress: LoadProgress; error: string | 
           </div>
           <p className="landing__loading-meta">
             {progress.label}
-            {indeterminate ? '' : ` · ${progress.percent}%`}
+            {indeterminate ? '' : ` · ${t('landing.loading.percent', { percent: formatNumber(progress.percent) })}`}
           </p>
         </>
       )}

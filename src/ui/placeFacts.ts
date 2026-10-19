@@ -12,6 +12,8 @@
 
 import type { Development, LandUse } from '../data/model';
 import type { BuildingDetail } from '../data/useBuildingDetail';
+import type { MessageKey } from '../i18n/en';
+import { formatNumber, t } from '../i18n/i18n';
 
 /** One figure on the card: the number, and what it counts. */
 export interface Figure {
@@ -28,11 +30,14 @@ export interface PlaceFacts {
   figures: Figure[];
 }
 
-const STAGE: Record<string, string> = {
-  APPROVED: 'Approved',
-  APPLIED: 'Applied for',
-  'UNDER CONSTRUCTION': 'Under construction',
+const STAGE: Record<string, MessageKey> = {
+  APPROVED: 'card.stage.approved',
+  APPLIED: 'card.stage.applied',
+  'UNDER CONSTRUCTION': 'card.stage.underConstruction',
 };
+
+/** A height in whole metres, as the language writes the number. */
+const metres = (heightM: number) => `${formatNumber(heightM, { maximumFractionDigits: 0 })} m`;
 
 /**
  * Area uses and counted uses, told apart by their unit.
@@ -63,23 +68,23 @@ export function developmentFacts(
   storeys?: number,
 ): PlaceFacts {
   const tallest = development.parts.reduce((a, b) => (a.heightM > b.heightM ? a : b));
-  const figures: Figure[] = [{ value: `${tallest.heightM.toFixed(0)} m`, label: 'Height' }];
+  const figures: Figure[] = [{ value: metres(tallest.heightM), label: t('card.figure.height') }];
   if (storeys && Number.isFinite(storeys)) {
-    figures.push({ value: String(storeys), label: 'Storeys' });
+    figures.push({ value: String(storeys), label: t('card.figure.storeys') });
   }
   const { area, counted } = splitUses(development);
   const largestArea = [...area].sort((a, b) => b.quantity - a.quantity)[0];
   if (largestArea) {
-    figures.push({ value: `${largestArea.quantity.toLocaleString('en-AU')} m²`, label: largestArea.useType });
+    figures.push({ value: `${formatNumber(largestArea.quantity)} m²`, label: largestArea.useType });
   } else if (counted[0]) {
-    figures.push({ value: counted[0].quantity.toLocaleString('en-AU'), label: counted[0].useType });
+    figures.push({ value: formatNumber(counted[0].quantity), label: counted[0].useType });
   }
 
   const uses = development.landUses
     .map((use) => use.useType)
     .filter((use, i, all) => all.indexOf(use) === i);
   return {
-    kind: STAGE[development.status] ?? 'Approved',
+    kind: t(STAGE[development.status] ?? 'card.stage.approved'),
     use: uses.length > 0 ? uses.slice(0, 2).join(' + ') : null,
     figures: figures.slice(0, 3),
   };
@@ -91,18 +96,18 @@ export function developmentFacts(
  * the record has — when the property record holds them.
  */
 export function buildingFacts(heightM: number, detail: BuildingDetail | null): PlaceFacts {
-  const figures: Figure[] = [{ value: `${heightM.toFixed(0)} m`, label: 'Height' }];
+  const figures: Figure[] = [{ value: metres(heightM), label: t('card.figure.height') }];
   if (detail?.floorsAboveGround) {
-    figures.push({ value: String(detail.floorsAboveGround), label: 'Storeys' });
+    figures.push({ value: String(detail.floorsAboveGround), label: t('card.figure.storeys') });
   }
   if (detail?.constructionYear) {
-    figures.push({ value: String(detail.constructionYear), label: 'Built' });
+    figures.push({ value: String(detail.constructionYear), label: t('card.figure.built') });
   } else if (detail?.refurbishedYear) {
-    figures.push({ value: String(detail.refurbishedYear), label: 'Refurbished' });
+    figures.push({ value: String(detail.refurbishedYear), label: t('card.figure.refurbished') });
   }
   return {
-    kind: 'Existing building',
-    use: detail?.predominantUse ? `Mainly ${detail.predominantUse.toLowerCase()}` : null,
+    kind: t('card.existing'),
+    use: detail?.predominantUse ? t('card.mainlyUse', { use: detail.predominantUse.toLowerCase() }) : null,
     figures,
   };
 }

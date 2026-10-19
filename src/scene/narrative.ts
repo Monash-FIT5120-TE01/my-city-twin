@@ -1,4 +1,6 @@
 import { compassLabel, shadowReachM, type SunAngles } from './sun';
+import { formatNumber, t } from '../i18n/i18n';
+import type { MessageKey } from '../i18n/en';
 
 /*
  * Plain English for what the shadow is doing right now.
@@ -31,32 +33,44 @@ export function shadowBearingDeg(azimuthDeg: number): number {
   return (azimuthDeg + 180) % 360;
 }
 
+/** The way the shadow runs, as compassLabel names it, in words for the middle of a sentence. */
+const DIRECTION: Record<string, MessageKey> = {
+  NORTH: 'narrative.direction.north',
+  'NORTH-EAST': 'narrative.direction.northEast',
+  EAST: 'narrative.direction.east',
+  'SOUTH-EAST': 'narrative.direction.southEast',
+  SOUTH: 'narrative.direction.south',
+  'SOUTH-WEST': 'narrative.direction.southWest',
+  WEST: 'narrative.direction.west',
+  'NORTH-WEST': 'narrative.direction.northWest',
+};
+
 export function describeShadow(
   sun: SunAngles,
   heightM: number,
   timeLabel: string,
   dateLabel: string,
 ): ShadowNarrative {
-  const stamp = `At ${timeLabel}`;
-  const provenance = `Demo model · ${dateLabel}`;
+  const stamp = t('narrative.stamp', { time: timeLabel });
+  const provenance = t('narrative.provenance', { date: dateLabel });
   const reach = shadowReachM(heightM, sun.altitudeDeg);
 
   if (reach === null) {
     return {
       stamp,
-      sentence: 'The sun is below the horizon, so the building casts no shadow.',
+      sentence: t('narrative.sentence.noSun'),
       provenance,
-      caption: 'No direct sun',
+      caption: t('narrative.caption.noSun'),
     };
   }
 
-  const direction = compassLabel(shadowBearingDeg(sun.azimuthDeg)).toLowerCase();
+  const direction = t(DIRECTION[compassLabel(shadowBearingDeg(sun.azimuthDeg))]);
   const ratio = reach / heightM;
 
   // The ratio is just cot(altitude), so these bands are angles: shadows equal
   // the height at 45°, double it by 27°, and quadruple it by 14°.
-  const length =
-    ratio < 0.75 ? 'Shortest' : ratio < 1.6 ? 'Short' : ratio < 3 ? 'Long' : 'Longest';
+  const length: MessageKey =
+    ratio < 1.6 ? 'narrative.caption.short' : ratio < 3 ? 'narrative.caption.long' : 'narrative.caption.longest';
 
   // With the sun nearly overhead the shadow barely leaves the footprint, so
   // naming a direction would point somewhere nothing is happening.
@@ -65,9 +79,9 @@ export function describeShadow(
   return {
     stamp,
     sentence: shortest
-      ? `The sun is high, so the tower's shadow stays close to its own footprint.`
-      : `The tower's shadow runs ${direction} for about ${Math.round(reach)} m.`,
+      ? t('narrative.sentence.shortest')
+      : t('narrative.sentence.runs', { direction, metres: formatNumber(Math.round(reach)) }),
     provenance,
-    caption: shortest ? 'Shortest shadow' : `${length} ${direction} shadow`,
+    caption: shortest ? t('narrative.caption.shortest') : t(length, { direction }),
   };
 }

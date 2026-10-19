@@ -47,6 +47,7 @@ import { bundled } from '../data/bundled';
 import { fetchJsonWithProgress } from '../data/fetchWithProgress';
 import { glowOpacity, rampRgb } from '../scene/activityPalette';
 import { Icon } from './kit/Icon';
+import { useT } from '../i18n/i18n';
 import { landmarksAtScale, spreadLandmarks } from './landmarkSpread';
 import {
   boundsOf,
@@ -296,6 +297,7 @@ export function ActivityMap({
   landmarks: readonly { name: string; en: [number, number] }[];
   onPick: (sensorId: number) => void;
 }) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0, dpr: 1 });
   const [layers, setLayers] = useState<{ surfaces: SurfacesDoc | null; openSpace: OpenSpaceDoc | null } | null>(null);
@@ -314,7 +316,7 @@ export function ActivityMap({
 
   const paths = useMemo<Paths>(() => {
     const byType = layers?.surfaces?.byType ?? {};
-    const of = (types: string[]) => pathOf(types.flatMap((t) => byType[t] ?? []));
+    const of = (types: string[]) => pathOf(types.flatMap((type) => byType[type] ?? []));
     return {
       buildings: pathOf(model.buildings.flatMap((b) => b.footprint as XY[][][])),
       roads: of(ROAD_TYPES),
@@ -647,7 +649,7 @@ export function ActivityMap({
         className={`activity-map__canvas${hover ? ' activity-map__canvas--pointer' : ''}`}
         tabIndex={0}
         role="img"
-        aria-label="Map of the CBD's street activity. Drag to move, scroll or pinch to zoom, right-drag or twist to turn; the locations are listed in the column."
+        aria-label={t('activity.map.label')}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={(event) => {
           const p = local(event);
@@ -745,31 +747,31 @@ export function ActivityMap({
           else if (event.key === '-') zoomBy(1 / 1.4);
         }}
       />
-      <div className="activity-mapctl" role="group" aria-label="Map view">
-        <button type="button" onClick={() => zoomBy(1.4)} aria-label="Zoom in">
+      <div className="activity-mapctl" role="group" aria-label={t('activity.map.controls')}>
+        <button type="button" onClick={() => zoomBy(1.4)} aria-label={t('activity.map.zoomIn')}>
           <Icon name="add" size={20} />
         </button>
-        <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label="Zoom out">
+        <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label={t('activity.map.zoomOut')}>
           <Icon name="remove" size={20} />
         </button>
-        <button type="button" onClick={() => turnBy(TURN_STEP)} aria-label="Turn the map left">
+        <button type="button" onClick={() => turnBy(TURN_STEP)} aria-label={t('activity.map.turnLeft')}>
           <Icon name="rotate_left" size={20} />
         </button>
-        <button type="button" onClick={() => turnBy(-TURN_STEP)} aria-label="Turn the map right">
+        <button type="button" onClick={() => turnBy(-TURN_STEP)} aria-label={t('activity.map.turnRight')}>
           <Icon name="rotate_right" size={20} />
         </button>
         {/* The arrow points to north on the map, so it says which way is up as well as putting it back. */}
         <button
           type="button"
           onClick={() => turnBy(-(viewRef.current?.rotation ?? 0))}
-          aria-label={Math.abs(rotationShown) < 1e-4 ? 'North is up' : 'Turn north up'}
+          aria-label={Math.abs(rotationShown) < 1e-4 ? t('activity.map.northUp') : t('activity.map.turnNorthUp')}
           disabled={Math.abs(rotationShown) < 1e-4}
         >
           <span className="activity-mapctl__north" style={{ transform: `rotate(${-rotationShown}rad)` }}>
             <Icon name="navigation" size={20} />
           </span>
         </button>
-        <button type="button" onClick={fitAll} aria-label="Show all counting locations">
+        <button type="button" onClick={fitAll} aria-label={t('activity.map.showAll')}>
           <Icon name="center_focus_strong" size={20} />
         </button>
       </div>

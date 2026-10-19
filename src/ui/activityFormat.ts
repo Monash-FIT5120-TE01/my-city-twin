@@ -5,6 +5,8 @@
 import { SITE } from '../scene/frame';
 import { melbourneClock } from '../data/streetActivity';
 import type { SimulationDate } from '../scene/solar';
+import { formatNumber, getLocale, t } from '../i18n/i18n';
+import { dayMonthLabel, weekdayNames } from '../i18n/format';
 
 const DAY = new Intl.DateTimeFormat('en-AU', {
   timeZone: SITE.timeZone,
@@ -13,10 +15,28 @@ const DAY = new Intl.DateTimeFormat('en-AU', {
   month: 'short',
 });
 
-/** "Wed, 14 Oct". */
+/** The weekday of a date, Monday to Sunday, in the language chosen (format.ts's names). */
+function weekdayOf({ year, month, day }: SimulationDate): string {
+  const sunday0 = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return weekdayNames()[(sunday0 + 6) % 7].name;
+}
+
+/** "Wed, 14 Oct". In another language, its own weekday and date (format.ts), still on Melbourne's clock. */
 export function dayLabel(at: number): string {
+  if (getLocale() !== 'en') {
+    const { date } = melbourneClock(at);
+    return t('activity.format.day', { weekday: weekdayOf(date), date: dayMonthLabel(date) });
+  }
   // en-AU writes "Wed 14 Oct"; the design has the comma after the day.
   return DAY.format(new Date(at)).replace(/^(\w+),? /, '$1, ');
+}
+
+const CHIP = new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', weekday: 'short', day: 'numeric' });
+
+/** "Fri 16": a day's button in the time bar, short enough for a row of eight or nine. */
+export function dayChipLabel(date: SimulationDate): string {
+  if (getLocale() !== 'en') return t('activity.format.dayChip', { weekday: weekdayOf(date), day: formatNumber(date.day) });
+  return CHIP.format(new Date(Date.UTC(date.year, date.month - 1, date.day, 12))).replace(',', '');
 }
 
 /** The same, for a date rather than an instant: midday, safely inside it. */
@@ -45,7 +65,7 @@ export function whenLabel(at: number): string {
 
 /** "2,861". Counts arrive as decimals ("143.5") from the forecast; people are whole. */
 export function countLabel(count: number): string {
-  return Math.round(count).toLocaleString('en-AU');
+  return formatNumber(Math.round(count));
 }
 
 /** "2026-10-14": a date as a key and an <option> value. */

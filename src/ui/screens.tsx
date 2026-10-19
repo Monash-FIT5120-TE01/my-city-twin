@@ -47,7 +47,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CityModel, Development } from '../data/model';
 import type { Landmark } from '../data/landmarks';
 import { clock12Label } from '../data/now';
-import { NOT_AN_ASSESSMENT, spotFinePrint, spotWords } from './words';
+import { notAnAssessment, spotFinePrint, spotWords } from './words';
 import {
   SEASONS,
   matchingSeason,
@@ -1279,7 +1279,7 @@ export function SunlightSheet({
               <p>{spotFinePrint(measured.stepMinutes)}</p>
             </>
           ) : null}
-          <p className="solar-details__last">{NOT_AN_ASSESSMENT}</p>
+          <p className="solar-details__last">{notAnAssessment()}</p>
         </div>
       </section>
       {/*

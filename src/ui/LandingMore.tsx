@@ -51,6 +51,7 @@ import { bundled } from '../data/bundled';
 import { Icon } from './kit/Icon';
 import { CountUp } from './kit/CountUp';
 import '../styles/landing-more.css';
+import { useT } from '../i18n/i18n';
 
 /** Where the "Future plans" link in the header goes. */
 export const FUTURE_PLANS_ID = 'future-plans';
@@ -99,6 +100,7 @@ const BOARD_H = 408;
  * Decorative: the words beside it say what it shows.
  */
 function CityBlock() {
+  const t = useT();
   return (
     <div className="more__block" aria-hidden="true">
       {BLOCK.map(({ file, x, y, w, h }) => (
@@ -115,7 +117,7 @@ function CityBlock() {
           }}
         />
       ))}
-      <span className="more__block-label">Melbourne, reimagined</span>
+      <span className="more__block-label">{t('landing.about.blockLabel')}</span>
     </div>
   );
 }
@@ -129,11 +131,12 @@ function Arrow() {
 
 /** A link to a source PDF that says, to a screen reader, where it goes. */
 function SourceLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     // A new tab: leaving would throw away the date, the hour and the place.
     <a href={href} target="_blank" rel="noreferrer noopener">
       {children}
-      <span className="visually-hidden"> (PDF, opens in a new tab)</span>
+      <span className="visually-hidden"> {t('landing.numbers.pdfNewTab')}</span>
     </a>
   );
 }
@@ -143,25 +146,26 @@ function SourceLink({ href, children }: { href: string; children: React.ReactNod
  * same "explore the city" the first screen offers, for the last button.
  */
 export function LandingMore({ onExplore }: { onExplore: () => void }) {
+  const t = useT();
   return (
     <div className="more">
       {/* ── the city behind the map ─────────────────────────────── */}
       <section className="more__section more__numbers" aria-labelledby="numbers-title">
-        <p className="more__pill">The city behind the map</p>
+        <p className="more__pill">{t('landing.numbers.pill')}</p>
         <h2 className="more__title" id="numbers-title">
-          Big changes. Everyday places.
+          {t('landing.numbers.title')}
         </h2>
         <p className="more__lead">
-          A closer look at the streets we share — and the future we’re shaping.
+          {t('landing.numbers.lead')}
         </p>
 
         <div className="more__figures">
           <article className="more__walk">
             <div>
-              <p className="more__kicker more__kicker--light">A city on foot</p>
+              <p className="more__kicker more__kicker--light">{t('landing.numbers.walkKicker')}</p>
               <p className="more__big"><CountUp value={89} suffix="%" /></p>
               <p className="more__walk-words">
-                of trips within the Hoddle Grid are made on foot.
+                {t('landing.numbers.walkWords')}
               </p>
             </div>
             <img
@@ -176,8 +180,8 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
           <article className="more__fact more__fact--street">
             <p className="more__mid"><CountUp value={26} suffix="%" /></p>
             <div>
-              <p className="more__fact-words">of street space is allocated to footpaths.</p>
-              <p className="more__fact-note">Room to move. Room to belong.</p>
+              <p className="more__fact-words">{t('landing.numbers.streetWords')}</p>
+              <p className="more__fact-note">{t('landing.numbers.streetNote')}</p>
             </div>
           </article>
 
@@ -185,9 +189,9 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
             <p className="more__mid"><CountUp value={40} suffix="%" /></p>
             <div>
               <p className="more__fact-words">
-                canopy cover of public streets and parks by 2040, up from 22%.
+                {t('landing.numbers.canopyWords')}
               </p>
-              <p className="more__fact-note">A greener chapter ahead.</p>
+              <p className="more__fact-note">{t('landing.numbers.canopyNote')}</p>
             </div>
           </article>
         </div>
@@ -195,28 +199,26 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
         <p className="more__source">
           <span className="more__kicker">City of Melbourne</span>
           <span>
-            <SourceLink href={TRANSPORT_PDF}>Transport Strategy 2030 (2019), p. 39</SourceLink>
+            <SourceLink href={TRANSPORT_PDF}>{t('landing.numbers.sourcePage', { document: 'Transport Strategy 2030 (2019)', page: 39 })}</SourceLink>
             {' · '}
-            <SourceLink href={URBAN_FOREST_PDF}>Urban Forest Strategy 2012–2032, p. 7</SourceLink>
+            <SourceLink href={URBAN_FOREST_PDF}>{t('landing.numbers.sourcePage', { document: 'Urban Forest Strategy 2012–2032', page: 7 })}</SourceLink>
           </span>
         </p>
         <p className="more__scope">
-          Walking: trips within the Hoddle Grid. Street space: across the municipality. Canopy: a
-          2040 target for public streets and parks across the municipality.
+          {t('landing.numbers.scope')}
         </p>
       </section>
 
       {/* ── about ───────────────────────────────────────────────── */}
       <section className="more__band more__about" aria-labelledby="about-title">
         <div className="more__about-words">
-          <p className="more__kicker more__kicker--light">01 / About us</p>
+          <p className="more__kicker more__kicker--light">{t('landing.about.kicker')}</p>
           <h2 className="more__title more__title--light" id="about-title">
-            <span>Your city.</span>
-            <span>A new perspective.</span>
+            <span>{t('landing.about.titleLine1')}</span>
+            <span>{t('landing.about.titleLine2')}</span>
           </h2>
           <p className="more__lead more__lead--light">
-            My City Twin makes urban change easier to explore. See nearby developments, compare
-            sunlight, and connect the map with the places that matter to you.
+            {t('landing.about.lead')}
           </p>
         </div>
         <CityBlock />
@@ -224,41 +226,38 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
 
       {/* ── before you explore ──────────────────────────────────── */}
       <section className="more__section" aria-labelledby="before-title">
-        <p className="more__kicker">02 / Before you explore</p>
+        <p className="more__kicker">{t('landing.before.kicker')}</p>
         <h2 className="more__title" id="before-title">
-          Curiosity starts here.
+          {t('landing.before.title')}
         </h2>
-        <p className="more__lead">A little context for a clearer view.</p>
+        <p className="more__lead">{t('landing.before.lead')}</p>
 
         <ol className="more__three" role="list">
           <li>
             <span className="more__index" aria-hidden="true">
               01
             </span>
-            <h3>What can I discover?</h3>
+            <h3>{t('landing.before.discoverTitle')}</h3>
             <p>
-              Explore buildings and developments. Compare sunlight at a selected date and time.
-              Start with an address, or simply follow your curiosity.
+              {t('landing.before.discoverBody')}
             </p>
           </li>
           <li>
             <span className="more__index" aria-hidden="true">
               02
             </span>
-            <h3>How should I read it?</h3>
+            <h3>{t('landing.before.readTitle')}</h3>
             <p>
-              An illustrative model using demo data. Shadow views show possibilities; they are not
-              predictions or a formal planning assessment.
+              {t('landing.before.readBody')}
             </p>
           </li>
           <li>
             <span className="more__index" aria-hidden="true">
               03
             </span>
-            <h3>What’s behind the numbers?</h3>
+            <h3>{t('landing.before.numbersTitle')}</h3>
             <p>
-              City of Melbourne strategies inform the facts above. Source dates and geographic
-              scope help you understand what each number actually represents.
+              {t('landing.before.numbersBody')}
             </p>
           </li>
         </ol>
@@ -266,15 +265,12 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
 
       {/* ── acknowledgement of country ──────────────────────────── */}
       <section className="more__band more__country" aria-labelledby="country-title">
-        <p className="more__kicker more__kicker--dash">Acknowledgement of Country</p>
+        <p className="more__kicker more__kicker--dash">{t('landing.country.kicker')}</p>
         <h2 className="more__title more__title--small" id="country-title">
-          A continuing connection to place.
+          {t('landing.country.title')}
         </h2>
         <p className="more__country-words">
-          My City Twin acknowledges the Wurundjeri Woi-wurrung and Bunurong Boon Wurrung peoples of
-          the Eastern Kulin Nation, whose Country includes Melbourne. We honour their enduring
-          relationships with land, waters and community, and respectfully recognise Elders, past
-          and present.
+          {t('landing.country.words')}
         </p>
       </section>
 
@@ -289,56 +285,54 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
         tabIndex={-1}
         aria-labelledby="future-title"
       >
-        <p className="more__kicker more__kicker--pale">Future work</p>
+        <p className="more__kicker more__kicker--pale">{t('landing.future.kicker')}</p>
         <h2 className="more__title more__title--light" id="future-title">
-          The next chapter of My City Twin.
+          {t('landing.future.title')}
         </h2>
         <p className="more__lead more__lead--pale">
-          Ideas we want to develop next — proposed features, not available yet.
+          {t('landing.future.lead')}
         </p>
         <ol className="more__cards" role="list">
           <li>
-            <p className="more__kicker more__kicker--pale">01 / More plans</p>
-            <h3>Follow the change.</h3>
+            <p className="more__kicker more__kicker--pale">{t('landing.future.plansKicker')}</p>
+            <h3>{t('landing.future.plansTitle')}</h3>
             <p>
-              Bring together approval documents, project stages and source dates, so the status is
-              easier to understand.
+              {t('landing.future.plansBody')}
             </p>
           </li>
           <li>
-            <p className="more__kicker more__kicker--pale">02 / Your everyday life</p>
-            <h3>Make it personal.</h3>
+            <p className="more__kicker more__kicker--pale">{t('landing.future.personalKicker')}</p>
+            <h3>{t('landing.future.personalTitle')}</h3>
             <p>
-              Choose what matters to you: walking, access, public space or disruption during
-              construction.
+              {t('landing.future.personalBody')}
             </p>
           </li>
           <li>
-            <p className="more__kicker more__kicker--pale">03 / Better evidence</p>
-            <h3>Compare with confidence.</h3>
-            <p>Add validated before-and-after measures, clear assumptions and visible uncertainty.</p>
+            <p className="more__kicker more__kicker--pale">{t('landing.future.evidenceKicker')}</p>
+            <h3>{t('landing.future.evidenceTitle')}</h3>
+            <p>{t('landing.future.evidenceBody')}</p>
           </li>
         </ol>
         <p className="more__lead more__lead--pale">
-          Built around one question: how will a changing city affect your day?
+          {t('landing.future.question')}
         </p>
       </section>
 
       {/* ── the way back in ─────────────────────────────────────── */}
       <section className="more__band more__cta" aria-labelledby="cta-title">
         <div>
-          <p className="more__kicker more__kicker--light">Your next chapter starts here</p>
+          <p className="more__kicker more__kicker--light">{t('landing.cta.kicker')}</p>
           <h2 className="more__title more__title--light more__title--cta" id="cta-title">
-            Find your place in the city’s future.
+            {t('landing.cta.title')}
           </h2>
-          <p className="more__lead more__lead--light">A familiar street. Something new to discover.</p>
+          <p className="more__lead more__lead--light">{t('landing.cta.lead')}</p>
         </div>
         <div className="more__cta-rings" aria-hidden="true">
           <img src={bundled('landing/cta-ring-outer.svg')} alt="" width={207} height={207} />
           <img src={bundled('landing/cta-ring-inner.svg')} alt="" width={151} height={151} />
         </div>
         <button type="button" className="more__cta-button" onClick={onExplore}>
-          Explore the city
+          {t('landing.cta.button')}
           <Arrow />
         </button>
       </section>
@@ -354,11 +348,11 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
             </span>
             My City Twin
           </p>
-          <p className="more__fine">Melbourne · An illustrative city model</p>
+          <p className="more__fine">{t('landing.footer.tagline')}</p>
         </div>
         <div>
-          <p className="more__motto">Made for a city in motion.</p>
-          <p className="more__fine">© 2026 My City Twin · Prototype</p>
+          <p className="more__motto">{t('landing.footer.motto')}</p>
+          <p className="more__fine">{t('landing.footer.copyright')}</p>
         </div>
       </footer>
     </div>

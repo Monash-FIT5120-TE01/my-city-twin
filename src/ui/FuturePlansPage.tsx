@@ -40,6 +40,7 @@ import { PageHead } from './kit/PageHead';
 import { Pill } from './kit/Pill';
 import { TextButton } from './kit/TextButton';
 import { useReducedMotion } from './useReducedMotion';
+import { useT } from '../i18n/i18n';
 import '../styles/future.css';
 
 /** "Riverfront & public space" → ["riverfront", "public space"]. */
@@ -82,6 +83,7 @@ export function FuturePlansPage({
   openId: number | null;
   onOpen: (id: number | null) => void;
 }) {
+  const t = useT();
   const plans = useFuturePlans();
   const page = useRef<HTMLElement>(null);
   /** The list's search and filters, kept while a plan is open. */
@@ -112,16 +114,16 @@ export function FuturePlansPage({
               <PlanFinder plans={plans.data} onOpen={setOpenId} filters={filters} onFilters={setFilters} />
             ) : (
               <div className="future__head">
-                <p className="future__eyebrow">Melbourne CBD · Future plans</p>
+                <p className="future__eyebrow">{t('future.eyebrow')}</p>
                 <PageHead
                   id="future-page-title"
-                  title="A changing city. Your everyday questions."
-                  lede="Choose a plan. Ask what it could mean for your day."
+                  title={t('future.title')}
+                  lede={t('future.lede')}
                 />
                 <p className="future__status">
                   {plans.status === 'loading'
-                    ? 'Loading the plans…'
-                    : 'The plans could not be loaded. Please try again later.'}
+                    ? t('future.loadingPlans')
+                    : t('future.plansError')}
                 </p>
               </div>
             )}
@@ -165,6 +167,7 @@ function Conversation({
   onBack: () => void;
   onOpen: (id: number) => void;
 }) {
+  const t = useT();
   const questions = useFuturePlanQuestions(plan.id);
   const reducedMotion = useReducedMotion();
   /** The questions asked, in the order they were asked. */
@@ -243,10 +246,10 @@ function Conversation({
   return (
     <div className="future__state">
       <div className="future__head">
-        <p className="future__eyebrow">A little city conversation</p>
+        <p className="future__eyebrow">{t('future.talk.eyebrow')}</p>
         <PageHead id="future-page-title" title={plan.name} lede={plan.topic} />
         <Button variant="ghost" className="future__choose" icon={<ChevronLeft />} onClick={onBack}>
-          Choose another plan
+          {t('future.talk.back')}
         </Button>
       </div>
 
@@ -254,10 +257,10 @@ function Conversation({
         <section className="future__talk" aria-labelledby="future-talk-title">
           <div className="future__talk-head">
             <h2 className="card-title" id="future-talk-title">
-              Your conversation
+              {t('future.talk.title')}
             </h2>
             <Pill size="xs" className="future__talk-kind">
-              Guided questions
+              {t('future.talk.kind')}
             </Pill>
           </div>
 
@@ -265,9 +268,7 @@ function Conversation({
             <ol className="future__thread" role="list">
               <li className="future__msg future__msg--app">
                 <span className="future__who">My City Twin</span>
-                <p className="future__greeting">
-                  Let’s explore {plan.name}. What would you like to know about the plan?
-                </p>
+                <p className="future__greeting">{t('future.talk.greeting', { plan: plan.name })}</p>
               </li>
 
               {/* Before the first question: the replies, under the greeting. */}
@@ -275,15 +276,15 @@ function Conversation({
                 <li className="future__opening">
                   <p className="future__opening-title">
                     <TapMark />
-                    What’s on your mind?
+                    {t('future.talk.openingTitle')}
                   </p>
-                  <p className="future__opening-sub">Start with what matters to you. Tap a question to ask it.</p>
-                  {questions.status === 'loading' && <p className="future__status">Loading the questions…</p>}
+                  <p className="future__opening-sub">{t('future.talk.openingSub')}</p>
+                  {questions.status === 'loading' && <p className="future__status">{t('future.talk.loadingQuestions')}</p>}
                   {questions.status === 'error' && (
-                    <p className="future__status">The questions could not be loaded. Please try again later.</p>
+                    <p className="future__status">{t('future.talk.questionsError')}</p>
                   )}
                   {questions.status === 'ready' && ready.length === 0 && (
-                    <p className="future__status">No guided questions for this plan yet.</p>
+                    <p className="future__status">{t('future.talk.noQuestions')}</p>
                   )}
                   {ready.length > 0 && replies(ready)}
                 </li>
@@ -302,7 +303,7 @@ function Conversation({
                     }}
                   >
                     <div className="future__msg future__msg--you">
-                      <span className="future__who">You</span>
+                      <span className="future__who">{t('future.talk.you')}</span>
                       <p>{q.question}</p>
                     </div>
                     {thinking === id ? (
@@ -328,24 +329,24 @@ function Conversation({
               <div className="future__composer" aria-labelledby="future-composer-title" role="group">
                 <p className="future__composer-title" id="future-composer-title">
                   <TapMark />
-                  {unasked.length > 0 ? 'Choose a question to keep exploring.' : 'You have asked every question.'}
+                  {unasked.length > 0 ? t('future.talk.keepExploring') : t('future.talk.allAsked')}
                 </p>
                 {unasked.length > 0 && replies(unasked)}
                 <div className="future__composer-foot">
                   {askedQuestions.length > 0 && (
-                    <ul className="future__revisits" role="list" aria-label="Questions already asked">
+                    <ul className="future__revisits" role="list" aria-label={t('future.talk.askedLabel')}>
                       {askedQuestions.map((q) => (
                         <li key={q.id}>
                           <button type="button" className="future__revisit" onClick={() => ask(q.id)}>
                             <Icon name="undo" size={16} /> {q.question}
-                            <span className="visually-hidden"> — revisit answer</span>
+                            <span className="visually-hidden">{t('future.talk.revisit')}</span>
                           </button>
                         </li>
                       ))}
                     </ul>
                   )}
                   <TextButton variant="reference" arrow={false} className="future__restart" onClick={restart}>
-                    Start this conversation again
+                    {t('future.talk.restart')}
                   </TextButton>
                 </div>
               </div>
@@ -355,9 +356,9 @@ function Conversation({
           {/* What a screen reader hears: one line, not the whole thread again. */}
           <p className="visually-hidden" role="status">
             {thinking
-              ? 'Opening the saved answer'
+              ? t('future.talk.opening')
               : started
-                ? `Answer ready: ${byId.get(asked[asked.length - 1])?.answerHeading ?? ''}`
+                ? t('future.talk.answerReady', { heading: byId.get(asked[asked.length - 1])?.answerHeading ?? '' })
                 : ''}
           </p>
         </section>
@@ -365,11 +366,9 @@ function Conversation({
         {related.length > 0 && (
           <aside className="future__related" aria-labelledby="future-related-title">
             <h2 className="card-title" id="future-related-title">
-              Connected topics
+              {t('future.related.title')}
             </h2>
-            <p className="future__related-note">
-              Explore plans that share a theme. These links do not imply a joint delivery schedule.
-            </p>
+            <p className="future__related-note">{t('future.related.note')}</p>
             <ul className="future__related-list" role="list">
               {related.map((p, i) => (
                 <li key={p.id} style={nth(i)}>
@@ -396,6 +395,7 @@ function TapMark() {
 }
 
 function Answer({ question }: { question: FuturePlanQuestion }) {
+  const t = useT();
   const paragraphs = question.answer.split(/\n\s*\n/).filter(Boolean);
   return (
     <section
@@ -409,11 +409,11 @@ function Answer({ question }: { question: FuturePlanQuestion }) {
         <p key={i}>{text}</p>
       ))}
       {question.limit && <p className="future__limit">{question.limit}</p>}
-      <p className="future__basis">Based on: {question.evidenceBasis}</p>
+      <p className="future__basis">{t('future.answer.basis', { basis: question.evidenceBasis })}</p>
       {question.sources.length > 0 && (
         <div className="future__sources">
           <span className="future__sources-title">
-            {question.sources.length === 1 ? 'Supporting source' : 'Supporting sources'}
+            {question.sources.length === 1 ? t('future.answer.sourceOne') : t('future.answer.sourceOther')}
           </span>
           <ul role="list">
             {question.sources.map((s) => (
@@ -421,9 +421,9 @@ function Answer({ question }: { question: FuturePlanQuestion }) {
                 <a href={s.srcUrl} target="_blank" rel="noreferrer">
                   {s.srcTitle}
                   <OutArrow />
-                  <span className="visually-hidden"> (opens in a new tab)</span>
+                  <span className="visually-hidden">{t('future.answer.newTab')}</span>
                 </a>
-                <span className="future__source-date">Source checked: {s.srcCheckdate}.</span>
+                <span className="future__source-date">{t('future.answer.checked', { date: s.srcCheckdate })}</span>
               </li>
             ))}
           </ul>
@@ -434,14 +434,12 @@ function Answer({ question }: { question: FuturePlanQuestion }) {
 }
 
 function Disclaimer() {
+  const t = useT();
   return (
     <footer className="future__foot">
-      <p className="future__foot-title">Possible effects, not promises.</p>
-      <p>
-        These guides explain what to consider. They don’t calculate prices, rent, travel times or local
-        conditions.
-      </p>
-      <p className="future__foot-fine">Project sources · Guided conversations</p>
+      <p className="future__foot-title">{t('future.foot.title')}</p>
+      <p>{t('future.foot.body')}</p>
+      <p className="future__foot-fine">{t('future.foot.fine')}</p>
     </footer>
   );
 }

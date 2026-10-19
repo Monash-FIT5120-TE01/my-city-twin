@@ -37,7 +37,7 @@
 
 import { SITE } from '../scene/frame';
 import { civilInZone, type SimulationDate } from '../scene/solar';
-import { getLocale } from '../i18n/i18n';
+import { getLocale, t } from '../i18n/i18n';
 import { intlOf } from '../i18n/locales';
 
 /**
@@ -164,15 +164,16 @@ export function clock12Label(minutes: number): string {
 }
 
 /**
- * What to tell the reader, or nothing when the moment shows as it is.
+ * What to tell the reader, or nothing when the moment shows as it is: in the
+ * language chosen, or as `say` says it (ui/words' inEnglish, for the headset,
+ * whose font has English only).
  *
  * Worded around the control rather than around the sun: this file knows the
  * clock is past 20:00, and does not know whether the sun had set — in June it
  * would have been down for hours by 20:00, in January it would still be up.
  */
-export function outsideWindowNote(moment: PresentMoment): string | null {
+export function outsideWindowNote(moment: PresentMoment, say: typeof t = t): string | null {
   if (!moment.clamped) return null;
   const edge = moment.clockMinutes < EARLIEST_MINUTES ? EARLIEST_MINUTES : LATEST_MINUTES;
-  return `It is ${clockLabel(moment.clockMinutes)} in Melbourne — outside the hours this
-    simulation covers. Showing ${clockLabel(edge)}.`.replace(/\s+/g, ' ');
+  return say('now.outsideWindow', { time: clockLabel(moment.clockMinutes), shown: clockLabel(edge) });
 }

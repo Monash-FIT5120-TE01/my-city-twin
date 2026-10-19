@@ -36,6 +36,7 @@ import { CloseButton } from './kit/CloseButton';
 import { SourcesLink } from './Sources';
 import { Icon, type IconName } from './kit/Icon';
 import { Swatch } from './kit/Swatch';
+import { t as translate, useT } from '../i18n/i18n';
 import '../styles/place-card.css';
 
 export function PlaceCard({
@@ -75,6 +76,7 @@ export function PlaceCard({
    * copy on screen: the building was chosen on the map, and without this a
    * keyboard reader would not know anything had opened.
    */
+  const t = useT();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     const element = heading.current;
@@ -129,7 +131,7 @@ export function PlaceCard({
       as="section"
       raised
       className={`place-card place-card--${variant}`}
-      aria-label={`${title}, ${facts.kind}`}
+      aria-label={t('card.label', { title, kind: facts.kind })}
       /*
        * The card beside the building is drawn inside the map's own box, so a
        * press on it reached the camera controls there: dragging across the
@@ -140,7 +142,7 @@ export function PlaceCard({
       onWheel={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
     >
-      <CloseButton label="Back to the map" className="place-card__close" onClick={onClose} />
+      <CloseButton label={t('card.close')} className="place-card__close" onClick={onClose} />
 
       {/* The address and what it is on the left; the building's picture on the right. */}
       <div className="place-card__head">
@@ -184,11 +186,11 @@ export function PlaceCard({
         The ways on, as two cards of equal weight: each one button from edge to edge, with its own
         colour, its own icon and its words, so none of them is found by colour alone.
       */}
-      <h3 className="place-card__section">Explore this building</h3>
+      <h3 className="place-card__section">{t('card.section')}</h3>
       <div className={`place-card__features${onSolar ? '' : ' place-card__features--one'}`}>
-        <FeatureCard tone="sun" icon="light_mode" title="Explore sunlight" text="Analyse sunlight and shadows" onClick={onSunlight} />
+        <FeatureCard tone="sun" icon="light_mode" title={t('card.sunlight')} text={t('card.sunlightText')} onClick={onSunlight} />
         {onSolar && (
-          <FeatureCard tone="solar" icon="solar_power" title="Solar panels" text="Estimate rooftop capacity" onClick={onSolar} />
+          <FeatureCard tone="solar" icon="solar_power" title={t('card.solar')} text={t('card.solarText')} onClick={onSolar} />
         )}
       </div>
       {flat}
@@ -207,11 +209,14 @@ const KIND_ICON: Record<'searched' | 'approved' | 'progress', IconName> = {
   progress: 'construction',
 };
 
-/** A figure's icon, by what it counts; anything else (a project's floor area or count) a plain mark. */
+/**
+ * A figure's icon, by what it counts; anything else (a project's floor area or count) a plain mark.
+ * The labels are in the language chosen (placeFacts), so they are compared with the same words.
+ */
 function figureIcon(label: string): IconName {
-  if (label === 'Height') return 'height';
-  if (label === 'Storeys') return 'stairs';
-  if (label === 'Built' || label === 'Refurbished') return 'calendar_month';
+  if (label === translate('card.figure.height')) return 'height';
+  if (label === translate('card.figure.storeys')) return 'stairs';
+  if (label === translate('card.figure.built') || label === translate('card.figure.refurbished')) return 'calendar_month';
   return 'info';
 }
 
@@ -229,6 +234,7 @@ function FeatureCard({
   text: string;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button type="button" className={`feature-card feature-card--${tone}`} onClick={onClick}>
       <span className="feature-card__top">
@@ -242,7 +248,7 @@ function FeatureCard({
       <span className="feature-card__title">{title}</span>
       <span className="feature-card__text">{text}</span>
       <span className="feature-card__action" aria-hidden="true">
-        Explore
+        {t('card.explore')}
       </span>
     </button>
   );

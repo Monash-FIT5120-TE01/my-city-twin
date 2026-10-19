@@ -9,16 +9,38 @@
  * "2 h 10 min" on a monitor and "2.2 h" in a headset is a figure nobody can
  * quote. So the sentences that carry a number, or the limits of one, live
  * here, and both interfaces call them.
+ *
+ * In the language chosen on the page; in English for the headset, whose font
+ * has English only — pass `inEnglish` as `say` there.
  */
 
 import type { SunlightAtPoint } from '../scene/sunlightAt';
+import { en, type MessageKey } from '../i18n/en';
+import { formatNumber, t } from '../i18n/i18n';
+
+/** Who says the words: `t` (the language chosen) or `inEnglish`. */
+export type Say = typeof t;
+
+/** The English for `key`, whatever the page's language: for the headset, whose font has English only. */
+export const inEnglish: Say = (key: MessageKey, vars?: Record<string, string | number>) => {
+  const text: string = en[key];
+  if (!vars) return text;
+  return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in vars ? String(vars[name]) : whole));
+};
+
+/** A number as `say`'s language writes it: plain digits in English for the headset. */
+function figure(say: Say, n: number): string {
+  return say === t ? formatNumber(n) : String(n);
+}
 
 /** "45 min", "2 h", "2 h 10 min". */
-export function durationLabel(minutes: number): string {
+export function durationLabel(minutes: number, say: Say = t): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  if (h === 0) return say('words.duration.minutes', { minutes: figure(say, m) });
+  return m === 0
+    ? say('words.duration.hours', { hours: figure(say, h) })
+    : say('words.duration.hoursMinutes', { hours: figure(say, h), minutes: figure(say, m) });
 }
 
 /**
@@ -26,9 +48,10 @@ export function durationLabel(minutes: number): string {
  *
  * Checked against the subject only, so everything already standing is
  * ignored and a spot in somebody else's shadow still reads as sunlit.
+ * Ends in a space, so NOT_AN_ASSESSMENT can follow it on one line.
  */
-export function spotFinePrint(stepMinutes: number): string {
-  return `Sampled every ${stepMinutes} minutes. Existing buildings and the slope of the ground are not counted, so a spot already in someone else’s shadow will still be shown losing sun here. `;
+export function spotFinePrint(stepMinutes: number, say: Say = t): string {
+  return `${say('words.spot.finePrint', { step: figure(say, stepMinutes) })} `;
 }
 
 /**
@@ -40,10 +63,14 @@ export function spotFinePrint(stepMinutes: number): string {
  * (spotFinePrint says so on screen). It is the length of the day at this
  * sampling, not an estimate of the sun this spot really gets on a street of
  * towers — the figure worth reading is the difference.
+ *
+ * `noun` is 'building' (one standing) or 'project' (a proposal); each has
+ * its own sentences, so a translator never has to fit a word into one.
  */
 export function spotWords(
   measured: SunlightAtPoint,
   noun: string,
+  say: Say = t,
 ): {
   none: string | null;
   figure: string | null;
@@ -51,9 +78,10 @@ export function spotWords(
   against: string | null;
   shadowWindow: string | null;
 } {
+  const building = noun === 'building';
   if (measured.lostMin === 0) {
     return {
-      none: `This ${noun} takes no direct sun from here.`,
+      none: say(building ? 'words.spot.noneBuilding' : 'words.spot.noneProject'),
       figure: null,
       caption: null,
       against: null,
@@ -62,14 +90,21 @@ export function spotWords(
   }
   return {
     none: null,
-    figure: durationLabel(measured.lostMin),
-    caption: `less direct sunlight from this ${noun}`,
-    against: `${durationLabel(measured.withoutSubjectMin)} without this ${noun}`,
+    figure: durationLabel(measured.lostMin, say),
+    caption: say(building ? 'words.spot.captionBuilding' : 'words.spot.captionProject'),
+    against: say(building ? 'words.spot.againstBuilding' : 'words.spot.againstProject', {
+      duration: durationLabel(measured.withoutSubjectMin, say),
+    }),
     shadowWindow: measured.firstShadowLabel
-      ? `In shadow around ${measured.firstShadowLabel} – ${measured.lastShadowLabel}`
+      ? say('words.spot.shadowWindow', { from: measured.firstShadowLabel, to: measured.lastShadowLabel ?? '' })
       : null,
   };
 }
 
-/** Said under every figure the product shows. */
-export const NOT_AN_ASSESSMENT = 'Illustrative shadow shapes · Demo data. Not a planning assessment.';
+/** Said under every figure the product shows — in English, for the headset. */
+export const NOT_AN_ASSESSMENT: string = en['words.notAnAssessment'];
+
+/** The same, in the language chosen: for the page. */
+export function notAnAssessment(say: Say = t): string {
+  return say('words.notAnAssessment');
+}

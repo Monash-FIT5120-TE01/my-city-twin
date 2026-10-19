@@ -23,28 +23,30 @@ import { KWH_PER_KW, LEVEL_FLOORS, PANEL_W, type SolarCheck } from '../scene/use
 import { EDGE_SETBACK_M, LIGHT_MIN } from '../scene/panelLayout';
 import { BALLAST_MAX_HEIGHT_M, MODULE } from '../scene/panelModel';
 import { co2TonnesFor, GRID_KG_CO2E_PER_KWH, homesFor, HOUSEHOLD_KWH } from '../scene/solarUnits';
+import { formatNumber, t, useT } from '../i18n/i18n';
+import { richText } from './KeyHints';
 
 /** The two runs of the check and the approved developments near enough to matter (App.tsx). */
 export interface PlansCompare { now: SolarCheck | null; planned: SolarCheck | null; nearby: number; named: string[]; lostShown: boolean }
 
-const m2 = (v: number) => Math.round(v).toLocaleString('en-AU');
-const pct = (v: number) => `${Math.round(v * 100)}%`;
+const m2 = (v: number) => formatNumber(Math.round(v));
+const pct = (v: number) => formatNumber(v, { style: 'percent', maximumFractionDigits: 0 });
 /** Two figures for small numbers, whole ones from ten up. */
-const about = (v: number) => (v < 10 ? v.toLocaleString('en-AU', { maximumFractionDigits: 1 }) : Math.round(v).toLocaleString('en-AU'));
+const about = (v: number) => (v < 10 ? formatNumber(v, { maximumFractionDigits: 1 }) : formatNumber(Math.round(v)));
 /** A year's kWh to the nearest hundred: the method is not finer than that. */
-const kwh = (v: number) => (Math.round(v / 100) * 100).toLocaleString('en-AU');
+const kwh = (v: number) => formatNumber(Math.round(v / 100) * 100);
 /** A change in a year's kWh, signed; under fifty, which rounds to nothing, said as such. */
-const kwhChange = (v: number) => (Math.abs(v) < 50 ? (v === 0 ? '±0' : 'under 100') : signed(v, kwh));
+const kwhChange = (v: number) => (Math.abs(v) < 50 ? (v === 0 ? '±0' : t('solar.change.under100')) : signed(v, kwh));
 /** A change smaller than this share of today's generation, with the same panels, is shown as none. */
 const UNCHANGED_SHARE = 0.005;
 const signed = (v: number, f: (x: number) => string) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${f(Math.abs(v))}`;
 
-/** Best first, as the key reads. */
-const LEVELS = [
-  { level: 4, label: `${pct(LEVEL_FLOORS[0])}+ of the light` },
-  { level: 3, label: `${pct(LEVEL_FLOORS[1])}–${pct(LEVEL_FLOORS[0])}` },
-  { level: 2, label: `${pct(LEVEL_FLOORS[2])}–${pct(LEVEL_FLOORS[1])}` },
-  { level: 1, label: `Under ${pct(LEVEL_FLOORS[2])}` },
+/** Best first, as the key reads; in the language chosen when called. */
+const levels = () => [
+  { level: 4, label: t('solar.levels.best', { pct: pct(LEVEL_FLOORS[0]) }) },
+  { level: 3, label: t('solar.levels.range', { from: pct(LEVEL_FLOORS[1]), to: pct(LEVEL_FLOORS[0]) }) },
+  { level: 2, label: t('solar.levels.range', { from: pct(LEVEL_FLOORS[2]), to: pct(LEVEL_FLOORS[1]) }) },
+  { level: 1, label: t('solar.levels.under', { pct: pct(LEVEL_FLOORS[2]) }) },
 ];
 
 function PanelSunIcon() {
@@ -63,12 +65,13 @@ function SunMeterIcon() {
 function PlansCard({ compare, plansBlocked, withPlans, onWithPlans }: {
   compare: PlansCompare; plansBlocked: boolean; withPlans: boolean; onWithPlans: (on: boolean) => void;
 }) {
+  const t = useT();
   const { now, planned, nearby, named } = compare;
   let body: ReactNode;
-  if (plansBlocked) body = <p className="solar-card__note">An approved development replaces this building.</p>;
+  if (plansBlocked) body = <p className="solar-card__note">{t('solar.plans.replaced')}</p>;
   else if (!now?.done) body = null;
-  else if (!nearby) body = <p className="solar-card__note">None rises 2° or more above this roof, so none is counted as shading it.</p>;
-  else if (!planned?.done) body = <p className="solar-card__note">Measuring the roof with them built… {planned ? Math.round(planned.progress * 100) : 0}%</p>;
+  else if (!nearby) body = <p className="solar-card__note">{t('solar.plans.noneNearby')}</p>;
+  else if (!planned?.done) body = <p className="solar-card__note">{t('solar.plans.measuring', { pct: planned ? Math.round(planned.progress * 100) : 0 })}</p>;
   else {
     const dKwh = planned.kwhYear - now.kwhYear, dPanels = planned.panels - now.panels;
     const fromNone = now.kwhYear === 0;
@@ -76,35 +79,37 @@ function PlansCard({ compare, plansBlocked, withPlans, onWithPlans }: {
     const unchanged = dPanels === 0 && (fromNone ? planned.kwhYear === 0 : Math.abs(share) < UNCHANGED_SHARE);
     body = unchanged ? (
       <p className="solar-card__note">
-        {dKwh === 0 ? 'No change to the panels or their generation.' : 'The same panels, and less than 0.5% change in their generation.'}
+        {dKwh === 0 ? t('solar.plans.noChange') : t('solar.plans.tinyChange')}
       </p>
     ) : (
       <>
         <p className="solar-diff__main">
           {fromNone
-            ? <><strong>New</strong> room for panels, where today there is none</>
-            : <><strong>{signed(share * 100, (x) => `${x < 10 ? x.toFixed(1) : Math.round(x)}%`)}</strong> generation</>}
+            ? richText(t('solar.plans.newRoom'))
+            : richText(t('solar.plans.generationChange', {
+                change: signed(share * 100, (x) => `${x < 10 ? formatNumber(x, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : formatNumber(Math.round(x))}%`),
+              }))}
         </p>
         <dl className="solar-diff__units">
-          <div><dt>Panels</dt><dd>{signed(dPanels, (x) => x.toLocaleString('en-AU'))}</dd></div>
-          <div><dt>kWh / year</dt><dd>{kwhChange(dKwh)}</dd></div>
-          <div><dt>Homes</dt><dd>{signed(homesFor(dKwh), about)}</dd></div>
+          <div><dt>{t('solar.plans.panels')}</dt><dd>{signed(dPanels, (x) => formatNumber(x))}</dd></div>
+          <div><dt>{t('solar.plans.kwhYear')}</dt><dd>{kwhChange(dKwh)}</dd></div>
+          <div><dt>{t('solar.plans.homes')}</dt><dd>{signed(homesFor(dKwh), about)}</dd></div>
         </dl>
         <p className="solar-card__note">
           {named.length
-            ? <>Rising highest over the roof on the sun's side: {named.slice(0, 3).map((a) => a.split(/ MELBOURNE|, Melbourne/)[0]).join('; ')}.</>
-            : `${nearby} could reach the roof, none more than 5° above it on the sun's side.`}
+            ? t('solar.plans.highest', { names: named.slice(0, 3).map((a) => a.split(/ MELBOURNE|, Melbourne/)[0]).join('; ') })
+            : t('solar.plans.notHighEnough', { count: formatNumber(nearby) })}
         </p>
-        {withPlans && compare.lostShown && <p className="solar-card__note">Hatched on the roof: light enough today, not with them built.</p>}
+        {withPlans && compare.lostShown && <p className="solar-card__note">{t('solar.plans.hatched')}</p>}
       </>
     );
   }
   return (
-    <section className="solar-card solar-plans-card" aria-label="Approved developments">
+    <section className="solar-card solar-plans-card" aria-label={t('solar.plans.label')}>
       <label className="switch solar-plans">
         <span className="switch__text">
-          <span className="switch__name">Include approved developments</span>
-          <span className="switch__note">Built, with the buildings they replace taken down</span>
+          <span className="switch__name">{t('solar.plans.switch')}</span>
+          <span className="switch__note">{t('solar.plans.switchNote')}</span>
         </span>
         <input type="checkbox" className="switch__input" checked={withPlans} disabled={plansBlocked} onChange={(e) => onWithPlans(e.target.checked)} />
         <span className="switch__track" aria-hidden="true" />
@@ -138,9 +143,10 @@ export function SolarSheet({ title, locality, meta, check, compare, withPlans, p
   /** The sunlight screen for the same building: the other half of the switch. */
   onSunlight?: () => void;
 }) {
+  const t = useT();
   const [details, setDetails] = useState(false);
   const detailsId = useId();
-  const status = !check ? '' : check.finding ? 'Finding the roof…' : check.done ? 'Measured' : `Measuring the shade… ${Math.round(check.progress * 100)}%`;
+  const status = !check ? '' : check.finding ? t('solar.status.finding') : check.done ? t('solar.status.measured') : t('solar.status.measuringPct', { pct: Math.round(check.progress * 100) });
   const kw = check ? (check.panels * PANEL_W) / 1000 : 0;
   const noRoof = check && !check.finding && check.candidateM2 === 0;
 
@@ -151,51 +157,51 @@ export function SolarSheet({ title, locality, meta, check, compare, withPlans, p
         "Details" — so the switch below it sits at the same height on both
         screens and does not jump when it is pressed.
       */}
-      <SubjectHead existing title={title} locality={locality} meta={meta} backLabel="Explore the city" onBack={onExplore} onDetails={onDetails} />
+      <SubjectHead existing title={title} locality={locality} meta={meta} backLabel={t('solar.sheet.back')} onBack={onExplore} onDetails={onDetails} />
       {onSunlight && <AnalysisSwitch current="solar" onSunlight={onSunlight} onSolar={() => undefined} />}
-      <h3 className="sheet__lede solar-sheet__lede" id="solar-title" tabIndex={-1}>Solar panels</h3>
+      <h3 className="sheet__lede solar-sheet__lede" id="solar-title" tabIndex={-1}>{t('solar.sheet.title')}</h3>
       <p className="visually-hidden" role="status" aria-live="polite">{status}</p>
 
-      {noRoof && <p className="solar-card solar-card__note">This building has no roof that a panel fits on.</p>}
+      {noRoof && <p className="solar-card solar-card__note">{t('solar.sheet.noRoof')}</p>}
 
       {check && !noRoof && !check.done && (
-        <section className="solar-card solar-hero solar-hero--pending" aria-label="Measuring">
-          <p className="solar-hero__label">{check.finding ? 'Finding the roof…' : 'Measuring the shade'}</p>
+        <section className="solar-card solar-hero solar-hero--pending" aria-label={t('solar.status.measuringLabel')}>
+          <p className="solar-hero__label">{check.finding ? t('solar.status.finding') : t('solar.status.measuring')}</p>
           {!check.finding && (
             <div className="solar-progress" aria-hidden="true"><span style={{ width: `${Math.round(check.progress * 100)}%` }} /></div>
           )}
-          <p className="solar-card__note">The sun from every point of the roof through a year, against every building in the model.</p>
+          <p className="solar-card__note">{t('solar.status.measuringNote')}</p>
         </section>
       )}
 
       {check?.done && !noRoof && (
         <>
-          <section className="solar-card solar-hero" aria-label="Panels">
+          <section className="solar-card solar-hero" aria-label={t('solar.hero.label')}>
             <div className="solar-hero__top">
               <div>
-                <p className="solar-hero__label">{check.panels > 0 ? 'About' : 'Room for'}</p>
-                <p className="solar-hero__figure"><strong>{check.panels.toLocaleString('en-AU')}</strong> panels</p>
+                <p className="solar-hero__label">{check.panels > 0 ? t('solar.hero.about') : t('solar.hero.roomFor')}</p>
+                <p className="solar-hero__figure">{richText(t(check.panels === 1 ? 'solar.hero.panelsOne' : 'solar.hero.panelsOther', { count: formatNumber(check.panels) }))}</p>
               </div>
               <PanelSunIcon />
             </div>
             <div className="solar-hero__foot">
               <span>{check.panels > 0
-                ? `Where they keep ${pct(LIGHT_MIN)}+ of the light`
-                : `No pair fits: too little roof keeps ${pct(LIGHT_MIN)}+ of the light, ${EDGE_SETBACK_M} m in from the edges`}</span>
-              {check.panels > 0 && <span>Power ≈{about(kw)} kW</span>}
+                ? t('solar.hero.where', { pct: pct(LIGHT_MIN) })
+                : t('solar.hero.noPair', { pct: pct(LIGHT_MIN), metres: formatNumber(EDGE_SETBACK_M) })}</span>
+              {check.panels > 0 && <span>{t('solar.hero.power', { kw: about(kw) })}</span>}
             </div>
           </section>
 
           {check.panels > 0 && (
-            <section className="solar-card solar-energy" aria-label="Generation">
+            <section className="solar-card solar-energy" aria-label={t('solar.energy.label')}>
               <div className="solar-energy__top">
                 <SunMeterIcon />
-                <p className="solar-energy__figure"><strong>{kwh(check.kwhYear)}</strong> kWh / year</p>
+                <p className="solar-energy__figure">{richText(t('solar.energy.figure', { kwh: kwh(check.kwhYear) }))}</p>
               </div>
-              <p className="solar-card__note">With the shade counted, panel by panel.</p>
+              <p className="solar-card__note">{t('solar.energy.note')}</p>
               <dl className="solar-tiles solar-tiles--units">
-                <div><dt>Homes' electricity</dt><dd>{about(homesFor(check.kwhYear))}</dd></div>
-                <div><dt>Grid CO₂ for the same power</dt><dd>{about(co2TonnesFor(check.kwhYear))} <span>t / year</span></dd></div>
+                <div><dt>{t('solar.energy.homes')}</dt><dd>{about(homesFor(check.kwhYear))}</dd></div>
+                <div><dt>{t('solar.energy.co2')}</dt><dd>{about(co2TonnesFor(check.kwhYear))} <span>{t('solar.energy.tonnes')}</span></dd></div>
               </dl>
             </section>
           )}
@@ -207,21 +213,21 @@ export function SolarSheet({ title, locality, meta, check, compare, withPlans, p
       {check && !check.finding && !noRoof && (
         <section aria-labelledby={`${detailsId}-roof`}>
           <div className="solar-section-head">
-            <h3 className="solar-section" id={`${detailsId}-roof`}>Roof space</h3>
+            <h3 className="solar-section" id={`${detailsId}-roof`}>{t('solar.roof.heading')}</h3>
             {check.done && check.panels > 0 && (
-              <div className="solar-show" role="group" aria-label="On the roof">
-                <button type="button" aria-pressed={showPanels} onClick={() => onShowPanels(true)}>Panels</button>
-                <button type="button" aria-pressed={!showPanels} onClick={() => onShowPanels(false)}>Light</button>
+              <div className="solar-show" role="group" aria-label={t('solar.roof.showLabel')}>
+                <button type="button" aria-pressed={showPanels} onClick={() => onShowPanels(true)}>{t('solar.roof.showPanels')}</button>
+                <button type="button" aria-pressed={!showPanels} onClick={() => onShowPanels(false)}>{t('solar.roof.showLight')}</button>
               </div>
             )}
           </div>
           <dl className="solar-tiles">
-            <div><dt>Whole roof</dt><dd>{m2(check.roofM2)} <span>m²</span></dd></div>
-            <div><dt>Space for panels</dt><dd>{m2(check.candidateM2)} <span>m²</span></dd></div>
+            <div><dt>{t('solar.roof.whole')}</dt><dd>{m2(check.roofM2)} <span>m²</span></dd></div>
+            <div><dt>{t('solar.roof.space')}</dt><dd>{m2(check.candidateM2)} <span>m²</span></dd></div>
           </dl>
           {check.done && (
-            <dl className="solar-levels" aria-label="How much of a year's light the roof keeps">
-              {LEVELS.map(({ level, label }) => (
+            <dl className="solar-levels" aria-label={t('solar.levels.label')}>
+              {levels().map(({ level, label }) => (
                 <div key={level}>
                   <dt><span className="solar-swatch" style={{ background: SOLAR_LEVELS[level] }} aria-hidden="true" />{label}</dt>
                   <dd>{m2(check.levelM2[level])} <span>m²</span></dd>
@@ -236,24 +242,27 @@ export function SolarSheet({ title, locality, meta, check, compare, withPlans, p
         <section className="solar-details">
           <h3 className="solar-details__heading">
             <button type="button" className="solar-details__toggle" aria-expanded={details} aria-controls={detailsId} onClick={() => setDetails((d) => !d)}>
-              {details ? 'Hide details' : 'See details'}
+              {details ? t('solar.details.hide') : t('solar.details.show')}
               <Icon name={details ? 'expand_less' : 'expand_more'} size={18} />
             </button>
           </h3>
           <div id={detailsId} className="solar-details__body" hidden={!details}>
-            <h4>Before you install</h4>
-            <p>Air-conditioning, hot water and other plant the model does not show, and what the roof's structure can carry, still need checking on site.</p>
-            <p>By the building code's shade test instead (NCC J9D5: shaded no more than a quarter of daylight hours), {check.panelsByRule.toLocaleString('en-AU')} panels.</p>
-            <h4>How we counted</h4>
-            <p>Panels: {PANEL_W} W, {Math.round(MODULE.lengthM * 1000).toLocaleString('en-AU')} × {Math.round(MODULE.widthM * 1000).toLocaleString('en-AU')} mm, in pairs facing east and west at 10°, {EDGE_SETBACK_M} m in from the roof's edges.</p>
-            <p>{check.layout?.frame === 'anchored'
-              ? `Frame: fixed to the slab with anchors (buildings over ${BALLAST_MAX_HEIGHT_M} m, too high for ballast).`
-              : `Frame: held down by concrete blocks (buildings up to ${BALLAST_MAX_HEIGHT_M} m).`}</p>
-            <p>Light: the sun's direct light where it reaches each part of the roof, and the sky's by how much of it is seen, against the same panel with nothing around it; a pair goes only where every part of it keeps {pct(LIGHT_MIN)} (75% of the best a panel facing north could get).</p>
-            <p>Generation: {KWH_PER_KW.toLocaleString('en-AU')} kWh per kW a year unshaded (PVGIS), times the light each panel keeps.</p>
-            <p>Sun: the 21st of each month, every ten minutes. Shade: every building in the model{withPlans ? ', with the approved developments built and the buildings they replace removed' : ', as it stands today'}. Trees are not included.</p>
-            <p>A home: {HOUSEHOLD_KWH.toLocaleString('en-AU')} kWh a year (Essential Services Commission, Victorian Default Offer 2026–27). Grid CO₂: {GRID_KG_CO2E_PER_KWH} kg CO₂-e per kWh (National Greenhouse Accounts Factors 2026) — an equivalent, not a measured cut.</p>
-            <p className="solar-details__last">Check the roof on site before installing.</p>
+            <h4>{t('solar.details.beforeHeading')}</h4>
+            <p>{t('solar.details.plant')}</p>
+            <p>{t(check.panelsByRule === 1 ? 'solar.details.byRuleOne' : 'solar.details.byRuleOther', { count: formatNumber(check.panelsByRule) })}</p>
+            <h4>{t('solar.details.howHeading')}</h4>
+            <p>{t('solar.details.panels', {
+              watts: formatNumber(PANEL_W),
+              length: formatNumber(Math.round(MODULE.lengthM * 1000)),
+              width: formatNumber(Math.round(MODULE.widthM * 1000)),
+              metres: formatNumber(EDGE_SETBACK_M),
+            })}</p>
+            <p>{t(check.layout?.frame === 'anchored' ? 'solar.details.frameAnchored' : 'solar.details.frameBallast', { metres: formatNumber(BALLAST_MAX_HEIGHT_M) })}</p>
+            <p>{t('solar.details.light', { pct: pct(LIGHT_MIN) })}</p>
+            <p>{t('solar.details.generation', { kwh: formatNumber(KWH_PER_KW) })}</p>
+            <p>{t(withPlans ? 'solar.details.sunPlans' : 'solar.details.sunToday')}</p>
+            <p>{t('solar.details.home', { kwh: formatNumber(HOUSEHOLD_KWH), kg: formatNumber(GRID_KG_CO2E_PER_KWH, { maximumFractionDigits: 3 }) })}</p>
+            <p className="solar-details__last">{t('solar.details.last')}</p>
           </div>
         </section>
       )}
