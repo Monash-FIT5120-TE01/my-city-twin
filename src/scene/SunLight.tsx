@@ -20,6 +20,8 @@ interface SunLightProps {
   centre?: [number, number, number];
   /** The "Sunlight & shadows" layer. Off leaves the scene lit but flat. */
   castShadows?: boolean;
+  /** The shadow map's side, pixels: 4096, or 2048 for the low graphics setting (settings/display.ts). */
+  mapSize?: number;
 }
 
 /**
@@ -39,9 +41,18 @@ export function SunLight({
   castShadows = true,
   bias = -0.0006,
   normalBias = 0.9,
+  mapSize = 4096,
 }: SunLightProps) {
   const light = useRef<DirectionalLight>(null);
   const target = useRef<Object3D>(null);
+
+  // a new size takes a new map: three keeps the one it made at the old size until it is let go
+  useEffect(() => {
+    const shadow = light.current?.shadow;
+    if (!shadow) return;
+    shadow.map?.dispose();
+    shadow.map = null;
+  }, [mapSize]);
 
   useEffect(() => {
     if (!light.current || !target.current) return;
@@ -71,7 +82,7 @@ export function SunLight({
         intensity={isUp ? 2.7 : 0}
         color="#fff4e0"
         castShadow={isUp && castShadows}
-        shadow-mapSize={[4096, 4096]}
+        shadow-mapSize={[mapSize, mapSize]}
         // The frustum must span the scene on both sides of the target: the
         // light sits `distance` away, and casters reach `depthM` beyond it.
         shadow-camera-near={Math.max(1, distance - depthM * 1.2)}

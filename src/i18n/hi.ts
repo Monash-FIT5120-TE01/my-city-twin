@@ -668,6 +668,8 @@ const words: Messages = {
   "settings.colourSafe": "रंग-अंधता के अनुकूल",
   "settings.colourSafeNote": "ऐसे रंग जिन्हें अलग पहचानना आसान है, और इमारतों पर धारियाँ व रेखाएँ, ताकि पहचान सिर्फ़ रंग पर निर्भर न रहे।",
   "legend.title": "संकेत-सूची",
+  "settings.lowGraphics": "कम ग्राफ़िक्स / ऊर्जा बचत",
+  "settings.lowGraphicsNote": "कम बारीकी और कम स्मूदनेस, पुराने डिवाइस के लिए या बिजली बचाने के लिए। धूप के आँकड़े वही रहते हैं।",
 };
 
 export default words;

@@ -145,13 +145,15 @@ function stepBands(b: Built, cam: Vector3, device: DeviceSettings, groundAt: (e:
  * @param lampsLit street and feature lights on: decided by the caller (after sunset, unless the visitor has
  *                 switched the street lights off in Map layers).
  */
-export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clock }: {
+export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clock, lowDetail = false }: {
   /** The ground (terrain.ts), or one flat height: everything is raised onto it once built (onGround.ts). */
   groundAhdM: Ground; lampsLit?: boolean;
   /** Standing in the street: the trams run (only then; see trams/TramLayer.ts). */
   walking?: boolean;
   /** The date and time on the page's clock: the trams run to that day's timetable from that minute. */
   clock?: { date: SimulationDate; minutes: number };
+  /** The low graphics setting (settings/display.ts): the furniture drawn as near as on a phone. */
+  lowDetail?: boolean;
 }) {
   const [built, setBuilt] = useState<Built | null>(null);
   const getThree = useThree((s) => s.get);
@@ -204,7 +206,8 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
   useEffect(() => (built ? keepStill(built.root) : undefined), [built]);
 
   const { camera, gl } = useThree();
-  const baseDevice = useMemo(() => detectDevice(), []);
+  const detected = useMemo(() => detectDevice(), []);
+  const baseDevice = lowDetail && detected === 'desktop' ? 'mobile' : detected;
   const audio = useRef<PedestrianAudio | null>(null);
   useEffect(() => {
     if (!built) return;

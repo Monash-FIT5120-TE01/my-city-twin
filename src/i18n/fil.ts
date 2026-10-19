@@ -729,6 +729,8 @@ const words: Messages = {
   "settings.colourSafe": "Para sa color blind",
   "settings.colourSafeNote": "Mga kulay na mas madaling makilala, may guhit at balangkas sa mga gusali, para hindi lang kulay ang batayan.",
   "legend.title": "Legend",
+  "settings.lowGraphics": "Mababang graphics / tipid sa enerhiya",
+  "settings.lowGraphicsNote": "Mas kaunting detalye at kinis, para sa mas lumang device o para makatipid ng kuryente. Hindi nagbabago ang mga numero ng sikat ng araw.",
 };
 
 export default words;

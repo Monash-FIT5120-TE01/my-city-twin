@@ -82,6 +82,8 @@ interface CityMassingProps {
   clock?: { date: SimulationDate; minutes: number };
   /** Standing in the street on foot or in a headset: the trams run. Defaults to `walking`. */
   streetTrams?: boolean;
+  /** The low graphics setting: the street furniture drawn as near as on a phone (Streetscape). */
+  lowDetail?: boolean;
   /** Standing in the street rather than looking down at it. */
   walking: boolean;
   /**
@@ -120,6 +122,7 @@ export function CityMassing({
   lampsLit = false,
   clock,
   streetTrams,
+  lowDetail = false,
   room = null,
 }: CityMassingProps) {
   const roofCheck = useMemo(() => roofCheckOn(), []);
@@ -291,7 +294,7 @@ export function CityMassing({
         furniture. It draws the real road outlines, so the inferred roads below are only the fallback for
         where it has nothing; see streetscape/Streetscape.tsx.
       */}
-      <Streetscape groundAhdM={terrain} lampsLit={lampsLit} walking={streetTrams ?? walking} clock={clock} />
+      <Streetscape groundAhdM={terrain} lampsLit={lampsLit} walking={streetTrams ?? walking} clock={clock} lowDetail={lowDetail} />
 
       {/*
         The inferred carriageways stand down once a real map is under the

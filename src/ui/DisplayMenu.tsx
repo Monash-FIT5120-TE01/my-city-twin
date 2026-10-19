@@ -1,7 +1,7 @@
 /*
  * The reader's display settings (settings/display.ts): a chip in the header that opens a card of
- * switches, in the same style as the language list beside it. One switch for now — colours for colour
- * vision deficiency — and the place the next ones go. Each switch is a real checkbox (the same markup as
+ * switches, in the same style as the language list beside it: colours for colour vision deficiency, and
+ * a lighter way of drawing for older computers or to use less power. Each switch is a real checkbox (the same markup as
  * the map layers), so the keyboard and screen readers work as they do anywhere.
  *
  * Escape closes it and gives the keyboard back to the chip; so does a click anywhere else.
@@ -79,6 +79,19 @@ export function DisplayMenu() {
                 className="switch__input"
                 checked={display.colourSafe}
                 onChange={(event) => setDisplay({ colourSafe: event.target.checked })}
+              />
+              <span className="switch__track" aria-hidden="true" />
+            </label>
+            <label className="switch">
+              <span className="switch__text">
+                <span className="switch__name">{t('settings.lowGraphics')}</span>
+                <span className="switch__note">{t('settings.lowGraphicsNote')}</span>
+              </span>
+              <input
+                type="checkbox"
+                className="switch__input"
+                checked={display.lowGraphics}
+                onChange={(event) => setDisplay({ lowGraphics: event.target.checked })}
               />
               <span className="switch__track" aria-hidden="true" />
             </label>

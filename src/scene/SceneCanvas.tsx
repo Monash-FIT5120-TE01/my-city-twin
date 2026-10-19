@@ -109,6 +109,10 @@ import { useReducedMotion } from '../ui/useReducedMotion';
  */
 const VrFurniture = lazy(() => import('./VrPanel'));
 
+/** The low graphics setting's pixels per CSS pixel, and its frames a second (settings/display.ts). */
+const LOW_DPR = 0.8;
+const LOW_FPS = 30;
+
 /** How far from the flat's middle the walker may go, metres: the flat and its balcony, and no further. */
 const ROOM_BOUNDS_M = 7.5;
 /** The fastest the headset's stick walks inside the flat, m/s: a brisk walk, as on a monitor. */
@@ -144,6 +148,8 @@ import type { SimulationDate } from './solar';
 import type { CameraLink } from './cameraLink';
 import type { SunAngles } from './sun';
 import type { CityModel, Development } from '../data/model';
+import { useDisplay } from '../settings/display';
+import { FrameCap, LowShadowCache } from './lowGraphics';
 
 interface SceneCanvasProps {
   model: CityModel;
@@ -616,6 +622,14 @@ export function SceneCanvas({
   const [askToLeave, setAskToLeave] = useState(0);
 
   const [inVr, setInVr] = useState(false);
+  /*
+   * The low graphics / energy saving setting (settings/display.ts): fewer pixels, at most 30 frames a
+   * second, a smaller shadow map redrawn only when the sun or the buildings change (and not more than
+   * four times a second while the hour is dragged), the street furniture as near as on a phone. Not in a
+   * headset, which paces itself.
+   */
+  const { lowGraphics } = useDisplay();
+  const low = lowGraphics && !inVr;
   // in the flat on a monitor (StreetView walks it), and in a headset (VrWalk does, once the move has landed)
   const inRoom = placedRoom !== null && !inVr;
   const inRoomVr = placedRoom !== null && inVr && vrStage === 'room';
@@ -743,12 +757,13 @@ export function SceneCanvas({
       shadows="percentage"
       // Phones and headsets: at most 1.5 device pixels per CSS pixel; the extra pixels of a 3x screen cost
       // fill rate the street level needs (see streetscape/lod.ts).
-      dpr={detectDevice() === 'desktop' ? [1, 2] : [1, 1.5]}
+      dpr={low ? LOW_DPR : detectDevice() === 'desktop' ? [1, 2] : [1, 1.5]}
       // The design views are high obliques with little perspective distortion,
       // so a long lens rather than the 50° default.
       camera={{ position: openingShot, fov: 30, near: 5, far: 20000 }}
       gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}
-      frameloop={asleep ? 'never' : 'always'}
+      // with low graphics the canvas draws nothing by itself: FrameCap asks for a frame when one is due
+      frameloop={asleep || low ? 'never' : 'always'}
     >
       {/*
         ── EVERYTHING, WITH A HEADSET OPTIONALLY ATTACHED ───────────────────
@@ -804,8 +819,10 @@ export function SceneCanvas({
             bias={roomShadow?.bias}
             normalBias={roomShadow?.normalBias}
             castShadows={castShadows}
+            mapSize={low ? 2048 : 4096}
           />
           <CityMassing
+            lowDetail={low}
             haze={sky.haze}
             lampsLit={streetLights && sun.altitudeDeg < -0.833}
             clock={clock}
@@ -942,6 +959,25 @@ export function SceneCanvas({
         */}
         {/* Writes down where the headset stops, for ?vrdebug only. See VrStallProbe. */}
         {inVr && <VrStallProbe />}
+        {low && !asleep && <FrameCap fps={LOW_FPS} />}
+        {low && (
+          <LowShadowCache
+            shadowKey={[
+              sun.azimuthDeg.toFixed(2),
+              sun.altitudeDeg.toFixed(2),
+              castShadows,
+              showProposed,
+              showAllProposals,
+              highlightedBuildingId,
+              focus?.devKey,
+              walking,
+              roomDrawn,
+              roomDrawnCount,
+              shadow.extentM.toFixed(0),
+              roomShadow?.centre.join(','),
+            ].join('|')}
+          />
+        )}
         {/* the flat's walls are a stride away: the headset's near plane comes in while the reader is inside */}
         {inRoomVr && <NearPlane metres={ROOM_NEAR_M} />}
         {inVr && (

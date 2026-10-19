@@ -690,6 +690,8 @@ const words: Messages = {
   "settings.colourSafe": "Mesra buta warna",
   "settings.colourSafeNote": "Warna yang lebih mudah dibezakan, dengan jalur dan garis luar pada bangunan, supaya bukan warna sahaja petunjuknya.",
   "legend.title": "Petunjuk",
+  "settings.lowGraphics": "Grafik rendah / jimat tenaga",
+  "settings.lowGraphicsNote": "Kurang perincian dan kelancaran, untuk peranti lama atau untuk jimat kuasa. Angka cahaya matahari kekal sama.",
 };
 
 export default words;

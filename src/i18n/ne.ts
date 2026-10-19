@@ -729,6 +729,8 @@ const words: Messages = {
   "settings.colourSafe": "रङ-अन्धोपनमैत्री",
   "settings.colourSafeNote": "छुट्याउन सजिला रङहरू, भवनहरूमा धर्का र रूपरेखासहित, ताकि रङमा मात्र भर पर्नु नपरोस्।",
   "legend.title": "सङ्केत",
+  "settings.lowGraphics": "कम ग्राफिक्स / ऊर्जा बचत",
+  "settings.lowGraphicsNote": "कम विवरण र कम सहजता, पुराना उपकरणका लागि वा बिजुली बचाउन। घामका तथ्याङ्क उस्तै रहन्छन्।",
 };
 
 export default words;

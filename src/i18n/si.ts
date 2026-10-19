@@ -730,6 +730,8 @@ const words: Messages = {
   "settings.colourSafe": "වර්ණ අන්ධතාවට හිතකර",
   "settings.colourSafeNote": "වෙන්කර හඳුනාගැනීමට පහසු වර්ණ, ගොඩනැගිලි මත ඉරි සහ දාර සමඟ, වර්ණය පමණක් මත රඳා නොසිටීමට.",
   "legend.title": "සංකේත",
+  "settings.lowGraphics": "අඩු ග්‍රැෆික්ස් / බලශක්ති ඉතිරිය",
+  "settings.lowGraphicsNote": "අඩු විස්තර සහ සුමටතාව, පැරණි උපාංග සඳහා හෝ බලය ඉතිරි කිරීමට. හිරු එළියේ සංඛ්‍යා වෙනස් නොවේ.",
 };
 
 export default words;
