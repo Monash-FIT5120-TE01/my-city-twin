@@ -71,6 +71,7 @@ import { LookOutFromFlat, type FlatFit } from './LookOutFromFlat';
 import type { Facade } from '../scene/facades';
 import type { WindowSunlight } from '../scene/windowSunlight';
 import { searchCity, type SearchHit } from '../data/search';
+import { formatNumber, useT } from '../i18n/i18n';
 
 /* ── 01 Search, progress and the map controls ───────────── */
 
@@ -101,22 +102,25 @@ export function SearchResults({
   landmarks?: readonly Landmark[];
   onPick: (hit: SearchHit) => void;
 }) {
+  const t = useT();
   const matches = useMemo(() => searchCity(model, query, landmarks), [query, model, landmarks]);
   if (query.trim().length < 2) return null;
 
   if (matches.length === 0) {
+    const counts = {
+      buildings: formatNumber(model.searchable.length),
+      projects: formatNumber(model.developments.length),
+      landmarks: formatNumber(landmarks.length),
+    };
     return (
       <p className="results__none">
-        Nothing matches that. {model.searchable.length.toLocaleString()} buildings
-        and {model.developments.length} approved projects can be searched by
-        address{landmarks.length > 0 ? `, and ${landmarks.length} landmarks by name` : ''};
-        some older buildings have no address on record.
+        {landmarks.length > 0 ? t('search.none', counts) : t('search.noneNoLandmarks', counts)}
       </p>
     );
   }
 
   return (
-    <div className="results" role="listbox" aria-label="Search results">
+    <div className="results" role="listbox" aria-label={t('search.results')}>
       {matches.map((hit, index) => (
         <button
           key={

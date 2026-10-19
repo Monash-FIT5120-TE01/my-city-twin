@@ -702,7 +702,14 @@
   font-weight: var(--weight-label);
   color: var(--ink);
   cursor: pointer;
-  white-space: nowrap;
+  /*
+   * Two lines rather than one long one, where a language's words for it are long (Filipino, Sinhala):
+   * on one line they pushed the search field down to a few letters.
+   */
+  max-width: 7.5rem;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
 }
 
 .header__link:hover {

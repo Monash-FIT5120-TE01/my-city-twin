@@ -67,6 +67,7 @@ import { TextButton } from './kit/TextButton';
 import { SearchField } from './kit/SearchField';
 import { LandingMore } from './LandingMore';
 import '../styles/landing.css';
+import { useT } from '../i18n/i18n';
 
 /** The three steps along the bottom, in the order the app is used. */
 const STEPS = [
@@ -144,6 +145,7 @@ export function LandingPage({
   /** The film is shown finished rather than played. */
   reducedMotion: boolean;
 }) {
+  const t = useT();
   const root = useRef<HTMLElement>(null);
   const window_ = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
@@ -339,7 +341,7 @@ export function LandingPage({
               field.current?.focus();
             }}
             onFocus={onSearchFocus}
-            placeholder={loading ? 'The city is loading…' : 'Search a landmark, street or address'}
+            placeholder={loading ? t('search.loading') : t('search.landingPlaceholder')}
             // Nothing to search until the buildings are here.
             disabled={loading !== null}
             dropdown={results}

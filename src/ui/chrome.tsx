@@ -19,6 +19,8 @@ import { bundled } from '../data/bundled';
 import type { Development } from '../data/model';
 import { SearchField } from './kit/SearchField';
 import { Icon } from './kit/Icon';
+import { useT } from '../i18n/i18n';
+import { LanguagePicker } from './LanguagePicker';
 
 /**
  * The credit Mapbox is owed for the map under the city.
@@ -169,6 +171,7 @@ export function Header({
   children?: React.ReactNode;
 }) {
   const field = useRef<HTMLInputElement>(null);
+  const t = useT();
 
   /*
    * "/" puts the cursor in the search, unless something is already being
@@ -217,7 +220,7 @@ export function Header({
           the word is hidden on a narrow screen and the mark beside it is
           aria-hidden, which left the button with no name at all.
         */
-        aria-label="My City Twin — home"
+        aria-label={t('header.home')}
       >
         {/*
           Drawn rather than imported: two towers and a roofline, at the size
@@ -261,6 +264,7 @@ export function Header({
 
       <div className="header__actions">
         {nav}
+        <LanguagePicker />
         {onEnterVr && (
           /*
            * The handler must BE the call — see xrStore.ts. Nothing may be
@@ -268,7 +272,7 @@ export function Header({
            */
           <button type="button" className="chip chip--icon" onClick={onEnterVr}>
             <Icon name="head_mounted_device" size={20} />
-            Enter VR
+            {t('header.enterVr')}
           </button>
         )}
         {!hideLayers && (
@@ -279,7 +283,7 @@ export function Header({
           onClick={onLayers}
         >
           <Icon name="layers" size={20} />
-          Map layers
+          {t('header.mapLayers')}
           {/*
             Said in words as well as drawn, because a dot on a button is a
             decoration until somebody works out what it counts.
@@ -287,7 +291,7 @@ export function Header({
           {layersHidden > 0 && (
             <span className="chip__count">
               {layersHidden}
-              <span className="visually-hidden"> layers hidden</span>
+              <span className="visually-hidden"> {t('header.layersHidden')}</span>
             </span>
           )}
         </button>

@@ -140,12 +140,15 @@ import './styles/street-activity.css';
 import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
 import { GestureHint, HintChip, KeyHint, WalkHints, WheelHint } from './ui/KeyHints';
 import { Icon } from './ui/kit/Icon';
+import { useT } from './i18n/i18n';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
 const MIDDAY_MINUTES = 12 * 60;
 
 export default function App() {
+  // the interface's words in the language chosen (i18n/); App is drawn again when it changes
+  const t = useT();
   const { model, error, progress } = useCityModel();
   /** The named places, placed on whichever city model is up. Empty until they arrive. */
   const landmarks = useLandmarks(model);
@@ -1549,7 +1552,7 @@ export default function App() {
   const frontNav = (
     <>
       <button type="button" className="header__link" onClick={showFuturePlans}>
-        Future plans
+        {t('nav.futurePlans')}
       </button>
       <button
         type="button"
@@ -1557,13 +1560,13 @@ export default function App() {
         aria-current={view === 'activity' ? 'page' : undefined}
         onClick={showStreetActivity}
       >
-        Street activity
+        {t('nav.streetActivity')}
       </button>
       <button type="button" className="header__link" onClick={() => setView('explore')}>
-        Explore the city
+        {t('nav.explore')}
       </button>
       <button type="button" className="header__link" onClick={showHowItWorks}>
-        How it works
+        {t('nav.howItWorks')}
       </button>
     </>
   );

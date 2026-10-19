@@ -7,6 +7,10 @@ import './styles/global.css';
 // The shared components' look, before any screen's own stylesheet — see kit.css.
 import './styles/kit.css';
 import App from './App';
+import { restoreLocale } from './i18n/i18n';
+
+// the language chosen on an earlier visit (i18n/): English until its words arrive
+restoreLocale();
 
 // A temporary log for the headset, only with ?vrdebug in the address — see vrDebug.ts.
 if (new URLSearchParams(location.search).has('vrdebug')) {

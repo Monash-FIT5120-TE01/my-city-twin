@@ -2714,3 +2714,37 @@
   border-radius: var(--radius-card, 14px);
   text-align: center;
 }
+
+/*
+ * The language picker (LanguagePicker.tsx): a chip whose words are a plain select, so it opens the
+ * system's own list. The arrow is the select's own, kept small.
+ */
+.language-picker select {
+  /* as wide as the language chosen, not as the longest one in the list */
+  field-sizing: content;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/*
+ * The other scripts, in the faces the systems carry for them, so the page asks for no font of its own.
+ * By the page's language (i18n.ts sets <html lang>), so Chinese and Japanese each get their own forms of
+ * the characters they share.
+ */
+:root:lang(zh-CN) {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+}
+:root:lang(ja-JP) {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Noto Sans JP', sans-serif;
+}
+:root:lang(hi-IN),
+:root:lang(ne-NP) {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Nirmala UI', 'Kohinoor Devanagari', 'Noto Sans Devanagari', sans-serif;
+}
+:root:lang(si-LK) {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Nirmala UI', 'Iskoola Pota', 'Sinhala Sangam MN', 'Noto Sans Sinhala', sans-serif;
+}

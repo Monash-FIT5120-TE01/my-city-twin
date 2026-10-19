@@ -25,6 +25,7 @@
 import type { ReactNode, Ref } from 'react';
 import { CloseButton } from './CloseButton';
 import { Icon } from './Icon';
+import { useT } from '../../i18n/i18n';
 
 export function SearchField({
   ref,
@@ -32,7 +33,7 @@ export function SearchField({
   onChange,
   onClear,
   onFocus,
-  placeholder = 'Search a street or address',
+  placeholder,
   disabled = false,
   size = 'md',
   shortcut = false,
@@ -57,6 +58,7 @@ export function SearchField({
   /** The results, hung under the box. */
   dropdown?: ReactNode;
 }) {
+  const t = useT();
   return (
     <div className={`search search--${size}${className ? ` ${className}` : ''}`}>
       <div className="search__box">
@@ -68,12 +70,12 @@ export function SearchField({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             onFocus={onFocus}
-            placeholder={placeholder}
-            aria-label="Search for a street or address"
+            placeholder={placeholder ?? t('search.placeholder')}
+            aria-label={t('search.label')}
             disabled={disabled}
           />
           {value && onClear ? (
-            <CloseButton label="Clear the search" onClick={onClear} />
+            <CloseButton label={t('search.clear')} onClick={onClear} />
           ) : (
             shortcut &&
             !value && (
