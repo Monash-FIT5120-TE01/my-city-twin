@@ -2862,3 +2862,53 @@
 :root:lang(si-LK) {
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Nirmala UI', 'Iskoola Pota', 'Sinhala Sangam MN', 'Noto Sans Sinhala', sans-serif;
 }
+
+/*
+ * The map key along the foot of the explore screen (App, kit/MapKey), centred, on a paper band that reads
+ * over any part of the city, as ver-4 has it, one row above the map credit so that no language's longer
+ * words run it into the credit. A caption, so the pointer passes through to the map.
+ */
+.explore-legend {
+  position: absolute;
+  left: 50%;
+  /* just above the map credit, which sits along the very foot and must stay readable (a licence term) */
+  bottom: calc(var(--space-4) + 2.75rem);
+  z-index: 5;
+  justify-content: center;
+  max-width: calc(100% - 2 * var(--space-4));
+  padding: 10px var(--space-5);
+  border: 1px solid var(--cream-edge);
+  border-radius: var(--radius-card);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-chip);
+  backdrop-filter: blur(6px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.explore-legend .map-key__title {
+  font-weight: var(--weight-title);
+  color: var(--green-700);
+}
+
+/* A phone: just above the hint along the foot, with the credit and the view controls lifted over both. */
+@media (max-width: 900px) {
+  .explore-legend {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: calc(var(--space-3) + 3.5rem + env(safe-area-inset-bottom, 0px));
+    max-width: none;
+    gap: 4px var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+    transform: none;
+  }
+
+  .app:has(.explore-legend) .attribution {
+    bottom: calc(var(--space-3) + 8.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app:has(.explore-legend) .viewctl {
+    bottom: calc(var(--space-3) + 11.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}

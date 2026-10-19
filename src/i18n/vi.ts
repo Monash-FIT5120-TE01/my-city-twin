@@ -728,6 +728,7 @@ const words: Messages = {
   "settings.title": "Cài đặt hiển thị",
   "settings.colourSafe": "Thân thiện với người mù màu",
   "settings.colourSafeNote": "Màu dễ phân biệt hơn, có sọc và đường viền trên các tòa nhà, để không chỉ dựa vào màu sắc.",
+  "legend.title": "Chú giải",
 };
 
 export default words;

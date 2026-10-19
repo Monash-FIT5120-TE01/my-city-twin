@@ -150,6 +150,7 @@ import { GestureHint, HintChip, KeyHint, WalkHints, WheelHint, richText } from '
 import { Icon } from './ui/kit/Icon';
 import { formatNumber, useT } from './i18n/i18n';
 import { dayMonthLabel, dayMonthYearLabel, seasonWord } from './i18n/format';
+import { MapKey } from './ui/kit/MapKey';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
@@ -2514,6 +2515,8 @@ export default function App() {
           {t('app.explore.hint')}
         </Pill>
       )}
+      {/* the key to the city's colours, along the foot of the map (as in ver-4) */}
+      {!chromeHidden && view === 'explore' && <MapKey full title={t('legend.title')} className="explore-legend" />}
 
       {/*
         ── ONE PROJECT, OR ONE EXISTING BUILDING ───────────────────────────

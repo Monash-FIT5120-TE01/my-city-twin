@@ -729,6 +729,7 @@ const words: Messages = {
   "settings.title": "显示设置",
   "settings.colourSafe": "色觉友好模式",
   "settings.colourSafeNote": "更易区分的颜色，并在建筑上加上条纹和轮廓线，不只靠颜色来区分。",
+  "legend.title": "图例",
 };
 
 export default words;

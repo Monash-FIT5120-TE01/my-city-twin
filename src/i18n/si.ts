@@ -729,6 +729,7 @@ const words: Messages = {
   "settings.title": "දර්ශන සැකසුම්",
   "settings.colourSafe": "වර්ණ අන්ධතාවට හිතකර",
   "settings.colourSafeNote": "වෙන්කර හඳුනාගැනීමට පහසු වර්ණ, ගොඩනැගිලි මත ඉරි සහ දාර සමඟ, වර්ණය පමණක් මත රඳා නොසිටීමට.",
+  "legend.title": "සංකේත",
 };
 
 export default words;

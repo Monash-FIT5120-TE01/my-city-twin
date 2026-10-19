@@ -667,6 +667,7 @@ const words: Messages = {
   "settings.title": "डिस्प्ले सेटिंग",
   "settings.colourSafe": "रंग-अंधता के अनुकूल",
   "settings.colourSafeNote": "ऐसे रंग जिन्हें अलग पहचानना आसान है, और इमारतों पर धारियाँ व रेखाएँ, ताकि पहचान सिर्फ़ रंग पर निर्भर न रहे।",
+  "legend.title": "संकेत-सूची",
 };
 
 export default words;

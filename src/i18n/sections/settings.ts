@@ -6,4 +6,6 @@ export const settings = {
   // a switch: colours for colour vision deficiency
   "settings.colourSafe": "Colour-blind friendly",
   "settings.colourSafeNote": "Colours that are easier to tell apart, with stripes and outlines on the buildings, so colour is never the only clue.",
+  // the heading of the map key along the foot of the explore screen
+  "legend.title": "Legend",
 } as const;

@@ -728,6 +728,7 @@ const words: Messages = {
   "settings.title": "Mga setting ng display",
   "settings.colourSafe": "Para sa color blind",
   "settings.colourSafeNote": "Mga kulay na mas madaling makilala, may guhit at balangkas sa mga gusali, para hindi lang kulay ang batayan.",
+  "legend.title": "Legend",
 };
 
 export default words;

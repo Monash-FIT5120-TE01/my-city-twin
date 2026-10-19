@@ -689,6 +689,7 @@ const words: Messages = {
   "settings.title": "Tetapan paparan",
   "settings.colourSafe": "Mesra buta warna",
   "settings.colourSafeNote": "Warna yang lebih mudah dibezakan, dengan jalur dan garis luar pada bangunan, supaya bukan warna sahaja petunjuknya.",
+  "legend.title": "Petunjuk",
 };
 
 export default words;

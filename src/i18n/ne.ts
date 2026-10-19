@@ -728,6 +728,7 @@ const words: Messages = {
   "settings.title": "डिस्प्ले सेटिङ",
   "settings.colourSafe": "रङ-अन्धोपनमैत्री",
   "settings.colourSafeNote": "छुट्याउन सजिला रङहरू, भवनहरूमा धर्का र रूपरेखासहित, ताकि रङमा मात्र भर पर्नु नपरोस्।",
+  "legend.title": "सङ्केत",
 };
 
 export default words;
