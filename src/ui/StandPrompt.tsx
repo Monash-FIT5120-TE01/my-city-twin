@@ -19,6 +19,7 @@
 import { useEffect, useRef } from 'react';
 import { Button } from './kit/Button';
 import { Icon } from './kit/Icon';
+import { useT } from '../i18n/i18n';
 
 export function StandPrompt({
   onStand,
@@ -34,6 +35,7 @@ export function StandPrompt({
    */
   returnTo?: string;
 }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   /** Where the keyboard was before the prompt took it, to give it back on "Not now". */
   const before = useRef<Element | null>(null);
@@ -71,18 +73,18 @@ export function StandPrompt({
       </span>
       <div className="stand-prompt__words">
         <p className="stand-prompt__title" id="stand-prompt-title">
-          Stand here?
+          {t('walk.standHereAsk')}
         </p>
         <p className="stand-prompt__text" id="stand-prompt-words">
-          See this spot from the footpath, at eye level.
+          {t('walk.standHereNote')}
         </p>
       </div>
       <div className="stand-prompt__actions">
         <Button variant="ghost" onClick={close}>
-          Not now
+          {t('walk.notNow')}
         </Button>
         <Button className="stand-prompt__go" onClick={onStand} icon={<Icon name="person_pin_circle" size={18} />}>
-          Stand here
+          {t('walk.standHere')}
         </Button>
       </div>
     </div>

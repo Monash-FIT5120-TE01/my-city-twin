@@ -14,6 +14,7 @@
  */
 
 import { Icon } from './Icon';
+import { useT } from '../../i18n/i18n';
 
 export type Analysis = 'sunlight' | 'solar';
 
@@ -26,6 +27,7 @@ export function AnalysisSwitch({
   onSunlight: () => void;
   onSolar: () => void;
 }) {
+  const t = useT();
   const half = (which: Analysis, label: string, icon: 'light_mode' | 'solar_power', go: () => void) => {
     const on = current === which;
     return (
@@ -41,9 +43,9 @@ export function AnalysisSwitch({
     );
   };
   return (
-    <nav className="analysis-switch" aria-label="What to work out for this building">
-      {half('sunlight', 'Sunlight', 'light_mode', onSunlight)}
-      {half('solar', 'Solar panels', 'solar_power', onSolar)}
+    <nav className="analysis-switch" aria-label={t('kit.analysisNav')}>
+      {half('sunlight', t('kit.sunlight'), 'light_mode', onSunlight)}
+      {half('solar', t('kit.solarPanels'), 'solar_power', onSolar)}
     </nav>
   );
 }

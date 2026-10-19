@@ -1,7 +1,9 @@
 import type { LoadProgress } from '../data/useCityModel';
 import '../styles/loading.css';
+import { formatNumber, useT } from '../i18n/i18n';
 
-const formatMB = (bytes: number) => `${(bytes / 1_048_576).toFixed(1)} MB`;
+const formatMB = (bytes: number) =>
+  `${formatNumber(bytes / 1_048_576, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
 
 /**
  * Shown while the city is being fetched and placed.
@@ -12,6 +14,7 @@ const formatMB = (bytes: number) => `${(bytes / 1_048_576).toFixed(1)} MB`;
  * rather than guessing a denominator.
  */
 export function LoadingScreen({ progress, error }: { progress: LoadProgress; error: string | null }) {
+  const t = useT();
   const indeterminate = progress.phase === 'downloading' && progress.totalBytes === null;
   const failed = progress.phase === 'failed' || error !== null;
 
@@ -20,11 +23,11 @@ export function LoadingScreen({ progress, error }: { progress: LoadProgress; err
       <div className="loading__card" role="status" aria-live="polite">
         <p className="loading__eyebrow">MY CITY TWIN</p>
         <h1 className="panel-title loading__title">
-          {failed ? 'The city model did not load' : 'Building the city model'}
+          {failed ? t('loading.failed') : t('loading.building')}
         </h1>
 
         {failed ? (
-          <p className="loading__error">{error ?? 'The snapshot could not be read.'}</p>
+          <p className="loading__error">{error ?? t('loading.unreadable')}</p>
         ) : (
           <>
             <div
@@ -33,7 +36,7 @@ export function LoadingScreen({ progress, error }: { progress: LoadProgress; err
               aria-valuenow={indeterminate ? undefined : progress.percent}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label="Loading the city model"
+              aria-label={t('loading.progressLabel')}
             >
               <div
                 className="loading__fill"
@@ -46,16 +49,14 @@ export function LoadingScreen({ progress, error }: { progress: LoadProgress; err
               <span className="loading__figure">
                 {progress.totalBytes
                   ? `${formatMB(progress.loadedBytes)} / ${formatMB(progress.totalBytes)}`
-                  : `${progress.percent}%`}
+                  : `${formatNumber(progress.percent)}%`}
               </span>
             </div>
           </>
         )}
 
         <p className="loading__note">
-          Building Footprints 2023 and Development Activity Monitor © City of
-          Melbourne. Draft Open Space Data © Victorian Planning Authority.
-          Both licensed CC BY 4.0.
+          {t('loading.credits')}
         </p>
       </div>
     </div>

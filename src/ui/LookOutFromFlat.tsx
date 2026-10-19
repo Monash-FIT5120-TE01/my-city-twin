@@ -14,7 +14,8 @@ import type { RoomProblem } from "../scene/room/roomPlacement";
 import type { Facade } from "../scene/facades";
 import { Button } from "./kit/Button";
 import { Icon } from "./kit/Icon";
-import { flatProblemText } from "./flatProblemText";
+import { compassWord, flatProblemText } from "./flatProblemText";
+import { useT } from "../i18n/i18n";
 
 export type FlatFit = { ok: true } | { ok: false; problem: RoomProblem };
 
@@ -25,6 +26,7 @@ export function LookOutFromFlat({
   fit: FlatFit;
   onEnter: () => void;
 }) {
+  const t = useT();
   const note = useId();
   return (
     <div className="look-out">
@@ -35,11 +37,11 @@ export function LookOutFromFlat({
         aria-describedby={note}
         onClick={onEnter}
       >
-        Look out from this flat
+        {t("flat.lookOutFromThis")}
       </Button>
       <p className="block__note" id={note} aria-live="polite">
         {fit.ok
-          ? "Walk around an example one-bedroom flat on this floor, behind this side, and see the sun come in. It is not this building’s real plan."
+          ? t("flat.lookOutNote")
           : flatProblemText(fit.problem)}
       </p>
     </div>
@@ -70,6 +72,7 @@ export function FlatPicker({
   fit: FlatFit | null;
   onEnter: () => void;
 }) {
+  const t = useT();
   const note = useId();
   const floorLabel = useId();
   const titleId = useId();
@@ -82,17 +85,17 @@ export function FlatPicker({
         </span>
         <span>
           <span className="flat-picker__title" id={titleId}>
-            Look out from a flat
+            {t("flat.lookOutFromA")}
           </span>
           <span className="flat-picker__text">
-            See the view from a selected floor
+            {t("flat.lookOutLede")}
           </span>
         </span>
       </div>
       <div className="flat-picker__row">
         <div className="flat-picker__field">
           <span className="flat-picker__label" id={floorLabel}>
-            Floor
+            {t("flat.floor")}
           </span>
           <div
             className="stepper stepper--compact"
@@ -104,12 +107,12 @@ export function FlatPicker({
               className="stepper__step"
               onClick={() => onFloor(Math.max(1, floor - 1))}
               disabled={floor <= 1}
-              aria-label="One floor down"
+              aria-label={t("flat.floorDown")}
             >
               <Icon name="remove" size={16} />
             </button>
             <label className="stepper__value">
-              <span className="visually-hidden">Floor</span>
+              <span className="visually-hidden">{t("flat.floor")}</span>
               <input
                 type="number"
                 min={1}
@@ -127,25 +130,25 @@ export function FlatPicker({
               className="stepper__step"
               onClick={() => onFloor(floor + 1)}
               disabled={atTop}
-              aria-label="One floor up"
+              aria-label={t("flat.floorUp")}
             >
               <Icon name="add" size={16} />
             </button>
           </div>
         </div>
         <label className="flat-picker__field">
-          <span className="flat-picker__label">Facing</span>
+          <span className="flat-picker__label">{t("flat.facing")}</span>
           <select
             className="flat-picker__select"
             value={side ?? ""}
             onChange={(event) => onSide(event.target.value)}
           >
             <option value="" disabled>
-              Choose
+              {t("flat.choose")}
             </option>
             {sides.map((s) => (
               <option key={s.compass} value={s.compass}>
-                {s.compass}
+                {compassWord(s.compass)}
               </option>
             ))}
           </select>
@@ -159,18 +162,18 @@ export function FlatPicker({
         aria-describedby={note}
         onClick={onEnter}
       >
-        Look out
+        {t("flat.lookOut")}
         <Icon name="arrow_forward" size={16} />
       </button>
       <p className="flat-picker__note" id={note} aria-live="polite">
         <Icon name="info" size={14} />
         <span>
           {!side
-            ? "Choose the floor and which way the flat faces."
+            ? t("flat.chooseFloorAndSide")
             : !fit
-              ? "This building has no wall facing that way at this floor."
+              ? t("flat.problemNoSuchSide")
               : fit.ok
-                ? "An example one-bedroom flat, not this building’s real plan."
+                ? t("flat.exampleFlat")
                 : flatProblemText(fit.problem)}
         </span>
       </p>

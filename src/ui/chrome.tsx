@@ -19,7 +19,7 @@ import { bundled } from '../data/bundled';
 import type { Development } from '../data/model';
 import { SearchField } from './kit/SearchField';
 import { Icon } from './kit/Icon';
-import { useT } from '../i18n/i18n';
+import { formatNumber, t as say, useT } from '../i18n/i18n';
 import { LanguagePicker } from './LanguagePicker';
 
 /**
@@ -44,6 +44,7 @@ import { LanguagePicker } from './LanguagePicker';
  *   reader is looking at.
  */
 export function MapAttribution() {
+  const t = useT();
   return (
     <div className="attribution">
       <a
@@ -63,7 +64,7 @@ export function MapAttribution() {
           © OpenStreetMap
         </a>{' '}
         <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noreferrer">
-          Improve this map
+          {t('kit.improveMap')}
         </a>
       </p>
     </div>
@@ -306,8 +307,17 @@ export function Header({
  * (A filled version for lists went with the list of nearby projects.) The
  * words carry it; the tint only says "this is a status".
  */
+const BADGE = {
+  APPLIED: 'status.badgeApplied',
+  APPROVED: 'status.badgeApproved',
+  'UNDER CONSTRUCTION': 'status.badgeUnderConstruction',
+} as const;
+
 export function StatusBadge({ status }: { status: Development['status'] }) {
-  return <span className="badge">{status}</span>;
+  const t = useT();
+  // a status the record has that this list does not know is shown as it is
+  const key = BADGE[status] as (typeof BADGE)[keyof typeof BADGE] | undefined;
+  return <span className="badge">{key ? t(key) : status}</span>;
 }
 
 /**
@@ -325,8 +335,16 @@ export function developmentSummary(development: Development, storeys?: number): 
     .slice(0, 2)
     .join(' + ');
 
-  const parts = [uses || 'Mixed use'];
-  if (storeys && storeys > 0) parts.push(`${Math.round(storeys)} storeys`);
-  parts.push(`${development.maxHeightM.toFixed(0)} m`);
-  return parts.join(' · ');
+  const vars = {
+    uses: uses || say('status.mixedUse'),
+    height: formatNumber(development.maxHeightM, { maximumFractionDigits: 0 }),
+  };
+  if (storeys && storeys > 0) {
+    const count = Math.round(storeys);
+    return say(count === 1 ? 'status.summaryStoreysOne' : 'status.summaryStoreysOther', {
+      ...vars,
+      storeys: formatNumber(count),
+    });
+  }
+  return say('status.summary', vars);
 }

@@ -69,7 +69,6 @@ import {
   daylightWindow,
   matchingSeason,
   sameDayInMonth,
-  seasonName,
   solarPosition,
   type SimulationDate,
 } from './scene/solar';
@@ -140,7 +139,8 @@ import './styles/street-activity.css';
 import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
 import { GestureHint, HintChip, KeyHint, WalkHints, WheelHint } from './ui/KeyHints';
 import { Icon } from './ui/kit/Icon';
-import { useT } from './i18n/i18n';
+import { formatNumber, useT } from './i18n/i18n';
+import { dayMonthLabel, dayMonthYearLabel, seasonWord } from './i18n/format';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
@@ -1572,7 +1572,7 @@ export default function App() {
   );
 
   /** The moment on screen, for the front page's fine print. */
-  const when = `${dateLabel(date)} ${date.year}, ${clockLabel(minutes)} · ${seasonName(date.month)}`;
+  const when = `${dayMonthYearLabel(date)}, ${clockLabel(minutes)} · ${seasonWord(date.month)}`;
 
   /** What the front page is given in both branches below. */
   const frontProps = {
@@ -1682,7 +1682,7 @@ export default function App() {
         locality: localityOf(foundBuilding.streetAddress),
         anchorEN: foundBuilding.anchorEN,
         kind: 'building',
-        detail: `Existing building · ${foundBuilding.heightM.toFixed(0)} m`,
+        detail: t('status.searchExisting', { height: formatNumber(foundBuilding.heightM, { maximumFractionDigits: 0 }) }),
         topAhdM: foundBuilding.topAhdM,
         heightM: foundBuilding.heightM,
       }
@@ -1692,7 +1692,9 @@ export default function App() {
           locality: localityOf(focus.streetAddress),
           anchorEN: focus.anchorEN,
           kind: 'development',
-          detail: `${stageOf(focus)} · ${focus.maxHeightM.toFixed(0)} m`,
+          detail: t(focus.status === 'UNDER CONSTRUCTION' ? 'status.searchUnderConstruction' : 'status.searchApproved', {
+            height: formatNumber(focus.maxHeightM, { maximumFractionDigits: 0 }),
+          }),
           topAhdM: focus.topAhdM,
           heightM: focus.maxHeightM,
           devId: focus.devId,
@@ -2543,9 +2545,9 @@ export default function App() {
       {/* ── HOW IT WORKS: the three steps, over the city ─────────────────── */}
       {howShown && (
         <HowItWorksPage
-          dateText={`${dateLabel(date)} ${date.year}`}
+          dateText={dayMonthYearLabel(date)}
           timeText={clock12Label(minutes)}
-          season={seasonName(date.month)}
+          season={seasonWord(date.month)}
           reducedMotion={reducedMotion}
           /*
             The page that had the keyboard is gone with either button, so the
@@ -2659,7 +2661,7 @@ export default function App() {
             date={date}
             onDate={chooseDate}
             nowNote={nowNote}
-            dateLabel={dateLabel(date)}
+            dateLabel={dayMonthLabel(date)}
             measured={measured}
             onClearPoint={() => {
               setReceptor(null);

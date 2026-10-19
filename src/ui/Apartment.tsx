@@ -25,13 +25,18 @@
 import type { Facade } from '../scene/facades';
 import { Icon } from './kit/Icon';
 import type { WindowSunlight } from '../scene/windowSunlight';
+import { formatNumber, t as say, useT } from '../i18n/i18n';
+import type { MessageKey } from '../i18n/en';
+import { compassWord, compassWordInSentence } from './flatProblemText';
 
 /** "4 h 20 min", "50 min" — the same shape the ground result uses. */
 function hours(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  if (h === 0) return say('flat.durationMinutes', { minutes: formatNumber(m) });
+  return m === 0
+    ? say('flat.durationHours', { hours: formatNumber(h) })
+    : say('flat.durationHoursMinutes', { hours: formatNumber(h), minutes: formatNumber(m) });
 }
 
 /**
@@ -66,13 +71,21 @@ export function ApartmentControls({
   onSide: (compass: string) => void;
   floorHeightAssumed: boolean;
 }) {
+  const t = useT();
   const top = floorsAboveGround ?? null;
   const atTop = top !== null && floor >= top;
+  // One sentence about the floors on record, with the note on assumed floor heights when there is one.
+  const floorsKey: MessageKey =
+    top === null
+      ? floorHeightAssumed ? 'flat.floorsUnknownEstimated' : 'flat.floorsUnknown'
+      : top === 1
+        ? floorHeightAssumed ? 'flat.floorsOnRecordOneEstimated' : 'flat.floorsOnRecordOne'
+        : floorHeightAssumed ? 'flat.floorsOnRecordOtherEstimated' : 'flat.floorsOnRecordOther';
 
   return (
     <>
       <section className="block">
-        <h4 className="block__head">Which floor are you on?</h4>
+        <h4 className="block__head">{t('flat.whichFloor')}</h4>
 
         {/*
           A stepper, not a free text box.
@@ -88,13 +101,13 @@ export function ApartmentControls({
             className="stepper__step"
             onClick={() => onFloor(Math.max(1, floor - 1))}
             disabled={floor <= 1}
-            aria-label="One floor down"
+            aria-label={t('flat.floorDown')}
           >
             <Icon name="remove" size={18} />
           </button>
 
           <label className="stepper__value">
-            <span className="visually-hidden">Floor</span>
+            <span className="visually-hidden">{t('flat.floor')}</span>
             <input
               type="number"
               min={1}
@@ -112,7 +125,7 @@ export function ApartmentControls({
             className="stepper__step"
             onClick={() => onFloor(floor + 1)}
             disabled={atTop}
-            aria-label="One floor up"
+            aria-label={t('flat.floorUp')}
           >
             <Icon name="add" size={18} />
           </button>
@@ -124,21 +137,18 @@ export function ApartmentControls({
           resting on a guess should say so beside itself, not in the footer.
         */}
         <p className="block__note">
-          {top !== null
-            ? `This building has ${top} floors on record.`
-            : 'The records do not say how many floors this building has.'}
-          {floorHeightAssumed && ' Floor heights are estimated at 3 m.'}
+          {t(floorsKey, top === null ? undefined : { floors: formatNumber(top) })}
         </p>
       </section>
 
       <section className="block">
-        <h4 className="block__head">Which way does your window face?</h4>
+        <h4 className="block__head">{t('flat.whichWay')}</h4>
 
         {/*
           Only the sides this building has. The order is longest wall first,
           because the longest wall is the one most flats look out of.
         */}
-        <div className="sides" role="group" aria-label="Which way the window faces">
+        <div className="sides" role="group" aria-label={t('flat.whichWayLabel')}>
           {sides.map((side) => (
             <button
               key={side.compass}
@@ -147,7 +157,7 @@ export function ApartmentControls({
               aria-pressed={side.compass === chosenSide}
               onClick={() => onSide(side.compass)}
             >
-              {side.compass}
+              {compassWord(side.compass)}
             </button>
           ))}
         </div>
@@ -175,18 +185,19 @@ export function WindowResult({
   floor: number;
   side: string;
 }) {
+  const t = useT();
   const none = sunlight.sunAtWindowMin === 0;
 
   return (
     <div className="result" aria-live="polite">
       <p className="result__eyebrow">
-        Floor {floor}, {side.toLowerCase()} side
+        {t('flat.windowHeading', { floor: formatNumber(floor), side: compassWordInSentence(side) })}
       </p>
 
       {none ? (
         <>
           <p className="result__figure result__figure--none">
-            No direct sun reaches this window on {dateLabel}.
+            {t('flat.noSun', { date: dateLabel })}
           </p>
           {/*
             Said even here — especially here. "None" is a strong claim, and
@@ -194,13 +205,13 @@ export function WindowResult({
             winter day is a different fact from none out of fifteen.
           */}
           <p className="result__against">
-            The sun is up for {hours(sunlight.sunUpMin)} on this date.
+            {t('flat.sunUpFor', { duration: hours(sunlight.sunUpMin) })}
           </p>
         </>
       ) : (
         <>
           <p className="result__figure">{hours(sunlight.sunAtWindowMin)}</p>
-          <p className="result__caption">of direct sun on {dateLabel}</p>
+          <p className="result__caption">{t('flat.directSunOn', { date: dateLabel })}</p>
 
           {/*
             The figure above is meaningless on its own. Four hours is most of
@@ -208,7 +219,7 @@ export function WindowResult({
             only thing on screen that tells the two apart.
           */}
           <p className="result__against">
-            out of {hours(sunlight.sunUpMin)} the sun is up
+            {t('flat.outOfSunUp', { duration: hours(sunlight.sunUpMin) })}
           </p>
 
           {/*
@@ -217,11 +228,11 @@ export function WindowResult({
             middle, and a dash between them would claim fourteen hours.
           */}
           <p className="result__against">
-            First sun {sunlight.firstSunLabel} · last sun {sunlight.lastSunLabel}
+            {t('flat.firstLastSun', { first: sunlight.firstSunLabel ?? '', last: sunlight.lastSunLabel ?? '' })}
           </p>
           {sunlight.brokenByShade && (
             <p className="result__against">
-              The sun leaves and comes back during the day.
+              {t('flat.sunComesBack')}
             </p>
           )}
         </>
@@ -234,7 +245,7 @@ export function WindowResult({
       */}
       {sunlight.lostToProposalMin !== null && (
         <dl className="stat-row">
-          <dt>Once the approved projects are built</dt>
+          <dt>{t('flat.onceBuilt')}</dt>
           <dd>
             {/*
               IT CAN GO UP, and the wording has to allow for it.
@@ -245,10 +256,10 @@ export function WindowResult({
               and "-1 h less" would be the sentence if this said "less" always.
             */}
             {sunlight.lostToProposalMin === 0
-              ? 'no change here'
+              ? t('flat.noChange')
               : sunlight.lostToProposalMin > 0
-                ? `${hours(sunlight.lostToProposalMin)} less`
-                : `${hours(-sunlight.lostToProposalMin)} more`}
+                ? t('flat.less', { duration: hours(sunlight.lostToProposalMin) })
+                : t('flat.more', { duration: hours(-sunlight.lostToProposalMin) })}
           </dd>
         </dl>
       )}

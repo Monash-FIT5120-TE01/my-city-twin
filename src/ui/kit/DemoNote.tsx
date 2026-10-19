@@ -9,11 +9,13 @@
 
 import type { ReactNode } from 'react';
 import { SourcesLink } from '../Sources';
+import { useT } from '../../i18n/i18n';
 
 export function DemoNote({ className, children }: { className?: string; children?: ReactNode }) {
+  const t = useT();
   return (
     <p className={`demo-note${className ? ` ${className}` : ''}`}>
-      <span>Illustrative model · Demo data</span>
+      <span>{t('kit.demoNote')}</span>
       <span className="demo-note__sep" aria-hidden="true">
         |
       </span>

@@ -37,6 +37,8 @@
 
 import { SITE } from '../scene/frame';
 import { civilInZone, type SimulationDate } from '../scene/solar';
+import { getLocale } from '../i18n/i18n';
+import { intlOf } from '../i18n/locales';
 
 /**
  * The window the time control can express, in minutes since midnight.
@@ -148,6 +150,15 @@ export function clock12Label(minutes: number): string {
   const DAY = 24 * 60;
   const whole = ((Math.round(minutes) % DAY) + DAY) % DAY;
   const hour = Math.floor(whole / 60);
+  // other languages as they write a time of day ("下午4:30", "16:30")
+  const language = getLocale();
+  // a browser with no clock for the language (Nepali, Sinhala on some): the 24-hour reading
+  if (language !== 'en' && Intl.DateTimeFormat.supportedLocalesOf(intlOf(language)).length === 0) return clockLabel(whole);
+  if (language !== 'en') {
+    return new Intl.DateTimeFormat(intlOf(language), { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(
+      new Date(Date.UTC(2001, 0, 1, hour, whole % 60)),
+    );
+  }
   const shown = hour % 12 === 0 ? 12 : hour % 12;
   return `${shown}:${String(whole % 60).padStart(2, '0')} ${hour < 12 ? 'am' : 'pm'}`;
 }

@@ -9,11 +9,13 @@ import { useEffect, useRef, useSyncExternalStore, type PointerEvent as ReactPoin
 import { touchWalk } from '../scene/touchWalk';
 import { ride } from '../scene/streetscape/trams/ride';
 import { Button } from './kit/Button';
+import { useT } from '../i18n/i18n';
 
 /** How far the knob travels from the middle, px. */
 const REACH_PX = 44;
 
 export function TouchWalk({ onBackUp }: { onBackUp: () => void }) {
+  const t = useT();
   const status = useSyncExternalStore(ride.subscribe, ride.getStatus);
   const pad = useRef<HTMLDivElement>(null);
   const knob = useRef<HTMLDivElement>(null);
@@ -49,9 +51,9 @@ export function TouchWalk({ onBackUp }: { onBackUp: () => void }) {
       </div>
       <div className="touch-walk__actions">
         {status.canAlight && (
-          <Button onClick={() => { ride.alight = true; }}>Get off</Button>
+          <Button onClick={() => { ride.alight = true; }}>{t('walk.getOff')}</Button>
         )}
-        <Button variant="secondary" onClick={onBackUp}>Back up</Button>
+        <Button variant="secondary" onClick={onBackUp}>{t('walk.backUp')}</Button>
       </div>
     </div>
   );

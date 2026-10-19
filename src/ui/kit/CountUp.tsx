@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { formatNumber, useLocale } from '../../i18n/i18n';
 
 export function CountUp({
   value,
@@ -19,6 +20,7 @@ export function CountUp({
   suffix?: string;
   durationMs?: number;
 }) {
+  useLocale();
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   // nothing to tell it when it comes into view (an old browser): it shows the value from the start
   const [shown, setShown] = useState(reduced || typeof IntersectionObserver !== 'function' ? value : 0);
@@ -45,8 +47,8 @@ export function CountUp({
 
   return (
     <>
-      <span ref={el} aria-hidden="true">{shown}{suffix}</span>
-      <span className="visually-hidden">{value}{suffix}</span>
+      <span ref={el} aria-hidden="true">{formatNumber(shown)}{suffix}</span>
+      <span className="visually-hidden">{formatNumber(value)}{suffix}</span>
     </>
   );
 }

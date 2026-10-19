@@ -17,16 +17,18 @@
 
 import type { ReactNode } from 'react';
 import { Swatch, type SwatchTone } from './Swatch';
+import { useT } from '../../i18n/i18n';
+import type { MessageKey } from '../../i18n/en';
 
-const BASE: [SwatchTone, string][] = [
-  ['existing', 'Existing'],
-  ['approved', 'Approved'],
-  ['progress', 'In progress'],
+const BASE: [SwatchTone, MessageKey][] = [
+  ['existing', 'legend.existing'],
+  ['approved', 'legend.approved'],
+  ['progress', 'legend.inProgress'],
 ];
 
-const CHOSEN: [SwatchTone, string][] = [
-  ['searched', 'Searched building'],
-  ['selected', 'Selected'],
+const CHOSEN: [SwatchTone, MessageKey][] = [
+  ['searched', 'legend.searched'],
+  ['selected', 'legend.selected'],
 ];
 
 export function MapKey({
@@ -44,14 +46,15 @@ export function MapKey({
   /** A line at the end of the row. */
   note?: ReactNode;
 }) {
+  const t = useT();
   const entries = full ? [...BASE, ...CHOSEN] : BASE;
   return (
-    <aside className={`map-key${className ? ` ${className}` : ''}`} aria-label={title ?? 'Map key'}>
+    <aside className={`map-key${className ? ` ${className}` : ''}`} aria-label={title ?? t('legend.mapKey')}>
       {title && <span className="map-key__title">{title}</span>}
       {entries.map(([tone, label]) => (
         <span className="map-key__row" key={tone}>
           <Swatch tone={tone} />
-          {label}
+          {t(label)}
         </span>
       ))}
       {note && <span className="map-key__note">{note}</span>}

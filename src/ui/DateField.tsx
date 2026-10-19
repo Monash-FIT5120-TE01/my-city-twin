@@ -39,16 +39,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './kit/Icon';
 import {
-  MONTH_NAMES,
-  dateLabel,
   monthGrid,
   sameDay,
   shiftDay,
   type SimulationDate,
 } from '../scene/solar';
+import { useT } from '../i18n/i18n';
+import { dayMonthYearLabel, monthYearLabel, weekdayNames } from '../i18n/format';
 
-/** Monday first — see the note on monthGrid for why. */
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+/* The calendar's words in the language chosen: i18n/format.ts. */
+const fullDate = dayMonthYearLabel;
+const monthAndYear = monthYearLabel;
+const weekdays = weekdayNames;
 
 const todayCivil = (): SimulationDate => {
   const now = new Date();
@@ -62,6 +64,7 @@ export function DateField({
   date: SimulationDate;
   onDate: (next: SimulationDate) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   /*
    * The day the keyboard is on, which is not the day that is chosen.
@@ -219,7 +222,7 @@ export function DateField({
       >
         <Icon name="calendar_month" size={18} />
         <span className="daypick__value">
-          {dateLabel(date)} {date.year}
+          {fullDate(date)}
         </span>
       </button>
 
@@ -230,13 +233,13 @@ export function DateField({
           onKeyDown={onPanelKey}
           role="dialog"
           aria-modal="false"
-          aria-label="Choose a date"
+          aria-label={t('date.choose')}
         >
           <div className="daypick__head">
             <button
               type="button"
               onClick={() => month(-1)}
-              aria-label="The month before"
+              aria-label={t('date.monthBefore')}
             >
               <Icon name="chevron_left" size={18} />
             </button>
@@ -246,9 +249,9 @@ export function DateField({
               having the numbers silently change under them.
             */}
             <p id="daypick-month" aria-live="polite">
-              {MONTH_NAMES[cursor.month - 1]} {cursor.year}
+              {monthAndYear(cursor)}
             </p>
-            <button type="button" onClick={() => month(1)} aria-label="The month after">
+            <button type="button" onClick={() => month(1)} aria-label={t('date.monthAfter')}>
               <Icon name="chevron_right" size={18} />
             </button>
           </div>
@@ -260,9 +263,9 @@ export function DateField({
           <table className="daypick__grid" role="grid" aria-labelledby="daypick-month">
             <thead>
               <tr>
-                {WEEKDAYS.map((name) => (
+                {weekdays().map(({ name, short }) => (
                   <th key={name} scope="col" abbr={name}>
-                    {name.slice(0, 1)}
+                    {short}
                   </th>
                 ))}
               </tr>
@@ -292,7 +295,7 @@ export function DateField({
                           tabIndex={isCursor ? 0 : -1}
                           className={`daypick__day${inMonth ? '' : ' is-outside'}`}
                           aria-current={sameDay(cell, today) ? 'date' : undefined}
-                          aria-label={`${cell.day} ${MONTH_NAMES[cell.month - 1]} ${cell.year}`}
+                          aria-label={fullDate(cell)}
                           onClick={() => {
                             onDate(cell);
                             close();

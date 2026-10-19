@@ -72,6 +72,16 @@ import type { Facade } from '../scene/facades';
 import type { WindowSunlight } from '../scene/windowSunlight';
 import { searchCity, type SearchHit } from '../data/search';
 import { formatNumber, useT } from '../i18n/i18n';
+import type { MessageKey } from '../i18n/en';
+import { compassWordInSentence } from './flatProblemText';
+
+/** The season presets' names, by key (the presets carry an English label for code outside the panels). */
+const SEASON_KEYS: Record<string, MessageKey> = {
+  summer: 'sun.sheet.seasonSummer',
+  autumn: 'sun.sheet.seasonAutumn',
+  winter: 'sun.sheet.seasonWinter',
+  spring: 'sun.sheet.seasonSpring',
+};
 
 /* ── 01 Search, progress and the map controls ───────────── */
 
@@ -274,6 +284,7 @@ export function ViewControls({
    */
   onFocus: () => void;
 }) {
+  const t = useT();
   const [showHelp, setShowHelp] = useState(false);
 
   /** A tenth of a turn: enough to see the city move, small enough to aim. */
@@ -285,32 +296,32 @@ export function ViewControls({
         <dl className="viewctl__help" role="note">
           {(
             [
-              ['left', 'Left drag', 'moves the city'],
-              ['right', 'Right drag', 'turns it'],
-              ['wheel', 'Scroll', 'zooms in and out'],
+              ['left', 'sun.viewControls.leftDrag', 'sun.viewControls.leftDragEffect'],
+              ['right', 'sun.viewControls.rightDrag', 'sun.viewControls.rightDragEffect'],
+              ['wheel', 'sun.viewControls.scroll', 'sun.viewControls.scrollEffect'],
             ] as const
           ).map(([part, gesture, effect]) => (
             <div key={part}>
               <MouseGlyph part={part} />
-              <dt>{gesture}</dt>
-              <dd>{effect}</dd>
+              <dt>{t(gesture)}</dt>
+              <dd>{t(effect)}</dd>
             </div>
           ))}
         </dl>
       )}
 
       <div className="viewctl__stack">
-        <button type="button" onClick={() => onOrbit(-STEP)} aria-label="Turn the city left">
+        <button type="button" onClick={() => onOrbit(-STEP)} aria-label={t('sun.viewControls.turnLeft')}>
           <Icon name="rotate_left" size={18} />
         </button>
-        <button type="button" onClick={() => onOrbit(STEP)} aria-label="Turn the city right">
+        <button type="button" onClick={() => onOrbit(STEP)} aria-label={t('sun.viewControls.turnRight')}>
           <Icon name="rotate_right" size={18} />
         </button>
 
-        <button type="button" onClick={() => onZoom(0.7)} aria-label="Zoom in">
+        <button type="button" onClick={() => onZoom(0.7)} aria-label={t('sun.viewControls.zoomIn')}>
           <Icon name="add" size={18} />
         </button>
-        <button type="button" onClick={() => onZoom(1 / 0.7)} aria-label="Zoom out">
+        <button type="button" onClick={() => onZoom(1 / 0.7)} aria-label={t('sun.viewControls.zoomOut')}>
           <Icon name="remove" size={18} />
         </button>
 
@@ -321,7 +332,7 @@ export function ViewControls({
           twice — and the one nobody could tell apart was the one that
           hides the whole interface.
         */}
-        <button type="button" onClick={onReset} aria-label="Frame the whole city">
+        <button type="button" onClick={onReset} aria-label={t('sun.viewControls.frameCity')}>
           <Icon name="center_focus_strong" size={18} />
         </button>
 
@@ -334,8 +345,8 @@ export function ViewControls({
           type="button"
           className="viewctl__apart"
           onClick={onFocus}
-          aria-label="Focus mode — hide the interface"
-          title="Focus mode"
+          aria-label={t('sun.viewControls.focusModeLabel')}
+          title={t('sun.viewControls.focusMode')}
         >
           {/*
             An eye, because this is the one control in the stack that is
@@ -354,7 +365,7 @@ export function ViewControls({
           type="button"
           className="viewctl__ask"
           aria-expanded={showHelp}
-          aria-label="How to move around the map"
+          aria-label={t('sun.viewControls.help')}
           onClick={() => setShowHelp((open) => !open)}
         >
           <Icon name="question_mark" size={18} />
@@ -407,46 +418,47 @@ export function MapLayers({
   onChange: (next: Layers) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   return (
     <aside className="panel panel--left sheet" aria-labelledby="layers-title">
       <div className="sheet__head">
         <h2 className="panel-title sheet__title" id="layers-title">
-          Map layers
+          {t('sun.layers.title')}
         </h2>
-        <CloseButton label="Close map layers" onClick={onClose} />
+        <CloseButton label={t('sun.layers.close')} onClick={onClose} />
       </div>
 
-      <p className="sheet__meta">Choose what appears on the map.</p>
+      <p className="sheet__meta">{t('sun.layers.intro')}</p>
 
       <div className="switches">
         {(
           [
             {
               key: 'developments',
-              name: 'Approved projects',
-              note: 'Approved, and those already under construction',
+              name: 'sun.layers.developments',
+              note: 'sun.layers.developmentsNote',
             },
             {
               key: 'shadows',
-              name: 'Sunlight & shadows',
-              note: 'Preview shadows at the selected time',
+              name: 'sun.layers.shadows',
+              note: 'sun.layers.shadowsNote',
             },
             {
               key: 'streetLights',
-              name: 'Street lights',
-              note: 'Lit once the sun has fully set',
+              name: 'sun.layers.streetLights',
+              note: 'sun.layers.streetLightsNote',
             },
             {
               key: 'landmarks',
-              name: 'Landmarks',
-              note: 'Named places, tagged on their buildings',
+              name: 'sun.layers.landmarks',
+              note: 'sun.layers.landmarksNote',
             },
           ] as const
         ).map((layer) => (
           <label className="switch" key={layer.key}>
             <span className="switch__text">
-              <span className="switch__name">{layer.name}</span>
-              <span className="switch__note">{layer.note}</span>
+              <span className="switch__name">{t(layer.name)}</span>
+              <span className="switch__note">{t(layer.note)}</span>
             </span>
             {/*
               A real checkbox, drawn as a track and a knob. Replacing it with
@@ -465,25 +477,25 @@ export function MapLayers({
       </div>
 
       <div className="soonlist">
-        <p className="panel__eyebrow soonlist__head">Coming soon</p>
+        <p className="panel__eyebrow soonlist__head">{t('sun.layers.comingSoon')}</p>
         {(
           [
-            ['Protected public space', 'Protection rules and affected places'],
-            ['Construction', 'Construction activity and progress'],
-            ['Environment', 'More ways to understand city change'],
+            ['sun.layers.protectedSpace', 'sun.layers.protectedSpaceNote'],
+            ['sun.layers.construction', 'sun.layers.constructionNote'],
+            ['sun.layers.environment', 'sun.layers.environmentNote'],
           ] as const
         ).map(([name, note]) => (
           <p className="soonlist__item" key={name}>
-            <span className="soonlist__name">{name}</span>
-            <span className="soonlist__note">{note}</span>
+            <span className="soonlist__name">{t(name)}</span>
+            <span className="soonlist__note">{t(note)}</span>
           </p>
         ))}
       </div>
 
-      <p className="note">Layer settings stay as you move between projects.</p>
+      <p className="note">{t('sun.layers.keep')}</p>
 
       <Button block onClick={onClose}>
-        Done
+        {t('sun.layers.done')}
       </Button>
     </aside>
   );
@@ -530,6 +542,7 @@ export function SubjectHead({
   /** A "Details" link under the address: the subject's place card. */
   onDetails?: () => void;
 }) {
+  const t = useT();
   return (
     <>
       {/*
@@ -554,7 +567,7 @@ export function SubjectHead({
       */}
       <div className="subject">
         {status && <StatusBadge status={status} />}
-        {existing && <span className="badge badge--existing">Existing</span>}
+        {existing && <span className="badge badge--existing">{t('sun.subject.existing')}</span>}
         {/* Focusable from script only: arriving from the place card. */}
         <h2 className="panel-title sheet__title" id="subject-title" tabIndex={-1}>
           {title}
@@ -568,7 +581,7 @@ export function SubjectHead({
         */}
         {onDetails && (
           <TextButton variant="reference" className="sheet__details" onClick={onDetails}>
-            Details
+            {t('sun.subject.details')}
           </TextButton>
         )}
       </div>
@@ -782,6 +795,7 @@ export function SunlightSheet({
    * The panel is taken off the screen while the reader walks or stands in the example flat, and comes
    * back new; a window side already chosen (App keeps it) means it was the window being asked about.
    */
+  const t = useT();
   const [measuring, setMeasuring] = useState<'spot' | 'window'>(() => (apartment?.side ? 'window' : 'spot'));
   /** The notes under the answer, closed behind "See details" as on the solar panel check. */
   const [details, setDetails] = useState(false);
@@ -854,7 +868,7 @@ export function SunlightSheet({
         title={title}
         locality={locality}
         meta={meta}
-        backLabel="Explore the city"
+        backLabel={t('sun.sheet.back')}
         onBack={onBack}
         onDetails={onDetails}
       />
@@ -862,7 +876,7 @@ export function SunlightSheet({
       {onSolar && <AnalysisSwitch current="sunlight" onSunlight={() => undefined} onSolar={onSolar} />}
 
       <div className="sheet__tabpanel sheet__tabpanel--flow">
-        <h3 className="sheet__lede">Explore sunlight</h3>
+        <h3 className="sheet__lede">{t('sun.sheet.lede')}</h3>
 
         {/*
           -- WHEN -----------------------------------------------------------
@@ -876,7 +890,7 @@ export function SunlightSheet({
           to rebuild to change how a border looks. See DateField.
         */}
         <section className="block">
-          <h4 className="block__head">Date</h4>
+          <h4 className="block__head">{t('sun.sheet.date')}</h4>
           <DateField date={date} onDate={onDate} />
 
           {/*
@@ -895,7 +909,7 @@ export function SunlightSheet({
         {/* -- SEASON: the four presets ------------------------------------ */}
         <section className="block">
           <h4 className="block__head" id="season-head">
-            Season
+            {t('sun.sheet.season')}
           </h4>
           {/*
             Four separate buttons, the chosen one filled. Filled against
@@ -913,7 +927,7 @@ export function SunlightSheet({
                 /* The day on screen is kept; only the month moves. */
                 onClick={() => onDate(sameDayInMonth(date, option.month))}
               >
-                {option.label}
+                {SEASON_KEYS[option.key] ? t(SEASON_KEYS[option.key]) : option.label}
               </button>
             ))}
           </div>
@@ -933,7 +947,7 @@ export function SunlightSheet({
         */}
         <section className="block">
           <h4 className="block__head" id="view-head">
-            Neighbourhood view
+            {t('sun.sheet.neighbourhoodView')}
           </h4>
           <div className="choice" role="radiogroup" aria-labelledby="view-head">
             <label className="choice__row">
@@ -943,7 +957,7 @@ export function SunlightSheet({
                 checked={!afterPlans}
                 onChange={() => onAfterPlans(false)}
               />
-              Today
+              {t('sun.sheet.today')}
             </label>
             <label className="choice__row">
               <input
@@ -952,15 +966,15 @@ export function SunlightSheet({
                 checked={afterPlans}
                 onChange={() => onAfterPlans(true)}
               />
-              After planned projects are built
+              {t('sun.sheet.afterPlans')}
             </label>
           </div>
           <p className="block__note">
             {afterPlans
-              ? 'Approved and in-progress projects at their planned height.'
+              ? t('sun.sheet.afterPlansNote')
               : subjectKind === 'building'
-                ? 'The city as it stands.'
-                : 'The city as it stands — this project is not built yet.'}
+                ? t('sun.sheet.todayNoteBuilding')
+                : t('sun.sheet.todayNoteProject')}
           </p>
         </section>
 
@@ -977,24 +991,24 @@ export function SunlightSheet({
           <div
             className="segmented"
             role="group"
-            aria-label="What to measure"
+            aria-label={t('sun.sheet.whatToMeasure')}
             style={{ '--count': 2, '--at': measuring === 'spot' ? 0 : 1 } as React.CSSProperties}
           >
             <button
               type="button"
               aria-pressed={measuring === 'spot'}
               onClick={() => onMeasuring('spot')}
-              data-label="A spot outside"
+              data-label={t('sun.sheet.spotOutside')}
             >
-              A spot outside
+              {t('sun.sheet.spotOutside')}
             </button>
             <button
               type="button"
               aria-pressed={measuring === 'window'}
               onClick={() => onMeasuring('window')}
-              data-label="A window up here"
+              data-label={t('sun.sheet.windowUpHere')}
             >
-              A window up here
+              {t('sun.sheet.windowUpHere')}
             </button>
           </div>
         )}
@@ -1032,13 +1046,10 @@ export function SunlightSheet({
           */}
           {choosing && (
             <div className="arming" aria-live="polite">
-              <p className="arming__lede">Click a spot on the ground.</p>
-              <p className="arming__body">
-                A ring follows the pointer. The spot you pick is measured
-                across the whole day.
-              </p>
+              <p className="arming__lede">{t('sun.sheet.armingLede')}</p>
+              <p className="arming__body">{t('sun.sheet.armingBody')}</p>
               <Button variant="ghost" block onClick={onCancelChoose}>
-                Cancel
+                {t('sun.sheet.cancel')}
               </Button>
             </div>
           )}
@@ -1053,13 +1064,22 @@ export function SunlightSheet({
               <p className="sheet__sub" aria-live="polite">
                 {apartment.problem === 'no-such-floor'
                   ? apartment.floorsAboveGround !== null
-                    ? `This building has ${apartment.floorsAboveGround} floors on record, so there is no floor ${apartment.floor}.`
-                    : `Floor ${apartment.floor} would be above the top of this building as it is modelled.`
+                    ? t('sun.sheet.noSuchFloorOnRecord', {
+                        floors: formatNumber(apartment.floorsAboveGround),
+                        floor: formatNumber(apartment.floor),
+                      })
+                    : t('sun.sheet.noSuchFloorModelled', { floor: formatNumber(apartment.floor) })
                   : apartment.problem === 'side-not-at-this-height'
-                    ? `This building has no ${apartment.side?.toLowerCase()} side at floor ${apartment.floor}. Choose one of the sides above.`
+                    ? t('sun.sheet.sideNotAtHeight', {
+                        side: apartment.side ? compassWordInSentence(apartment.side) : '',
+                        floor: formatNumber(apartment.floor),
+                      })
                     : apartment.problem === 'below-the-street'
-                      ? `Floor ${apartment.floor} is below the street on the ${apartment.side?.toLowerCase()} side — the ground is higher there. Try a floor higher up.`
-                    : `That side of floor ${apartment.floor} is inside the building rather than on an outside wall, so there is no window there to measure.`}
+                      ? t('sun.sheet.belowStreet', {
+                          side: apartment.side ? compassWordInSentence(apartment.side) : '',
+                          floor: formatNumber(apartment.floor),
+                        })
+                    : t('sun.sheet.insideBuilding', { floor: formatNumber(apartment.floor) })}
               </p>
             ) : apartment?.sunlight && apartment.side ? (
               <>
@@ -1072,9 +1092,7 @@ export function SunlightSheet({
                 {apartment.flat && <LookOutFromFlat fit={apartment.flat} onEnter={apartment.onLookOut} />}
               </>
             ) : (
-              <p className="sheet__sub">
-                Choose which way your window faces to see the sun it gets.
-              </p>
+              <p className="sheet__sub">{t('sun.sheet.chooseSide')}</p>
             )
           ) : measured ? (
             <>
@@ -1094,7 +1112,7 @@ export function SunlightSheet({
                 aria-live="polite"
               >
                 {/* Not the date any more: the field above owns that. */}
-                <p className="result__eyebrow">At this spot</p>
+                <p className="result__eyebrow">{t('sun.sheet.atThisSpot')}</p>
                 {words?.none ? (
                   <p className="result__figure result__figure--none">{words.none}</p>
                 ) : (
@@ -1111,7 +1129,7 @@ export function SunlightSheet({
                     <p className="result__against">{words?.against}</p>
                     {measured.firstShadowLabel && (
                       <dl className="stat-row">
-                        <dt>In shadow around</dt>
+                        <dt>{t('sun.sheet.inShadowAround')}</dt>
                         <dd>
                           {measured.firstShadowLabel} &ndash; {measured.lastShadowLabel}
                         </dd>
@@ -1132,12 +1150,12 @@ export function SunlightSheet({
                 alternatives to it, not to one another.
               */}
               <Button block onClick={onChoose}>
-                Choose another point
+                {t('sun.sheet.chooseAnother')}
               </Button>
 
               <div className="sheet__actions">
                 <Button variant="ghost" onClick={onClearPoint}>
-                  Clear point
+                  {t('sun.sheet.clearPoint')}
                 </Button>
                 {/*
                   The measured spot is a place the reader chose and asked a
@@ -1151,7 +1169,7 @@ export function SunlightSheet({
                   onClick={onStand}
                   icon={<StandIcon />}
                 >
-                  Stand here
+                  {t('sun.sheet.standHere')}
                 </Button>
               </div>
             </>
@@ -1165,9 +1183,9 @@ export function SunlightSheet({
                   onClick={onChoose}
                   icon={<PinIcon />}
                 >
-                  Choose a spot
+                  {t('sun.sheet.chooseSpot')}
                 </Button>
-                <p className="sheet__sub">Select a point on the ground.</p>
+                <p className="sheet__sub">{t('sun.sheet.choosePrompt')}</p>
               </>
             )
           )}
@@ -1182,7 +1200,7 @@ export function SunlightSheet({
         */}
         {/* .button--compare: where the keyboard returns from the comparison (App). */}
         <Button variant="ghost" size="lg" block arrow className="button--compare" onClick={onCompare}>
-          Compare side by side
+          {t('sun.sheet.compare')}
         </Button>
 
         {/*
@@ -1193,12 +1211,12 @@ export function SunlightSheet({
           the header opens this.
         */}
         <details className="howto" id={SUNLIGHT_HOWTO_ID}>
-          <summary>How it works</summary>
+          <summary>{t('sun.sheet.howItWorks')}</summary>
           <ol className="howto__steps">
-            <li>Choose a date or a season above.</li>
-            <li>Move the time along the bar at the bottom, or press play, to follow the shadow.</li>
-            <li>Switch the neighbourhood view, or compare the two side by side, to see today against after the approved projects.</li>
-            <li>Choose a spot on the ground to measure what this {noun} takes from it.</li>
+            <li>{t('sun.sheet.howtoDate')}</li>
+            <li>{t('sun.sheet.howtoTime')}</li>
+            <li>{t('sun.sheet.howtoCompare')}</li>
+            <li>{noun === 'building' ? t('sun.sheet.howtoSpotBuilding') : t('sun.sheet.howtoSpotProject')}</li>
           </ol>
         </details>
       </div>
@@ -1237,7 +1255,7 @@ export function SunlightSheet({
             aria-controls={detailsId}
             onClick={() => setDetails((d) => !d)}
           >
-            {details ? 'Hide details' : 'See details'}
+            {details ? t('sun.sheet.hideDetails') : t('sun.sheet.seeDetails')}
             <Icon name={details ? 'expand_less' : 'expand_more'} size={18} />
           </button>
         </h3>
@@ -1245,26 +1263,19 @@ export function SunlightSheet({
           {measuring === 'window' && apartment?.sunlight ? (
             <>
               {apartment.hostDemolished && (
-                <p>The approved plan replaces this building, so there is no “once built” figure to compare against.</p>
+                <p>{t('sun.sheet.hostDemolished')}</p>
               )}
-              <h4>How we counted</h4>
+              <h4>{t('sun.sheet.howWeCounted')}</h4>
               <p>
-                Sampled every {apartment.sunlight.stepMinutes} minutes, counting every building in the model,
-                including this one.
+                {t('sun.sheet.windowSampled', { minutes: formatNumber(apartment.sunlight.stepMinutes) })}
               </p>
-              <p>
-                Measured at one representative point on that side: a flat at the far end of the same wall may
-                differ.
-              </p>
-              <h4>What is not modelled</h4>
-              <p>
-                Buildings are flat-topped blocks: balconies, awnings, window reveals and the shape of the roof
-                are not modelled, and nor is cloud.
-              </p>
+              <p>{t('sun.sheet.windowOnePoint')}</p>
+              <h4>{t('sun.sheet.notModelled')}</h4>
+              <p>{t('sun.sheet.windowNotModelled')}</p>
             </>
           ) : measuring === 'spot' && measured ? (
             <>
-              <h4>How we counted</h4>
+              <h4>{t('sun.sheet.howWeCounted')}</h4>
               <p>{spotFinePrint(measured.stepMinutes)}</p>
             </>
           ) : null}
@@ -1358,6 +1369,7 @@ export function TimeBar({
    */
   inline?: boolean;
 }) {
+  const t = useT();
   /** Where a time falls along the rail, as a percentage, held to the ends. */
   const place = (at: number) => Math.min(100, Math.max(0, ((at - min) / (max - min)) * 100));
 
@@ -1402,7 +1414,7 @@ export function TimeBar({
           className="timebar__play"
           onClick={onPlay}
           aria-pressed={playing}
-          aria-label={playing ? 'Pause the day' : 'Play the day'}
+          aria-label={playing ? t('sun.timeBar.pause') : t('sun.timeBar.play')}
         >
           {playing ? (
             <Icon name="pause" size={20} />
@@ -1417,9 +1429,9 @@ export function TimeBar({
           <p className="timebar__events">
             <span className="timebar__caption">{caption}</span>
             <span>
-              Sunrise <b>{daylight.rise === null ? '—' : clock12Label(daylight.rise)}</b>
+              {t('sun.timeBar.sunrise')} <b>{daylight.rise === null ? '—' : clock12Label(daylight.rise)}</b>
               {' · '}
-              Sunset <b>{daylight.set === null ? '—' : clock12Label(daylight.set)}</b>
+              {t('sun.timeBar.sunset')} <b>{daylight.set === null ? '—' : clock12Label(daylight.set)}</b>
             </span>
           </p>
           )}
@@ -1443,9 +1455,9 @@ export function TimeBar({
               step={10}
               value={minutes}
               onChange={(event) => onChange(Number(event.target.value))}
-              aria-label="Time of day"
+              aria-label={t('sun.timeBar.timeOfDay')}
               // Without this a screen reader reads "900", not "3:00 pm".
-              aria-valuetext={`${clock12Label(minutes)}, ${caption}`}
+              aria-valuetext={t('sun.timeBar.valueText', { time: clock12Label(minutes), caption })}
               aria-describedby={bothKnown ? undefined : 'timebar-nocross'}
             />
           </div>
@@ -1470,8 +1482,10 @@ export function TimeBar({
           */}
           {!bothKnown && (
             <p className="timebar__nocross" id="timebar-nocross">
-              The sun does not {daylight.rise === null ? 'rise' : 'set'} between{' '}
-              {clock12Label(min)} and {clock12Label(max)} on this date.
+              {t(daylight.rise === null ? 'sun.timeBar.noRise' : 'sun.timeBar.noSet', {
+                from: clock12Label(min),
+                to: clock12Label(max),
+              })}
             </p>
           )}
         </div>

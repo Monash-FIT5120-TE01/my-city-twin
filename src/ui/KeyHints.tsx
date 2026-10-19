@@ -7,9 +7,27 @@
  * Both in the app's own light card style, so they read as part of it rather than as a debug overlay.
  * Styles: walk-hints.css.
  */
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Icon, type IconName } from './kit/Icon';
+import { useT } from '../i18n/i18n';
 import '../styles/walk-hints.css';
+
+/**
+ * A translated sentence with parts drawn differently: each {name} becomes `vars[name]` (text or an
+ * element), and <b>…</b> is drawn in bold — so the words around the bold part stay one sentence a
+ * translator can reorder. Pass the sentence as t(key) gives it, without its vars.
+ */
+export function richText(sentence: string, vars: Record<string, ReactNode> = {}): ReactNode {
+  const fill = (text: string, at: string) =>
+    text.split(/(\{\w+\})/).map((piece, i) => {
+      const name = /^\{(\w+)\}$/.exec(piece)?.[1];
+      return <Fragment key={`${at}-${i}`}>{name !== undefined && name in vars ? vars[name] : piece}</Fragment>;
+    });
+  return sentence.split(/(<b>.*?<\/b>)/).map((piece, i) => {
+    const bold = /^<b>(.*)<\/b>$/.exec(piece);
+    return bold ? <strong key={i}>{fill(bold[1], `b${i}`)}</strong> : <Fragment key={i}>{fill(piece, `t${i}`)}</Fragment>;
+  });
+}
 
 export function KeyHint({ keys, label }: { keys: string[]; label: string }) {
   return (
@@ -46,6 +64,7 @@ export function GestureHint({ icon, gesture, label }: { icon: IconName; gesture:
  * keycap, which read as a key to press.
  */
 export function WheelHint({ label }: { label: string }) {
+  const t = useT();
   return (
     <span className="key-hint">
       <svg className="wheel-hint" width="30" height="40" viewBox="0 0 24 32" aria-hidden="true">
@@ -56,7 +75,7 @@ export function WheelHint({ label }: { label: string }) {
         <path d="M9.6 7.6 12 5.2 14.4 7.6" fill="none" stroke="#1f7a5c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M9.6 17.9 12 20.3 14.4 17.9" fill="none" stroke="#1f7a5c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="visually-hidden">Mouse wheel:</span>
+      <span className="visually-hidden">{t('walk.mouseWheel')}</span>
       <span className="key-hint__label">{label}</span>
     </span>
   );
@@ -86,6 +105,7 @@ export function WalkHints({
   /** Under the chips: a note, the way into a headset. */
   children?: ReactNode;
 }) {
+  const t = useT();
   return (
     <>
       <section className="walk-place" aria-label={title}>
@@ -98,7 +118,7 @@ export function WalkHints({
         {chips && <div className="walk-place__chips">{chips}</div>}
         {children}
       </section>
-      <div className="walk-keys" role="note" aria-label="Controls">
+      <div className="walk-keys" role="note" aria-label={t('walk.controls')}>
         {actions}
       </div>
     </>

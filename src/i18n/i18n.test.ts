@@ -3,7 +3,7 @@ import { en } from './en';
 import { LOCALES } from './locales';
 import { t, setLocale, getLocale } from './i18n';
 
-const others = import.meta.glob<{ default: Record<string, string> }>(['./*.ts', '!./en.ts', '!./i18n.ts', '!./locales.ts', '!./*.test.ts'], { eager: true });
+const others = import.meta.glob<{ default: Record<string, string> }>(['./*.ts', '!./en.ts', '!./i18n.ts', '!./locales.ts', '!./format.ts', '!./*.test.ts'], { eager: true });
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 describe('the translations', () => {

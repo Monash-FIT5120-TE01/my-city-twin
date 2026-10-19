@@ -23,6 +23,10 @@
 
 import type { CityModel, Development, SearchableBuilding } from './model';
 import type { Landmark } from './landmarks';
+import { formatNumber, t } from '../i18n/i18n';
+
+/** A height in whole metres, as the language writes the number. */
+const metres = (value: number) => formatNumber(value, { maximumFractionDigits: 0 });
 
 export type SearchHit =
   | { kind: 'development'; development: Development; label: string; detail: string }
@@ -96,7 +100,7 @@ export function searchCity(
         kind: 'landmark',
         landmark,
         label: landmark.name,
-        detail: `Landmark · ${shortAddress(landmark.address)}`,
+        detail: t('status.searchLandmark', { address: shortAddress(landmark.address) }),
       },
     });
   }
@@ -113,9 +117,10 @@ export function searchCity(
         development,
         label: shortAddress(development.streetAddress),
         // The stage in words, as the place card and the map key say it.
-        detail: `${
-          development.status === 'UNDER CONSTRUCTION' ? 'Under construction' : 'Approved development'
-        } · ${development.maxHeightM.toFixed(0)} m`,
+        detail: t(
+          development.status === 'UNDER CONSTRUCTION' ? 'status.searchUnderConstruction' : 'status.searchApproved',
+          { height: metres(development.maxHeightM) },
+        ),
       },
     });
   }
@@ -129,7 +134,7 @@ export function searchCity(
         kind: 'building',
         building,
         label: shortAddress(building.streetAddress),
-        detail: `Existing building · ${building.heightM.toFixed(0)} m`,
+        detail: t('status.searchExisting', { height: metres(building.heightM) }),
       },
     });
   }

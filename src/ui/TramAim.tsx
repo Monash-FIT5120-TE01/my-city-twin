@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from 'react';
 import { ride } from '../scene/streetscape/trams/ride';
+import { useT } from '../i18n/i18n';
 
 const ASK = {
-  board: ['Board this tram?', 'Click to board'],
-  alight: ['Get off here?', 'Click to get off'],
-  seat: ['Sit here?', 'Click to sit'],
+  board: ['walk.boardAsk', 'walk.boardClick'],
+  alight: ['walk.getOffAsk', 'walk.getOffClick'],
+  seat: ['walk.sitAsk', 'walk.sitClick'],
 } as const;
 
 /**
@@ -14,6 +15,7 @@ const ASK = {
  * tram, and the walking hint (TramHint) already says what can be done.
  */
 export function TramAim() {
+  const t = useT();
   const s = useSyncExternalStore(ride.subscribe, ride.getStatus);
   const ask = s.aim ? ASK[s.aim] : null;
   return (
@@ -21,11 +23,11 @@ export function TramAim() {
       <span className="tram-aim__dot" />
       {ask ? (
         <p className="tram-aim__ask">
-          <strong>{ask[0]}</strong>
-          <span>{ask[1]}</span>
+          <strong>{t(ask[0])}</strong>
+          <span>{t(ask[1])}</span>
         </p>
       ) : s.seated ? (
-        <p className="tram-aim__ask tram-aim__ask--quiet"><span>W A S D to stand up</span></p>
+        <p className="tram-aim__ask tram-aim__ask--quiet"><span>{t('walk.standUp')}</span></p>
       ) : null}
     </div>
   );

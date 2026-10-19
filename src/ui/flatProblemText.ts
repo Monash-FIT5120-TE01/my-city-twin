@@ -4,21 +4,50 @@
  * is in the way rather than that something failed.
  */
 import type { RoomProblem } from '../scene/room/roomPlacement';
+import { getLocale, t } from '../i18n/i18n';
+import { intlOf } from '../i18n/locales';
+import type { MessageKey } from '../i18n/en';
 
-const TEXT: Record<RoomProblem, string> = {
-  'no-such-floor': 'This building does not reach that floor as it is modelled.',
-  'no-such-side': 'This building has no wall facing that way at this floor.',
-  'wall-too-short': 'This side is too narrow at this floor to fit the flat behind it.',
-  'building-too-shallow': 'The building is too shallow here to fit the flat behind this side.',
-  'window-moved': 'The window had to be measured away from this wall, so the flat would not match the figure.',
-  'ceiling-too-low': 'The floors here are too low for this flat.',
-  'above-the-roof': 'The flat would stick out of the roof here.',
-  'next-building-in-the-way': 'Another building stands where the flat would be.',
-  'balcony-in-the-way': 'There is no room for the balcony on this side at this floor.',
-  'outlook-blocked': 'A wall stands a few metres past the balcony here, so there would be nothing to look out at.',
-  'below-the-street': 'This floor is below the street on this side: the ground is higher here.',
+const TEXT: Record<RoomProblem, MessageKey> = {
+  'no-such-floor': 'flat.problemNoSuchFloor',
+  'no-such-side': 'flat.problemNoSuchSide',
+  'wall-too-short': 'flat.problemWallTooShort',
+  'building-too-shallow': 'flat.problemBuildingTooShallow',
+  'window-moved': 'flat.problemWindowMoved',
+  'ceiling-too-low': 'flat.problemCeilingTooLow',
+  'above-the-roof': 'flat.problemAboveTheRoof',
+  'next-building-in-the-way': 'flat.problemNextBuilding',
+  'balcony-in-the-way': 'flat.problemBalcony',
+  'outlook-blocked': 'flat.problemOutlookBlocked',
+  'below-the-street': 'flat.problemBelowStreet',
 };
 
 export function flatProblemText(problem: RoomProblem): string {
-  return TEXT[problem];
+  return t(TEXT[problem]);
+}
+
+/*
+ * The compass sides a wall can face (scene/facades.ts names them in English, and those names stay the
+ * values the code compares): the word shown for each, in the language chosen.
+ */
+const COMPASS: Record<string, MessageKey> = {
+  North: 'flat.compassNorth',
+  'North-east': 'flat.compassNorthEast',
+  East: 'flat.compassEast',
+  'South-east': 'flat.compassSouthEast',
+  South: 'flat.compassSouth',
+  'South-west': 'flat.compassSouthWest',
+  West: 'flat.compassWest',
+  'North-west': 'flat.compassNorthWest',
+};
+
+/** "North-east", as the language says it; a side this list does not know is shown as it is. */
+export function compassWord(compass: string): string {
+  const key = COMPASS[compass];
+  return key ? t(key) : compass;
+}
+
+/** The same in lower case, for the middle of a sentence ("Floor 4, north-east side"). */
+export function compassWordInSentence(compass: string): string {
+  return compassWord(compass).toLocaleLowerCase(intlOf(getLocale()));
 }
