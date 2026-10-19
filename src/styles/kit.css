@@ -690,3 +690,43 @@
   outline: 2px solid var(--green-700);
   outline-offset: 2px;
 }
+
+/*
+ * ── COLOUR-BLIND FRIENDLY (settings/display.ts sets data-colour="safe" on <html>) ──
+ *
+ * The same three kinds as the map draws them in that set (scene/palette.ts): existing pale grey,
+ * approved deep blue with a dark outline, in progress yellow with dark diagonal stripes — so every key,
+ * swatch and dot reads by lightness and by pattern, as the buildings do.
+ */
+:root[data-colour='safe'] {
+  --key-existing: #f4f2ee;
+  --key-existing-edge: #7a8087;
+  --key-approved: #1f4f86;
+  --key-approved-edge: #0b1f36;
+  --key-progress: #f2c14e;
+  --key-progress-edge: #8a6a1c;
+}
+
+:root[data-colour='safe'] .swatch--approved {
+  box-shadow:
+    inset 0 0 0 1px #ffffff,
+    0 0 0 1.5px var(--key-approved-edge);
+}
+
+:root[data-colour='safe'] .swatch--progress {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--key-progress) 0 2px,
+    #85651a 2px 3.5px
+  );
+}
+
+/* the place card's picture: the stripes behind the icon, and a dark icon on the yellow */
+:root[data-colour='safe'] .place-card__image--progress {
+  background: repeating-linear-gradient(45deg, #f2c14e 0 6px, #d9a21f 6px 10px);
+  color: #2b2208;
+}
+
+:root[data-colour='safe'] .place-card__image--approved {
+  box-shadow: inset 0 0 0 2px #0b1f36;
+}

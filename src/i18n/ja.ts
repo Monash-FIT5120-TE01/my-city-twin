@@ -725,6 +725,10 @@ const words: Messages = {
   "app.street.vrComfort": "スティックでの移動で気分が悪くなる人もいます。",
   "app.street.standMoved": "計測した地点から {metres} m 離れて立っています（建物がない最も近い地面）",
   "app.focus.exit": "集中モードを終了 {key}",
+  "settings.display": "表示",
+  "settings.title": "表示の設定",
+  "settings.colourSafe": "色覚に配慮した表示",
+  "settings.colourSafeNote": "見分けやすい色に変え、建物に縞模様や輪郭線を付けます。色だけに頼らずに区別できます。",
 };
 
 export default words;

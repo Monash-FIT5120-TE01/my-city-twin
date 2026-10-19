@@ -685,6 +685,10 @@ const words: Messages = {
   "app.street.vrComfort": "Bergerak menggunakan kayu bedik membuatkan sesetengah orang berasa tidak selesa.",
   "app.street.standMoved": "Berdiri {metres} m dari titik yang diukur — tanah terdekat yang tiada bangunan dimodelkan padanya",
   "app.focus.exit": "Keluar mod fokus {key}",
+  "settings.display": "Paparan",
+  "settings.title": "Tetapan paparan",
+  "settings.colourSafe": "Mesra buta warna",
+  "settings.colourSafeNote": "Warna yang lebih mudah dibezakan, dengan jalur dan garis luar pada bangunan, supaya bukan warna sahaja petunjuknya.",
 };
 
 export default words;

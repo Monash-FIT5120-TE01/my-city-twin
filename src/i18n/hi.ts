@@ -663,6 +663,10 @@ const words: Messages = {
   "app.street.vrComfort": "स्टिक से चलने पर कुछ लोगों को चक्कर या बेचैनी हो सकती है।",
   "app.street.standMoved": "मापी गई जगह से {metres} m दूर खड़े हैं — सबसे पास की वह ज़मीन जिस पर कोई इमारत मॉडल नहीं की गई",
   "app.focus.exit": "फ़ोकस मोड से बाहर {key}",
+  "settings.display": "डिस्प्ले",
+  "settings.title": "डिस्प्ले सेटिंग",
+  "settings.colourSafe": "रंग-अंधता के अनुकूल",
+  "settings.colourSafeNote": "ऐसे रंग जिन्हें अलग पहचानना आसान है, और इमारतों पर धारियाँ व रेखाएँ, ताकि पहचान सिर्फ़ रंग पर निर्भर न रहे।",
 };
 
 export default words;

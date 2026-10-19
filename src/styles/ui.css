@@ -2724,39 +2724,43 @@
   position: relative;
 }
 
-.language-picker__chevron {
+.menu-chevron {
   margin-left: -2px;
   color: var(--ink-2);
 }
 
-.language-picker__list {
+/* The header's drop-down cards (LanguagePicker, DisplayMenu): paper, the card radius, the panel shadow. */
+.menu-card {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
   z-index: 20;
-  width: max-content;
-  min-width: 13.5rem;
   max-width: calc(100vw - 24px);
-  max-height: min(70vh, 32rem);
-  overflow-y: auto;
   margin: 0;
   padding: 6px;
-  list-style: none;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   background: var(--paper);
   box-shadow: var(--shadow-panel);
   outline: none;
   transform-origin: top right;
-  animation: language-picker-in var(--dur-quick) var(--ease);
+  animation: menu-card-in var(--dur-quick) var(--ease);
 }
 
-.language-picker__list:focus-visible {
-  outline: 2px solid var(--green-700);
-  outline-offset: 2px;
+/* On a phone the chips sit wherever the bar wraps them: the card spans the width instead, under its chip. */
+@media (max-width: 600px) {
+  .menu-card {
+    position: fixed;
+    top: var(--menu-top, 64px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    transform-origin: top center;
+  }
 }
 
-@keyframes language-picker-in {
+@keyframes menu-card-in {
   from {
     opacity: 0;
     transform: translateY(-4px) scale(0.98);
@@ -2764,9 +2768,39 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .language-picker__list {
+  .menu-card {
     animation: none;
   }
+}
+
+.language-picker__list {
+  width: max-content;
+  min-width: 13.5rem;
+  max-height: min(70vh, 32rem);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.display-menu {
+  position: relative;
+}
+
+.display-menu__card {
+  width: min(22rem, calc(100vw - 24px));
+  padding: var(--space-3) var(--space-4) var(--space-2);
+}
+
+.display-menu__title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-title);
+  color: var(--ink);
+}
+
+.language-picker__list:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
 }
 
 .language-picker__option {

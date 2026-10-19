@@ -58,12 +58,14 @@
  */
 
 import { useEffect, useMemo, useRef } from 'react';
-import type { BufferGeometry } from 'three';
+import { EdgesGeometry, type BufferGeometry } from 'three';
 import type { Development } from '../data/model';
 import { mergeMassings } from './massing';
 import type { Ground } from './terrain';
 import { SelectionEdges } from './SelectionEdges';
-import { toneOf } from './palette';
+import { APPROVED_SAFE_EDGE, toneOf } from './palette';
+import { addStripes, stripesCacheKey } from './stripes';
+import { useDisplay } from '../settings/display';
 import { useInVr } from './xrStore';
 import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 
@@ -119,6 +121,22 @@ export function DevelopmentMassings({
   const meshes = showAll ? built : built.filter((entry) => entry.development === focus);
 
   /*
+   * Colour-blind friendly (settings/display.ts): approved projects outlined, those under construction
+   * striped (stripes.ts), on top of their own colours — so the kind is told by pattern too. The outlines
+   * are made only while the setting is on, and let go when it goes off.
+   */
+  const { colourSafe } = useDisplay();
+  const outlines = useMemo(() => {
+    if (!colourSafe) return null;
+    const lines = new Map<Development, EdgesGeometry>();
+    for (const { development, geometry } of built) {
+      if (development.status !== 'UNDER CONSTRUCTION') lines.set(development, new EdgesGeometry(geometry, 30));
+    }
+    return lines;
+  }, [colourSafe, built]);
+  useEffect(() => () => outlines?.forEach((line) => line.dispose()), [outlines]);
+
+  /*
    * Where the button went down. The left button pans the camera as well as
    * selecting, so a release has to be told apart from the end of a drag —
    * see tap.ts. One ref for all the massings: only one of them can be under
@@ -149,7 +167,9 @@ export function DevelopmentMassings({
          * gone and nothing responds. See COLOUR SAYS WHAT CAN BE DONE above.
          */
         const invites = !focused && interactive;
-        const tone = toneOf(development.status);
+        const tone = toneOf(development.status, colourSafe);
+        const striped = colourSafe && development.status === 'UNDER CONSTRUCTION';
+        const outline = outlines?.get(development);
         return (
           <mesh
             key={development.devId}
@@ -211,6 +231,10 @@ export function DevelopmentMassings({
               about, but plainly enough to be seen and clicked.
             */}
             <meshStandardMaterial
+              // a new material when the stripes come or go: a compiled program keeps the shader it had
+              key={striped ? 'striped' : 'plain'}
+              onBeforeCompile={striped ? addStripes : undefined}
+              customProgramCacheKey={striped ? stripesCacheKey : undefined}
               color={focused ? tone.selected : invites ? tone.base : tone.quiet}
               roughness={focused ? 0.4 : 0.55}
               metalness={0}
@@ -219,6 +243,11 @@ export function DevelopmentMassings({
               transparent
               opacity={focused ? 0.95 : invites ? 0.9 : 0.78}
             />
+            {outline && (
+              <lineSegments geometry={outline}>
+                <lineBasicMaterial color={APPROVED_SAFE_EDGE} />
+              </lineSegments>
+            )}
             {/* The one being read about is outlined too — see SelectionEdges. */}
             {focused && <SelectionEdges parts={development.parts} floorAhdM={groundAhdM} />}
           </mesh>

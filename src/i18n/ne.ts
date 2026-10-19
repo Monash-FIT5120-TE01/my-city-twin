@@ -724,6 +724,10 @@ const words: Messages = {
   "app.street.vrComfort": "स्टिकले सर्दा कतिपय मानिसलाई असहज महसुस हुन्छ।",
   "app.street.standMoved": "नापिएको ठाउँबाट {metres} m पर उभिएको — मोडेलमा भवन नभएको सबैभन्दा नजिकको जमिन",
   "app.focus.exit": "फोकस मोडबाट निस्कनुहोस् {key}",
+  "settings.display": "डिस्प्ले",
+  "settings.title": "डिस्प्ले सेटिङ",
+  "settings.colourSafe": "रङ-अन्धोपनमैत्री",
+  "settings.colourSafeNote": "छुट्याउन सजिला रङहरू, भवनहरूमा धर्का र रूपरेखासहित, ताकि रङमा मात्र भर पर्नु नपरोस्।",
 };
 
 export default words;

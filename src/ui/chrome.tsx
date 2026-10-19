@@ -21,6 +21,7 @@ import { SearchField } from './kit/SearchField';
 import { Icon } from './kit/Icon';
 import { formatNumber, t as say, useT } from '../i18n/i18n';
 import { LanguagePicker } from './LanguagePicker';
+import { DisplayMenu } from './DisplayMenu';
 
 /**
  * The credit Mapbox is owed for the map under the city.
@@ -265,6 +266,7 @@ export function Header({
 
       <div className="header__actions">
         {nav}
+        <DisplayMenu />
         <LanguagePicker />
         {onEnterVr && (
           /*

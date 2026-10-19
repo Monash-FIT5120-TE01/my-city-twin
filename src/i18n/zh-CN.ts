@@ -725,6 +725,10 @@ const words: Messages = {
   "app.street.vrComfort": "用摇杆移动会让一些人感到不适。",
   "app.street.standMoved": "站在距离测量位置 {metres} m 处——这是最近的、模型中没有建筑的地面",
   "app.focus.exit": "退出专注模式 {key}",
+  "settings.display": "显示",
+  "settings.title": "显示设置",
+  "settings.colourSafe": "色觉友好模式",
+  "settings.colourSafeNote": "更易区分的颜色，并在建筑上加上条纹和轮廓线，不只靠颜色来区分。",
 };
 
 export default words;

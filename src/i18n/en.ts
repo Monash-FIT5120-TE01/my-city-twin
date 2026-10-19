@@ -9,6 +9,7 @@ import { solar } from './sections/solar';
 import { activity } from './sections/activity';
 import { future } from './sections/future';
 import { sentences } from './sections/sentences';
+import { settings } from './sections/settings';
 import { sunlight } from './sections/sunlight';
 
 export const en = {
@@ -37,6 +38,7 @@ export const en = {
   ...activity,
   ...future,
   ...sentences,
+  ...settings,
 } as const;
 
 export type MessageKey = keyof typeof en;

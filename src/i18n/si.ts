@@ -725,6 +725,10 @@ const words: Messages = {
   "app.street.vrComfort": "ස්ටික් එකෙන් චලනය වීම සමහරුන්ට අපහසුතාවක් ඇති කරයි.",
   "app.street.standMoved": "මනින ලද ස්ථානයේ සිට {metres} m දුරින් සිටී — ආකෘතියේ ගොඩනැගිල්ලක් නැති ළඟම බිම",
   "app.focus.exit": "අවධාන ප්‍රකාරයෙන් පිටවන්න {key}",
+  "settings.display": "දර්ශනය",
+  "settings.title": "දර්ශන සැකසුම්",
+  "settings.colourSafe": "වර්ණ අන්ධතාවට හිතකර",
+  "settings.colourSafeNote": "වෙන්කර හඳුනාගැනීමට පහසු වර්ණ, ගොඩනැගිලි මත ඉරි සහ දාර සමඟ, වර්ණය පමණක් මත රඳා නොසිටීමට.",
 };
 
 export default words;

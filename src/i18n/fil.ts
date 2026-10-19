@@ -724,6 +724,10 @@ const words: Messages = {
   "app.street.vrComfort": "Nahihilo ang ilang tao kapag gumagalaw gamit ang stick.",
   "app.street.standMoved": "Nakatayo {metres} m mula sa sinukat na lugar — ang pinakamalapit na lupang walang gusali sa modelo",
   "app.focus.exit": "Lumabas sa focus mode {key}",
+  "settings.display": "Display",
+  "settings.title": "Mga setting ng display",
+  "settings.colourSafe": "Para sa color blind",
+  "settings.colourSafeNote": "Mga kulay na mas madaling makilala, may guhit at balangkas sa mga gusali, para hindi lang kulay ang batayan.",
 };
 
 export default words;

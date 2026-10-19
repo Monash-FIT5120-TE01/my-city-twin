@@ -17,6 +17,8 @@ export function LanguagePicker() {
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  /** Where the list starts, px from the top of the window: under the chip, for a phone (ui.css). */
+  const [top, setTop] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const chip = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
@@ -25,6 +27,7 @@ export function LanguagePicker() {
 
   const openList = () => {
     setActive(Math.max(0, LOCALES.findIndex((option) => option.code === locale)));
+    setTop((chip.current?.getBoundingClientRect().bottom ?? 0) + 6);
     setOpen(true);
   };
   const close = (refocus: boolean) => {
@@ -71,16 +74,17 @@ export function LanguagePicker() {
       >
         <Icon name="language" size={20} />
         <span lang={current.intl}>{current.name}</span>
-        <Icon name={open ? 'expand_less' : 'expand_more'} size={18} className="language-picker__chevron" />
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={18} className="menu-chevron" />
       </button>
       {open && (
         <ul
           ref={list}
           id={`${id}-list`}
-          className="language-picker__list"
+          className="language-picker__list menu-card"
           role="listbox"
           tabIndex={-1}
           aria-label={t('header.language')}
+          style={{ '--menu-top': `${top}px` } as React.CSSProperties}
           aria-activedescendant={`${id}-${LOCALES[active].code}`}
           onKeyDown={(event) => {
             const last = LOCALES.length - 1;

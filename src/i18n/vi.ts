@@ -724,6 +724,10 @@ const words: Messages = {
   "app.street.vrComfort": "Di chuyển bằng cần điều khiển khiến một số người thấy khó chịu.",
   "app.street.standMoved": "Đang đứng cách điểm đã đo {metres} m — chỗ mặt đất gần nhất không có tòa nhà nào trong mô hình",
   "app.focus.exit": "Thoát chế độ tập trung {key}",
+  "settings.display": "Hiển thị",
+  "settings.title": "Cài đặt hiển thị",
+  "settings.colourSafe": "Thân thiện với người mù màu",
+  "settings.colourSafeNote": "Màu dễ phân biệt hơn, có sọc và đường viền trên các tòa nhà, để không chỉ dựa vào màu sắc.",
 };
 
 export default words;

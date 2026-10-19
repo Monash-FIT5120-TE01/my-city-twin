@@ -94,7 +94,45 @@ export const KEY = {
   progress: { fill: '#dda781', edge: '#a8653a' },
 } as const;
 
-/** The colours a project is drawn in, by its stage. */
-export function toneOf(status: string): BuildingTone {
+/** The colours a project is drawn in, by its stage — and in the colour-blind friendly set, if asked. */
+export function toneOf(status: string, colourSafe = false): BuildingTone {
+  if (colourSafe) return status === 'UNDER CONSTRUCTION' ? IN_PROGRESS_SAFE : APPROVED_SAFE;
   return status === 'UNDER CONSTRUCTION' ? IN_PROGRESS : APPROVED;
 }
+
+/*
+ * ── COLOUR-BLIND FRIENDLY (settings/display.ts) ──────────────────────────
+ *
+ * The three kinds set far apart in LIGHTNESS, which every common colour vision difference keeps, and in
+ * hues that the red-green ones keep apart too: blue and yellow rather than teal and orange. Lightness
+ * L* of each under normal vision / protan / deutan / tritan (simulated, Machado 2009):
+ *
+ *   existing     #f4f2ee   96 / 96 / 96 / 96
+ *   in progress  #f2c14e   80 / 78 / 82 / 79   and striped (DevelopmentMassings)
+ *   approved     #1f4f86   33 / 35 / 32 / 35   and outlined
+ *   (the searched building's pink #e0569a: 57 / 51 / 61 / 57)
+ *
+ * so no two kinds are nearer than 14 in any of them (palette-safe.test.ts). The building that could not be reconciled
+ * (#d6d2cc, 84) is near the yellow in lightness; the stripes are what tell them apart.
+ */
+export const EXISTING_SAFE = '#f4f2ee';
+export const UNRESOLVED_SAFE = '#d6d2cc';
+
+export const APPROVED_SAFE: BuildingTone = {
+  base: '#1f4f86',
+  selected: '#3f74b3',
+  quiet: '#b9cbe0',
+  glow: '#1f4f86',
+  glowStrength: 0.12,
+};
+
+export const IN_PROGRESS_SAFE: BuildingTone = {
+  base: '#f2c14e',
+  selected: '#f7d47a',
+  quiet: '#f6e6bd',
+  glow: '#d9a21f',
+  glowStrength: 0.3,
+};
+
+/** The outline drawn round every approved project in the colour-blind friendly set. */
+export const APPROVED_SAFE_EDGE = '#0b1f36';

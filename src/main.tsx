@@ -8,9 +8,12 @@ import './styles/global.css';
 import './styles/kit.css';
 import App from './App';
 import { restoreLocale } from './i18n/i18n';
+import { restoreDisplay } from './settings/display';
 
 // the language chosen on an earlier visit (i18n/): English until its words arrive
 restoreLocale();
+// and the display settings chosen then (settings/display.ts)
+restoreDisplay();
 
 // A temporary log for the headset, only with ?vrdebug in the address — see vrDebug.ts.
 if (new URLSearchParams(location.search).has('vrdebug')) {

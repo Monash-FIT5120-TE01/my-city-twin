@@ -26,7 +26,8 @@ import { HighlightedBuilding } from './HighlightedBuilding';
 import { ApartmentRoom } from './room/ApartmentRoom';
 import type { RoomPlacement } from './room/roomPlacement';
 import { BuildingPicker } from './BuildingPicker';
-import { EXISTING, UNRESOLVED } from './palette';
+import { EXISTING, EXISTING_SAFE, UNRESOLVED, UNRESOLVED_SAFE } from './palette';
+import { useDisplay } from '../settings/display';
 
 interface CityMassingProps {
   model: CityModel;
@@ -122,6 +123,8 @@ export function CityMassing({
   room = null,
 }: CityMassingProps) {
   const roofCheck = useMemo(() => roofCheckOn(), []);
+  // the colour-blind friendly set of colours, if the reader has asked for it (settings/display.ts)
+  const { colourSafe } = useDisplay();
   // the ground at its real heights (terrain.ts): the surface, and the foot of every building
   const terrain = useMemo(() => terrainOf(model), [model]);
 
@@ -335,7 +338,7 @@ export function CityMassing({
 
       {built && (
         <mesh ref={builtMesh} castShadow receiveShadow geometry={built.geometry} onClick={pickOn(built)}>
-          <meshStandardMaterial color={EXISTING} roughness={0.82} metalness={0} />
+          <meshStandardMaterial color={colourSafe ? EXISTING_SAFE : EXISTING} roughness={0.82} metalness={0} />
         </mesh>
       )}
 
@@ -346,7 +349,7 @@ export function CityMassing({
       */}
       {unresolved && (
         <mesh ref={unresolvedMesh} castShadow receiveShadow geometry={unresolved.geometry} onClick={pickOn(unresolved)}>
-          <meshStandardMaterial color={UNRESOLVED} roughness={0.95} metalness={0} />
+          <meshStandardMaterial color={colourSafe ? UNRESOLVED_SAFE : UNRESOLVED} roughness={0.95} metalness={0} />
         </mesh>
       )}
 
