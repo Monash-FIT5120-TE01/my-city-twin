@@ -68,8 +68,8 @@ function dayBefore(d: SimulationDate): DayKey {
 /** Before this time of day the day before's timetable is read too; no trip of it runs this late. */
 const BEFORE_UNTIL_S = 5 * 3600;
 import { DEVICE, DIST, LodSet, detectDevice, type DeviceSettings } from './lod';
-import { groundAt, type Ground } from '../terrain';
-import { liftOntoGround } from './onGround';
+import { type Ground } from '../terrain';
+import { liftOntoGround, streetGroundOf } from './onGround';
 
 interface Docs { surfaces: SurfacesDoc; trees: TreesDoc; street: StreetDoc; signals: SignalsDoc; tram: TramDoc }
 interface Built {
@@ -164,7 +164,15 @@ export function Streetscape({ groundAhdM, lampsLit = false, walking = false, clo
    */
   const ground = useRef(groundAhdM);
   ground.current = groundAhdM;
-  const heightAt = useMemo(() => (e: number, n: number) => groundAt(ground.current, e, n), []);
+  // the street's ground, a little over the terrain's on humps (onGround.ts), worked out again only for a new terrain
+  const heightAt = useMemo(() => {
+    let of: Ground | null = null;
+    let at = (_e: number, _n: number) => 0;
+    return (e: number, n: number) => {
+      if (of !== ground.current) { of = ground.current; at = streetGroundOf(of); }
+      return at(e, n);
+    };
+  }, []);
   useEffect(() => {
     let alive = true;
     /*

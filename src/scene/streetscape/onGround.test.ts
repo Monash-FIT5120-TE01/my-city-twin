@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BufferAttribute, BufferGeometry, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from 'three';
 import { UNIT_ROD, rodBetween } from './kit';
-import { cutFine, liftOntoGround } from './onGround';
+import { cutFine, liftOntoGround, streetGroundOf } from './onGround';
+import { heightAt, type Terrain } from '../terrain';
 import { trackFrame } from './trams/TramLayer';
 
 /** Ground rising 1 m every 10 m eastward. */
@@ -97,4 +98,25 @@ describe('a tram section on a slope', () => {
       expect(up(m).z).toBeGreaterThan(0.99);
     });
   }
+});
+
+describe('the ground the street is laid on', () => {
+  // a ridge running north-south along e = 50: up 1 m in 10 m, then down again
+  const cols = 11, rows = 11, cell = 10;
+  const heights = new Float32Array(cols * rows);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) heights[r * cols + c] = 5 - Math.abs(c - 5) * 1;
+  const ridge = { minE: 0, minN: 0, cell, cols, rows, heights } as unknown as Terrain;
+
+  it('a 20 m road across a ridge, its corners on the street ground, passes over the top', () => {
+    const at = streetGroundOf(ridge);
+    // corners either side of the crest, 20 m apart; the middle of the edge is over the crest
+    const mid = (at(40, 50) + at(60, 50)) / 2;
+    expect(mid).toBeGreaterThanOrEqual(heightAt(ridge, 50, 50));
+  });
+
+  it('flat ground is not raised', () => {
+    const flat = { ...ridge, heights: new Float32Array(cols * rows).fill(3) } as Terrain;
+    expect(streetGroundOf(flat)(42, 57)).toBeCloseTo(3, 6);
+    expect(streetGroundOf(7)(1, 2)).toBe(7);
+  });
 });

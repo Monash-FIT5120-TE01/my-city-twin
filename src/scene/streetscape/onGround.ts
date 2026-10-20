@@ -13,6 +13,7 @@
  */
 import { BufferAttribute, BufferGeometry, Matrix4, Vector3, type InstancedMesh, type Mesh, type Object3D } from 'three';
 import type { Compact } from './lod';
+import { heightAt, type Ground, type Terrain } from '../terrain';
 
 /*
  * No triangle edge longer than this on a baked mesh, metres. At 8 m (under the ground grid's 10 m) the
@@ -138,6 +139,48 @@ export function cutFine(source: BufferGeometry, max = MAX_EDGE_M): BufferGeometr
   g.userData = { ...source.userData, cutFine: true };
   if (flat !== source) flat.dispose();
   return g;
+}
+
+/*
+ * The ground the street is laid on: the terrain, raised where it is convex by as much as a slab triangle
+ * (edges up to MAX_EDGE_M) can sag below it there. A flat triangle with its corners on a hump passes under
+ * the hump's top, and the bare ground (Ground.tsx) showed through the road as pale patches round the
+ * walker, up to 19 cm deep (2026-10-20). Cutting the near slabs to 8 m tripled their points and still left
+ * 6 cm; this costs no points. A function of the position alone, so the triangles either side of an edge are
+ * raised alike and no crack opens between them. Flat and hollow ground is not raised at all.
+ */
+export function streetGroundOf(ground: Ground): (e: number, n: number) => number {
+  if (typeof ground === 'number') return () => ground;
+  const { cols, rows, cell, heights: h } = ground;
+  // how sharply the ground bends over at each grid point, 1/m: the steepest of the four directions
+  const bend = new Float32Array(cols * rows);
+  const steps: [number, number, number][] = [[1, 0, cell], [0, 1, cell], [1, 1, cell * Math.SQRT2], [1, -1, cell * Math.SQRT2]];
+  for (let r = 1; r < rows - 1; r++) {
+    for (let c = 1; c < cols - 1; c++) {
+      const i = r * cols + c;
+      let most = 0;
+      for (const [dc, dr, d] of steps) {
+        const over = (2 * h[i] - h[i + dr * cols + dc] - h[i - dr * cols - dc]) / (d * d);
+        if (over > most) most = over;
+      }
+      bend[i] = most;
+    }
+  }
+  // how far an edge of L sags below ground bending by k: k L^2 / 8, taken over every point such an edge can
+  // reach (checked over the whole city against Ground.tsx: nothing showed through, 2026-10-20)
+  const reach = Math.ceil(MAX_EDGE_M / cell);
+  const sag = new Float32Array(cols * rows);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let most = 0;
+      for (let rr = Math.max(0, r - reach); rr <= Math.min(rows - 1, r + reach); rr++) {
+        for (let cc = Math.max(0, c - reach); cc <= Math.min(cols - 1, c + reach); cc++) most = Math.max(most, bend[rr * cols + cc]);
+      }
+      sag[r * cols + c] = (most * MAX_EDGE_M * MAX_EDGE_M) / 8;
+    }
+  }
+  const raise: Terrain = { ...ground, heights: sag };
+  return (e, n) => heightAt(ground, e, n) + heightAt(raise, e, n);
 }
 
 /** The longest edge to leave uncut on this mesh: MAX_EDGE_M, or a coarser one set on a group above it. */
