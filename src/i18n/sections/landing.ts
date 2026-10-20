@@ -1,26 +1,35 @@
 /* The landing words in English (en.ts gathers every section). */
 export const landing = {
   // ── The front page's first screen
-  "landing.hero.title": "Your street. A new perspective.",
-  "landing.hero.body": "Explore nearby developments. Follow the sunlight.",
+  // The page's heading, drawn small in capitals above the search
+  "landing.hero.title": "Melbourne CBD. A new perspective.",
+  // Read by screen readers before the four topics under the heading
+  "landing.hero.topicsLabel": "What you can explore",
+  // Four short topics under the heading, separated by dots
+  "landing.hero.topicVr": "VR-friendly",
+  "landing.hero.topicSunlight": "Sunlight",
+  "landing.hero.topicSolar": "Rooftop solar",
+  "landing.hero.topicActivity": "Street activity",
   // The button beside the chosen place that clears it. {place} is the place's name.
   "landing.hero.clearChosen": "Clear {place}",
   // Above three street names offered as places to start from
   "landing.hero.tryStreet": "Try a street",
-  "landing.hero.exploreSunlight": "Explore sunlight",
-  // Said when "Explore sunlight" is pressed before a place is chosen
-  "landing.hero.chooseFirst": "Search for an address above, then choose it from the list.",
+  // The main button with no place chosen: into the 3D city
+  "landing.hero.exploreCbd": "Explore Melbourne CBD",
+  // The main button once a place is chosen from the search
+  "landing.hero.exploreBuilding": "Explore Building",
   "landing.hero.enterVr": "Enter in VR",
-  "landing.hero.justExplore": "Just explore the map",
 
-  // The three steps along the bottom, in the order the app is used
-  "landing.steps.label": "How it works",
-  "landing.steps.findTitle": "Find a place",
-  "landing.steps.findBody": "Search for an address or explore the map.",
-  "landing.steps.selectTitle": "Select any building",
-  "landing.steps.selectBody": "Double-click a building to open its page.",
-  "landing.steps.compareTitle": "Compare sunlight",
-  "landing.steps.compareBody": "See how planned developments could affect sunlight on your street.",
+  // The five ways in along the foot of the first screen; each opens its screen
+  "landing.features.label": "Ways to explore",
+  "landing.features.developments": "Developments",
+  "landing.features.sunlight": "Sunlight",
+  "landing.features.solar": "Solar",
+  "landing.features.activity": "Street activity",
+  "landing.features.future": "Future Plan",
+
+  // A button floating over the 3D city in the front page's window
+  "landing.window.chooseBuilding": "Choose a building",
 
   // The city's download, shown in the map's window
   "landing.loading.failed": "The city model did not load",
@@ -30,19 +39,24 @@ export const landing = {
   // the share downloaded so far, after the step being done
   "landing.loading.percent": "{percent}%",
 
-  // ── Under the first screen: the city in three numbers
+  // ── Under the first screen: three steps ("How it works" in the bar scrolls here)
+  "landing.start.title": "Start with a place you know.",
+  "landing.start.find": "Find a street",
+  "landing.start.choose": "Choose a building",
+  "landing.start.explore": "Explore your perspective",
+
+  // ── The city in three numbers
   "landing.numbers.pill": "The city behind the map",
-  "landing.numbers.title": "Big changes. Everyday places.",
-  "landing.numbers.lead": "A closer look at the streets we share — and the future we’re shaping.",
+  "landing.numbers.title": "A city worth exploring.",
   "landing.numbers.walkKicker": "A city on foot",
   // Shown under a large "89%"; the sentence continues from the number.
   "landing.numbers.walkWords": "of trips within the Hoddle Grid are made on foot.",
   // Shown under a large "26%"; the sentence continues from the number.
   "landing.numbers.streetWords": "of street space is allocated to footpaths.",
-  "landing.numbers.streetNote": "Room to move. Room to belong.",
   // Shown under a large "40%"; the sentence continues from the number.
   "landing.numbers.canopyWords": "canopy cover of public streets and parks by 2040, up from 22%.",
-  "landing.numbers.canopyNote": "A greener chapter ahead.",
+  // A fold that opens to show the sources of the three numbers
+  "landing.numbers.sources": "Sources & scope",
   // A cited source document. {document} is its title, which stays in English; {page} is the page number.
   "landing.numbers.sourcePage": "{document}, p. {page}",
   // Read by screen readers after a link to a source document
@@ -51,61 +65,38 @@ export const landing = {
     "Walking: trips within the Hoddle Grid. Street space: across the municipality. Canopy: a 2040 target for public streets and parks across the municipality.",
 
   // ── About
-  "landing.about.kicker": "01 / About us",
+  "landing.about.kicker": "About My City Twin",
   // The heading, drawn on two lines
-  "landing.about.titleLine1": "Your city.",
-  "landing.about.titleLine2": "A new perspective.",
+  "landing.about.titleLine1": "A digital Melbourne.",
+  "landing.about.titleLine2": "Made for everyday questions.",
   "landing.about.lead":
-    "My City Twin makes urban change easier to explore. See nearby developments, compare sunlight, and connect the map with the places that matter to you.",
-  // A label on the drawing of a city block
+    "My City Twin is an interactive 3D model of Melbourne’s CBD. Think of it as a map you can turn, zoom into and explore building by building.",
+  // {term} is landing.about.term, shown in bold where it falls in the sentence
+  "landing.about.explainer":
+    "This is called a {term}: a digital representation of a real place, built from city data. Here, buildings, development plans and street activity come together to help you understand your surroundings.",
+  "landing.about.term": "digital twin",
+  "landing.about.uses":
+    "Choose a building to see how a planned tower could change its sunlight, explore rooftop solar potential, or check foot traffic nearby. Compare today’s city with planned developments, side by side.",
+  // Read by screen readers for the silent animation beside the About text
+  "landing.about.filmLabel": "Silent city animation: new towers, rooftop solar and moving sunlight",
+  // A label on the city animation
   "landing.about.blockLabel": "Melbourne, reimagined",
-
-  // ── Before you explore
-  "landing.before.kicker": "02 / Before you explore",
-  "landing.before.title": "Curiosity starts here.",
-  "landing.before.lead": "A little context for a clearer view.",
-  "landing.before.discoverTitle": "What can I discover?",
-  "landing.before.discoverBody":
-    "Explore buildings and developments. Compare sunlight at a selected date and time. Start with an address, or simply follow your curiosity.",
-  "landing.before.readTitle": "How should I read it?",
-  "landing.before.readBody":
-    "An illustrative model using demo data. Shadow views show possibilities; they are not predictions or a formal planning assessment.",
-  "landing.before.numbersTitle": "What’s behind the numbers?",
-  "landing.before.numbersBody":
-    "City of Melbourne strategies inform the facts above. Source dates and geographic scope help you understand what each number actually represents.",
+  // Read by screen readers before the three steps under About
+  "landing.about.storyLabel": "How the digital city works",
+  "landing.about.realTitle": "A real place",
+  "landing.about.realBody": "Melbourne’s buildings, streets and public spaces.",
+  "landing.about.modelTitle": "A digital model",
+  "landing.about.modelBody": "City data brings the places and plans together in 3D.",
+  "landing.about.perspectiveTitle": "Your perspective",
+  "landing.about.perspectiveBody": "Explore light, solar and foot traffic around places you know.",
 
   // ── Acknowledgement of Country
-  "landing.country.kicker": "Acknowledgement of Country",
-  "landing.country.title": "A continuing connection to place.",
+  "landing.country.title": "Acknowledgement of Country",
   "landing.country.words":
-    "My City Twin acknowledges the Wurundjeri Woi-wurrung and Bunurong Boon Wurrung peoples of the Eastern Kulin Nation, whose Country includes Melbourne. We honour their enduring relationships with land, waters and community, and respectfully recognise Elders, past and present.",
-
-  // ── Future work: ideas not built yet
-  "landing.future.kicker": "Future work",
-  "landing.future.title": "The next chapter of My City Twin.",
-  "landing.future.lead": "Ideas we want to develop next — proposed features, not available yet.",
-  "landing.future.plansKicker": "01 / More plans",
-  "landing.future.plansTitle": "Follow the change.",
-  "landing.future.plansBody":
-    "Bring together approval documents, project stages and source dates, so the status is easier to understand.",
-  "landing.future.personalKicker": "02 / Your everyday life",
-  "landing.future.personalTitle": "Make it personal.",
-  "landing.future.personalBody":
-    "Choose what matters to you: walking, access, public space or disruption during construction.",
-  "landing.future.evidenceKicker": "03 / Better evidence",
-  "landing.future.evidenceTitle": "Compare with confidence.",
-  "landing.future.evidenceBody":
-    "Add validated before-and-after measures, clear assumptions and visible uncertainty.",
-  "landing.future.question": "Built around one question: how will a changing city affect your day?",
-
-  // ── The way back in
-  "landing.cta.kicker": "Your next chapter starts here",
-  "landing.cta.title": "Find your place in the city’s future.",
-  "landing.cta.lead": "A familiar street. Something new to discover.",
-  "landing.cta.button": "Explore the city",
+    "We acknowledge the Wurundjeri Woi-wurrung and Bunurong Boon Wurrung peoples of the Eastern Kulin Nation, the Traditional Owners of the lands of Melbourne. We pay our respects to Elders past and present, and recognise their continuing connection to Country, waters and community.",
 
   // ── The foot of the page
-  "landing.footer.tagline": "Melbourne · An illustrative city model",
+  "landing.footer.backToTop": "Back to top",
   "landing.footer.motto": "Made for a city in motion.",
-  "landing.footer.copyright": "© 2026 My City Twin · Prototype",
+  "landing.footer.copyright": "© 2026 My City Twin",
 } as const;

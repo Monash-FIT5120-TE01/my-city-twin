@@ -88,11 +88,10 @@ import { buildingEntry } from './data/buildingEntry';
 import { buildSkyline, groundHorizon, withHorizon } from './scene/skyline';
 import { sunlightAtWindow } from './scene/windowSunlight';
 import { LoadingScreen } from './ui/LoadingScreen';
-import { LandingPage } from './ui/LandingPage';
+import { HOW_IT_WORKS_ID, LandingPage } from './ui/LandingPage';
 import { DemoNote } from './ui/kit/DemoNote';
 import { Pill } from './ui/kit/Pill';
 import { ComparePage, type FrameRect } from './ui/ComparePage';
-import { HowItWorksPage } from './ui/HowItWorksPage';
 import { FuturePlansPage } from './ui/FuturePlansPage';
 import { TramHint } from './ui/TramHint';
 import { TramAim } from './ui/TramAim';
@@ -124,7 +123,6 @@ import { readUrlState, writeUrlState, type ViewName } from './data/urlState';
 import {
   EARLIEST_MINUTES,
   LATEST_MINUTES,
-  clock12Label,
   clockLabel,
   intoWindow,
   outsideWindowNote,
@@ -153,11 +151,15 @@ import { buildingGroundAhdM, heightAt, terrainOf } from './scene/terrain';
 import { GestureHint, HintChip, KeyHint, WalkHints, WheelHint, richText } from './ui/KeyHints';
 import { Icon } from './ui/kit/Icon';
 import { formatNumber, useT } from './i18n/i18n';
-import { dayMonthLabel, dayMonthYearLabel, seasonWord } from './i18n/format';
+import { dayMonthLabel } from './i18n/format';
 import { MapKey } from './ui/kit/MapKey';
 import { MapModeToggle, type MapMode } from './ui/MapModeToggle';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
+/** The front page's "Developments" with nothing chosen: 148-156 Queen Street, under construction. */
+const FEATURE_DEVELOPMENT = 'X0014802';
+/** Its "Sunlight" and "Solar" with nothing chosen: a 170 m tower. */
+const FEATURE_BUILDING = '77500de6-dd4d-4074-8c54-ecfde4849324';
 const LOW_SUN_DEG = 8;
 const MIDDAY_MINUTES = 12 * 60;
 
@@ -1560,12 +1562,24 @@ export default function App() {
   /*
    * ── THE HEADER'S LINKS ──────────────────────────────────────────────────
    *
-   * "How it works" in the header: its own page (HowItWorksPage).
+   * "How it works" in the header: the front page's three steps ("Start with
+   * a place you know."), scrolled to — from another screen, once the front
+   * page is back up (a few frames: it is mounted by this same change).
    */
   const showHowItWorks = () => {
     // The layer panel would stay mounted behind the page, in the tab order.
     setLayersOpen(false);
-    setView('how');
+    setView('landing');
+    const scrollToSteps = (triesLeft: number) => {
+      const steps = document.getElementById(HOW_IT_WORKS_ID);
+      if (!steps) {
+        if (triesLeft > 0) window.requestAnimationFrame(() => scrollToSteps(triesLeft - 1));
+        return;
+      }
+      steps.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+      steps.focus({ preventScroll: true });
+    };
+    scrollToSteps(10);
   };
 
   /*
@@ -1596,6 +1610,45 @@ export default function App() {
     window.requestAnimationFrame(() => document.getElementById('activity-title')?.focus());
   };
 
+  /*
+   * The five ways in along the front page's foot (LandingPage's FEATURES):
+   * developments, sunlight, solar, street activity, future plans. The three
+   * about a place open on the one already chosen, or else on the same
+   * places the redesign opens on (FEATURE_DEVELOPMENT, FEATURE_BUILDING).
+   */
+  const openFeature = (index: number) => {
+    if (!model) return;
+    setLayersOpen(false);
+    if (index === 3) {
+      showStreetActivity();
+      return;
+    }
+    if (index === 4) {
+      showFuturePlans();
+      return;
+    }
+    if (index === 0) {
+      const development =
+        (selectedKey && model.developments.find((d) => d.devKey === selectedKey)) ||
+        model.developments.find((d) => d.devKey === FEATURE_DEVELOPMENT);
+      if (!development) {
+        setView('explore');
+        return;
+      }
+      chooseOnFront({ kind: 'development', development, label: '', detail: '' });
+      setView('development');
+      return;
+    }
+    const building =
+      (selectedBuildingId && buildingEntry(model, selectedBuildingId)) || buildingEntry(model, FEATURE_BUILDING);
+    if (!building) {
+      setView('explore');
+      return;
+    }
+    if (building.buildingId !== selectedBuildingId) chooseOnFront({ kind: 'building', building, label: '', detail: '' });
+    setView(index === 1 ? 'sunlight' : 'solar');
+  };
+
   /** The links the header carries on the front page, the sunlight screen and the others like them (see the header below). */
   const frontNav = (
     <>
@@ -1619,20 +1672,12 @@ export default function App() {
     </>
   );
 
-  /** The moment on screen, for the front page's fine print. */
-  const when = t('app.front.when', {
-    date: dayMonthYearLabel(date),
-    time: clockLabel(minutes),
-    season: seasonWord(date.month),
-  });
-
   /** What the front page is given in both branches below. */
   const frontProps = {
     query,
     onQuery: setQuery,
     onSearchFocus: () => setSearchAt('front'),
     onExplore: () => setView('explore'),
-    when,
     onInset: (next: ScreenInset) => {
       inset.current = next;
     },
@@ -1668,7 +1713,7 @@ export default function App() {
             results={null}
             chosen={null}
             onClearChosen={() => undefined}
-            onSunlight={() => undefined}
+            onOpenChosen={() => undefined}
             loading={{ progress, error }}
             credit={null}
           />
@@ -1760,9 +1805,6 @@ export default function App() {
   /** The comparison screen is up: two views of one place, side by side. */
   const compareShown = !chromeHidden && view === 'compare' && place !== null;
 
-  /** The How it works page is up, over the city. */
-  const howShown = !chromeHidden && view === 'how';
-
   /**
    * The Future plans page is up, over the city. Not in the headset: the page
    * would go on loading behind it and move the keyboard when it finished.
@@ -1770,7 +1812,7 @@ export default function App() {
   const futureShown = !chromeHidden && !inVr && view === 'future';
 
   /** A full cream page covers the city: no map controls, no map credit. */
-  const pageShown = howShown || futureShown;
+  const pageShown = futureShown;
 
   /** The front page is up — and with it the window the city is framed in. */
   const frontShown = !chromeHidden && view === 'landing';
@@ -2049,7 +2091,8 @@ export default function App() {
           }
           chosen={place ? { label: place.label, detail: place.detail } : null}
           onClearChosen={clearChosen}
-          onSunlight={() => setView('sunlight')}
+          onOpenChosen={() => setView(place?.kind === 'building' ? 'building' : 'development')}
+          onFeature={openFeature}
           onEnterVr={vrSupported ? enterVr : undefined}
           loading={null}
           credit={mapbox ? <MapAttribution /> : null}
@@ -2486,6 +2529,7 @@ export default function App() {
           */
           front={frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown}
           hideLayers={frontShown || pageShown}
+          hideSearch={futureShown}
           nav={frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown ? frontNav : undefined}
           layersOpen={layersOpen}
           /*
@@ -2604,37 +2648,6 @@ export default function App() {
 
       {/* ── FUTURE PLANS: the plans and their guided questions ──────────── */}
       {futureShown && <FuturePlansPage openId={planId} onOpen={setPlanId} />}
-
-      {/* ── HOW IT WORKS: the three steps, over the city ─────────────────── */}
-      {howShown && (
-        <HowItWorksPage
-          dateText={dayMonthYearLabel(date)}
-          timeText={clock12Label(minutes)}
-          season={seasonWord(date.month)}
-          reducedMotion={reducedMotion}
-          /*
-            The page that had the keyboard is gone with either button, so the
-            keyboard is given somewhere on the screen arrived at: the explore
-            screen's one line, or the sunlight column's heading.
-          */
-          onExplore={() => {
-            setView('explore');
-            window.requestAnimationFrame(() =>
-              document.querySelector<HTMLElement>('.explore-hint')?.focus(),
-            );
-          }}
-          onBack={
-            place
-              ? () => {
-                  setView('sunlight');
-                  window.requestAnimationFrame(() =>
-                    document.getElementById('subject-title')?.focus(),
-                  );
-                }
-              : undefined
-          }
-        />
-      )}
 
       {!chromeHidden && view === 'solar' && foundBuilding && (
         <SolarSheet

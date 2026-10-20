@@ -110,7 +110,8 @@ export function MapAttribution() {
  *   "Future plans", "Street activity", "Explore the city" and "How it works"
  *   — on the front page, the sunlight, solar and street activity screens,
  *   the comparison and the full pages (`front`, `nav`). The front page and
- *   the full pages also drop the layer button (`hideLayers`).
+ *   the full pages also drop the layer button (`hideLayers`), and the Future
+ *   plans page the search as well (`hideSearch`): it finds plans, not places.
  *
  * WHY THE SEARCH HAS A KEY
  *   It is the one control here somebody uses repeatedly, and reaching for a
@@ -136,6 +137,7 @@ export function Header({
   onSearchFocus,
   front = false,
   hideLayers = false,
+  hideSearch = false,
   nav,
   children,
 }: {
@@ -169,6 +171,11 @@ export function Header({
    * and its mark the only thing that says they were.
    */
   hideLayers?: boolean;
+  /**
+   * No search field. Its place in the bar is kept, empty, so the links stay
+   * where they are on every page.
+   */
+  hideSearch?: boolean;
   /** The links set before the buttons on the right, where `front` is set. */
   nav?: React.ReactNode;
   /** The search results, rendered by the caller under the field. */
@@ -252,18 +259,20 @@ export function Header({
 
       <div className="header__search">
         {/* The results (children) hang from the field — see SearchField. */}
-        <SearchField
-          ref={field}
-          value={query}
-          onChange={onQuery}
-          onClear={() => {
-            onQuery('');
-            field.current?.focus();
-          }}
-          onFocus={onSearchFocus}
-          shortcut
-          dropdown={children}
-        />
+        {!hideSearch && (
+          <SearchField
+            ref={field}
+            value={query}
+            onChange={onQuery}
+            onClear={() => {
+              onQuery('');
+              field.current?.focus();
+            }}
+            onFocus={onSearchFocus}
+            shortcut
+            dropdown={children}
+          />
+        )}
       </div>
 
       <div className="header__actions">

@@ -28,31 +28,6 @@ export const pages = {
   // keep the dataset names, the organisations and the licence (CC BY 4.0) in English
   "sources.licence": "Building Footprints 2023 and Development Activity Monitor © City of Melbourne. Draft Open Space Data © Victorian Planning Authority. Both licensed CC BY 4.0. Modified: reprojected, extruded to simple block massing, and grouped by structure.",
 
-  // The "How it works" page
-  "how.title": "Your city, understood.",
-  "how.lede": "Find a building. Follow the sun. Compare what changes.",
-  "how.find.alt": "A building in the city model, outlined after a search.",
-  "how.find.title": "Find any building",
-  "how.find.text": "Search an address to open its page. Or explore the map and double-click any building.",
-  "how.sun.alt": "A tower's shadow on the street, with a spot ringed on the ground beside it.",
-  "how.sun.title": "Follow the sun",
-  "how.sun.text": "Set a date and time, then choose a spot on the ground.",
-  // read by screen readers: what the app is set to now, e.g. "Set to 21 June 2026, 12:00 pm, Winter"
-  "how.sun.setTo": "Set to {date}, {time}, {season}",
-  "how.compare.todayAlt": "The neighbourhood as it stands today.",
-  "how.compare.today": "Today",
-  "how.compare.afterAlt": "The same view with the approved projects built.",
-  "how.compare.after": "After planned projects are built",
-  "how.compare.title": "Compare the change",
-  // "Compare side by side" is the name of a button on the sunlight screen
-  "how.compare.text": "Choose Compare side by side. See today beside the future neighbourhood, with linked views.",
-  // {credit} is the map's copyright line ("© Mapbox © OpenStreetMap"), kept as it is
-  "how.mapPictures": "Map pictures {credit}",
-  "how.legendTitle": "Read the map legend",
-  "how.legendNote": "Double-click any building to open it.",
-  "how.explore": "Explore the city",
-  "how.back": "Back to sunlight",
-
   // The card beside a chosen building
   // the card's name for screen readers: the address, then what it is ("Existing building")
   "card.label": "{title}, {kind}",

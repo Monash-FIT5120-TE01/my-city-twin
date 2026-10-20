@@ -4,9 +4,8 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * One place for them, because the same colours appear three times: on the
- * buildings (CityMassing, DevelopmentMassings), in the map key (sources.css)
- * and in the How it works key (how.css). palette.test.ts holds the
- * stylesheets to these values.
+ * buildings (CityMassing, DevelopmentMassings) and in the map key
+ * (sources.css). palette.test.ts holds the stylesheets to these values.
  *
  * THE DESIGN
  *   Warm cream for the city as it stands, teal for an approved project and

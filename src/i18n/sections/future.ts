@@ -7,12 +7,6 @@ export const future = {
   "future.loadingPlans": "Loading the plans…",
   "future.plansError": "The plans could not be loaded. Please try again later.",
 
-  // The list of plans: search field.
-  "future.search.label": "Search plans",
-  "future.search.placeholder": "Search plan name or theme",
-  "future.search.clear": "Clear the search",
-  "future.search.help": "Matches plan names and themes.",
-
   "future.browse.eyebrow": "Explore a plan",
   "future.browse.title": "Which change are you curious about?",
   "future.browse.lead": "Choose a plan, then pick a question to explore what’s changing.",
@@ -43,7 +37,7 @@ export const future = {
   "future.result.showing": "Showing <b>{shown}</b> of {total} plans",
   "future.result.clear": "Clear filters",
   "future.none.title": "No plans match.",
-  "future.none.body": "Try another word, or clear the filters to see every plan.",
+  "future.none.body": "Clear the filters to see every plan.",
 
   "future.group.projects": "Projects",
   "future.group.programmes": "City-wide programmes",

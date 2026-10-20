@@ -9,15 +9,16 @@
  *   - The palette and the frame every section shares.
  *   - The shared pieces of type: kicker, pill, title, lead.
  *   - One block per section, in the page's order: the three numbers, about,
- *     before you explore, the Acknowledgement of Country, future work, the
- *     way back in, the foot of the page.
+ *     the Acknowledgement of Country, the foot of the page.
  *   - Narrower windows: the grids fold to one column.
+ *   - Last, the redesign (2026-10-20), laid over all of the above.
  *
  * COLOUR
- *   The colours are the design's (Figma "01 — Landing", scroll sections),
- *   named here once. Every pairing is dark on light or light on dark — the
- *   deep teal #073c40 on the paper and pale greens, and the pale mints on
- *   the teal — so nothing is read by hue alone.
+ *   Named once, in `.more`: first the design's teal (Figma "01 — Landing"),
+ *   then the redesign's greens laid over it at the end of the file. Every
+ *   pairing is dark on light or light on dark — the deep green on the paper
+ *   and pale greens, white on the dark card — so nothing is read by hue
+ *   alone.
  */
 
 /* ── the palette, and the frame every section shares ────── */
@@ -80,10 +81,6 @@
   color: var(--more-mint);
 }
 
-.more__kicker--pale {
-  color: var(--more-pale);
-}
-
 .more__pill {
   display: inline-block;
   padding: 6px 18px;
@@ -110,14 +107,6 @@
   color: #fff;
 }
 
-.more__title--small {
-  font-size: clamp(1.75rem, 2.7vw, 2.6rem);
-}
-
-.more__title--cta {
-  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
-}
-
 .more__title span {
   display: block;
 }
@@ -132,10 +121,6 @@
 
 .more__lead--light {
   color: var(--more-on-dark-2);
-}
-
-.more__lead--pale {
-  color: var(--more-pale-2);
 }
 
 /* ── the city in three numbers ──────────────────────────── */
@@ -177,12 +162,6 @@
   color: var(--more-on-dark);
 }
 
-.more__walk-art {
-  flex: none;
-  width: clamp(110px, 12vw, 186px);
-  height: auto;
-}
-
 .more__fact {
   display: flex;
   align-items: center;
@@ -213,12 +192,6 @@
   font-size: clamp(1.05rem, 1.5vw, 1.45rem);
   font-weight: var(--weight-title);
   line-height: 1.35;
-}
-
-.more__fact-note {
-  margin-top: var(--space-2) !important;
-  font-size: var(--text-body);
-  color: var(--more-ink-2);
 }
 
 .more__source {
@@ -254,196 +227,10 @@
   background: var(--more-ink);
 }
 
-/*
- * The design's block: a 512 × 408 board the drawings are placed on. The
- * board scales as one, so the drawings keep their places relative to each
- * other at any width.
- */
-.more__block {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 512 / 408;
-}
-
-.more__block img {
-  position: absolute;
-  height: auto;
-}
-
-.more__block-label {
-  position: absolute;
-  left: 4.5%;
-  top: 93.6%;
-  font-size: clamp(0.6rem, 1vw, 0.8125rem);
-  font-weight: var(--weight-title);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--more-ink);
-}
-
-/* ── before you explore ─────────────────────────────────── */
-
-.more__three {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-5) clamp(var(--space-5), 3.5vw, 3.375rem);
-  margin: var(--space-6) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.more__three li {
-  padding-top: var(--space-5);
-  border-top: 2px solid var(--more-rule);
-}
-
-.more__index {
-  display: block;
-  font-size: 1.125rem;
-  font-weight: var(--weight-title);
-  color: var(--more-index);
-}
-
-.more__three h3 {
-  margin-top: var(--space-3);
-  font-family: var(--font-display);
-  font-size: clamp(1.3rem, 1.7vw, 1.625rem);
-  font-weight: var(--weight-title);
-}
-
-.more__three p {
-  margin-top: var(--space-3);
-  font-size: clamp(1rem, 1.3vw, 1.25rem);
-  line-height: 1.5;
-  color: var(--more-ink-2);
-}
-
 /* ── acknowledgement of country ─────────────────────────── */
 
 .more__country {
   background: var(--more-country);
-}
-
-.more__kicker--dash {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.more__kicker--dash::before {
-  content: '';
-  width: 48px;
-  height: 3px;
-  background: var(--more-index);
-}
-
-.more__country-words {
-  max-width: 64rem;
-  margin-top: var(--space-4) !important;
-  padding-bottom: var(--space-6);
-  border-bottom: 1px solid var(--more-rule);
-  font-size: clamp(1.05rem, 1.5vw, 1.45rem);
-  line-height: 1.5;
-  color: var(--more-ink-2);
-}
-
-/* ── future work ────────────────────────────────────────── */
-
-.more__future {
-  background: var(--more-ink);
-}
-
-.more__future:focus {
-  outline: none;
-}
-
-.more__future:focus-visible {
-  outline: 2px solid var(--more-mint);
-  outline-offset: -4px;
-}
-
-.more__cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-5);
-  margin: var(--space-6) 0 var(--space-6);
-  padding: 0;
-  list-style: none;
-}
-
-.more__cards li {
-  padding: var(--space-6) var(--space-6) var(--space-5);
-  border-radius: 24px;
-  background: var(--more-card-dark);
-}
-
-.more__cards h3 {
-  margin-top: var(--space-4);
-  font-family: var(--font-display);
-  font-size: clamp(1.4rem, 1.75vw, 1.7rem);
-  font-weight: var(--weight-title);
-  color: #fff;
-}
-
-.more__cards p:not(.more__kicker) {
-  margin-top: var(--space-3);
-  font-size: clamp(1rem, 1.25vw, 1.2rem);
-  line-height: 1.5;
-  color: #d3e4dd;
-}
-
-/* ── the way back in ────────────────────────────────────── */
-
-.more__cta {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: var(--space-6);
-  overflow: hidden;
-  background: var(--more-ink);
-}
-
-/* The design's two rings, drawn from their shared centre. */
-.more__cta-rings {
-  position: relative;
-  width: 207px;
-  height: 207px;
-}
-
-.more__cta-rings img {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-}
-
-.more__cta-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-6);
-  min-width: min(22rem, 100%);
-  min-height: 68px;
-  padding: 0 var(--space-6);
-  border: 0;
-  border-radius: 18px;
-  background: var(--more-mint);
-  font: inherit;
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: var(--weight-title);
-  color: var(--more-ink);
-  cursor: pointer;
-  transition: background var(--dur-quick) var(--ease);
-}
-
-.more__cta-button:hover {
-  background: #a9d8cb;
-}
-
-.more__cta-button:focus-visible {
-  outline: 3px solid #fff;
-  outline-offset: 3px;
 }
 
 /* ── the foot of the page ───────────────────────────────── */
@@ -494,26 +281,12 @@
   .more__walk {
     grid-row: auto;
   }
-
-  .more__cta {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .more__cta-rings {
-    display: none;
-  }
 }
 
 /* A phone: every grid is one column, and the walking drawing goes. */
 @media (max-width: 900px) {
-  .more__about,
-  .more__three,
-  .more__cards {
+  .more__about {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .more__walk-art {
-    display: none;
   }
 
   .more__fact {
@@ -521,8 +294,389 @@
     align-items: flex-start;
     gap: var(--space-2);
   }
+}
 
-  .more__cta-button {
-    width: 100%;
+/*
+ * ── THE REDESIGN (2026-10-20) ────────────────────────────────────────────
+ *
+ * The team's new sections under the front page, laid over the rules above:
+ * the three numbers as three equal cards with their sources folded away, About
+ * on pale green with the city film and the three-step story, a plain
+ * Acknowledgement of Country, and the foot with "Back to top".
+ */
+
+.more__source-details {
+  color: var(--ink-2);
+  margin-top: 22px;
+  font-size: 12px;
+}
+
+.more__source-details summary {
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+
+.more__source-details .more__source {
+  margin-top: 12px;
+}
+
+.more__footer .demo-note {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.more {
+  --more-ink: #183f34;
+  --more-ink-2: #4c6058;
+  --more-accent: #3e6553;
+  --more-paper: #f8f5ee;
+  --more-pill: #e4ebdf;
+  --more-mint: #d5e4cf;
+  --more-street: #e7eee2;
+  --more-canopy: #f2e6cf;
+  --more-rule: #cbd7c8;
+  --more-on-dark: #eff4e9;
+  --more-on-dark-2: #dce7d5;
+}
+
+.more__title {
+  letter-spacing: -.035em;
+  text-wrap: balance;
+  font-weight: 760;
+  line-height: 1.13;
+}
+
+.more__lead {
+  max-width: 38rem;
+  font-size: clamp(17px,1.4vw,20px);
+  line-height: 1.65;
+}
+
+.more__kicker {
+  letter-spacing: .15em;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.more__big,
+.more__mid {
+  letter-spacing: -.055em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.more__fact-words,
+.more__walk-words {
+  font-size: clamp(16px,1.4vw,20px);
+  line-height: 1.5;
+}
+
+.more__about {
+  background: #e7ede3;
+}
+
+.more__about .more__title--light {
+  color: #183f34;
+}
+
+.more__about .more__lead--light {
+  color: #435c4f;
+}
+
+.more__about .more__kicker--light {
+  color: #486550;
+}
+
+.more__footer {
+  background: #f8f5ee;
+}
+
+.more__city-film {
+  aspect-ratio: 4/3;
+  background: #e7ede3;
+  border-radius: 14px;
+  max-width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.more__city-film video {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.more__film-caption {
+  letter-spacing: .03em;
+  color: #254c3b;
+  background: #eef3e9e8;
+  border: 1px solid #d0ddcb;
+  border-radius: 6px;
+  max-width: calc(100% - 70px);
+  padding: 7px 9px;
+  font-size: 10px;
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+}
+
+.more__about-explainer {
+  color: #435c4f;
+  max-width: 42rem;
+  margin: 16px 0 0;
+  font-size: clamp(15px,1.2vw,17px);
+  line-height: 1.65;
+}
+
+.more__twin-story {
+  color: #183f34;
+  grid-column: 1/-1;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+
+.more__twin-story li {
+  background: #fffdf7a6;
+  border: 1px solid #d1ddcd;
+  border-radius: 16px;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  display: flex;
+  position: relative;
+}
+
+.more__twin-story li>svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.more__twin-story li+li:before {
+  content: "→";
+  color: #6a856d;
+  position: absolute;
+  top: 40%;
+  left: -23px;
+}
+
+.more__twin-story h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.more__twin-story p {
+  color: #435c4f;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@media (width<=700px) {
+  .more__twin-story {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+@media (width<=700px) {
+  .more__twin-story li+li:before {
+    content: none;
+  }
+}
+
+@media (width<=700px) {
+  .more__twin-story li {
+    padding: 20px;
+  }
+}
+
+.more__country {
+  padding: 36px var(--more-gutter);
+  color: #244738;
+  background: #eef0e7;
+  border-top: 1px solid #d8dfd2;
+}
+
+.more__country h2 {
+  font: inherit;
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.more__country p {
+  color: #435c4f;
+  max-width: 68rem;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.more__numbers {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+.more__numbers .more__title {
+  font-size: clamp(25px,2.1vw,32px);
+}
+
+.more__numbers .more__figures {
+  grid-template-rows: auto;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.more__numbers .more__walk,
+.more__numbers .more__fact {
+  border-radius: 16px;
+  grid-row: auto;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  display: flex;
+}
+
+.more__numbers .more__big,
+.more__numbers .more__mid {
+  min-width: 0;
+  font-size: 42px;
+  line-height: 1.1;
+}
+
+.more__numbers .more__fact {
+  flex-direction: column;
+}
+
+.more__numbers .more__walk-words,
+.more__numbers .more__fact-words {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+@media (width<=700px) {
+  .more__numbers .more__figures {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (width<=700px) {
+  .more__numbers .more__fact {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+@media (width<=700px) {
+  .more__numbers .more__big,
+  .more__numbers .more__mid {
+    font-size: 36px;
+  }
+}
+
+.more__about-explore {
+  color: #fff;
+  min-height: 44px;
+  font: inherit;
+  cursor: pointer;
+  background: #104b3a;
+  border: 0;
+  border-radius: 14px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 24px;
+  padding: 12px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  display: inline-flex;
+}
+
+.more__about-explore:hover {
+  background: #1c5c47;
+}
+
+.more__about-explore:focus-visible {
+  outline-offset: 4px;
+  outline: 3px solid #9eb991;
+}
+
+.more__back-top-row {
+  background: var(--cream);
+  justify-content: center;
+  padding: 0 24px 28px;
+  display: flex;
+}
+
+.more__back-top {
+  color: #31543f;
+  min-height: 44px;
+  font: inherit;
+  cursor: pointer;
+  background: #edf0e7;
+  border: 1px solid #d1dbcb;
+  border-radius: 18px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+}
+
+.more__back-top:hover {
+  background: #e2e9db;
+}
+
+.more__back-top:focus-visible {
+  outline-offset: 3px;
+  outline: 3px solid #9eb991;
+}
+
+.more__back-top span {
+  font-size: 20px;
+}
+
+.more__footer {
+  grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+  align-items: center;
+  gap: 24px;
+  display: grid;
+}
+
+.more__footer>div:last-child {
+  justify-self: end;
+}
+
+.more__footer .more__back-top-row {
+  background: 0 0;
+  padding: 0;
+}
+
+@media (width<=700px) {
+  .more__footer {
+    grid-template-columns: 1fr auto;
+    gap: 22px;
+  }
+}
+
+@media (width<=700px) {
+  .more__footer>div:last-child {
+    grid-column: 1/-1;
+    justify-self: start;
+  }
+}
+
+@media (width<=700px) {
+  .more__footer .more__back-top-row {
+    justify-self: end;
   }
 }

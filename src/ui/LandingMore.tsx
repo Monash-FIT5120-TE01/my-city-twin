@@ -5,19 +5,17 @@
  *
  * WHAT THIS IS
  *   What the front page says once somebody scrolls past the window onto the
- *   city, in the order of the design (Figma "01 — Landing", the additional
- *   scroll sections). LandingPage puts it under its first screen, inside the
- *   same scrolling page.
+ *   city and the three steps, laid out after the team's redesign
+ *   (2026-10-20). LandingPage puts it under its first screen, inside the same
+ *   scrolling page.
  *
  * WHAT IS ON IT, TOP TO BOTTOM
- *   - The city in three numbers: walking, footpaths, canopy, with sources.
- *   - About: what My City Twin is, beside the drawn city block.
- *   - Before you explore: what it shows, how to read it, where the numbers
- *     come from.
+ *   - The city in three numbers: walking, footpaths, canopy, with the sources
+ *     folded under them.
+ *   - About: what My City Twin is and what a digital twin is, beside the city
+ *     film, with the three-step story under it.
  *   - Acknowledgement of Country.
- *   - Future work: the ideas not built yet.
- *   - The way back in: one button into the city.
- *   - The foot of the page: the mark, the name and the fine print.
+ *   - The foot of the page: the mark, the fine print and "Back to top".
  *
  * THE NUMBERS AND WHERE THEY COME FROM
  *   The three figures are the only claims on this page that did not come
@@ -33,27 +31,16 @@
  *          by 2040." Urban Forest Strategy 2012–2032, p. 7. A target, for
  *          public streets and parks — not a measurement, and not the whole
  *          city's canopy, which the same document puts far lower.
- *
- *   The design's words were kept where the source supports them and
- *   changed where it does not: "Hoddle Grid" for the street-space figure is
- *   the one that went.
- *
- * THE DRAWINGS
- *   The walking route, the city block and the rings round the last button
- *   are the design's own SVGs, in public/landing, placed where the design
- *   places them. The flat shapes behind the text — the cards, the bands,
- *   the rules — are drawn in CSS from the design's colours, so they reflow
- *   with the window instead of being stretched pictures of rectangles.
  */
 
+import { useEffect, useRef } from 'react';
 import { bundled } from '../data/bundled';
-import { Icon } from './kit/Icon';
+import { Icon, type IconName } from './kit/Icon';
 import { CountUp } from './kit/CountUp';
+import { DemoNote } from './kit/DemoNote';
 import '../styles/landing-more.css';
 import { useT } from '../i18n/i18n';
-
-/** The id of the future-work section, an anchor to it. ("Future plans" in the header now opens its own page.) */
-export const FUTURE_PLANS_ID = 'future-plans';
+import type { MessageKey } from '../i18n/en';
 
 /*
  * The two documents the numbers are read from. `#page=` is the PDF's own
@@ -65,66 +52,52 @@ const TRANSPORT_PDF =
 const URBAN_FOREST_PDF =
   'https://www.melbourne.vic.gov.au/media-files/2024-07/urban-forest-strategy.pdf#page=7';
 
-/**
- * The isometric city block, as the design builds it: eighteen drawings
- * placed on a 512 × 408 board. Positions are the design's, in board pixels;
- * each drawing keeps its own size, and the board scales as one.
- */
-const BLOCK: { file: number; x: number; y: number; w: number; h: number }[] = [
-  { file: 6, x: 3, y: 250, w: 506, h: 104 },
-  { file: 7, x: 0, y: 140, w: 512, h: 247 },
-  { file: 8, x: 19.32, y: 158.66, w: 421.36, h: 214.674 },
-  { file: 9, x: 103, y: 104, w: 90, h: 46 },
-  { file: 10, x: 103, y: 127, w: 45, h: 93 },
-  { file: 11, x: 148, y: 127, w: 45, h: 93 },
-  { file: 12, x: 216, y: 0, w: 90, h: 46 },
-  { file: 13, x: 216, y: 23, w: 45, h: 161 },
-  { file: 14, x: 261, y: 23, w: 45, h: 161 },
-  { file: 15, x: 326, y: 116, w: 90, h: 46 },
-  { file: 16, x: 326, y: 139, w: 45, h: 133 },
-  { file: 17, x: 371, y: 139, w: 45, h: 133 },
-  { file: 18, x: 216, y: 188, w: 90, h: 46 },
-  { file: 19, x: 216, y: 211, w: 45, h: 87 },
-  { file: 20, x: 261, y: 211, w: 45, h: 87 },
-  { file: 21, x: 373, y: 72, w: 86, h: 86 },
-  { file: 22, x: 331.5, y: 30.5, w: 169, h: 169 },
-  { file: 23, x: 2, y: 374, w: 230, h: 34 },
+/** How the digital city works, in three steps under the About band. */
+const STORY: readonly { icon: IconName; title: MessageKey; body: MessageKey }[] = [
+  { icon: 'location_on', title: 'landing.about.realTitle', body: 'landing.about.realBody' },
+  { icon: 'layers', title: 'landing.about.modelTitle', body: 'landing.about.modelBody' },
+  { icon: 'visibility', title: 'landing.about.perspectiveTitle', body: 'landing.about.perspectiveBody' },
 ];
-const BOARD_W = 512;
-const BOARD_H = 408;
 
 /**
- * The drawn city block in the About band. Each drawing is placed in
- * percentages of the board, so the whole block scales with its column.
- * Decorative: the words beside it say what it shows.
+ * The city film in the About band: new towers, rooftop solar and moving
+ * sunlight, looping without sound. It plays only while it is on screen, and
+ * not at all under a reduced-motion preference (the poster stands in) —
+ * App's, which follows the preference if it changes while the page is open.
  */
-function CityBlock() {
+function CityFilm({ still }: { still: boolean }) {
   const t = useT();
+  const video = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const film = video.current;
+    if (!film) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !still) film.play().catch(() => undefined);
+        else film.pause();
+      },
+      { threshold: 0.2 },
+    );
+    observer.observe(film);
+    return () => {
+      observer.disconnect();
+      film.pause();
+    };
+  }, [still]);
   return (
-    <div className="more__block" aria-hidden="true">
-      {BLOCK.map(({ file, x, y, w, h }) => (
-        <img
-          key={file}
-          src={bundled(`landing/block-${file}.svg`)}
-          alt=""
-          width={w}
-          height={h}
-          style={{
-            left: `${(x / BOARD_W) * 100}%`,
-            top: `${(y / BOARD_H) * 100}%`,
-            width: `${(w / BOARD_W) * 100}%`,
-          }}
-        />
-      ))}
-      <span className="more__block-label">{t('landing.about.blockLabel')}</span>
+    <div className="more__city-film">
+      <video
+        ref={video}
+        src={bundled('landing/city-perspectives-v2.mp4')}
+        poster={bundled('landing/city-perspectives-v2-poster.png')}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-label={t('landing.about.filmLabel')}
+      />
+      <span className="more__film-caption">{t('landing.about.blockLabel')}</span>
     </div>
-  );
-}
-
-/** The arrow on the last button, at the design's weight. */
-function Arrow() {
-  return (
-    <Icon name="arrow_forward" size={24} />
   );
 }
 
@@ -140,12 +113,54 @@ function SourceLink({ href, children }: { href: string; children: React.ReactNod
   );
 }
 
+/** How long "Back to top" takes to get there, ms. */
+const BACK_TO_TOP_MS = 1100;
+
 /**
  * The sections under the front page's first screen. `onExplore` is the
- * same "explore the city" the first screen offers, for the last button.
+ * same "explore the city" the first screen offers, for the button in About.
  */
-export function LandingMore({ onExplore }: { onExplore: () => void }) {
+export function LandingMore({ onExplore, reducedMotion = false }: { onExplore: () => void; reducedMotion?: boolean }) {
   const t = useT();
+  /** Stops a "Back to top" glide still running: a wheel or a finger takes over, or the page goes. */
+  const stopGlide = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopGlide.current?.(), []);
+
+  /*
+   * Up to the top of the page, eased; at once under a reduced-motion
+   * preference. The keyboard goes with the eye, to the page's heading:
+   * left on this button, the next Tab went on from the foot of the page.
+   */
+  const backToTop = (from: HTMLElement) => {
+    stopGlide.current?.();
+    const page = from.closest<HTMLElement>('.landing');
+    if (!page) return;
+    document.getElementById('landing-title')?.focus({ preventScroll: true });
+    if (reducedMotion) {
+      page.scrollTo({ top: 0, behavior: 'instant' });
+      return;
+    }
+    const start = page.scrollTop, began = performance.now();
+    let frame = 0;
+    const finish = () => {
+      cancelAnimationFrame(frame);
+      page.removeEventListener('wheel', finish);
+      page.removeEventListener('touchstart', finish);
+      stopGlide.current = null;
+    };
+    stopGlide.current = finish;
+    page.addEventListener('wheel', finish, { passive: true });
+    page.addEventListener('touchstart', finish, { passive: true });
+    const step = (now: number) => {
+      const u = Math.min(1, (now - began) / BACK_TO_TOP_MS);
+      const eased = u * u * u * (u * (u * 6 - 15) + 10);   // smootherstep
+      page.scrollTop = start * (1 - eased);
+      if (u < 1) frame = requestAnimationFrame(step);
+      else finish();
+    };
+    frame = requestAnimationFrame(step);
+  };
+
   return (
     <div className="more">
       {/* ── the city behind the map ─────────────────────────────── */}
@@ -154,9 +169,6 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
         <h2 className="more__title" id="numbers-title">
           {t('landing.numbers.title')}
         </h2>
-        <p className="more__lead">
-          {t('landing.numbers.lead')}
-        </p>
 
         <div className="more__figures">
           <article className="more__walk">
@@ -167,20 +179,12 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
                 {t('landing.numbers.walkWords')}
               </p>
             </div>
-            <img
-              className="more__walk-art"
-              src={bundled('landing/walking-route.svg')}
-              alt=""
-              width={186}
-              height={198}
-            />
           </article>
 
           <article className="more__fact more__fact--street">
             <p className="more__mid"><CountUp value={26} suffix="%" /></p>
             <div>
               <p className="more__fact-words">{t('landing.numbers.streetWords')}</p>
-              <p className="more__fact-note">{t('landing.numbers.streetNote')}</p>
             </div>
           </article>
 
@@ -190,26 +194,29 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
               <p className="more__fact-words">
                 {t('landing.numbers.canopyWords')}
               </p>
-              <p className="more__fact-note">{t('landing.numbers.canopyNote')}</p>
             </div>
           </article>
         </div>
 
-        <p className="more__source">
-          <span className="more__kicker">City of Melbourne</span>
-          <span>
-            <SourceLink href={TRANSPORT_PDF}>{t('landing.numbers.sourcePage', { document: 'Transport Strategy 2030 (2019)', page: 39 })}</SourceLink>
-            {' · '}
-            <SourceLink href={URBAN_FOREST_PDF}>{t('landing.numbers.sourcePage', { document: 'Urban Forest Strategy 2012–2032', page: 7 })}</SourceLink>
-          </span>
-        </p>
-        <p className="more__scope">
-          {t('landing.numbers.scope')}
-        </p>
+        {/* The sources, folded: one press away for whoever wants to check a number. */}
+        <details className="more__source-details">
+          <summary>{t('landing.numbers.sources')}</summary>
+          <p className="more__source">
+            <span className="more__kicker">City of Melbourne</span>
+            <span>
+              <SourceLink href={TRANSPORT_PDF}>{t('landing.numbers.sourcePage', { document: 'Transport Strategy 2030 (2019)', page: 39 })}</SourceLink>
+              {' · '}
+              <SourceLink href={URBAN_FOREST_PDF}>{t('landing.numbers.sourcePage', { document: 'Urban Forest Strategy 2012–2032', page: 7 })}</SourceLink>
+            </span>
+          </p>
+          <p className="more__scope">
+            {t('landing.numbers.scope')}
+          </p>
+        </details>
       </section>
 
       {/* ── about ───────────────────────────────────────────────── */}
-      <section className="more__band more__about" aria-labelledby="about-title">
+      <section className="more__band more__about" id="landing-about" aria-labelledby="about-title">
         <div className="more__about-words">
           <p className="more__kicker more__kicker--light">{t('landing.about.kicker')}</p>
           <h2 className="more__title more__title--light" id="about-title">
@@ -219,121 +226,34 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
           <p className="more__lead more__lead--light">
             {t('landing.about.lead')}
           </p>
+          <p className="more__about-explainer">
+            <Term text={t('landing.about.explainer')} term={t('landing.about.term')} />
+          </p>
+          <p className="more__about-explainer">
+            {t('landing.about.uses')}
+          </p>
+          <button type="button" className="more__about-explore" onClick={onExplore}>
+            {t('landing.hero.exploreCbd')}
+          </button>
         </div>
-        <CityBlock />
-      </section>
-
-      {/* ── before you explore ──────────────────────────────────── */}
-      <section className="more__section" aria-labelledby="before-title">
-        <p className="more__kicker">{t('landing.before.kicker')}</p>
-        <h2 className="more__title" id="before-title">
-          {t('landing.before.title')}
-        </h2>
-        <p className="more__lead">{t('landing.before.lead')}</p>
-
-        <ol className="more__three" role="list">
-          <li>
-            <span className="more__index" aria-hidden="true">
-              01
-            </span>
-            <h3>{t('landing.before.discoverTitle')}</h3>
-            <p>
-              {t('landing.before.discoverBody')}
-            </p>
-          </li>
-          <li>
-            <span className="more__index" aria-hidden="true">
-              02
-            </span>
-            <h3>{t('landing.before.readTitle')}</h3>
-            <p>
-              {t('landing.before.readBody')}
-            </p>
-          </li>
-          <li>
-            <span className="more__index" aria-hidden="true">
-              03
-            </span>
-            <h3>{t('landing.before.numbersTitle')}</h3>
-            <p>
-              {t('landing.before.numbersBody')}
-            </p>
-          </li>
+        <CityFilm still={reducedMotion} />
+        <ol className="more__twin-story" aria-label={t('landing.about.storyLabel')}>
+          {STORY.map((part) => (
+            <li key={part.title}>
+              <Icon name={part.icon} size={30} />
+              <div>
+                <h3>{t(part.title)}</h3>
+                <p>{t(part.body)}</p>
+              </div>
+            </li>
+          ))}
         </ol>
       </section>
 
       {/* ── acknowledgement of country ──────────────────────────── */}
-      <section className="more__band more__country" aria-labelledby="country-title">
-        <p className="more__kicker more__kicker--dash">{t('landing.country.kicker')}</p>
-        <h2 className="more__title more__title--small" id="country-title">
-          {t('landing.country.title')}
-        </h2>
-        <p className="more__country-words">
-          {t('landing.country.words')}
-        </p>
-      </section>
-
-      {/*
-        ── future work ─────────────────────────────────────────────
-        Focusable so a link to it can move the keyboard here as well as the
-        eye; -1 keeps it out of the tab order.
-      */}
-      <section
-        className="more__band more__future"
-        id={FUTURE_PLANS_ID}
-        tabIndex={-1}
-        aria-labelledby="future-title"
-      >
-        <p className="more__kicker more__kicker--pale">{t('landing.future.kicker')}</p>
-        <h2 className="more__title more__title--light" id="future-title">
-          {t('landing.future.title')}
-        </h2>
-        <p className="more__lead more__lead--pale">
-          {t('landing.future.lead')}
-        </p>
-        <ol className="more__cards" role="list">
-          <li>
-            <p className="more__kicker more__kicker--pale">{t('landing.future.plansKicker')}</p>
-            <h3>{t('landing.future.plansTitle')}</h3>
-            <p>
-              {t('landing.future.plansBody')}
-            </p>
-          </li>
-          <li>
-            <p className="more__kicker more__kicker--pale">{t('landing.future.personalKicker')}</p>
-            <h3>{t('landing.future.personalTitle')}</h3>
-            <p>
-              {t('landing.future.personalBody')}
-            </p>
-          </li>
-          <li>
-            <p className="more__kicker more__kicker--pale">{t('landing.future.evidenceKicker')}</p>
-            <h3>{t('landing.future.evidenceTitle')}</h3>
-            <p>{t('landing.future.evidenceBody')}</p>
-          </li>
-        </ol>
-        <p className="more__lead more__lead--pale">
-          {t('landing.future.question')}
-        </p>
-      </section>
-
-      {/* ── the way back in ─────────────────────────────────────── */}
-      <section className="more__band more__cta" aria-labelledby="cta-title">
-        <div>
-          <p className="more__kicker more__kicker--light">{t('landing.cta.kicker')}</p>
-          <h2 className="more__title more__title--light more__title--cta" id="cta-title">
-            {t('landing.cta.title')}
-          </h2>
-          <p className="more__lead more__lead--light">{t('landing.cta.lead')}</p>
-        </div>
-        <div className="more__cta-rings" aria-hidden="true">
-          <img src={bundled('landing/cta-ring-outer.svg')} alt="" width={207} height={207} />
-          <img src={bundled('landing/cta-ring-inner.svg')} alt="" width={151} height={151} />
-        </div>
-        <button type="button" className="more__cta-button" onClick={onExplore}>
-          {t('landing.cta.button')}
-          <Arrow />
-        </button>
+      <section className="more__country" aria-labelledby="country-title">
+        <h2 id="country-title">{t('landing.country.title')}</h2>
+        <p>{t('landing.country.words')}</p>
       </section>
 
       {/* ── the foot of the page ────────────────────────────────── */}
@@ -347,7 +267,12 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
             </span>
             My City Twin
           </p>
-          <p className="more__fine">{t('landing.footer.tagline')}</p>
+          <DemoNote />
+        </div>
+        <div className="more__back-top-row">
+          <button type="button" className="more__back-top" onClick={(event) => backToTop(event.currentTarget)}>
+            {t('landing.footer.backToTop')} <span aria-hidden="true">↑</span>
+          </button>
         </div>
         <div>
           <p className="more__motto">{t('landing.footer.motto')}</p>
@@ -355,5 +280,17 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
         </div>
       </footer>
     </div>
+  );
+}
+
+/** A sentence with one {term} in it, the term in bold: where it falls is the language's to say. */
+function Term({ text, term }: { text: string; term: string }) {
+  const [before, after = ''] = text.split('{term}');
+  return (
+    <>
+      {before}
+      <strong>{term}</strong>
+      {after}
+    </>
   );
 }

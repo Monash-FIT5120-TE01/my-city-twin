@@ -53,8 +53,6 @@ export const sentences = {
   // ── App.tsx ──
   // Shown on entering a headset in the evening; {time} e.g. "21:30"
   "app.now.sunDown": "The sun is down in Melbourne at {time}. Showing 12:00 - change the time below.",
-  // The front page's fine print: {date} e.g. "21 December 2026", {time} e.g. "15:00", {season} e.g. "summer"
-  "app.front.when": "{date}, {time} · {season}",
   "app.explore.hint": "Search an address, or double-click any building to select it.",
   // What the chosen place is, on the comparison page
   "app.kind.existing": "Existing building",

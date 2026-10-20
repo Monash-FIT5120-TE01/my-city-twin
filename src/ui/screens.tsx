@@ -1208,7 +1208,7 @@ export function SunlightSheet({
 
           The steps, folded away at the foot of the column: read once, they
           would be in the way on every visit after that. (The header's "How
-          it works" opens its own page, HowItWorksPage.)
+          it works" scrolls the front page to its three steps.)
         */}
         <details className="howto" id={SUNLIGHT_HOWTO_ID}>
           <summary>{t('sun.sheet.howItWorks')}</summary>

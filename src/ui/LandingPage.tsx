@@ -5,24 +5,24 @@
  *
  * WHAT THIS IS
  *   The page a bare visit arrives at. Its first screen has the words on the
- *   left, the live city in a window on the right, the three steps along the
- *   bottom and the fine print under them. Below that the page scrolls on
- *   into the sections in LandingMore. It replaced two things — a full-screen
- *   cover with a film on it, and a panel floated over the city — with one
- *   page.
+ *   left, the live city in a window on the right and the five ways in along
+ *   the bottom. Below that the page scrolls on into "Start with a place you
+ *   know." and the sections in LandingMore. Laid out after the team's
+ *   redesign (2026-10-20); the streets under the search kept their own look.
  *
  * WHAT IS ON IT
  *   - The film: the skyline drawn once, above the heading.
+ *   - The heading, small, and the four things the city shows under it.
  *   - The search: the field, its matches (rendered by App), and the row
  *     that holds the chosen place with a way to clear it.
- *   - "Explore sunlight", and the hint when it is pressed too soon.
+ *   - Three streets to start from.
+ *   - "Explore Melbourne CBD", or "Explore Building" once a place is chosen:
+ *     its own page.
  *   - "Enter in VR", on a device that can.
- *   - "Explore the city without an address".
- *   - The three steps.
- *   - The fine print: what the model is, Sources & limitations, the moment
- *     shown.
- *   - The window onto the city: the download's progress, then the map key
- *     and the map's credit.
+ *   - The five ways in (FeatureStrip): each opens its screen.
+ *   - The window onto the city: the download's progress, then "Choose a
+ *     building" and the map's credit.
+ *   - The three steps ("How it works" in the bar scrolls to them).
  *   - LandingMore, under all of it.
  *
  * WHAT IS UNDER IT
@@ -49,32 +49,41 @@
  * WHAT IT HOLDS
  *   Nothing that matters. The text in the field is App's, because the field
  *   in the header shares it; the chosen place is App's; this only knows
- *   whether the film is showing and whether the main button was pressed
- *   too soon.
+ *   whether the film is showing.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Icon } from './kit/Icon';
+import { Icon, type IconName } from './kit/Icon';
 import { bundled } from '../data/bundled';
 import type { LoadProgress } from '../data/useCityModel';
 import type { ScreenInset } from '../scene/ViewInset';
-import { MapKey } from './kit/MapKey';
 import { Button } from './kit/Button';
 import { CloseButton } from './kit/CloseButton';
-import { DemoNote } from './kit/DemoNote';
 import { Pill } from './kit/Pill';
-import { TextButton } from './kit/TextButton';
 import { SearchField } from './kit/SearchField';
 import { LandingMore } from './LandingMore';
 import '../styles/landing.css';
 import { formatNumber, useT } from '../i18n/i18n';
+import type { MessageKey } from '../i18n/en';
 
-/** The three steps along the bottom, in the order the app is used. */
-const STEPS = [
-  { title: 'landing.steps.findTitle', body: 'landing.steps.findBody' },
-  { title: 'landing.steps.selectTitle', body: 'landing.steps.selectBody' },
-  { title: 'landing.steps.compareTitle', body: 'landing.steps.compareBody' },
-] as const;
+/** The four things the city shows, under the heading. */
+const TOPICS = ['landing.hero.topicVr', 'landing.hero.topicSunlight', 'landing.hero.topicSolar', 'landing.hero.topicActivity'] as const;
+
+/**
+ * The five ways in along the foot of the first screen, in the order App's
+ * `onFeature` takes them: developments, sunlight, solar, street activity,
+ * future plans.
+ */
+const FEATURES: readonly { label: MessageKey; icon: IconName }[] = [
+  { label: 'landing.features.developments', icon: 'location_on' },
+  { label: 'landing.features.sunlight', icon: 'light_mode' },
+  { label: 'landing.features.solar', icon: 'solar_power' },
+  { label: 'landing.features.activity', icon: 'directions_walk' },
+  { label: 'landing.features.future', icon: 'description' },
+];
+
+/** The three steps under the first screen, in the order the app is used. */
+const STEPS = ['landing.start.find', 'landing.start.choose', 'landing.start.explore'] as const;
 
 /**
  * How much of the city's window must stay clear of the header for the map
@@ -83,16 +92,13 @@ const STEPS = [
  */
 const CREDIT_ROOM = 72;
 
-/** The id of the three steps, an anchor to them. ("How it works" in the header now opens its own page.) */
+/** The id of the three steps, an anchor to them: "How it works" in the bar scrolls here. */
 export const HOW_IT_WORKS_ID = 'how-it-works';
 
-/** The front page, over the city, with a window cut in it for the city. */
 /** The streets offered under the search, to start from without an address. */
 const TRY_STREETS = ['Bourke Street', 'Collins Street', 'Swanston Street'];
 
-/** How long a wheel turn takes to glide to the next section, ms (slower than the browser's 'smooth'). */
-const SNAP_GLIDE_MS = 850;
-
+/** The front page, over the city, with a window cut in it for the city. */
 export function LandingPage({
   query,
   onQuery,
@@ -100,11 +106,11 @@ export function LandingPage({
   results,
   chosen,
   onClearChosen,
-  onSunlight,
+  onOpenChosen,
   onExplore,
+  onFeature,
   onEnterVr,
   loading,
-  when,
   credit,
   onInset,
   reducedMotion,
@@ -119,10 +125,15 @@ export function LandingPage({
   /** The place picked from the results, if any: its name and one line about it. */
   chosen: { label: string; detail: string } | null;
   onClearChosen: () => void;
-  /** The main button, once a place is chosen. */
-  onSunlight: () => void;
-  /** Into the city with nothing chosen — here and at the foot of LandingMore. */
+  /** The main button, once a place is chosen: on to the place's own page. */
+  onOpenChosen: () => void;
+  /** Into the city with nothing chosen — here and in LandingMore's About. */
   onExplore: () => void;
+  /**
+   * One of the five ways in, by its place in FEATURES. Absent until the city
+   * is here: each opens a screen that needs it, so until then they are greyed.
+   */
+  onFeature?: (index: number) => void;
   /**
    * Present only on a device that can start a headset session, and only once
    * the city exists — there is nothing to stand in before that.
@@ -130,8 +141,6 @@ export function LandingPage({
   onEnterVr?: () => void;
   /** The city is still loading, or failed to. Null once it is here. */
   loading: { progress: LoadProgress; error: string | null } | null;
-  /** The moment the city is showing: "21 June 2026, 12:00 · Winter". */
-  when: string | null;
   /** The map's credit, drawn in the city's window. See MapAttribution. */
   credit: ReactNode;
   /**
@@ -146,12 +155,6 @@ export function LandingPage({
   const root = useRef<HTMLElement>(null);
   const window_ = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
-  /*
-   * Said when the main button is pressed with nothing chosen, rather than
-   * the button being disabled: a greyed-out button tells somebody that
-   * something is wrong without telling them what to do about it.
-   */
-  const [askedTooSoon, setAskedTooSoon] = useState(false);
 
   /*
    * The callback, held where the observer can reach the current one without
@@ -216,109 +219,32 @@ export function LandingPage({
     };
   }, []);
 
-  /*
-   * Snap scrolling (landing.css) for a mouse wheel.
-   *
-   * The page snaps to the first screen and to the top of each section below
-   * it. Touch, keys and trackpad flings are snapped by the browser, but one
-   * notch of a wheel moves about 100 px, and the nearest snap point to that is
-   * the one it started from: the page would not move at all. So a wheel turn
-   * goes to the next snap point (or the one before) and the rest of that turn
-   * is ignored until it has arrived. Inside a section taller than the window,
-   * the wheel scrolls it as usual until its edge comes into view.
-   */
-  useEffect(() => {
-    const page = root.current;
-    if (!page) return;
-    let busyUntil = 0, frame = 0, gliding = false;
-    /*
-     * Our own easing rather than the browser's 'smooth', which is quick and
-     * cannot be slowed. The snap is switched off while it runs: the browser
-     * re-snaps every position a script sets, and would pull each frame back.
-     */
-    const glide = (to: number) => {
-      const from = page.scrollTop, start = performance.now();
-      cancelAnimationFrame(frame);
-      page.style.scrollSnapType = 'none'; gliding = true;
-      const step = (now: number) => {
-        const u = Math.min(1, (now - start) / SNAP_GLIDE_MS);
-        const eased = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;   // ease in and out
-        page.scrollTop = from + (to - from) * eased;
-        if (u < 1) frame = requestAnimationFrame(step);
-        else { page.style.scrollSnapType = ''; gliding = false; }
-      };
-      frame = requestAnimationFrame(step);
-    };
-    // The visitor takes over (a key, a press on the scroll bar, a finger): the glide stops where it is.
-    const stop = () => {
-      if (!gliding) return;
-      cancelAnimationFrame(frame); gliding = false; busyUntil = 0;
-      page.style.scrollSnapType = '';
-    };
-    const targets = () => {
-      const header = parseFloat(getComputedStyle(page).scrollPaddingTop) || 0;
-      const base = page.getBoundingClientRect().top - page.scrollTop, end = page.scrollHeight - page.clientHeight;
-      const tops = [...page.querySelectorAll<HTMLElement>('.more > section')].map((s) => s.getBoundingClientRect().top - base - header);
-      return [0, ...tops, end].map((v) => Math.max(0, Math.min(end, Math.round(v)))).sort((x, y) => x - y);
-    };
-    const onWheel = (event: WheelEvent) => {
-      // pinch-zoom and sideways scrolling are not page scrolls
-      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      const now = performance.now();
-      if (now < busyUntil) { event.preventDefault(); return; }
-      // no snapping here (a phone, a narrow window: landing.css): the wheel scrolls as it always does.
-      // After the check above, which covers a glide's own switching-off of the snap.
-      if (getComputedStyle(page).scrollSnapType === 'none') return;
-      const at = page.scrollTop, list = targets();
-      const next = event.deltaY > 0 ? list.find((v) => v > at + 2) : [...list].reverse().find((v) => v < at - 2);
-      if (next === undefined || Math.abs(next - at) > page.clientHeight) return;
-      event.preventDefault();
-      if (reducedMotion) { busyUntil = now + 300; page.scrollTo({ top: next }); return; }
-      busyUntil = now + SNAP_GLIDE_MS + 150;
-      glide(next);
-    };
-    page.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('keydown', stop); page.addEventListener('pointerdown', stop); page.addEventListener('touchstart', stop, { passive: true });
-    return () => {
-      page.removeEventListener('wheel', onWheel);
-      window.removeEventListener('keydown', stop); page.removeEventListener('pointerdown', stop); page.removeEventListener('touchstart', stop);
-      cancelAnimationFrame(frame); page.style.scrollSnapType = '';
-    };
-  }, [reducedMotion]);
-
-  /** The main button: on to the sunlight screen, or ask for a place first. */
-  const sunlight = () => {
-    if (chosen) {
-      onSunlight();
-      return;
-    }
-    setAskedTooSoon(true);
-    field.current?.focus();
-  };
-
   return (
     <section className="landing" ref={root} aria-labelledby="landing-title">
       {/*
         The first screen, laid out as a grid. `.landing` around it is the
-        part that scrolls, carrying this and LandingMore under it.
+        part that scrolls, carrying this and what follows under it.
       */}
       <div className="landing__screen">
       {/*
-        One wrapper for the three parts that stack into one sheet on a phone.
-        On a wide screen it steps out of the way (display: contents) and the
-        three take their own places in the first screen's grid.
+        One wrapper for the parts that stack into one sheet on a phone. On a
+        wide screen it steps out of the way (display: contents) and they take
+        their own places in the first screen's grid.
       */}
       <div className="landing__sheet">
         <div className="landing__hero">
           <SkylineFilm reducedMotion={reducedMotion} />
 
-          <h1 className="landing__title" id="landing-title">
+          {/* Focusable from script: "Back to top" (LandingMore) gives it the keyboard. */}
+          <h1 className="landing__eyebrow landing__simple-title" id="landing-title" tabIndex={-1}>
             {t('landing.hero.title')}
           </h1>
 
-          <p className="landing__body">
-            {t('landing.hero.body')}
-          </p>
+          <ul className="landing__topics" aria-label={t('landing.hero.topicsLabel')}>
+            {TOPICS.map((topic) => (
+              <li key={topic}>{t(topic)}</li>
+            ))}
+          </ul>
 
           {/*
             The search (kit/SearchField, large: the page's main way in), with
@@ -379,19 +305,10 @@ export function LandingPage({
             </div>
           </div>
 
-          <Button size="lg" block arrow className="landing__cta" onClick={sunlight}>
-            {t('landing.hero.exploreSunlight')}
+          {/* Into the city; once a place is chosen, on to it. */}
+          <Button size="lg" block arrow className="landing__cta" onClick={chosen ? onOpenChosen : onExplore}>
+            {chosen ? t('landing.hero.exploreBuilding') : t('landing.hero.exploreCbd')}
           </Button>
-
-          {/*
-            Polite: it answers a press, it does not interrupt one. Gone as
-            soon as something is chosen: it would be answering nothing.
-          */}
-          <p className="landing__hint" aria-live="polite">
-            {askedTooSoon && !chosen
-              ? t('landing.hero.chooseFirst')
-              : ''}
-          </p>
 
           {onEnterVr && (
             <Button
@@ -408,60 +325,72 @@ export function LandingPage({
               {t('landing.hero.enterVr')}
             </Button>
           )}
-
-          <TextButton className="landing__explore" onClick={onExplore}>
-            {t('landing.hero.justExplore')}
-          </TextButton>
         </div>
 
-        {/*
-          Focusable so a link to it can move the keyboard here as well as
-          the eye; -1 keeps it out of the tab order.
-        */}
-        <section
-          className="landing__steps"
-          id={HOW_IT_WORKS_ID}
-          tabIndex={-1}
-          aria-label={t('landing.steps.label')}
-        >
-          <ol role="list">
-            {STEPS.map((step, index) => (
-              <li key={step.title} className="landing__step">
-                <span className="landing__step-number" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <span>
-                  <span className="landing__step-title">{t(step.title)}</span>
-                  <span className="landing__step-body">{t(step.body)}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
+        <section className="landing__steps" aria-label={t('landing.features.label')}>
+          <FeatureStrip onFeature={onFeature} />
         </section>
-
-        <footer className="landing__foot">
-          <DemoNote />
-          {when && <p className="landing__when">{when}</p>}
-        </footer>
       </div>
 
       {/*
         The window onto the city. Transparent and deaf to the pointer, so the
-        city under it is what gets dragged and clicked; only the map key and
-        the credit in it answer.
+        city under it is what gets dragged and clicked; only the credit and
+        "Choose a building" in it answer.
       */}
       <div className="landing__window" ref={window_}>
         {loading && <Loading progress={loading.progress} error={loading.error} />}
-        {!loading && (
-          <MapKey className="landing__legend" />
-        )}
         {credit}
+        {!loading && (
+          <div className="landing__callouts">
+            <button type="button" className="map-callout map-callout--choose" onClick={onExplore}>
+              <Icon name="location_on" />
+              {t('landing.window.chooseBuilding')}
+            </button>
+          </div>
+        )}
       </div>
       </div>
 
-      {/* The sections under the first screen, reached by scrolling. */}
-      <LandingMore onExplore={onExplore} />
+      {/*
+        The three steps. Focusable so "How it works" in the bar can move the
+        keyboard here as well as the eye; -1 keeps it out of the tab order.
+      */}
+      <div className="city-features city-features--steps">
+        <section className="city-start" id={HOW_IT_WORKS_ID} tabIndex={-1} aria-labelledby="start-title">
+          <h2 id="start-title">{t('landing.start.title')}</h2>
+          <ol>
+            {STEPS.map((step, index) => (
+              <li key={step}>
+                <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                {t(step)}
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+
+      {/* The sections under all of it, reached by scrolling. */}
+      <LandingMore onExplore={onExplore} reducedMotion={reducedMotion} />
     </section>
+  );
+}
+
+/**
+ * The five ways in. Each opens its screen with a place already on it (App's
+ * `onFeature`). None is shown as chosen: each leaves the page, so there is no
+ * current one to show (found in review, 2026-10-21).
+ */
+function FeatureStrip({ onFeature }: { onFeature?: (index: number) => void }) {
+  const t = useT();
+  return (
+    <nav className="feature-strip" aria-label={t('landing.features.label')}>
+      {FEATURES.map((feature, index) => (
+        <button key={feature.label} type="button" disabled={!onFeature} onClick={() => onFeature?.(index)}>
+          <Icon name={feature.icon} size={28} />
+          {t(feature.label)}
+        </button>
+      ))}
+    </nav>
   );
 }
 
@@ -488,7 +417,7 @@ export function SkylineFilm({ reducedMotion }: { reducedMotion: boolean }) {
   };
 
   return (
-    <div className="landing__film">
+    <div className="landing__skyline">
       <video
         ref={video}
         className={showing ? 'is-showing' : undefined}

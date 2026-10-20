@@ -6,22 +6,24 @@
  *   - The three figures say exactly what their sources say — the 26% is NOT
  *     labelled as the Hoddle Grid's, the 40% reads as a target — and each
  *     links to the page of the PDF it was read from.
- *   - Every drawing the page asks for exists in public/, so a renamed or
- *     missing file fails here rather than as a broken image on the site.
+ *   - Every drawing and film the page asks for exists in public/, so a
+ *     renamed or missing file fails here rather than as a broken image on
+ *     the site.
  *   - The page's structure: h2 sections under the first screen's h1, the
- *     Future work section carrying its anchor id, focusable but out of the
- *     tab order.
+ *     sources folded under the numbers.
  */
 
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { FUTURE_PLANS_ID, LandingMore } from './LandingMore';
+import { LandingMore } from './LandingMore';
 import { SourcesLink } from './Sources';
 import { MapKey } from './kit/MapKey';
 
 const markup = renderToStaticMarkup(<LandingMore onExplore={() => undefined} />);
+/** The sections alone, without the foot of the page (its fine print opens Sources & limitations, links and all). */
+const sections = markup.slice(0, markup.indexOf('<footer'));
 /** The markup as plain words, for reading sentences across tags. */
 const words = markup
   .replace(/<[^>]+>/g, ' ')
@@ -54,24 +56,24 @@ describe('the city in three numbers', () => {
   });
 
   it('opens the sources in a new tab and says so to a screen reader', () => {
-    const links = markup.match(/<a [^>]*>/g) ?? [];
+    const links = sections.match(/<a [^>]*>/g) ?? [];
     expect(links.length).toBe(2);
     for (const link of links) {
       expect(link).toContain('target="_blank"');
       expect(link).toContain('rel="noreferrer noopener"');
     }
-    expect(words.match(/\(PDF, opens in a new tab\)/g)).toHaveLength(2);
+    expect(sections.match(/\(PDF, opens in a new tab\)/g)).toHaveLength(2);
   });
 });
 
 describe('the sections under the first screen', () => {
   it('gives every section an h2, and never a second h1', () => {
     expect(markup).not.toContain('<h1');
-    expect(markup.match(/<h2 /g)).toHaveLength(6);
+    expect(sections.match(/<h2 /g)).toHaveLength(3);
   });
 
-  it('carries the id the "Future plans" link scrolls to, focusable from script', () => {
-    expect(markup).toMatch(new RegExp(`id="${FUTURE_PLANS_ID}"[^>]*tabindex="-1"`));
+  it('folds the sources under the numbers, one press away', () => {
+    expect(markup).toMatch(/<details class="more__source-details"><summary>Sources &amp; scope<\/summary>/);
   });
 
   it('acknowledges the Traditional Owners by name', () => {
@@ -79,14 +81,10 @@ describe('the sections under the first screen', () => {
     expect(words).toContain('Eastern Kulin Nation');
   });
 
-  it('marks the future work as not available yet', () => {
-    expect(words).toContain('proposed features, not available yet');
-  });
-
-  it('asks only for drawings that exist in public/', () => {
-    const asked = [...markup.matchAll(/src="[^"]*?(landing\/[^"]+\.svg)"/g)].map((m) => m[1]);
-    // The walking route, eighteen pieces of the city block, two rings, three marks.
-    expect(asked).toHaveLength(24);
+  it('asks only for drawings and films that exist in public/', () => {
+    const asked = [...markup.matchAll(/(?:src|poster)="[^"]*?(landing\/[^"]+)"/g)].map((m) => m[1]);
+    // The city film and its poster, and the three marks.
+    expect(asked).toHaveLength(5);
     for (const path of asked) {
       expect(existsSync(resolve(__dirname, '../../public', path)), path).toBe(true);
     }

@@ -5,10 +5,10 @@
  *
  * WHAT THIS IS
  *   The page the header's "Future plans" opens (?view=future). A cream page
- *   over the city, like How it works.
+ *   over the city.
  *
  * TWO STATES
- *   - The list: searched, and narrowed by kind and theme — see
+ *   - The list, narrowed by kind and theme — see
  *     FuturePlanList.tsx. Pressing a card opens its conversation, and the
  *     plan goes into the address (&plan=3) so a reload or a shared link
  *     reopens it.

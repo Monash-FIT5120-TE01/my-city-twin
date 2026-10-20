@@ -4,8 +4,8 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * A page over the city with a window cut in it. The words take the left,
- * the three steps and the fine print take the bottom, and what is left in
- * the upper right is the live city — see LandingPage.tsx and ViewInset.
+ * the five ways in take the bottom, and what is left in the upper right is
+ * the live city — see LandingPage.tsx and ViewInset.
  *
  * HOW IT IS BUILT
  *   `.landing` covers the screen and scrolls. Inside it, `.landing__screen`
@@ -16,23 +16,21 @@
  *
  * IN THIS FILE, TOP TO BOTTOM
  *   - The page and its first screen.
- *   - The words: the film, the heading, the sentence under it.
+ *   - The words: the film, the heading.
  *   - The search: the field, its matches, the chosen place.
- *   - The ways in: the main button, its hint, VR, exploring without an
- *     address.
- *   - The window onto the city: the fade at its edge, the map key, the
- *     credit, the download's progress.
- *   - The three steps, and the fine print.
- *   - Shorter and narrower windows, then the phone's single column.
+ *   - The main button and the streets to try.
+ *   - The window onto the city: the fade at its edge, the credit, the
+ *     download's progress.
+ *   - The strip of five ways in.
+ *   - Shorter windows, then the phone's single column.
  *   - Reduced motion.
  *   - The header bar as it looks on the front page.
+ *   - Last, the redesign (2026-10-20), laid over all of the above.
  *
  * COLOUR, AND WHAT IS NOT LEFT TO IT
  *   The main button is the dark green every other main button uses, white on
- *   #14624a at 7:1 — not the pale mint of the mock-up, which sits at about
- *   1.2:1 against the cream and is found by hue alone. The map key's two
- *   swatches are the colours the city is drawn in, and each is named in
- *   words beside it — see sources.css.
+ *   #104b3a — not the pale mint of the first mock-up, which sits at about
+ *   1.2:1 against the cream and is found by hue alone.
  */
 
 /* ── the page, and its first screen ─────────────────────── */
@@ -51,34 +49,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   pointer-events: none;
-  /*
-   * Snap scrolling (2026-10-06): a scroll comes to rest on the first screen or
-   * on the top of a section below it, never halfway between two. The fixed
-   * header covers the top of the page, so a section comes to rest just under
-   * it. A section taller than the window still scrolls freely inside itself
-   * (the browser does not snap past content it would hide).
-   */
-  scroll-snap-type: y mandatory;
+  /* The fixed header covers the top of the page: a section scrolled to stops just under it. */
   scroll-padding-top: var(--h-header);
-}
-
-.landing__screen,
-.landing .more > section {
-  scroll-snap-align: start;
-}
-
-.landing .more__footer {
-  scroll-snap-align: end;
-}
-
-/*
- * Not on a phone (2026-10-08): there the page is one column read by scrolling freely, and snapping
- * fought the thumb. The same switch as the stacked layout below, and any touch-first screen.
- */
-@media (max-width: 900px), (max-height: 640px), (pointer: coarse) {
-  .landing {
-    scroll-snap-type: none;
-  }
 }
 
 /*
@@ -116,8 +88,7 @@
 
 /* The covered parts: cream, and solid to the pointer. */
 .landing__hero,
-.landing__steps,
-.landing__foot {
+.landing__steps {
   pointer-events: auto;
   background: var(--cream);
 }
@@ -160,41 +131,6 @@
   margin-bottom: auto;
 }
 
-.landing__film video {
-  display: block;
-  width: min(100%, 26rem);
-  aspect-ratio: 1376 / 576;
-  /*
-   * The film is a dark line on white. Multiplied, the white takes the colour
-   * of the cream under it and only the line is left.
-   */
-  mix-blend-mode: multiply;
-  opacity: 0;
-  transition: opacity var(--dur-panel) var(--ease);
-}
-
-.landing__film video.is-showing {
-  opacity: 1;
-}
-
-.landing__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(2.2rem, 3.3vw, 3.4rem);
-  font-weight: var(--weight-title);
-  line-height: 1.06;
-  letter-spacing: -0.03em;
-  color: var(--ink-green-900);
-  text-wrap: balance;
-}
-
-.landing__body {
-  margin: 0;
-  font-size: var(--text-lg);
-  line-height: 1.5;
-  color: var(--ink);
-}
-
 /* ── the search ─────────────────────────────────────────── */
 
 /* The field and its results are kit/SearchField (kit.css); only the gap above is this page's. */
@@ -232,7 +168,7 @@
   color: var(--ink-2);
 }
 
-/* ── the ways in ────────────────────────────────────────── */
+/* ── the main button, and the streets to try ────────────── */
 
 /* The page's one action, a step larger in its words than other buttons. */
 .landing__cta {
@@ -256,22 +192,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-.landing__hint {
-  min-height: 1.4em;
-  margin: calc(var(--space-2) * -1) 0 0;
-  font-size: var(--text-sm);
-  color: var(--amber-ink);
-}
-
-.landing__hint:empty {
-  min-height: 0;
-  margin: 0;
-}
-
-.landing__explore {
-  align-self: center;
 }
 
 /* ── the window onto the city ───────────────────────────── */
@@ -305,24 +225,6 @@
   inset: 0 auto 0 0;
   width: 4.5rem;
   background: linear-gradient(to right, var(--cream), rgba(248, 245, 238, 0));
-}
-
-/*
- * The map key (kit/MapKey), in the window's lower right, on a white card of
- * its own so it reads over the city.
- */
-.landing__legend {
-  position: absolute;
-  right: var(--gutter);
-  bottom: var(--gutter);
-  flex-direction: column;
-  align-items: flex-start;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--cream-edge);
-  border-radius: var(--radius-card);
-  background: var(--paper);
-  box-shadow: var(--shadow-chip);
-  pointer-events: auto;
 }
 
 /* The map credit, in the city's window rather than the screen's corner. */
@@ -393,93 +295,11 @@
   }
 }
 
-/* ── the three steps ────────────────────────────────────── */
+/* ── the five ways in ───────────────────────────────────── */
 
 .landing__steps {
   grid-area: steps;
   border-top: 1px solid var(--cream-edge);
-}
-
-.landing__steps:focus {
-  outline: none;
-}
-
-.landing__steps:focus-visible {
-  outline: 2px solid var(--green-700);
-  outline-offset: -4px;
-}
-
-.landing__steps ol {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
-  padding: var(--space-5) clamp(var(--space-5), 3.4vw, 3.5rem);
-  list-style: none;
-}
-
-.landing__step {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-4);
-  padding: 0 var(--space-5);
-}
-
-.landing__step + .landing__step {
-  border-left: 1px solid var(--cream-edge);
-}
-
-.landing__step:first-child {
-  padding-left: 0;
-}
-
-.landing__step-number {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: var(--mint-100);
-  font-family: var(--font-display);
-  font-weight: var(--weight-title);
-  color: var(--green-700);
-}
-
-.landing__step-title {
-  display: block;
-  font-family: var(--font-display);
-  font-weight: var(--weight-title);
-  color: var(--ink-green-900);
-}
-
-.landing__step-body {
-  display: block;
-  margin-top: 2px;
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-
-/* ── the fine print ─────────────────────────────────────── */
-
-.landing__foot {
-  grid-area: foot;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-2) clamp(var(--space-5), 3.4vw, 3.5rem);
-  border-top: 1px solid var(--cream-edge);
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-}
-
-/* The date, on the right of the demo note (kit/DemoNote). */
-
-
-.landing__when {
-  margin: 0;
-  font-variant-numeric: var(--numeric);
 }
 
 /* ── shorter ────────────────────────────────────────────── */
@@ -496,71 +316,13 @@
     gap: var(--space-3);
     padding-block: var(--space-4);
   }
-
-  .landing__film video {
-    width: min(100%, 20rem);
-  }
-
-  .landing__title {
-    font-size: clamp(2rem, 2.9vw, 2.8rem);
-  }
-
-  .landing__steps ol {
-    padding-block: var(--space-4);
-  }
 }
 
-/*
- * Shorter still: the steps keep their titles and lose the sentence under
- * each, which is most of their height. What the steps say is also what the
- * column above them does, so the titles are enough to point at it.
- */
+/* Shorter still: tighter again. */
 @media (max-height: 760px) and (min-height: 641px) and (min-width: 901px) {
   .landing__hero {
     gap: var(--space-2);
     padding-block: var(--space-3);
-  }
-
-  .landing__film video {
-    width: min(100%, 15rem);
-  }
-
-  .landing__title {
-    font-size: 2rem;
-  }
-
-  .landing__body {
-    font-size: var(--text-body);
-  }
-
-  .landing__steps ol {
-    padding-block: var(--space-3);
-  }
-
-  .landing__step {
-    align-items: center;
-  }
-
-  .landing__step-number {
-    width: 2rem;
-    height: 2rem;
-  }
-
-  .landing__step-body {
-    display: none;
-  }
-}
-
-/* ── narrower ───────────────────────────────────────────── */
-
-/* The three steps, closer together. */
-@media (max-width: 1180px) {
-  .landing__steps ol {
-    padding-block: var(--space-4);
-  }
-
-  .landing__step {
-    padding: 0 var(--space-3);
   }
 }
 
@@ -568,19 +330,19 @@
  * ── ON A PHONE, AND ON A VERY SHORT WINDOW ───────────────────────────────
  *
  * The same pattern every other screen uses on a phone: the city on top, a
- * sheet from the bottom. The words, the steps and the fine print become one
- * sheet, and the city keeps the upper part of the screen.
+ * sheet from the bottom. The words and the five ways in become one sheet,
+ * and the city keeps the upper part of the screen.
  *
  * Also below 640px of height at any width. The desktop first screen is
  * held to the window's height, and under that height its column no longer
- * fits between the bar and the steps — the buttons at the bottom of it went
- * under the steps where nothing could reach them.
+ * fits between the bar and the strip — the buttons at the bottom of it went
+ * under the strip where nothing could reach them.
  */
 @media (max-width: 900px), (max-height: 640px) {
   /*
    * The first screen is as tall as its words here: the city on top, then the
-   * words, the steps and the fine print, then the sections under them — one
-   * page that scrolls, with the city's window scrolling away above.
+   * words and the five ways in, then the sections under them — one page
+   * that scrolls, with the city's window scrolling away above.
    */
   .landing__screen {
     height: auto;
@@ -603,13 +365,12 @@
   }
 
   /*
-   * Their own height, all three. In a flex column a child may otherwise
-   * shrink to nothing, and the words did — when the sheet was its own
-   * scroll box, the steps were drawn over them.
+   * Their own height, both. In a flex column a child may otherwise shrink
+   * to nothing, and the words did — when the sheet was its own scroll box,
+   * the strip below was drawn over them.
    */
   .landing__hero,
-  .landing__steps,
-  .landing__foot {
+  .landing__steps {
     flex: none;
   }
 
@@ -622,40 +383,6 @@
     display: none;
   }
 
-  .landing__title {
-    font-size: 2rem;
-  }
-
-  .landing__steps ol {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
-    padding: var(--space-4);
-  }
-
-  .landing__step,
-  .landing__step:first-child {
-    padding: 0;
-  }
-
-  .landing__step + .landing__step {
-    border-left: 0;
-  }
-
-  .landing__foot {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: var(--space-3) var(--space-4) var(--space-5);
-  }
-
-  /* Top right, out of the credit's way along the bottom. */
-  .landing__legend {
-    top: var(--space-3);
-    bottom: auto;
-    right: var(--space-3);
-    flex-direction: row;
-    padding: var(--space-2) var(--space-3);
-  }
-
   .landing__window .attribution {
     left: var(--space-3);
     bottom: var(--space-3);
@@ -665,9 +392,8 @@
 
 /* ── reduced motion ─────────────────────────────────────── */
 
-/* The film is shown finished (see SkylineFilm); the bar stops sweeping. */
+/* The download's bar stops sweeping (the film is shown finished: see SkylineFilm). */
 @media (prefers-reduced-motion: reduce) {
-  .landing__film video,
   .landing__fill {
     transition: none;
   }
@@ -727,12 +453,11 @@
   }
 
   /*
-   * The front page, the comparison and How it works: the sunlight screen shares
+   * The front page, the comparison and Future plans: the sunlight screen shares
    * the look but keeps its field.
    */
   .app:has(.landing) .header.header--front,
   .app:has(.compare) .header.header--front,
-  .app:has(.how) .header.header--front,
   .app:has(.future) .header.header--front {
     height: var(--h-header);
   }
@@ -740,12 +465,655 @@
   /*
    * The comparison page too: it starts directly under a one-row bar, and a
    * second row of bar covered its way back. Search is one press back away.
-   * The How it works and Future plans pages likewise.
+   * The Future plans page likewise.
    */
   .app:has(.landing) .header--front .header__search,
   .app:has(.compare) .header--front .header__search,
-  .app:has(.how) .header--front .header__search,
   .app:has(.future) .header--front .header__search {
     display: none;
+  }
+}
+
+/*
+ * ── THE REDESIGN (2026-10-20) ────────────────────────────────────────────
+ *
+ * The team's new front page, laid over the rules above: the heading as a small
+ * eyebrow with the four topics under it, the five ways in along the foot of the
+ * first screen (FeatureStrip), "Choose a building" over the city, and "Start
+ * with a place you know." under the first screen. The page no longer snaps.
+ * The bar and the streets under the search keep their own look (above).
+ */
+
+.landing {
+  scroll-snap-type: none;
+  --landing-paper: var(--cream);
+}
+
+.landing__screen {
+  grid-template-rows: var(--h-header) minmax(0,1fr) auto;
+  grid-template-columns: 39% 1fr;
+  grid-template-areas: ". .""hero window""steps steps";
+  height: min(850px,100svh);
+  min-height: 700px;
+}
+
+.landing__hero {
+  z-index: 4;
+  gap: 20px;
+  padding: clamp(24px,3.8vw,60px);
+}
+
+.landing__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  color: #48654c;
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.landing__topics {
+  font-family: var(--font-display);
+  letter-spacing: -.01em;
+  color: #5d7867;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 4px;
+  margin: 0;
+  padding: 0;
+  font-size: clamp(12px,1vw,15px);
+  font-weight: 600;
+  line-height: 1.5;
+  list-style: none;
+  display: flex;
+}
+
+.landing__topics li {
+  white-space: nowrap;
+}
+
+.landing__topics li+li:before {
+  content: "·";
+  opacity: .65;
+  margin-inline: .55em;
+  font-weight: 400;
+  display: inline-block;
+}
+
+.landing__hero>.landing__skyline {
+  aspect-ratio: 1376/576;
+  pointer-events: none;
+  flex-shrink: 0;
+  width: min(360px,100%);
+  max-height: 150px;
+}
+
+.landing__skyline video {
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.landing__skyline video.is-showing {
+  opacity: .48;
+}
+
+.landing__cta {
+  background: #104b3a;
+  border-radius: 7px;
+}
+
+.landing__steps {
+  background: var(--cream);
+  z-index: 3;
+  border: 0;
+  padding: 12px 28px 24px;
+}
+
+.landing__window {
+  margin: 20px 22px 0 0;
+}
+
+@media (width>=901px) and (height>=641px) {
+  .landing__window:before {
+    filter: none;
+    background: linear-gradient(90deg,var(--cream) 0%,var(--cream) 3%,#f8f5eefe 9%,#f8f5eef7 17%,#f8f5eee3 28%,#f8f5eeba 41%,#f8f5ee80 56%,#f8f5ee42 72%,#f8f5ee14 88%,#f8f5ee00 100%);
+    z-index: 1;
+    width: clamp(240px,26vw,460px);
+    inset: -22px auto -2px -2px;
+  }
+}
+
+@media (width>=901px) and (height>=641px) {
+  .landing__window:after {
+    content: "";
+    pointer-events: none;
+    background: linear-gradient(0deg,var(--cream),transparent 12%,transparent 92%,#f8f5ee4d);
+    z-index: 0;
+    position: absolute;
+    inset: 0;
+  }
+}
+
+.landing__window .attribution {
+  z-index: 2;
+  font-size: 10px;
+  bottom: 12px;
+  left: auto;
+  right: 10px;
+}
+
+.landing__callouts {
+  pointer-events: none;
+  z-index: 2;
+  position: absolute;
+  inset: 0;
+}
+
+.map-callout {
+  color: #123a30;
+  font: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+  background: #fffdf8;
+  border: 1px solid #e8e7de;
+  border-radius: 7px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  position: absolute;
+  box-shadow: 0 4px 20px #173a3020;
+}
+
+.map-callout:after {
+  content: "";
+  background: #fff;
+  width: 1px;
+  height: 32px;
+  position: absolute;
+  top: 100%;
+  left: 25px;
+}
+
+.feature-strip {
+  background: #fffaf4;
+  border: 1px solid #e1e3dc;
+  border-radius: 8px;
+  grid-template-columns: repeat(5,1fr);
+  display: grid;
+  overflow: hidden;
+}
+
+.feature-strip button {
+  color: #263d36;
+  min-height: 64px;
+  font: inherit;
+  cursor: pointer;
+  background: 0 0;
+  border: 0;
+  border-right: 1px solid #eeece6;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  display: flex;
+}
+
+.feature-strip .feature-strip__open {
+  display: none;
+}
+
+.city-features {
+  background: var(--cream);
+  pointer-events: auto;
+  color: var(--ink-green-900);
+  padding: 44px 28px 24px;
+}
+
+.city-features h2 {
+  font-family: var(--font-display);
+  letter-spacing: -.04em;
+  text-align: center;
+  margin: 0;
+  font-size: clamp(28px,3.5vw,44px);
+  line-height: 1.2;
+}
+
+.city-start {
+  background: #e9ede2;
+  border-radius: 12px;
+  align-items: center;
+  gap: 38px;
+  margin: 44px 0 34px;
+  padding: 36px;
+  display: flex;
+}
+
+.city-start h2 {
+  text-align: left;
+  letter-spacing: -.04em;
+  max-width: 38%;
+  font-size: 30px;
+}
+
+.city-start ol {
+  flex: 1;
+  justify-content: space-between;
+  align-items: center;
+  gap: 25px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+}
+
+.city-start li {
+  flex: 1;
+  align-items: center;
+  gap: 18px;
+  font-size: 14px;
+  display: flex;
+}
+
+.city-start li span {
+  background: #cddac6;
+  border-radius: 50%;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  font-weight: 700;
+  display: grid;
+}
+
+@media (width<=1100px) {
+  .city-start {
+    gap: 22px;
+    padding: 24px;
+  }
+}
+
+@media (width<=1100px) {
+  .map-callout {
+    padding: 10px;
+    font-size: 11px;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__screen {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--h-header) 40vh auto;
+    grid-template-areas: ".""window""sheet";
+    height: auto;
+    min-height: 0;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__window {
+    margin: 0;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__sheet {
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__hero {
+    padding: 30px 24px;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__hero>* {
+    max-width: none;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__steps {
+    padding: 12px 20px;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .feature-strip button {
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11px;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .feature-strip svg {
+    width: 22px;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .city-start {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .city-start h2 {
+    max-width: none;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .city-start ol {
+    flex-wrap: wrap;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .city-start li {
+    min-width: 150px;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .city-features {
+    padding: 28px 20px;
+  }
+}
+
+.landing__window {
+  margin-right: 0;
+}
+
+@media (width<=900px) {
+  .feature-strip button {
+    gap: 4px;
+    padding: 6px 3px;
+    font-size: 10px;
+  }
+}
+
+.map-callout--choose {
+  white-space: nowrap;
+  padding: 15px 22px;
+  font-size: 15px;
+  top: 46%;
+  left: 55%;
+  transform: translate(-50%,-50%);
+}
+
+@media (width<=900px) {
+  .map-callout--choose {
+    font-size: 14px;
+    top: 45%;
+    left: 50%;
+  }
+}
+
+.landing {
+  scroll-snap-type: none;
+  scroll-behavior: auto;
+}
+
+.landing__screen,
+.landing .more>section,
+.landing .city-start {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+.city-features--steps {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.city-features--steps .city-start {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+@media (width<=900px),(height<=640px),(pointer:coarse) {
+  .landing {
+    scroll-snap-type: none;
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .landing {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+}
+
+.map-callout.map-callout--choose {
+  color: #244f40;
+  -webkit-backdrop-filter: blur(12px);
+  letter-spacing: .01em;
+  background: #fffdf5c2;
+  border: 1px solid #ffffffd9;
+  border-radius: 24px;
+  gap: 11px;
+  padding: 15px 24px;
+  font-weight: 650;
+  transition: background .2s,box-shadow .2s,transform .2s;
+  box-shadow: 0 5px 20px #1c43301f,inset 0 1px #ffffffb3;
+}
+
+.map-callout--choose svg {
+  color: #416b4f;
+  background: #cce1c7a8;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+}
+
+.map-callout--choose:after {
+  background: linear-gradient(#fffdf5bf,#0000);
+  height: 23px;
+  left: 50%;
+}
+
+.map-callout.map-callout--choose:hover {
+  background: #fffdf5eb;
+  transform: translate(-50%,-54%);
+  box-shadow: 0 8px 25px #1c43302b;
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .map-callout.map-callout--choose {
+    transition: none;
+  }
+}
+
+.map-callout.map-callout--choose {
+  left: 50%;
+}
+
+.feature-strip {
+  grid-template-columns: repeat(5,minmax(0,1fr));
+}
+
+@media (width>=901px) and (height>=641px) {
+  .map-callout.map-callout--choose {
+    left: 57%;
+  }
+}
+
+.city-features--steps .city-start {
+  background: #e7ede3;
+  margin: 0;
+  padding: 42px;
+  display: block;
+}
+
+.city-features--steps .city-start h2 {
+  max-width: none;
+  margin: 0 0 30px;
+  font-size: clamp(30px,3vw,42px);
+}
+
+.city-features--steps .city-start ol {
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 20px;
+  display: grid;
+}
+
+.city-features--steps .city-start li {
+  background: #fffdf6;
+  border: 1px solid #d3dece;
+  border-radius: 14px;
+  gap: 18px;
+  min-width: 0;
+  padding: 26px 22px;
+  font-size: clamp(17px,1.4vw,21px);
+  font-weight: 600;
+}
+
+.city-features--steps .city-start li span {
+  width: 54px;
+  height: 54px;
+  font-size: 18px;
+}
+
+@media (width<=700px) {
+  .city-features--steps .city-start {
+    padding: 28px 20px;
+  }
+}
+
+@media (width<=700px) {
+  .city-features--steps .city-start ol {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (width<=700px) {
+  .city-features--steps .city-start h2 {
+    margin-bottom: 22px;
+  }
+}
+
+@media (width<=700px) {
+  .city-features--steps .city-start li {
+    padding: 18px;
+  }
+}
+
+.landing__screen {
+  scroll-margin-top: calc(-1 * var(--h-header));
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+@media (width>=901px) and (height>=641px) {
+  .landing__screen .landing__window {
+    margin-top: 0;
+  }
+}
+
+@media (width>=901px) and (height>=641px) {
+  .landing__screen .landing__window:before {
+    top: 0;
+    bottom: 0;
+  }
+}
+
+@media (width>=901px) and (height>=641px) {
+  .landing__screen .landing__window:after {
+    background: linear-gradient(180deg,var(--cream) 0%,#f8f5eef5 2%,#f8f5eea6 6%,#f8f5ee38 11%,transparent 17%,transparent 86%,var(--cream) 100%);
+  }
+}
+
+@media (width>=901px) and (height>=641px) and (height<=940px) {
+  .landing__hero {
+    gap: 12px;
+    padding-block: 24px;
+  }
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__topics {
+    font-size: 14px;
+  }
+}
+
+@media (width>=901px) and (height>=641px) and (height<=760px) {
+  .landing__hero {
+    gap: 8px;
+    padding-block: 16px;
+  }
+}
+
+@media (width>=901px) and (height>=641px) and (height<=760px) {
+  .landing__hero>.landing__skyline {
+    width: min(240px,100%);
+    max-height: 100px;
+  }
+}
+
+.landing__hero>.landing__simple-title {
+  letter-spacing: .055em;
+  margin: 20px 0 36px;
+  font-size: clamp(18px,1.48vw,24px);
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+@media (width<=900px),(height<=640px) {
+  .landing__hero>.landing__simple-title {
+    margin: 14px 0 24px;
+    font-size: 20px;
+  }
+}
+
+/* The heading takes the keyboard after "Back to top": a ring for a keyboard user only. */
+.landing__simple-title:focus {
+  outline: none;
+}
+
+.landing__simple-title:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.feature-strip button:hover:not(:disabled) {
+  background: #eef2ea;
+}
+
+/*
+ * A narrow phone: five equal columns left about 55px each, too narrow for the
+ * longer labels in some languages. The strip scrolls sideways instead, each
+ * button wide enough for its word (found in review, 2026-10-21).
+ */
+@media (max-width: 480px) {
+  /* No wider than the screen itself: the column's 1fr would otherwise grow to the strip's full width. */
+  .landing__screen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feature-strip {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(76px, 1fr);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .feature-strip button {
+    overflow-wrap: anywhere;
+    text-align: center;
   }
 }

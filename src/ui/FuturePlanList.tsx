@@ -3,14 +3,12 @@
  * FUTURE PLANS — FINDING ONE
  * ─────────────────────────────────────────────────────────────────────────
  *
- * The list half of FuturePlansPage: the page's head with a search field,
- * a bar that stays at the top while the cards scroll (the kind of plan, the
- * theme, how many are showing), and the cards.
+ * The list half of FuturePlansPage: the page's head, a bar that stays at
+ * the top while the cards scroll (the kind of plan, the theme, how many are
+ * showing), and the cards. There is no search field: thirty-odd plans are
+ * found by kind and theme (removed 2026-10-21, as in the team's redesign).
  *
  * HOW SOMEBODY FINDS A PLAN
- *   - By a word: the field matches the plan's name and its theme, so
- *     "Bourke", "tram" and "park" all work. The matched words are marked in
- *     the card's name.
  *   - By kind: projects, or the city-wide programmes (footpath renewal,
  *     tree planting, cameras…), which are not single projects and read as
  *     one more project when mixed in.
@@ -18,8 +16,8 @@
  *     commonest first, each with its count and its mark. The API has
  *     eighteen topics, half of them with one plan; eighteen chips were a
  *     second list to read before the first.
- *   The three combine, the count says what is left, and one press clears
- *   them all.
+ *   The two combine, the count says what is left, and one press clears
+ *   them both.
  *
  * COLOUR
  *   Every theme has a mark (a leaf, a road, a train…) and its name on the
@@ -28,9 +26,8 @@
  *   aria-pressed as well as their filled ground.
  */
 
-import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { FuturePlan } from '../data/useFuturePlans';
-import { CloseButton } from './kit/CloseButton';
 import { Icon, type IconName } from './kit/Icon';
 import { richText } from './KeyHints';
 import { formatNumber, t, useLocale } from '../i18n/i18n';
@@ -50,12 +47,11 @@ type Kind = 'all' | 'projects' | 'programmes';
  * as it was left.
  */
 export interface PlanFilters {
-  query: string;
   kind: Kind;
   theme: Family | null;
 }
 
-export const NO_FILTERS: PlanFilters = { query: '', kind: 'all', theme: null };
+export const NO_FILTERS: PlanFilters = { kind: 'all', theme: null };
 
 const KINDS: { kind: Kind; label: MessageKey; short: MessageKey }[] = [
   { kind: 'all', label: 'future.kinds.all', short: 'future.kinds.allShort' },
@@ -65,21 +61,6 @@ const KINDS: { kind: Kind; label: MessageKey; short: MessageKey }[] = [
 
 const ofKind = (plans: FuturePlan[], kind: Kind) =>
   kind === 'all' ? plans : plans.filter((p) => isProgramme(p) === (kind === 'programmes'));
-
-/** Lower case, accents off, so "Laak Boorndap" and "laak" meet. */
-const fold = (text: string) =>
-  text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
-
-const wordsOf = (query: string) => fold(query).split(/\s+/).filter(Boolean);
-
-/** Every word typed is somewhere in the name or the theme. */
-const matches = (plan: FuturePlan, words: string[]) => {
-  const hay = fold(`${plan.name} ${plan.topic}`);
-  return words.every((word) => hay.includes(word));
-};
 
 export function PlanFinder({
   plans,
@@ -94,8 +75,7 @@ export function PlanFinder({
 }) {
   // Drawn again in a new language; the theme chips are ordered by their names in it.
   const locale = useLocale();
-  const { query, kind, theme } = filters;
-  const setQuery = (next: string) => onFilters({ ...filters, query: next });
+  const { kind, theme } = filters;
   const setTheme = (next: Family | null) => onFilters({ ...filters, theme: next });
 
   /*
@@ -113,7 +93,6 @@ export function PlanFinder({
     }
   }, []);
 
-  const words = useMemo(() => wordsOf(query), [query]);
   const ofThisKind = useMemo(() => ofKind(plans, kind), [plans, kind]);
 
   /** The broad themes of the kind chosen, the commonest first, each with its count. */
@@ -123,24 +102,13 @@ export function PlanFinder({
       const family = themeFamily(p.topic);
       counts.set(family, (counts.get(family) ?? 0) + 1);
     }
-    // Ordered by the whole kind, so the chips do not jump about while somebody
-    // types; counted with the search, so a chip never promises plans that the
-    // search then hides.
     return [...counts]
       .sort((a, b) => b[1] - a[1] || familyName(a[0]).localeCompare(familyName(b[0])))
-      .map(
-        ([family]) =>
-          [
-            family,
-            ofThisKind.filter((p) => themeFamily(p.topic) === family && matches(p, words)).length,
-          ] as const,
-      );
-  }, [ofThisKind, words, locale]);
+      .map(([family, count]) => [family, count] as const);
+  }, [ofThisKind, locale]);
 
-  const shown = ofThisKind.filter(
-    (p) => (!theme || themeFamily(p.topic) === theme) && matches(p, words),
-  );
-  const narrowed = words.length > 0 || kind !== 'all' || theme !== null;
+  const shown = ofThisKind.filter((p) => !theme || themeFamily(p.topic) === theme);
+  const narrowed = kind !== 'all' || theme !== null;
 
   const clear = () => onFilters(NO_FILTERS);
 
@@ -170,27 +138,6 @@ export function PlanFinder({
             {t('future.title')}
           </h1>
           <p className="page-lede">{t('future.lede')}</p>
-        </div>
-        <div className="future__search">
-          <label className="future__search-label" htmlFor="future-plan-search">
-            {t('future.search.label')}
-          </label>
-          <div className="future__find">
-            <SearchMark />
-            <input
-              id="future-plan-search"
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('future.search.placeholder')}
-              aria-describedby="future-search-help"
-              autoComplete="off"
-            />
-            {query && <CloseButton label={t('future.search.clear')} onClick={() => setQuery('')} />}
-          </div>
-          <p id="future-search-help" className="future__search-help">
-            {t('future.search.help')}
-          </p>
         </div>
       </div>
 
@@ -288,7 +235,7 @@ export function PlanFinder({
                 <ol className="future__grid" role="list">
                   {group.plans.map((plan, i) => (
                     <li key={plan.id} style={nth(i)}>
-                      <PlanCard plan={plan} words={words} onOpen={onOpen} />
+                      <PlanCard plan={plan} onOpen={onOpen} />
                     </li>
                   ))}
                 </ol>
@@ -301,15 +248,7 @@ export function PlanFinder({
   );
 }
 
-function PlanCard({
-  plan,
-  words,
-  onOpen,
-}: {
-  plan: FuturePlan;
-  words: string[];
-  onOpen: (id: number) => void;
-}) {
+function PlanCard({ plan, onOpen }: { plan: FuturePlan; onOpen: (id: number) => void }) {
   useLocale();
   return (
     <button
@@ -324,7 +263,7 @@ function PlanCard({
         </span>
         <span className="future__plan-topic">{plan.topic}</span>
       </span>
-      <span className="future__plan-name">{marked(plan.name, words)}</span>
+      <span className="future__plan-name">{plan.name}</span>
       <span className="future__plan-go">
         {t('future.card.open')}
         <span className="future__plan-arrow" aria-hidden="true">
@@ -333,32 +272,6 @@ function PlanCard({
       </span>
     </button>
   );
-}
-
-/** The name with the words typed marked in it. */
-function marked(name: string, words: string[]): ReactNode {
-  if (words.length === 0) return name;
-  const folded = fold(name);
-  // fold() keeps the length of plain Latin text, which every plan name is.
-  if (folded.length !== name.length) return name;
-  const hit = new Array<boolean>(name.length).fill(false);
-  for (const word of words) {
-    let at = folded.indexOf(word);
-    while (at !== -1) {
-      for (let i = at; i < at + word.length; i++) hit[i] = true;
-      at = folded.indexOf(word, at + word.length);
-    }
-  }
-  const parts: ReactNode[] = [];
-  let start = 0;
-  for (let i = 1; i <= name.length; i++) {
-    if (i === name.length || hit[i] !== hit[start]) {
-      const text = name.slice(start, i);
-      parts.push(hit[start] ? <mark key={start}>{text}</mark> : text);
-      start = i;
-    }
-  }
-  return parts;
 }
 
 /* ── the marks ───────────────────────────────────────────── */
@@ -417,8 +330,4 @@ function FamilyMark({ family }: { family: Family }) {
 
 function Tick() {
   return <Icon name="check" size={18} className="future__tick" />;
-}
-
-function SearchMark() {
-  return <Icon name="search" size={22} className="future__find-mark" />;
 }
