@@ -731,6 +731,7 @@ const words: Messages = {
   "legend.title": "Legend",
   "settings.lowGraphics": "Mababang graphics / tipid sa enerhiya",
   "settings.lowGraphicsNote": "Mas kaunting detalye at kinis, para sa mas lumang device o para makatipid ng kuryente. Hindi nagbabago ang mga numero ng sikat ng araw.",
+  "activity.mapView": "View ng mapa",
 };
 
 export default words;

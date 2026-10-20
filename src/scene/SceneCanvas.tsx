@@ -150,6 +150,8 @@ import type { SunAngles } from './sun';
 import type { CityModel, Development } from '../data/model';
 import { useDisplay } from '../settings/display';
 import { FrameCap, LowShadowCache } from './lowGraphics';
+import { ActivityGlow } from './ActivityGlow';
+import type { Glow } from '../ui/activityMapView';
 
 interface SceneCanvasProps {
   model: CityModel;
@@ -226,6 +228,16 @@ interface SceneCanvasProps {
    * screen's flat map). Nothing is torn down, so waking is immediate.
    */
   asleep?: boolean;
+  /**
+   * The Street activity screen's 3D view: the glows to lay on the ground (ActivityGlow), every counter's
+   * place, the one chosen, and what a tap on a glow does. Null otherwise.
+   */
+  activity?: {
+    glows: readonly Glow[];
+    sensorsEN: readonly [number, number][];
+    selectedId: number | null;
+    onPick: (id: number) => void;
+  } | null;
   /** The landmark whose address is open, by name — one on open ground, with no page to go to. */
   openLandmark?: string | null;
   onOpenLandmark?: (name: string | null) => void;
@@ -318,6 +330,7 @@ export function SceneCanvas({
   markerCard,
   landmarks = [],
   asleep = false,
+  activity = null,
   openLandmark = null,
   onOpenLandmark = () => undefined,
   onPickLandmarkBuilding = () => undefined,
@@ -854,6 +867,15 @@ export function SceneCanvas({
             targetE/targetN are already "the subject", whichever kind it is.
           */}
           {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={terrain} />}
+          {activity && !inVr && (
+            <ActivityGlow
+              glows={activity.glows}
+              sensorsEN={activity.sensorsEN}
+              ground={terrain}
+              selectedId={activity.selectedId}
+              onPick={activity.onPick}
+            />
+          )}
 
           {showSunArrow && !wholeCity && !insideFlat && (
             <SunArrow

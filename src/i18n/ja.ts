@@ -732,6 +732,7 @@ const words: Messages = {
   "legend.title": "凡例",
   "settings.lowGraphics": "低負荷 / 省エネ",
   "settings.lowGraphicsNote": "細かさと滑らかさを抑えて、古い機器でも動きやすく、電力も節約します。日当たりの数値は変わりません。",
+  "activity.mapView": "地図の表示",
 };
 
 export default words;

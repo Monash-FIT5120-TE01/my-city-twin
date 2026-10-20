@@ -670,6 +670,7 @@ const words: Messages = {
   "legend.title": "संकेत-सूची",
   "settings.lowGraphics": "कम ग्राफ़िक्स / ऊर्जा बचत",
   "settings.lowGraphicsNote": "कम बारीकी और कम स्मूदनेस, पुराने डिवाइस के लिए या बिजली बचाने के लिए। धूप के आँकड़े वही रहते हैं।",
+  "activity.mapView": "मानचित्र दृश्य",
 };
 
 export default words;

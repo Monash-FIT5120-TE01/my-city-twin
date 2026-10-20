@@ -731,6 +731,7 @@ const words: Messages = {
   "legend.title": "सङ्केत",
   "settings.lowGraphics": "कम ग्राफिक्स / ऊर्जा बचत",
   "settings.lowGraphicsNote": "कम विवरण र कम सहजता, पुराना उपकरणका लागि वा बिजुली बचाउन। घामका तथ्याङ्क उस्तै रहन्छन्।",
+  "activity.mapView": "नक्सा दृश्य",
 };
 
 export default words;

@@ -731,6 +731,7 @@ const words: Messages = {
   "legend.title": "Chú giải",
   "settings.lowGraphics": "Đồ họa thấp / tiết kiệm năng lượng",
   "settings.lowGraphicsNote": "Giảm chi tiết và độ mượt, dành cho thiết bị cũ hoặc để tiết kiệm điện. Số liệu ánh nắng không thay đổi.",
+  "activity.mapView": "Chế độ bản đồ",
 };
 
 export default words;

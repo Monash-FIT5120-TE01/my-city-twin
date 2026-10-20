@@ -151,6 +151,7 @@ import { Icon } from './ui/kit/Icon';
 import { formatNumber, useT } from './i18n/i18n';
 import { dayMonthLabel, dayMonthYearLabel, seasonWord } from './i18n/format';
 import { MapKey } from './ui/kit/MapKey';
+import { MapModeToggle, type MapMode } from './ui/MapModeToggle';
 
 /** Below this the sun is too low to see the city by, in a headset. See enterVr. */
 const LOW_SUN_DEG = 8;
@@ -234,6 +235,25 @@ export default function App() {
   }, [view, activityData]);
   /** Every counter's place, for the map's "show all". */
   const activitySensorsEN = useMemo(() => activityData?.sensors.map((s) => s.en) ?? [], [activityData]);
+  /*
+   * The Street activity map in 2D (its own flat map) or 3D (the city, with the glows on its ground), as
+   * ver-4 has it. 2D to begin with; the choice is kept in this browser.
+   */
+  const [activityMapMode, setActivityMapMode] = useState<MapMode>(() => {
+    try {
+      return window.localStorage.getItem('mct-activity-map') === '3d' ? '3d' : '2d';
+    } catch {
+      return '2d';
+    }
+  });
+  const chooseActivityMapMode = (mode: MapMode) => {
+    setActivityMapMode(mode);
+    try {
+      window.localStorage.setItem('mct-activity-map', mode);
+    } catch {
+      // private window: for this visit only
+    }
+  };
   /** The top of the colour ramp: the most in any hour anywhere on the timeline. */
   const activityCeiling = useMemo(() => (activityData ? countCeiling(activityData) : 1), [activityData]);
   /** One glow per counter with a count at the hour on the map, coloured by the count; none off the screen. */
@@ -2141,8 +2161,14 @@ export default function App() {
           }
           markerCard={placeCard('anchored')}
           landmarks={layers.landmarks ? landmarks : []}
-          // The street activity screen covers the city with its own flat map; the city sleeps under it.
-          asleep={view === 'activity' && !inVr}
+          // The street activity screen covers the city with its own flat map in 2D; the city sleeps under it.
+          // In 3D the city is the map, with the glows on its ground.
+          asleep={view === 'activity' && !inVr && activityMapMode === '2d'}
+          activity={
+            view === 'activity' && activityMapMode === '3d' && activityData
+              ? { glows: activityGlows, sensorsEN: activitySensorsEN, selectedId: sensorId, onPick: setSensorId }
+              : null
+          }
           openLandmark={openLandmark}
           onOpenLandmark={setOpenLandmark}
           onPickLandmarkBuilding={(buildingId) => {
@@ -2185,6 +2211,9 @@ export default function App() {
 
       {/* ── STREET ACTIVITY: the flat map, over the sleeping city. ── */}
       {!chromeHidden && !inVr && view === 'activity' && activityData && (
+        <MapModeToggle mode={activityMapMode} onMode={chooseActivityMapMode} />
+      )}
+      {!chromeHidden && !inVr && view === 'activity' && activityData && activityMapMode === '2d' && (
         <ActivityMap
           model={model}
           glows={activityGlows}

@@ -732,6 +732,7 @@ const words: Messages = {
   "legend.title": "图例",
   "settings.lowGraphics": "低画质 / 节能",
   "settings.lowGraphicsNote": "降低细节和流畅度，适合较旧的设备或节省电量。日照数值不变。",
+  "activity.mapView": "地图视图",
 };
 
 export default words;

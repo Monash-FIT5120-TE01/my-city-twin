@@ -732,6 +732,7 @@ const words: Messages = {
   "legend.title": "සංකේත",
   "settings.lowGraphics": "අඩු ග්‍රැෆික්ස් / බලශක්ති ඉතිරිය",
   "settings.lowGraphicsNote": "අඩු විස්තර සහ සුමටතාව, පැරණි උපාංග සඳහා හෝ බලය ඉතිරි කිරීමට. හිරු එළියේ සංඛ්‍යා වෙනස් නොවේ.",
+  "activity.mapView": "සිතියම් දසුන",
 };
 
 export default words;

@@ -692,6 +692,7 @@ const words: Messages = {
   "legend.title": "Petunjuk",
   "settings.lowGraphics": "Grafik rendah / jimat tenaga",
   "settings.lowGraphicsNote": "Kurang perincian dan kelancaran, untuk peranti lama atau untuk jimat kuasa. Angka cahaya matahari kekal sama.",
+  "activity.mapView": "Paparan peta",
 };
 
 export default words;

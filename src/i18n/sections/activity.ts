@@ -157,4 +157,6 @@ export const activity = {
   "activity.timebar.scale": "0 → {max} movements/h",
   // read by a screen reader after the scale: the colours of the key
   "activity.timebar.scaleColours": ", from light teal to dark red",
+  // the 2D / 3D buttons on the map: the name of the pair
+  "activity.mapView": "Map view",
 } as const;
