@@ -17,7 +17,7 @@ const ROOT = resolve(__dirname, '..');
 const RELEASES = resolve(ROOT, 'releases');
 
 const worker = readFileSync(resolve(__dirname, 'index.ts'), 'utf-8');
-const latest = /^const LATEST = '([^']+)';$/m.exec(worker)?.[1];
+const home = /^const HOME = '([^']+)';$/m.exec(worker)?.[1];
 
 const frozenVersions = readdirSync(RELEASES, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && /^ver-\d+$/.test(entry.name))
@@ -29,10 +29,10 @@ describe('the releases about to be deployed', () => {
   });
 
   it('sends the bare domain to a version that was actually built', () => {
-    // A LATEST that no longer matches the constant's shape reads as
+    // A HOME that no longer matches the constant's shape reads as
     // undefined here, which fails just as loudly as pointing at a missing
     // directory — the redirect is the one thing with no fallback.
-    expect(frozenVersions).toContain(latest);
+    expect(frozenVersions).toContain(home);
   });
 
   it.each(frozenVersions)('builds %s against its own path', (version) => {

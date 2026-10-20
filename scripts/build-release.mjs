@@ -15,8 +15,9 @@
  *
  * THE RULE
  *   The version being built is always the one after the newest frozen one.
- *   `LATEST` in worker/index.ts is that newest frozen version — it is what the
- *   bare domain sends people to, and bumping it is what "freezing" means. So
+ *   `LATEST` in worker/index.ts is that newest frozen version, and bumping it
+ *   is what "freezing" means. (Where the bare domain leads is `HOME`, a
+ *   separate constant.) So
  *   freezing an iteration is one edit, and the build follows it. There is no
  *   state in which this can be pointed at submitted work.
  */

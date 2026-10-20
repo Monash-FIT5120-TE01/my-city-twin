@@ -21,13 +21,22 @@
  */
 
 /**
- * Where the bare domain leads.
- *
- * Bump this when an iteration is FINISHED, not when one begins. Bumped early
- * it points mycitytwin.com at a half-built version, which is the one URL
- * everybody types from memory.
+ * The newest FROZEN version. Bump this when an iteration is finished, not
+ * when one begins: scripts/build-release.mjs builds the version after it, so
+ * bumping it is what freezing means.
  */
 const LATEST = 'ver-2';
+
+/**
+ * Where the bare domain leads: the version being worked on, ahead of LATEST
+ * (decided 2026-10-20), so mycitytwin.com opens on Iteration 3 while ver-3 can
+ * still be rebuilt. It must be a version that is built (worker/deployment.test.ts).
+ */
+const HOME = 'ver-3';
+
+/** The later of the two: freezing a version past HOME without moving HOME still sends the domain to it. */
+const number = (version: string) => Number(version.slice('ver-'.length));
+const LANDING = number(HOME) >= number(LATEST) ? HOME : LATEST;
 
 /** '/ver-2/anything' and bare '/ver-2' alike. */
 const VERSION_PATH = /^\/(ver-\d+)(?:\/|$)/;
@@ -47,7 +56,7 @@ export default {
        * to one building on one afternoon, and dropping the query would land
        * the reader on the front page instead.
        */
-      url.pathname = `/${LATEST}/`;
+      url.pathname = `/${LANDING}/`;
       return Response.redirect(url.toString(), 302);
     }
 
