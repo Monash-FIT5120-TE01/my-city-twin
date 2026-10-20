@@ -4,7 +4,8 @@
  * The trams live inside the streetscape (inside <WorldFrame>, east/north/up); the walking camera lives
  * outside it (StreetView.tsx). This is the meeting point between them: the tram layer writes where the rider's
  * eye is and which way the tram faces, and the street view reads it every frame. Positions are east/north
- * metres and height above the ground plane; StreetView adds the ground and converts them to its frame.
+ * metres and a height already on the real ground (TramLayer reads terrain.ts); StreetView converts them to
+ * its frame.
  */
 
 export interface RideStatus {

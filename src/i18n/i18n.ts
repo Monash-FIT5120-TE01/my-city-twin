@@ -106,7 +106,7 @@ export function useT(): typeof t {
   return t;
 }
 
-/** A number as the language writes it: 1,234.5 / 1.234,5 / १,२३४.५ stays in Latin digits (the data's). */
+/** A number with the language's separators (1,234.5 / 1.234,5), always in Latin digits like the data: never १,२३४.५. */
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat(intlOf(locale), { numberingSystem: 'latn', ...options }).format(value);
 }

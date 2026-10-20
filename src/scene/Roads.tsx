@@ -119,8 +119,8 @@ export function Roads({ groundAhdM }: { groundAhdM: Ground }) {
         map underneath made it obvious at once.
 
         polygonOffset is the fix rather than a larger lift, because its units
-        are steps of the depth buffer rather than metres — it stays exactly
-        one step in front wherever the camera is, instead of being too little
+        are steps of the depth buffer rather than metres — it stays the same
+        few steps in front wherever the camera is, instead of being too little
         far away and a visible kerb close up.
       */}
       <meshStandardMaterial

@@ -1,7 +1,7 @@
 /*
  * The language the interface is in (i18n/): a chip in the header — the globe, the language's own name and
  * a chevron — that opens a list of the nine, drawn in the app's own card style rather than the system's
- * select (user request, 2026-10-20). Each language is named in its own words, with its English name under
+ * select (decided 2026-10-20). Each language is named in its own words, with its English name under
  * it, so a reader who cannot yet read the page can still find theirs; the one in use carries a tick.
  *
  * A listbox, worked as one: the arrows move through it, Home and End jump, Enter or Space chooses,

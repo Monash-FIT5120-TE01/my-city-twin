@@ -71,11 +71,11 @@ function toShapes(footprint: PolygonEN[]): Shape[] {
 /**
  * Where a part's underside actually sits.
  *
- * The lowest part of every building is sunk to the ground plane so it does
- * not hover: the model has one flat ground, and 112 of the 1,548 buildings
- * record a base above it — by 2.2 m typically and 28 m at the worst. The
- * ground under those really is higher; the flat plane is the approximation,
- * not the building.
+ * The lowest part of every building is sunk to the ground so it does not
+ * hover: down to the lowest point of the real ground (terrain.ts) under its
+ * outline, so no side of it shows a gap. This was first written for a single
+ * flat ground plane, above which 112 of the 1,548 buildings recorded their
+ * base; the ground now has its real heights, and the rule still holds.
  *
  * Exported because the shadow measurement has to agree with it. It used to
  * carry its own copy of this rule — or rather, it did not, and measured from
@@ -90,8 +90,8 @@ export function effectiveBaseAhdM(massing: Massing, ground: Ground): number {
 /**
  * One solid, from the massing's own base up to its roof.
  *
- * Only the lowest part of a building is allowed to reach down to the ground
- * plane. Sinking every part would give each upper storey a column of mass
+ * Only the lowest part of a building is allowed to reach down to the ground.
+ * Sinking every part would give each upper storey a column of mass
  * down to street level; measured against the source, 201 parts have nothing
  * beneath them, and an invented column casts an invented shadow.
  */

@@ -276,7 +276,7 @@ let plainMat: MeshStandardMaterial | null = null;
  * node <class>_sec<i> / <class>_int<i> per section, at the section's centre in this module's frame (+x forward,
  * +y left, +z up), and the root's extras give the section centres and lengths and the door centres and widths.
  * The shared network-pattern image is pattern.png beside them. A class whose file does not load keeps the
- * parametric model below.
+ * parametric model (build(), above).
  */
 const fromFile = new Map<ClassKey, TramKit>();
 let loading: Promise<void> | null = null, patternTex: Texture | null = null, generation = 0;

@@ -10,7 +10,7 @@
  * panel as a texture, the way the tutorial's pictures are.
  *
  * One texture per icon and colour, made the first time it is asked for and
- * kept: there are a dozen of them, a few kilobytes each.
+ * kept: there are a couple of dozen of them, a few kilobytes each.
  */
 
 import { CanvasTexture, SRGBColorSpace, type Texture } from 'three';

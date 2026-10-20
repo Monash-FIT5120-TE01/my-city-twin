@@ -31,7 +31,7 @@
  *   A controller has no double click; there, buildings are reached by search.
  *
  * AND WHICH ONE IS UNDER THE POINTER
- *   So that the building a double click would open is seen before it is clicked (user request,
+ *   So that the building a double click would open is seen before it is clicked (decided
  *   2026-10-20), the building under a mouse pointer is reported to `onHover` and drawn lit (CityMassing).
  *   One ray a frame at most, and the city tested building box first (ownedRaycast.ts), not triangle by
  *   triangle; nothing while a button is held (the camera is being moved), and on a desktop only.
@@ -197,7 +197,7 @@ export function BuildingPicker({
     const leave = () => report(null);
 
     canvas.addEventListener('pointerdown', down);
-    // a desktop's mouse only (user decision, 2026-10-20): a phone or a tablet has nothing to hover with
+    // a desktop's mouse only (decided 2026-10-20): a phone or a tablet has nothing to hover with
     if (HOVERS) canvas.addEventListener('pointermove', hover);
     canvas.addEventListener('pointerleave', leave);
     canvas.addEventListener('pointermove', move);

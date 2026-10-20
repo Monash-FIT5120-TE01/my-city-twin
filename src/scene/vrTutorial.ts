@@ -10,8 +10,7 @@
  *   and from inside a headset there is no page to read it on.
  *
  * WHY EVERY TIME, NOT ONCE
- *   At the reader's request. The headset is passed from one tester to the
- *   next, so "this device has seen it" says nothing about the person wearing
+ *   The headset is passed from one tester to the next, so "this device has seen it" says nothing about the person wearing
  *   it now. Skip is on every page for anybody who already knows.
  *
  * ONE THING PER PAGE

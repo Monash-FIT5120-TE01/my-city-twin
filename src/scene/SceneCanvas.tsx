@@ -670,7 +670,7 @@ export function SceneCanvas({
         ? undefined
         : xrStore().subscribe((state, previous) => {
             setInVr(state.session != null);
-            // a move asked for and not made when the session ended is not made in the next one (Codex review, 2026-10-19)
+            // a move asked for and not made when the session ended is not made in the next one (review, 2026-10-19)
             if (state.session == null && previous.session != null) setLoading(null);
             if (state.session != null && previous.session == null) {
               setPanelShown(true);
@@ -785,7 +785,8 @@ export function SceneCanvas({
         it is unchanged on a desktop: same tree, same cost, same behaviour.
         When one does start it takes over the camera and the render loop, and
         the SAME city is what gets drawn — this is why the VR work is a
-        wrapper and four small files rather than a second application.
+        wrapper and a set of headset-only components (the Vr* files) rather
+        than a second application.
 
         It is the outermost thing in the canvas because the sky, the lights
         and the world frame all have to be inside the session's render loop
@@ -859,13 +860,7 @@ export function SceneCanvas({
             onPickBuildingInVr={inVr ? onPickBuildingInVr : undefined}
           />
 
-          {/*
-            The sun arrow. In the world frame, so it points at the city rather
-            than the screen. On whatever the camera is framing — the focused
-            proposal, or a searched building. Reading `focus` alone put the
-            arrow back on a proposal while the screen was about a building;
-            targetE/targetN are already "the subject", whichever kind it is.
-          */}
+          {/* In the headset's street: the street names on the corners. See VrStreetSigns. */}
           {inVr && vrStage === 'street' && <VrCornerSigns groundAhdM={terrain} />}
           {activity && !inVr && (
             <ActivityGlow
@@ -877,6 +872,13 @@ export function SceneCanvas({
             />
           )}
 
+          {/*
+            The sun arrow. In the world frame, so it points at the city rather
+            than the screen. On whatever the camera is framing — the focused
+            proposal, or a searched building. Reading `focus` alone put the
+            arrow back on a proposal while the screen was about a building;
+            targetE/targetN are already "the subject", whichever kind it is.
+          */}
           {showSunArrow && !wholeCity && !insideFlat && (
             <SunArrow
               sun={sun}
@@ -975,10 +977,6 @@ export function SceneCanvas({
           />
         )}
 
-        {/*
-          In the headset the shadow map is redrawn when something it depends on
-          changes, not every frame (vrShadowCache.tsx) — named here.
-        */}
         {/* Writes down where the headset stops, for ?vrdebug only. See VrStallProbe. */}
         {inVr && <VrStallProbe />}
         {low && !asleep && <FrameCap fps={LOW_FPS} />}
@@ -1002,6 +1000,11 @@ export function SceneCanvas({
         )}
         {/* the flat's walls are a stride away: the headset's near plane comes in while the reader is inside */}
         {inRoomVr && <NearPlane metres={ROOM_NEAR_M} />}
+        {/*
+          In the headset the shadow map is redrawn when something it depends on
+          changes, not every frame (vrShadowCache.tsx); the key below names
+          those things.
+        */}
         {inVr && (
           <VrShadowCache
             shadowKey={[

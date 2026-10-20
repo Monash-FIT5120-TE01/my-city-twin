@@ -68,9 +68,9 @@ describe('the releases about to be deployed', () => {
   });
 
   it.each(frozenVersions)('ships the data %s draws the city from', (version) => {
-    // The snapshot is what puts the city on screen before the sleeping
-    // staging API answers, so a version missing it is a version that opens
-    // on an empty grid for the first minute.
+    // The snapshot is what puts the city on screen before the live API
+    // answers, so a version missing it is a version that opens on an empty
+    // grid until the API answers, or for good if it never does.
     expect(existsSync(resolve(RELEASES, version, 'data', 'building-footprints.json'))).toBe(true);
   });
 });

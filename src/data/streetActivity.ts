@@ -5,10 +5,12 @@
  *
  * WHAT ARRIVES
  *   Four answers from the team's backend (api-types.ts): the 46 counters,
- *   the last two hours, the last twenty-five, and the next twenty-four. The
- *   recorded hours and the forecast meet without a gap — on 2026-10-14 the
- *   record ran to 06:00 Melbourne time and the forecast began at 07:00 — so
- *   the screen has one timeline of about two days, crossing three dates.
+ *   the last two hours, the last twenty-five, and the forecast — a week of it
+ *   when the backend gives one (useStreetActivity asks for hours=168), else
+ *   the next twenty-four. The recorded hours and the forecast normally meet
+ *   without a gap — on 2026-10-14 the record ran to 06:00 Melbourne time and
+ *   the forecast began at 07:00 — so the screen has one timeline, from
+ *   yesterday to the end of the forecast.
  *
  * WHAT "BUSY" MEANS HERE
  *   The backend's own word, from each counter's own thresholds: quiet up to

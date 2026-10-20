@@ -12,7 +12,8 @@
  *     link for a phone, where the strip under the map is hidden.
  *   - The time bar's 12-hour marks, the hour under the handle, and that the
  *     play button names what it will do.
- *   - The header keeps "Map layers" everywhere but the front page — the
+ *   - The header keeps "Map layers" everywhere but the front page and the
+ *     full pages — the
  *     sunlight screen is the only place shadows are switched off.
  */
 

@@ -10,8 +10,8 @@
  * Push button: PB/5-type audio-tactile unit (black escutcheon, blue disc with white arrow and a raised tactile
  * arrow, white lamp, round stainless button). Its sounds are in pedestrianAudio.ts.
  *
- * The cycle is visual only and the same pattern everywhere, offset per site (timings EST): road A green 18 s,
- * amber 3, all red 2, road B green 18, amber 3, all red 2. Pedestrians cross the road that has red.
+ * The timing of each site is in signalPlan.ts, and the trams obey it (trams/tramSim.ts). Pedestrians cross
+ * the road that has red.
  */
 import {
   CircleGeometry,

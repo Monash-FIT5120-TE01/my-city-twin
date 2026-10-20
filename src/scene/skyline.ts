@@ -345,7 +345,7 @@ const GROUND_HORIZON_M = 2000;
 /**
  * The ground's own horizon (terrain.ts) from a point: for each degree of bearing, the highest the ground
  * rises as seen from there. A low window on a slope has the hill above it uphill, and the sun low in that
- * direction is behind the hill before it is behind any building (Codex review, 2026-10-18).
+ * direction is behind the hill before it is behind any building (review, 2026-10-18).
  *
  * Looked along three lines in each degree, a metre apart near the point and further apart with distance:
  * a rise just past the window, or between two lines of one degree, is not stepped over. Computed once

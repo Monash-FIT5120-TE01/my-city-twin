@@ -94,7 +94,7 @@ export function OpenSpace({ groundAhdM }: { groundAhdM: Ground }) {
   return (
     <mesh
       geometry={geometry}
-      // Above the ground and the roads, below anything standing on it.
+      // Lifted by the drape above (0.12 m, over the roads' 0.06 m), below anything standing on it.
       position={[0, 0, 0]}
       /*
        * Not a target. It is drawn 0.12 m above the ground and covers every

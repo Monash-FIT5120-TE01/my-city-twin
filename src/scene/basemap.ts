@@ -28,8 +28,8 @@
  *
  *   So each vertex goes back through the projection instead: scene metres →
  *   EPSG:7855 → longitude and latitude → Web Mercator → pixel. There is no
- *   approximation left to bound. It costs 4,225 conversions once, inside the
- *   memo that already builds the ground.
+ *   approximation left to bound. It costs one conversion per ground vertex,
+ *   once, inside the memo that already builds the ground.
  */
 
 import { projectLonLat, unprojectMetric } from '../data/project';
@@ -128,8 +128,8 @@ export function zoomForGroundSpan(groundM: number, widthPx: number, latitude: nu
  * this regular.
  *
  * Values outside 0..1 mean the point lies off the image. They are returned
- * unclamped so the caller can decide; the ground plane lets them run and
- * relies on its own fade to have finished by the time they do.
+ * unclamped so the caller can decide; the ground lets them run and relies on
+ * the haze laid over it (HazeVeil) to have finished by the time they do.
  */
 export function textureCoordinate(
   east: number,

@@ -9,7 +9,8 @@
  *   - Every drawing the page asks for exists in public/, so a renamed or
  *     missing file fails here rather than as a broken image on the site.
  *   - The page's structure: h2 sections under the first screen's h1, the
- *     Future work section carrying the id the header link scrolls to.
+ *     Future work section carrying its anchor id, focusable but out of the
+ *     tab order.
  */
 
 import { describe, expect, it } from 'vitest';

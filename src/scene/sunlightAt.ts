@@ -152,7 +152,7 @@ function segmentCrossesPolygon(
 }
 
 /**
- * Is the sun, seen from this point, behind the proposal?
+ * Is the sun, seen from this point, behind the subject?
  *
  * Walking up the ray towards the sun traces a straight horizontal line: at
  * height z the ray sits `(z - receptorZ) / tan(altitude)` further towards the
@@ -209,7 +209,7 @@ export function sunlightAtPoint(
   /**
    * The ground's own horizon from the point (skyline.ts groundHorizon): a minute the sun is behind the
    * hill is sun the point never had, so it is neither counted as sun nor as what the subject takes
-   * (Codex review, 2026-10-18).
+   * (review, 2026-10-18).
    */
   horizon?: Float32Array,
 ): SunlightAtPoint {

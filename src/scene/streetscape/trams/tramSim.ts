@@ -18,7 +18,7 @@
  *   Acceleration follows from that, limited in how fast it may change (jerk), so it pulls away and comes to a
  *   stand gradually.
  *
- * AT A STOP (as asked: a stop takes one tram, and the one behind it)
+ * AT A STOP (decided: a stop takes one tram, and the one behind it)
  *   A tram stopped at the stop position calls there. So does a tram stopped directly behind a tram that is
  *   calling there: it opens its doors where it is. Further back than that it waits, and moves up when there
  *   is room. A call lasts 15-20 s, and a tram early on the timetable waits for its time (up to a minute more).

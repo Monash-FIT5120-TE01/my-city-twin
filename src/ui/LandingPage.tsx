@@ -18,7 +18,7 @@
  *   - "Explore sunlight", and the hint when it is pressed too soon.
  *   - "Enter in VR", on a device that can.
  *   - "Explore the city without an address".
- *   - The three steps — the place "How it works" in the header moves to.
+ *   - The three steps.
  *   - The fine print: what the model is, Sources & limitations, the moment
  *     shown.
  *   - The window onto the city: the download's progress, then the map key
@@ -83,7 +83,7 @@ const STEPS = [
  */
 const CREDIT_ROOM = 72;
 
-/** The id "How it works" in the header moves to. */
+/** The id of the three steps, an anchor to them. ("How it works" in the header now opens its own page.) */
 export const HOW_IT_WORKS_ID = 'how-it-works';
 
 /** The front page, over the city, with a window cut in it for the city. */
@@ -415,8 +415,8 @@ export function LandingPage({
         </div>
 
         {/*
-          Focusable so "How it works" in the header can move the keyboard
-          here as well as the eye; -1 keeps it out of the tab order.
+          Focusable so a link to it can move the keyboard here as well as
+          the eye; -1 keeps it out of the tab order.
         */}
         <section
           className="landing__steps"

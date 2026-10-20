@@ -2,7 +2,7 @@
  * The solar panel check drawn on the roof: each piece a panel could go on,
  * shaded by how much of an unshaded panel's year of light it keeps (levelOf,
  * useSolarCheck.ts), in four steps from golden yellow to dark grey: the more
- * light, the brighter (user decision, 2026-10-20). By lightness, about L* 88,
+ * light, the brighter (decided 2026-10-20). By lightness, about L* 88,
  * 72, 47 and 27, so they read in order without telling hues apart. All four
  * opaque alike. Pieces not yet measured are a pale grey.
  */

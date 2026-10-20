@@ -78,8 +78,6 @@ export const SOURCE_CRS = 'EPSG:4326';
  * Scene origin. Chosen near 435 Bourke Street so that coordinates inside the
  * scene stay small — large offsets cost float precision in the depth buffer
  * and show up as shadow acne.
- *
- * Replaced in A1 with the true centroid of the extracted precinct.
  */
 export const LOCAL_ORIGIN_WGS84 = { lon: 144.9605, lat: -37.8145 } as const;
 

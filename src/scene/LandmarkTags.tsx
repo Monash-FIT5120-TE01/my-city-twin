@@ -93,8 +93,7 @@ const RESEAT_ZOOM_RATIO = 1.15;
 
 interface LandmarkTagsProps {
   landmarks: readonly Landmark[];
-  /** Ground elevation, metres AHD, for the ones on open ground. */
-  /** The ground (terrain.ts), or one flat height. */
+  /** The ground (terrain.ts), or one flat height, for the ones on open ground. */
   groundAhdM: Ground;
   /** Standing in the street rather than orbiting above it. */
   walking: boolean;

@@ -34,7 +34,7 @@ const UP = new Vector3(0, 0, 1), ACROSS = new Vector3(0, 1, 0), turnQ = new Quat
  * The frame of a straight piece of track from `a` to `b` (east, north) whose ground is `za` and `zb` there:
  * its middle, `lift` above the ground, local x along the track, z up. Turned to the heading, then tipped
  * about its own cross axis by the slope: in that order it cannot roll or turn over, as one rotation from
- * east straight onto the slope did, heading west (Codex review, 2026-10-18).
+ * east straight onto the slope did, heading west (review, 2026-10-18).
  */
 export function trackFrame(a: readonly number[], b: readonly number[], za: number, zb: number, lift: number, out: Matrix4): Matrix4 {
   const run = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
@@ -144,7 +144,7 @@ export class TramLayer {
   /**
    * A section's frame: between its two ends on the track, on the ground at each end (terrain.ts). Turned
    * to the street's heading, then tipped about its own cross axis by the slope — in that order, so it can
-   * never roll or turn over (a single rotation from east onto the slope did, heading west; Codex review
+   * never roll or turn over (a single rotation from east onto the slope did, heading west; review
    * 2026-10-18).
    */
   private frameOf(t: Tram, kit: TramKit, sec: TramKit['sections'][number], out: Matrix4): Matrix4 {
@@ -214,7 +214,6 @@ export class TramLayer {
   }
 
   // ── riding ──────────────────────────────────────────────────────────────
-  /** A point of tram `t` (x along from its middle, y across, + left, z above the rail) where it is drawn now. */
   /**
    * Where a point of tram `t` is drawn (x along from its middle, y across, + left, z up from the rail), and
    * (`dir`) which way the body runs there. On the section the point is in, placed as that section is drawn

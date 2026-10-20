@@ -3,9 +3,9 @@
  * WHERE A HEADSET PANEL STANDS, AND MOVING IT WITH THE BEAM
  * ─────────────────────────────────────────────────────────────────────────
  *
- * Every panel — the map, the window, the time — is put in front of the
- * reader when it is called up, on an arc at the panel distance, the side
- * ones turned to face the head (see panelPose). After that it stays where
+ * A panel — today the one menu of three cards (VrPanel) — is put in front
+ * of the reader when it is called up, at the panel distance; one stood to the
+ * side (asideRad) is turned to face the head (see panelPose). After that it stays where
  * it is: it lives in the player's floor, so it travels with every move and
  * turn the sticks make, and stays put when the reader walks across the room.
  *
@@ -16,8 +16,8 @@
  *   where the beam met it and its centre, and how far it was turned from
  *   facing the head, so it neither jumps nor twists; it turns with the head
  *   as it goes. Letting go of the trigger leaves it
- *   there. Calling the panels up again (X, or Menu) puts them all back on
- *   the arc.
+ *   there. Calling the menu up again (X, or Menu) puts it back in front of
+ *   the eyes.
  *
  *   The beam is read from the controller itself every frame rather than from
  *   pointer events: once the beam leaves the bar — which it does the moment

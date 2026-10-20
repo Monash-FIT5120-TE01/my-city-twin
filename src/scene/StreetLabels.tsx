@@ -10,7 +10,6 @@ interface StreetLabelsProps {
   /** Where the names gather before the camera has moved, east/north metres. */
   initialEast: number;
   initialNorth: number;
-  /** Ground elevation, metres AHD, so names sit on the road surface. */
   /** The ground (terrain.ts), or one flat height. */
   groundAhdM: Ground;
 }

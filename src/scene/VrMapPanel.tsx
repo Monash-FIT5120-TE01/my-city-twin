@@ -17,11 +17,10 @@
  *                   stays clear. Ahead is up, because walking it is "which
  *                   way now", not "where is north"; a small N on its rim
  *                   says where north went. It follows where the head points
- *                   lazily, not rigidly: a look round of less than twenty
- *                   degrees leaves it where it is, and a bigger turn brings
- *                   it along at a steady pace. Pinned to the head it would
- *                   swing with every glance, which is the motion most likely
- *                   to make somebody feel unwell.
+ *                   a moment behind, smoothed (FOLLOW_PER_S), not rigidly:
+ *                   pinned to the head it would shake with every small
+ *                   tremor, which is the motion most likely to make somebody
+ *                   feel unwell.
  *
  * Both redraw only when the reader has moved a couple of metres or turned a
  * few degrees, and at most a few times a second — the picture is a texture,

@@ -1,5 +1,5 @@
 /*
- * The Street activity map in 2D or 3D (as ver-4 has it): two buttons in a small card at the map's top
+ * The Street activity map in 2D or 3D (as the redesigned interface has it): two buttons in a small card at the map's top
  * right, the one in use filled. 2D is the flat map (ActivityMap); 3D is the city with the same glows on
  * its ground (scene/ActivityGlow.tsx). "2D" and "3D" read the same in every language; the group is named.
  */

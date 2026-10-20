@@ -16,14 +16,15 @@
  *   because a city of footprints is one filled path, which a canvas fills in
  *   a few milliseconds.
  *
- *   The footprints are turned into paths ONCE, in metres (MapArt). Each draw
- *   only sets where the view is and fills them, so a redraw costs the same
- *   at any zoom.
+ *   The footprints are turned into paths ONCE, in metres (CityTiles, below).
+ *   Each draw only sets where the view is and fills them, so a redraw costs
+ *   the same at any zoom.
  *
  * THE VIEW
- *   Centre, scale and turn. North-up for the map beside the window, where the
+ *   Centre, scale and turn. North-up for the map card in the menu, where the
  *   names have to stay where they were; heading-up for the small map that
- *   rides low while walking, where "ahead" matters more than "north". Labels
+ *   rides in the corner of the view while walking, where "ahead" matters more
+ *   than "north". Labels
  *   are always drawn upright, whichever way the map is turned.
  */
 

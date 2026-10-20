@@ -70,7 +70,7 @@ import { useInVr } from './xrStore';
 import { beginTap, trackTap, wasDragged, type Gesture } from './tap';
 import { detectDevice } from './streetscape/lod';
 
-/** Whether a project under the pointer is drawn brighter: on a desktop only (user decision, 2026-10-20). */
+/** Whether a project under the pointer is drawn brighter: on a desktop only (decided 2026-10-20). */
 const HOVERS = detectDevice() === 'desktop';
 
 interface DevelopmentMassingsProps {
@@ -168,7 +168,7 @@ export function DevelopmentMassings({
          * Colour states what can be done, not just what is what.
          *
          * An unfocused proposal is only worth noticing while it can be
-         * clicked, so it carries the strong green then and drops back to
+         * clicked, so it carries its full colour then and drops back to
          * scenery when it cannot — in focus mode, where the interface is
          * gone and nothing responds. See COLOUR SAYS WHAT CAN BE DONE above.
          */

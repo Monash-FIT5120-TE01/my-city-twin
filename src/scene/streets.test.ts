@@ -285,8 +285,9 @@ describe('where along a street its name may sit', () => {
      * their names over Southern Cross and the rail yards -- places those
      * streets do not reach.
      *
-     * Spencer Street is the westernmost cross street at -780, and it is the
-     * landmark here: a long street's name must stay EAST of it, because that
+     * Spencer Street is the westernmost cross street (its carriageway at
+     * -702.6; -780 below is its address fit, further west still), and it is
+     * the landmark here: a long street's name must stay EAST of it, because that
      * is where the long streets stop.
      */
     const SPENCER = -780;

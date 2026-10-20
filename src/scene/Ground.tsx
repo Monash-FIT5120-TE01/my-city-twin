@@ -4,39 +4,31 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT THIS FILE IS
- *   The flat surface the city stands on, and the surface a click lands on
- *   when someone measures a spot.
+ *   The surface the city stands on, at the ground's real heights
+ *   (terrain.ts), and the surface a click lands on when someone measures a
+ *   spot.
  *
  * WHY IT FADES AT THE EDGES
  *   The building data covers the Hoddle Grid and stops. Beyond it there is
  *   genuinely nothing — no suburbs, no river, no data of any kind. Drawn as
  *   a plain square, that boundary reads as the edge of the world. Faded, it
- *   reads as the edge of what is known, which is what it is.
+ *   reads as the edge of what is known, which is what it is. The fade itself
+ *   is drawn over the ground by HazeVeil, which explains why the ground
+ *   cannot fade itself.
  *
  * WHY IT IS A DISC
- *   The fade has always been radial — distance from the centre — but the
- *   geometry under it was a square, and its corners reached 1.7 times as far
- *   as its edges. That was invisible while the ground faded into a flat
- *   background of the same colour. With a sky behind it, the ground meets
- *   something that is NOT that colour, and a square silhouette appears: a
- *   straight horizon with corners on it, which no place has.
+ *   The fade is radial — distance from the centre — but the geometry under
+ *   it was once a square, and its corners reached 1.7 times as far as its
+ *   edges. That was invisible while the ground faded into a flat background
+ *   of the same colour. With a sky behind it, the ground meets something
+ *   that is NOT that colour, and a square silhouette appears: a straight
+ *   horizon with corners on it, which no place has.
  *
  *   A disc whose rim is exactly where the fade finishes has no edge to see.
  *
- * HOW THE FADE IS MADE
- *   The disc is divided into rings and wedges, and each vertex is given a
- *   colour: solid near the middle, blending to the horizon further out. The
- *   graphics card blends smoothly between them.
- *
- *   The alternative — making the ground transparent — was tried and is
- *   worse. A transparent ground still catches shadows, so the city ends up
- *   casting shadows onto empty space.
- *
- * WHY THE GROUND IS FLAT
- *   The real CBD slopes about 20 m from Latrobe Street down to the river,
- *   and that surface exists in the source data. It is not used yet, so
- *   buildings carry their true heights above sea level while the ground
- *   beneath them is a single level. Terrain is Iteration 2 work.
+ *   Making the ground transparent instead was tried and is worse. A
+ *   transparent ground still catches shadows, so the city ends up casting
+ *   shadows onto empty space.
  *
  * THE MAP ON TOP OF IT
  *   When a Mapbox image is available it is laid on this same plane, and the
@@ -97,17 +89,6 @@ export function Ground({
   );
 
   const geometry = useMemo(() => {
-    /*
-     * RingGeometry from zero rather than CircleGeometry: a circle is a fan
-     * of triangles meeting at one point, so it has vertices on its rim and
-     * nowhere else. Both things this surface does need interior vertices —
-     * the fade is written into vertex colours, and the map's texture
-     * coordinates are reprojected per vertex.
-     *
-     * 97 x 49 of them, against the 65 x 65 the square had. The rim is
-     * generous because it is the only silhouette in the scene against the
-     * sky, and a coarse one reads as a polygon.
-     */
     /*
      * A grid that follows the ground (terrain.ts). Over the terrain's own grid its points ARE the
      * terrain's points, ten metres apart, so whatever is laid on the ground (drape.ts) reads the same
@@ -175,7 +156,7 @@ export function Ground({
        * The plane's own coordinates are offsets from its centre, so the scene
        * position is that plus where the centre is. Converting every vertex
        * rather than the plane as a whole is what keeps the map square with
-       * the buildings — 65 by 65 of them, once.
+       * the buildings.
        */
       const [u, v] = textureCoordinate(
         centreE + position.getX(i),
@@ -202,7 +183,7 @@ export function Ground({
   /*
    * What the pointer is tested against while a spot is being chosen: the same ground at every fourth
    * grid point, drawn by nobody. Testing the drawn ground (some 120,000 points) on every move of the
-   * pointer would cost a phone or a headset a noticeable slice of each frame (Codex review); the hit's
+   * pointer would cost a phone or a headset a noticeable slice of each frame; the hit's
    * height is then read off the real ground at that place.
    */
   const picking = Boolean(onPick);
@@ -244,7 +225,7 @@ export function Ground({
   /*
    * The coarse surface finds roughly where the pointer meets the ground; the real ground is then met
    * along the same ray, near there (a step search, then halving): read straight down from the coarse hit,
-   * a ridge between its points sent the spot to the wrong place (Codex review). East/north/up, or null
+   * a ridge between its points sent the spot to the wrong place. East/north/up, or null
    * off the edge of the drawn ground.
    */
   const meetGround = (ray: { origin: { x: number; y: number; z: number }; direction: { x: number; y: number; z: number } }, distance: number): [number, number, number] | null => {

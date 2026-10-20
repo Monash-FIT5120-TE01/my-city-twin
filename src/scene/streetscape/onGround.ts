@@ -164,7 +164,7 @@ export async function liftOntoGround(
   root.traverse((o) => objects.push(o));
   /*
    * A geometry used by more than one mesh gets a copy for each, taken before any of them is raised:
-   * raising the shared one in place lifted the second mesh twice (Codex review, 2026-10-18).
+   * raising the shared one in place lifted the second mesh twice (review, 2026-10-18).
    */
   const users = new Map<BufferGeometry, number>();
   for (const o of objects) {
@@ -194,7 +194,7 @@ export async function liftOntoGround(
       /*
        * Rigidly by the ground at each instance's place — except a long thin one (a span wire, a rail
        * between two posts), which is sheared so each end sits on the ground at that end: raised by its
-       * middle alone, the uphill end of a 15 m wire hung a metre low (Codex review).
+       * middle alone, the uphill end of a 15 m wire hung a metre low.
        */
       if (!im.geometry.boundingBox) im.geometry.computeBoundingBox();
       const box = im.geometry.boundingBox!;
@@ -206,7 +206,7 @@ export async function liftOntoGround(
         /*
          * Thin and long as PLACED: the geometry's size along each axis times that axis's stretch in this
          * instance's matrix. A unit rod is a block until it is scaled into a 20 m wire, and judging the
-         * geometry alone missed every wire (Codex review, 2026-10-18).
+         * geometry alone missed every wire (review, 2026-10-18).
          */
         const placed = size.map((s, k) => s * Math.hypot(w.elements[k * 4], w.elements[k * 4 + 1], w.elements[k * 4 + 2]));
         const axis = placed.indexOf(Math.max(...placed));

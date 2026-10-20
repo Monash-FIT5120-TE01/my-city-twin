@@ -1,5 +1,5 @@
 /*
- * TRAM INFRASTRUCTURE — rails, overhead, platforms (no trams yet).
+ * TRAM INFRASTRUCTURE — rails, overhead, platforms (the trams themselves: trams/).
  *
  * Rails: Transport Victoria GTFS shapes (CC BY 4.0), one centreline per track, shifted onto the City of
  * Melbourne tram formation where it exists; two rails at +-717.5 mm, each a steel head with a dark groove.

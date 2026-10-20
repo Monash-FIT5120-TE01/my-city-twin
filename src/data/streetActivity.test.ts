@@ -153,7 +153,7 @@ describe('street activity', () => {
   });
 
   it('has no forecast for the counters without a model', () => {
-    // An hour only the forecast covers: where both do, a missing count is filled from the record.
+    // An hour only the forecast covers: where both do, a missing count is filled from the forecast.
     const onlyForecast = activity.forecastHours.find((h) => !activity.recorded.has(h)) as number;
     const readings = readingsAt(activity, onlyForecast);
     for (const r of readings) expect(r.count === null).toBe(r.sensor.thresholds === null);

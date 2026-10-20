@@ -65,7 +65,7 @@
  * smear of light across a night city. Three mechanisms to solve a problem
  * that an opaque bar does not have.
  *
- * It costs 72 px of city. The panels below it start under it and scroll
+ * It costs 4rem of city (64 px at a 16 px root). The panels below it start under it and scroll
  * inside what is left — see --y-top.
  */
 .header {
@@ -485,7 +485,7 @@
  * Distances are small — 4 to 10px. Far enough to have direction, near
  * enough that nothing has to be waited for.
  *
- * The reduced-motion block above holds all of it at 0.01ms, and every
+ * The reduced-motion block at the end of this file holds all of it at 0.01ms, and every
  * keyframe ends on the element's resting state, so the end of each is
  * exactly what a reader who asked for no movement sees immediately.
  */
@@ -518,19 +518,17 @@
 }
 
 /*
- * A panel arriving, and a tab's contents changing — one short settle for
- * both.
+ * A panel arriving, and the sunlight column's body with it — one short
+ * settle for both.
  *
  * Docked panels, the view controls and the time bar rise a little from
  * where they sit rather than fading in place, which is what connects them
  * to the edge they are attached to. (The view controls take the longer
  * `rise` of their own further down.)
  *
- * The tab body is keyed on which tab it is — see screens.tsx. Without the
- * key React keeps the same element and swaps its children, and nothing
- * moves at all; with it the panel is genuinely new and can arrive. Its
- * frame did not go anywhere, so this is a change of contents rather than
- * an arrival.
+ * `.sheet__tabpanel` is the sunlight column's body (screens.tsx). It was a
+ * tab body when the column had tabs, keyed on its tab so that switching
+ * replaced it and it arrived again; the tabs are gone and the name stayed.
  */
 .panel,
 .viewctl,
@@ -2865,7 +2863,7 @@
 
 /*
  * The map key along the foot of the explore screen (App, kit/MapKey), centred, on a paper band that reads
- * over any part of the city, as ver-4 has it, one row above the map credit so that no language's longer
+ * over any part of the city, as the redesigned interface has it, one row above the map credit so that no language's longer
  * words run it into the credit. A caption, so the pointer passes through to the map.
  */
 .explore-legend {

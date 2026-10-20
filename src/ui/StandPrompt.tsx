@@ -13,7 +13,8 @@
  * keyboard when it appears, so the answer is one key away, and gives it
  * back on "Not now" — to where it was, or to the sunlight column's heading
  * when that place has gone. Never shown in the headset, which asks the
- * same question on its own Measure card (VrPanel). Styles: sunlight.css.
+ * same question in its own menu, over the city map card (VrPanel's
+ * StandAsk). Styles: sunlight.css.
  */
 
 import { useEffect, useRef } from 'react';

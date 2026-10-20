@@ -3,9 +3,9 @@
  * THE PARTS EVERY HEADSET PANEL IS MADE OF
  * ─────────────────────────────────────────────────────────────────────────
  *
- * Three panels stand in front of the reader in a headset — the map on the
- * left, the work in the middle, the time on the right — and they are built
- * from one set of parts, so they read as one thing.
+ * Three cards stand in front of the reader in a headset — what the tab is
+ * about on the left, the map in the middle, the time on the right (VrPanel)
+ * — and they are built from one set of parts, so they read as one thing.
  *
  * THE LOOK
  *   A light glass slab: the product's white, large rounded corners, controls
@@ -15,11 +15,12 @@
  *   panel is what makes text hard to read.
  *
  * SIZES, IN ANGLES
- *   One pixel of layout is one millimetre in the room; the panels stand about
- *   85 cm away. Body text is 18 mm (1.2 degrees), titles 34 mm (2.3 degrees),
- *   the smallest note 14 mm. Anything pressed with the laser is at least
- *   60 mm on its short side — 4 degrees, which a laser held in a hand that is
- *   never perfectly still can land on first time.
+ *   One pixel of layout is one millimetre in the room; the menu stands a
+ *   metre away (MENU_DISTANCE_M in VrPanel). Body text is 18 mm (about 1
+ *   degree), titles 30 mm (1.7 degrees), and nothing is smaller than 18 mm.
+ *   Anything pressed with the laser is at least 60 mm on its short side —
+ *   about 3.4 degrees, which a laser held in a hand that is never perfectly
+ *   still can land on first time.
  *
  * WHAT THE LASER IS ON
  *   Says so with a dark outline and a change of fill, not by colour alone and
@@ -282,7 +283,7 @@ export function Glass({
 
 /**
  * The white bar under a panel. Pointed at with the trigger held, it carries
- * the panel with the beam (see vrGrab.ts) — the way a window is moved.
+ * the panel with the beam (see vrRig.ts) — the way a window is moved.
  */
 export function Grabber({ width = 150, onGrab }: { width?: number; onGrab: () => void }) {
   return (

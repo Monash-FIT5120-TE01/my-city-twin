@@ -246,10 +246,12 @@ function collectSearchable(buildings: BuildingMassing[]): SearchableBuilding[] {
  * Flags the lowest part of every parent so it, and only it, can be sunk to
  * the ground plane.
  *
- * The scene draws flat ground at a single elevation while parts carry their
- * true AHD feet. Without this a building standing on higher ground hovers;
- * with it applied to every part, upper storeys would grow a column down to
- * the ground that the source does not describe.
+ * The scene's ground (terrain.ts) is a smoothed surface, while parts carry
+ * their recorded AHD feet, so the two rarely meet exactly. Without this a
+ * building whose foot sits above the ground under it hovers (see
+ * effectiveBaseAhdM in scene/massing.ts); with it applied to every part,
+ * upper storeys would grow a column down to the ground that the source does
+ * not describe.
  */
 function markLowestPartOfEach<T extends { parentId: string; baseAhdM: number; sinksToGround: boolean }>(
   parts: T[],

@@ -9,7 +9,7 @@
  *   ground under the buildings (17.5 m). The CBD falls from about 57 m in the
  *   north to under a metre at the river, so 1,388 of 1,548 buildings were
  *   drawn sunk into the plane, some by 29 m: lower than they are, casting
- *   shorter shadows than they do (user decision to fix, 2026-10-18).
+ *   shorter shadows than they do (decided to fix, 2026-10-18).
  *
  * WHERE THE HEIGHTS COME FROM
  *   The building data itself. Each structure records the elevation of the
@@ -18,9 +18,9 @@
  *   So every building's outline is a set of points whose ground height is
  *   known: about 1,500 small patches spread over the whole city.
  *
- *   Between them — the streets, the parks — the height is interpolated:
- *   inverse-distance weighting of the nearest known points, on a grid. That
- *   is a smooth guess, not a survey: a cutting, a kerb or a ramp is not in
+ *   Between them — the streets, the parks — the height is interpolated on a
+ *   grid, by blurring the known points (see FINE_SIGMA_M below). That is a
+ *   smooth guess, not a survey: a cutting, a kerb or a ramp is not in
  *   it. It is good to the metre or two along a street between buildings, and
  *   it says nothing it does not know about a park with no building in it.
  *
@@ -251,7 +251,7 @@ function blur(src: Float64Array, cols: number, rows: number, sigma: number): Flo
  * The ground height here, metres AHD. Between grid points, on the same two triangles per cell the drawn
  * ground has (Ground.tsx: split corner to corner from south-west to north-east), so whatever is laid on
  * the ground at any point (drape.ts, onGround.ts) is exactly on the surface drawn there, not a few
- * centimetres under it where a bilinear patch and two flat triangles part company (Codex review).
+ * centimetres under it where a bilinear patch and two flat triangles part company.
  */
 export function heightAt(t: Terrain, e: number, n: number): number {
   const x = Math.min(Math.max((e - t.minE) / t.cell, 0), t.cols - 1);

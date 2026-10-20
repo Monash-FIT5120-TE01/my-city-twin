@@ -6,7 +6,8 @@
  * WHAT THIS FILE IS
  *   The street level of the CBD from open data: road surfaces, trees and planters, street lights, signals
  *   with their push buttons, tram rails, overhead and platforms, seats, pit lids, tactile pads, parking-bay
- *   lines, fountains and toilets. Trams themselves are not drawn yet.
+ *   lines, fountains and toilets. The trams run to the timetable while the walker is in the street
+ *   (trams/TramLayer.ts).
  *
  * WHERE THE DATA COMES FROM
  *   public/data/streetscape/*.json, written by scripts/build-streetscape.mjs, which also decides every
@@ -14,13 +15,13 @@
  *   what is estimated.
  *
  * INSIDE <WorldFrame>
- *   x east, y north, z up. The group is lifted to the ground plane's AHD, so everything below is built from
- *   z = 0 at the ground. The ground is flat (terrain is later work), so the streetscape is flat too.
+ *   x east, y north, z up. Everything is built from z = 0 at the ground, then raised onto the real ground
+ *   (terrain.ts) in one place once built (onGround.ts).
  *
  * DISTANCE BANDS (checked four times a second, not every frame)
- *   always    surfaces, tree trunks and crowns, rails
- *   mid       < 600 m: light poles, signal posts, overhead poles and wires
- *   near      < 220 m: everything small, in 100 m cells
+ *   always    the far road surfaces, the far tree crowns
+ *   mid       < 600 m: light poles, signal posts, overhead poles and wires, rails, tree trunks
+ *   near      < 220 m: everything small, in 200 m cells
  *   textures  < 60 m: ground textures (made on first use, dropped after 20 s unused)
  *
  * NOT IN THE SUNLIGHT FIGURES

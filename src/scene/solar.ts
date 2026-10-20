@@ -4,9 +4,9 @@ import type { SunAngles } from './sun';
 /*
  * Where the sun is, for a place and an instant.
  *
- * The output convention is fixed by
- * sunlight-twin/contracts/golden/solar_positions.json, which this module is
- * tested against: geometric altitude with NO atmospheric refraction, and
+ * The output convention is fixed by __fixtures__/golden-solar-positions.json
+ * (copied from the earlier prototype's contracts/golden/solar_positions.json),
+ * which this module is tested against: geometric altitude with NO atmospheric refraction, and
  * azimuth in degrees clockwise from north.
  *
  * Refraction is deliberately off. It lifts the apparent sun by roughly 0.06°
@@ -35,14 +35,6 @@ export function solarPosition(instant: Date, site: SiteLocation): SunAngles {
   };
 }
 
-/**
- * Offset of a named zone at a given instant, in milliseconds.
- *
- * Derived from Intl rather than assumed, because Victoria observes daylight
- * saving: the same clock reading is UTC+10 in June and UTC+11 in December,
- * and hard-coding either one silently moves every shadow by an hour for half
- * the year.
- */
 /** What a wall clock in `timeZone` reads at `instant`. */
 function zonedParts(timeZone: string, instant: Date) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -68,6 +60,14 @@ function zonedParts(timeZone: string, instant: Date) {
   };
 }
 
+/**
+ * Offset of a named zone at a given instant, in milliseconds.
+ *
+ * Derived from Intl rather than assumed, because Victoria observes daylight
+ * saving: the same clock reading is UTC+10 in June and UTC+11 in December,
+ * and hard-coding either one silently moves every shadow by an hour for half
+ * the year.
+ */
 function zoneOffsetMs(timeZone: string, instant: Date): number {
   const { year, month, day, hour, minute, second } = zonedParts(timeZone, instant);
   const asUtc = Date.UTC(year, month - 1, day, hour, minute, second);
@@ -188,7 +188,6 @@ export function fromDateInput(value: string): SimulationDate | null {
   return { year, month, day };
 }
 
-/** Which preset, if any, this date is. */
 /**
  * Which season button, if any, the date on screen belongs to.
  *

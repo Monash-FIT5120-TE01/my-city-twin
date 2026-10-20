@@ -19,7 +19,7 @@
  *     the rest — everything between two drawings: React working out and
  *                committing the change, geometry being built, the map paths.
  *
- *   VrLoader adds "asked", "landed" and "gone" for each move, so a stall can
+ *   VrLoader adds "asked", "landed" and "taken away" for each move, so a stall can
  *   be read against the move it belongs to.
  *
  * Mounted only in a session, and does nothing unless the log is listening

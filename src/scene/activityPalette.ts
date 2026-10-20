@@ -7,7 +7,7 @@
  *   hour on one scale for every location (0 → the most anywhere on the
  *   timeline). Its own colours held the same lightness through the first
  *   half (L* 78–82), so "quiet" and "getting busy" differed by hue alone,
- *   which the reader this is checked with does not see reliably. These
+ *   which a reader with a colour-vision difference may not see reliably. These
  *   keep the design's teal → yellow → red but fall in lightness all the
  *   way, so more people is always darker as well as warmer; the busier the
  *   street the larger the glow too, and the count is always written beside

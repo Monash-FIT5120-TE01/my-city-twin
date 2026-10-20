@@ -7,9 +7,9 @@
  * place, set the season and hour, measure a spot, stand in the street — and
  * it does them by calling the SAME state setters in App. The product's state
  * — the place, the date and hour, the measured spot — lives in App alone;
- * the panel keeps only how it is being used: which page shows, how the list
- * is sorted and which page of it, where the reader stood when it was last
- * sorted, whether it is minimised, whether leaving is being confirmed. That
+ * the panel keeps only how it is being used: which tab shows, the spot
+ * pressed on its map, what is typed in its search, whether the controls
+ * tutorial is up, whether leaving is being confirmed. That
  * is the whole design: one source of truth, two ways of reaching it, so the
  * address bar, the figures and both interfaces can never disagree about what
  * is being looked at.
@@ -59,7 +59,6 @@ export interface VrFlat {
   onLeave: () => void;
 }
 
-/** One approved development, as a row in the panel's list. */
 /**
  * What the Place card is about: a project or a building standing today, chosen on the map, in the list
  * of what stands near a spot, or by search (ProjectDoc/vr-ui-redesign/nav-search.html, 2026-10-19).

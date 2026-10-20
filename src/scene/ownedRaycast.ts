@@ -37,7 +37,7 @@ export function partBoxes(positions: ArrayLike<number>, owned: OwnedRanges): Flo
 
 /**
  * Where the ray enters the box, along it; null if it misses or the box is behind. In plain numbers, not
- * arrays: it runs for every building on every frame the beam is choosing one (Codex review, 2026-10-19).
+ * arrays: it runs for every building on every frame the beam is choosing one (review, 2026-10-19).
  */
 function enters(ray: Ray, boxes: Float32Array, i: number): number | null {
   let near = 0, far = Infinity;

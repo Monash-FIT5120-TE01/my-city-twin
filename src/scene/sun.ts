@@ -67,7 +67,7 @@ export function sunDirectionENU({ altitudeDeg, azimuthDeg }: SunAngles): Vec3ENU
 /**
  * Horizontal distance a shadow reaches from an obstruction of a given height.
  * This is the "≈79 m" measurement on the Impact Interpretation screen.
- * Undefined when the sun is at or below the horizon.
+ * Null when the sun is at or below the horizon.
  */
 export function shadowReachM(heightM: number, altitudeDeg: number): number | null {
   if (altitudeDeg <= 0) return null;

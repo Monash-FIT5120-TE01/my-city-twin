@@ -362,7 +362,7 @@ function NearSpotCard({
 // ── Search (left) ──────────────────────────────────────────────────────────
 
 /*
- * Typing in a headset: the headset's own keyboard, not one of ours (user decision, 2026-10-19). A text
+ * Typing in a headset: the headset's own keyboard, not one of ours (decided 2026-10-19). A text
  * field of the page — hidden, but in the document — is focused when the field on the card is pressed, and
  * the browser shows its system keyboard over the session; what is typed arrives as the field's value
  * (developers.meta.com, "System Keyboard in WebXR"). A browser that says it has none
@@ -1018,7 +1018,7 @@ function FlatCard({ menu, flat, known, onBack }: { menu: VrMenu; flat: VrFlat; k
   const fitsAt = (f: number) => known(flat.side, f);
   const heights = heightsOf(top, fitsAt);
   const at = (Object.keys(heights) as Height[]).find((h) => heights[h] === flat.floor) ?? null;
-  // every floor on this side known, and none fits: no jumps that would all land where it does not (Codex review, 2026-10-19)
+  // every floor on this side known, and none fits: no jumps that would all land where it does not (review, 2026-10-19)
   let noneFit = flat.side !== null;
   for (let f = 1; f <= top && noneFit; f++) if (fitsAt(f) !== false) noneFit = false;
   const go = (f: number) => flat.onFloor(Math.min(top, Math.max(1, f)));
@@ -1542,7 +1542,7 @@ function Menu({
    * A building just chosen opens on a middle floor and a side the flat fits on there, so the card opens on
    * a flat that can be gone into. Once for each answer function — a new building, or the same one once its
    * real floor count has arrived — and found through the same few-a-frame queue as everything else, not
-   * all at once on the frame the building was chosen (Codex review, 2026-10-19).
+   * all at once on the frame the building was chosen (review, 2026-10-19).
    */
   const [startedFor, setStartedFor] = useState<object | null>(null);
   const flatFits = flat?.fits ?? null;

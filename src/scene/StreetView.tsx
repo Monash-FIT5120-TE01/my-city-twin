@@ -127,7 +127,6 @@ const UP = new Vector3(0, 1, 0);
 interface StreetViewProps {
   /** Where to stand, east/north metres. */
   startEN: [number, number];
-  /** The ground under the whole model, metres AHD. */
   /** The ground (terrain.ts): the eye is held this far above it where the walker stands. Flat in the flat. */
   groundAhdM: Ground;
   /** How far from the model's centre the walker may wander. */

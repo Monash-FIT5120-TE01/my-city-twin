@@ -15,8 +15,7 @@
  *   - Before you explore: what it shows, how to read it, where the numbers
  *     come from.
  *   - Acknowledgement of Country.
- *   - Future work: the ideas not built yet. "Future plans" in the header
- *     scrolls here.
+ *   - Future work: the ideas not built yet.
  *   - The way back in: one button into the city.
  *   - The foot of the page: the mark, the name and the fine print.
  *
@@ -53,7 +52,7 @@ import { CountUp } from './kit/CountUp';
 import '../styles/landing-more.css';
 import { useT } from '../i18n/i18n';
 
-/** Where the "Future plans" link in the header goes. */
+/** The id of the future-work section, an anchor to it. ("Future plans" in the header now opens its own page.) */
 export const FUTURE_PLANS_ID = 'future-plans';
 
 /*
@@ -276,8 +275,8 @@ export function LandingMore({ onExplore }: { onExplore: () => void }) {
 
       {/*
         ── future work ─────────────────────────────────────────────
-        Focusable so "Future plans" in the header can move the keyboard here
-        as well as the eye; -1 keeps it out of the tab order.
+        Focusable so a link to it can move the keyboard here as well as the
+        eye; -1 keeps it out of the tab order.
       */}
       <section
         className="more__band more__future"

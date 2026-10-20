@@ -5,7 +5,7 @@
  * screenshotted. Nothing else reads it.
  *
  * Only the inside is checked: the flat is shown only while the reader is in
- * it, never from the city above (user decision, 2026-10-17).
+ * it, never from the city above (decided 2026-10-17).
  */
 export interface RoomCheck {
   floor: number;

@@ -12,10 +12,12 @@
  * THE STATE THAT MATTERS
  *
  *   view               which screen is showing: the front page, explore,
- *                      a project, a building, or sunlight
+ *                      a project, a building, sunlight, the comparison,
+ *                      solar, street activity, or one of the full pages
  *   selectedKey        which development, by its planning reference
  *   selectedBuildingId which existing building, if one was searched for
- *   layers             proposals on (the "after"), shadows on
+ *   layers             proposals on (the "after"), shadows, street lights,
+ *                      landmarks
  *   date               the day being simulated
  *   minutes            the time of day, as minutes since midnight
  *   receptor           the spot someone clicked to measure, if any
@@ -24,7 +26,9 @@
  *   focusMode, walking the two ways the interface is hidden
  *   playing            the sunlight screen's day, playing on its own
  *
- *   The first six of those are what the address bar carries (urlState.ts).
+ *   The address bar carries view, the chosen development or building, date,
+ *   minutes and receptor, plus the open future plan and the street activity
+ *   hour and counter (data/urlState.ts). Layers are not in it.
  *
  * WHAT IS IN HERE, TOP TO BOTTOM
  *   - The state, and the keyboard: Escape for the search, the ground and
@@ -237,7 +241,7 @@ export default function App() {
   const activitySensorsEN = useMemo(() => activityData?.sensors.map((s) => s.en) ?? [], [activityData]);
   /*
    * The Street activity map in 2D (its own flat map) or 3D (the city, with the glows on its ground), as
-   * ver-4 has it. 2D to begin with; the choice is kept in this browser.
+   * the redesigned interface has it. 2D to begin with; the choice is kept in this browser.
    */
   const [activityMapMode, setActivityMapMode] = useState<MapMode>(() => {
     try {
@@ -507,7 +511,7 @@ export default function App() {
       setRoomAt(null);
       setRoomReady(false);
     }
-    // nor half-way in, and not still "in the flat" when the next session starts (Codex review, 2026-10-19)
+    // nor half-way in, and not still "in the flat" when the next session starts (review, 2026-10-19)
     if (wasInVr.current && !inVr) {
       setVrRoomPending(false);
       setVrChoosingBuilding(false);
@@ -1003,7 +1007,7 @@ export default function App() {
   /*
    * In a headset there is no window figure for the flat to agree with (the menu has none), so the window's
    * point is left out there, as it is in the headset's list of every floor and side (flatFits): the list
-   * and the way in then give the same answer (Codex review, 2026-10-19).
+   * and the way in then give the same answer (review, 2026-10-19).
    */
   const windowForFlat = inVr ? null : (windowAt?.en ?? null);
   const flatFit = useMemo<FlatFit | null>(() => {
@@ -1050,7 +1054,7 @@ export default function App() {
   const roomPlacement = roomFit && 'placement' in roomFit ? roomFit.placement : null;
 
   /*
-   * In and out through black (user decision, 2026-10-17): 0.3 s to dark, the flat loaded and put in place
+   * In and out through black (decided 2026-10-17): 0.3 s to dark, the flat loaded and put in place
    * while it is dark ("Loading the flat" if that takes a while), 0.4 s back. Shorter, not gone, for a
    * reader who asked for less movement. No flight of the camera into the building.
    */
@@ -1101,7 +1105,7 @@ export default function App() {
   const [vrRoomPending, setVrRoomPending] = useState(false);
   /*
    * Something chosen from inside the flat — another building, a project — that would take the flat away
-   * under the reader's feet: held until the move back out has landed, then done (Codex review, 2026-10-19).
+   * under the reader's feet: held until the move back out has landed, then done (review, 2026-10-19).
    */
   const afterLeavingFlat = useRef<(() => void) | null>(null);
   const enterFlatInVr = () => {
@@ -1592,7 +1596,7 @@ export default function App() {
     window.requestAnimationFrame(() => document.getElementById('activity-title')?.focus());
   };
 
-  /** The links the header carries on the front page and the sunlight screen. */
+  /** The links the header carries on the front page, the sunlight screen and the others like them (see the header below). */
   const frontNav = (
     <>
       <button type="button" className="header__link" onClick={showFuturePlans}>
@@ -2472,8 +2476,10 @@ export default function App() {
           onQuery={setQuery}
           onSearchFocus={() => setSearchAt('header')}
           /*
-            The front page and the sunlight screen share the page's look and
-            its three links (Future plans, Explore the city, How it works).
+            The front page, the sunlight, solar and street activity screens,
+            the comparison and the full pages share the page's look and its
+            four links (Future plans, Street activity, Explore the city, How
+            it works).
             The front page and the full pages (How it works, Future plans)
             drop the layer button: there is no map on screen to layer.
             See hideLayers.
@@ -2544,7 +2550,7 @@ export default function App() {
           {t('app.explore.hint')}
         </Pill>
       )}
-      {/* the key to the city's colours, along the foot of the map (as in ver-4) */}
+      {/* the key to the city's colours, along the foot of the map (as in the redesigned interface) */}
       {!chromeHidden && view === 'explore' && <MapKey full title={t('legend.title')} className="explore-legend" />}
 
       {/*

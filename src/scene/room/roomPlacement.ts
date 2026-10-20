@@ -17,7 +17,7 @@
  *
  * When it does not fit, the answer says why, in the order that makes the
  * message true (RoomProblem). The flat is never shrunk to fit: it is the
- * user's plan, and a smaller one would not be.
+ * plan as designed, and a smaller one would not be.
  */
 import type { Massing } from '../../data/model';
 import { facadesOf, floorBaseAhdM, storeyHeightM } from '../facades';
@@ -132,7 +132,7 @@ function samplesIn(poly: [number, number][]): [number, number][] {
   /*
    * And along every edge, just inside it, every EDGE_STEP_M — corners included. Anything of another
    * building, or any gap in this one, that reaches into the flat crosses its outline, and a slot narrower
-   * than the grid is met there (Codex review, 2026-10-17). One that is wholly inside the flat and
+   * than the grid is met there (review, 2026-10-17). One that is wholly inside the flat and
    * narrower than STEP_M can still be missed; the massing has none that small that matter.
    */
   for (let i = 0; i < poly.length; i++) {
@@ -340,7 +340,7 @@ export function roomFitter(
   if (!host.length) return null;
   /*
    * By the boxes round the outlines, not by corners near a point: a long building whose every corner is
-   * far away can still run right past the flat (Codex review, 2026-10-17). The flat and its outlook reach
+   * far away can still run right past the flat (review, 2026-10-17). The flat and its outlook reach
    * at most 14 m out from the wall; fitRoom narrows this down again to what is actually near them.
    */
   const h = boxOf(host);
@@ -354,13 +354,13 @@ export function roomFitter(
     const fit = fitRoom(host, others, side, floor, floorsAboveGround, windowAtEN, groundAhdM);
     /*
      * On a slope the floors start from the low side, and a low floor on the uphill side is under the street
-     * there: the balcony would be dug into the ground (Codex review, 2026-10-18). Its floor must be at or
+     * there: the balcony would be dug into the ground (review, 2026-10-18). Its floor must be at or
      * above the ground in front of the facade.
      */
     if (fit.ok && terrain) {
       const p = fit.placement;
-      // the whole balcony, out to its rail, and the room's floor along the facade, every half metre
-      // every half metre, and the outer edges themselves (the rail at x 9.3, the balcony's north side)
+      // the whole balcony, out to its rail, and the room's floor along the facade: every half metre, and
+      // the outer edges themselves (the rail at x 9.3, the balcony's north side)
       const steps = (from: number, to: number) => [...Array.from({ length: Math.floor((to - from) / 0.5) + 1 }, (_, i) => from + i * 0.5), to];
       for (const x of steps(6.0, 9.3)) {
         for (const y of x < 7.5 ? steps(-0.1, 6.9) : steps(0.2, 3.3)) {

@@ -14,8 +14,8 @@
  *
  * IT IS AN ENHANCEMENT, NOT A REQUIREMENT
  *   The panel renders from what the model already knows — address, height,
- *   footprint — and fills in the rest if and when this arrives. A sleeping
- *   backend costs a few lines of detail, not the screen.
+ *   footprint — and fills in the rest if and when this arrives. A slow or
+ *   unreachable backend costs a few lines of detail, not the screen.
  *
  * NOTE ON NAMING
  *   Fields inside `details` are snake_case, unlike the camelCase everywhere

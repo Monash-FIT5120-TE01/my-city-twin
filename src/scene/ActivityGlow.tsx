@@ -8,7 +8,7 @@
  * on one canvas and laid on the ground — draped over the terrain (terrain.ts), not a flat sheet, since
  * the ground rises and falls across the grid. The chosen counter carries the same thin dark ring.
  *
- * Unlit, and drawn over the buildings rather than behind them (as ver-4 has it): seen at an angle the
+ * Unlit, and drawn over the buildings rather than behind them (as the redesigned interface has it): seen at an angle the
  * streets are mostly hidden behind the towers, and a glow that only showed between them was lost. The
  * colours are the palette's own rather than the sun's. A tap on it chooses the counter whose glow is on top there, as on
  * the 2D map (glowAt).

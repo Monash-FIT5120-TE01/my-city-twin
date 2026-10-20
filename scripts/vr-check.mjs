@@ -613,14 +613,14 @@ try {
   check('After the tutorial, the place list is in front of the viewer', seen.includes('Explore Melbourne'),
     `${await frameMs()} ms a frame here`);
 
-  // One menu of three cards once the tutorial is done: Places, City map, Sun & time.
+  // One menu of three cards once the tutorial is done: Map, City map, Sun & time.
   seen = await textsOnce((now) => now.includes('City map') && now.includes('Sun & time'));
   check('After the tutorial, the menu shows Map, City map and Sun & time together',
     seen.includes('Map') && seen.includes('City map') && seen.includes('Sun & time'));
   await shoot('01d-three-panels');
 
-  // Help brings the tutorial back; Skip puts it away again from any page.
-  // Help is inside More since 2026-10-19: More's middle card is the controls and the tutorial again.
+  // More > Show the tutorial again brings the tutorial back; Skip puts it away again from any page.
+  // The way back is inside More since 2026-10-19: More's middle card is the controls and the tutorial again.
   await press('More', async () => (await texts()).includes('Show the tutorial again'));
   await frames(5);
   await shoot('01e-more-and-help');

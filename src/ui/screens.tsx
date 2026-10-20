@@ -398,7 +398,7 @@ export interface Layers {
  *   room there permanently for something most readers set once and never
  *   touch again. Opened from the header it is available on every screen
  *   with the plain bar, and in the way nowhere. (The front page and the
- *   sunlight screen do not carry the button: see Header's `front`.)
+ *   full pages do not carry the button: see Header's `hideLayers`.)
  *
  * WHY THE UNAVAILABLE LAYERS ARE STILL LISTED
  *   Protected public space is user story 1.3; construction and environment
@@ -649,7 +649,7 @@ export interface ApartmentState {
   hostDemolished: boolean;
 }
 
-/** The sunlight panel's "How it works", which the header's link opens. */
+/** The id of the sunlight panel's "How it works", an anchor to it. ("How it works" in the header opens its own page.) */
 export const SUNLIGHT_HOWTO_ID = 'sunlight-howto';
 
 /**
@@ -1207,8 +1207,8 @@ export function SunlightSheet({
           -- HOW IT WORKS ---------------------------------------------------
 
           The steps, folded away at the foot of the column: read once, they
-          would be in the way on every visit after that. "How it works" in
-          the header opens this.
+          would be in the way on every visit after that. (The header's "How
+          it works" opens its own page, HowItWorksPage.)
         */}
         <details className="howto" id={SUNLIGHT_HOWTO_ID}>
           <summary>{t('sun.sheet.howItWorks')}</summary>

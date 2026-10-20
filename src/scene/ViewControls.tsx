@@ -19,7 +19,8 @@
  *   The buttons are DOM and the camera is inside the canvas, and the two
  *   cannot see each other. `ViewControlsBridge` goes inside <Canvas>, where
  *   `state.controls` exists, and hands a plain function outward through a
- *   ref. The buttons below are ordinary HTML that call it.
+ *   ref. The buttons are ordinary HTML outside the canvas (wired up in App)
+ *   that call it.
  *
  *   A ref rather than React state, deliberately: the camera moves every frame
  *   during a drag, and nothing about it should cause a render. This is the

@@ -4,10 +4,10 @@
  * A ring on the ground rather than a pin: the question is about a place on
  * the footpath, and a pin floating above it would suggest a building.
  *
- * This renders INSIDE <WorldFrame>, unlike SiteLabel and SitePin — so it
- * takes east/north/up straight, with no conversion, and needs no rotation
- * either: inside the frame the ring's own plane is already the ground plane.
- * Copying the pattern from those two put it through the conversion twice and
+ * This renders INSIDE <WorldFrame>, unlike the pin and name in SiteMarker —
+ * so it takes east/north/up straight, with no conversion, and needs no
+ * rotation either: inside the frame the ring's own plane is already the
+ * ground plane. Copying the pattern from those two put it through the conversion twice and
  * stood it on its edge. frame-boundary.test.ts now checks this mechanically.
  *
  * IT IS NOT A TARGET. Both meshes refuse the raycast.

@@ -133,7 +133,7 @@ export function CityMassing({
   const terrain = useMemo(() => terrainOf(model), [model]);
   /*
    * The building under the mouse pointer (BuildingPicker), drawn lit over the welded city, so the one a
-   * double click would open is seen first (user request, 2026-10-20). Its parts only, made when the
+   * double click would open is seen first (decided 2026-10-20). Its parts only, made when the
    * pointer moves onto another building.
    */
   const [hovered, setHovered] = useState<string | null>(null);
@@ -226,13 +226,6 @@ export function CityMassing({
   const projectsGroup = useRef<Group>(null);
 
   /*
-   * The merged city is rebuilt whenever a proposal is shown or hidden, and
-   * react-three-fiber replaces the `geometry` property without disposing the
-   * previous one. This mesh is the whole ready-built city — about 23 MiB of
-   * vertex attributes — so toggling the layer a few times used to cost that
-   * much GPU memory each time, with nothing left holding it.
-   */
-  /*
    * The headset's beam choosing a building: the merged meshes take the trigger only while it is, and are
    * tested by building box first (ownedRaycast.ts), not triangle by triangle as three does it.
    */
@@ -263,6 +256,13 @@ export function CityMassing({
         }
       : undefined;
 
+  /*
+   * The merged city is rebuilt whenever a proposal is shown or hidden, and
+   * react-three-fiber replaces the `geometry` property without disposing the
+   * previous one. This mesh is the whole ready-built city — about 23 MiB of
+   * vertex attributes — so toggling the layer a few times used to cost that
+   * much GPU memory each time, with nothing left holding it.
+   */
   useEffect(
     () => () => {
       built?.geometry.dispose();
@@ -283,9 +283,9 @@ export function CityMassing({
       />
 
       {/*
-        Everything above is the modelled city; the haze goes over all of it,
-        so a park or a road at the far edge dissolves with the ground rather
-        than staying sharp inside a fading surround.
+        Parks and squares, laid on the ground. The haze below goes over them
+        too, so a park or a road at the far edge dissolves with the ground
+        rather than staying sharp inside a fading surround.
       */}
       <OpenSpace groundAhdM={terrain} />
 
@@ -321,7 +321,7 @@ export function CityMassing({
           ref={highlightGroup}
           /*
            * The building already chosen is drawn apart from the merged city, so the beam would go through
-           * it to the one behind: it answers the trigger itself (Codex review, 2026-10-19).
+           * it to the one behind: it answers the trigger itself (review, 2026-10-19).
            */
           onClick={
             picking && highlightedBuildingId

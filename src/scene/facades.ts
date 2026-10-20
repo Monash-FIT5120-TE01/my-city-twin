@@ -272,14 +272,6 @@ export interface WindowPlace {
 }
 
 /**
- * A point just outside a given floor of a given side.
- *
- * Returns null when the floor asked for is not in the building. Clamping
- * silently to the top would answer a question nobody asked: somebody who
- * types 30 into a 17-storey building has made a mistake, and a figure handed
- * back regardless looks like a confirmation of it.
- */
-/**
  * How high off the datum a given floor sits.
  *
  * Exported because the SIDES and the POINT must be chosen at the same height
@@ -304,26 +296,24 @@ export function floorAhdM(
 export function storeyHeightM(parts: Massing[], floorsAboveGround: number | null, groundAhdM?: number): number {
   if (floorsAboveGround === null || floorsAboveGround <= 0 || parts.length === 0) return ASSUMED_FLOOR_M;
   // its storeys share out the height above the ground its floors start from (groundFloorAhdM), so the
-  // top floor on record is under the roof however far that ground is above the recorded base (Codex)
+  // top floor on record is under the roof however far that ground is above the recorded base
   const baseAhdM = groundFloorAhdM(parts, groundAhdM);
   const topAhdM = Math.max(...parts.map((part) => part.topAhdM));
   return (topAhdM - baseAhdM) / floorsAboveGround;
 }
 
 /**
- * Where the ground floor is: the street the city is drawn on, when it is given.
+ * Where the ground floor is: the street the building is drawn on, when it is given.
  *
- * The model has one flat ground (massing.ts groundElevationOf) and draws every building's lowest part
- * from it. A building whose recorded base is below that plane is drawn partly buried, and counting its
- * floors from the recorded base put the second floor under the street — a flat looking up at the
- * underside of the city (2026-10-18) — and that is most buildings: the plane is the median of all the
- * parts' bases, 29.5 m, and 1,386 of the 1,548 buildings record a base more than a metre below it. One
- * whose base is above the plane is drawn sunk down to it. Either way the building visibly starts at the
- * plane, so its floors are counted from there.
+ * Callers pass the building's ground on the real terrain (terrain.ts buildingGroundAhdM): its recorded
+ * base, but never below the lowest ground drawn round it. Counting floors from the recorded base alone
+ * put the second floor under the visible street — a flat looking up at the underside of the city
+ * (2026-10-18), at the time against one flat ground plane for the whole city. The building visibly
+ * starts at the street, so its floors are counted from there.
  *
- * The height of a storey stays the building's own (storeyHeightM, from its record), so a buried building
- * simply has fewer floors above the street, and asking for one above its roof is refused as before.
- * Without the ground (older callers, tests) the recorded base is used.
+ * The height of a storey stays the building's own (storeyHeightM, from its record), so a building whose
+ * street is above its recorded base simply has fewer floors above the street, and asking for one above
+ * its roof is refused as before. Without the ground (older callers, tests) the recorded base is used.
  */
 export function groundFloorAhdM(parts: Massing[], groundAhdM?: number): number {
   return groundAhdM ?? Math.min(...parts.map((part) => part.baseAhdM));
@@ -338,7 +328,7 @@ export function floorBaseAhdM(
   parts: Massing[],
   floor: number,
   floorsAboveGround: number | null,
-  /** The flat ground the city is drawn on (groundFloorAhdM). */
+  /** The ground the building is drawn on (groundFloorAhdM). */
   groundAhdM?: number,
 ): number | null {
   if (!Number.isInteger(floor) || floor < 1 || parts.length === 0) return null;

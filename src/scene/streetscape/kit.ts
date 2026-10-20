@@ -4,13 +4,14 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * Everything in streetscape/ is built INSIDE <WorldFrame>: x east, y north, z up, metres from the scene
- * origin, z = 0 at the ground plane (the Streetscape group is lifted to the ground's AHD). Nothing here
+ * origin, z = 0 at the ground (raised onto the real ground once built, onGround.ts). Nothing here
  * converts frames — see frame.ts.
  *
  * WHY BATCHING
  *   The CBD has thousands of small street objects (signal parts, seats, rails, planters). One mesh each
  *   would be tens of thousands of draw calls. Each piece is instead baked into its place and merged with
- *   everything else of the same material in the same 100 m cell. A cell is one draw call per material,
+ *   everything else of the same material in the same cell (CELL_M; TALL_CELL_M for poles and wires). A
+ *   cell is one draw call per material,
  *   and whole cells are hidden when the camera is far away (see Streetscape.tsx).
  *
  * WHY NO SHADOWS
@@ -41,12 +42,12 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 export type XY = [number, number];
 
 // ── unit shapes (scaled by the placement matrix) ───────────────────────────
-/** 1 x 1 x 1 box centred on the origin. */
 /**
  * Marks a geometry made once and used by every build (unit shapes, lamp heads). Disposal skips it: the
  * streetscape can be built again after an unmount, and three would only upload it again anyway.
  */
 export function shared<G extends BufferGeometry>(g: G): G { g.userData.shared = true; return g; }
+/** 1 x 1 x 1 box centred on the origin. */
 export const UNIT_BOX = shared(new BoxGeometry(1, 1, 1));
 /*
  * SIGNS: TEXT THAT READS THE RIGHT WAY ROUND
@@ -189,7 +190,7 @@ export const CELL_M = 200;
 export const TALL_CELL_M = 400;
 
 /**
- * Collects placed pieces; build() returns one Group per 100 m cell holding one merged mesh per material, plus
+ * Collects placed pieces; build() returns one Group per cell (CELL_M unless given) holding one merged mesh per material, plus
  * one instanced mesh per shared shape and material repeated at least INSTANCE_MIN times in the cell.
  * Each cell group carries its centre (east, north) and bounding radius in userData for the distance check.
  */

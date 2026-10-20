@@ -222,7 +222,7 @@ export function usableRoof(parts: Massing[], options: Partial<RoofOptions> = {})
   if (!isFinite(u0)) return result;
   u0 -= o.shift; v0 -= o.shift;
   const nx = Math.ceil((u1 - u0) / CELL) + 1, ny = Math.ceil((v1 - v0) / CELL) + 1;
-  if (nx * ny > 6e6) return result;   // nothing in the city is near this big; a bad outline is
+  if (nx * ny > 6e6) return result;   // nothing in the city is near this big; a bad outline is skipped rather than allocated
   // the highest part over each cell (index into parts, -1 for none)
   const top = new Float32Array(nx * ny).fill(-Infinity), owner = new Int16Array(nx * ny).fill(-1);
   const xs: number[] = [];

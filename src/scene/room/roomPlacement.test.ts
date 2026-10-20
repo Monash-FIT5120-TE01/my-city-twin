@@ -117,7 +117,7 @@ describe('placing the flat behind a side of a building', () => {
     expect(fitRoom(tower, across, 'East', 10, null).ok).toBe(true);
   });
 
-  // Codex review, 2026-10-17
+  // found in review, 2026-10-17
   it('a slot narrower than the sampling grid, crossing the outline: refused', () => {
     // 0.23 m wide, from outside the flat's south wall to well inside it; the 0.3 m grid steps over it
     const slotted = [part(rect(-15, -15, 15, 15), 0, 90, true, [rect(10.15, -5, 10.38, -1)])];

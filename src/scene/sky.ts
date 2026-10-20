@@ -39,7 +39,6 @@
  *   and the things standing on it. sky.test.ts holds that gap open.
  */
 
-/** Where the sun is, in the terms the rest of the scene already uses. */
 /**
  * The sky dome's radius on a monitor, metres. In a headset SkyDome scales it
  * down to fit the headset's much shorter depth range. Kept outside SkyDome.tsx
@@ -47,6 +46,7 @@
  */
 export const SKY_RADIUS_M = 7800;
 
+/** Where the sun is, in the terms the rest of the scene already uses. */
 export interface SunAnglesDeg {
   altitudeDeg: number;
   azimuthDeg: number;

@@ -9,7 +9,6 @@ interface SunArrowProps {
   sun: SunAngles;
   /** Where the arrow starts, in east/north metres. */
   anchorEN: [number, number];
-  /** Metres AHD of the road it is drawn on. */
   /** The ground (terrain.ts), or one flat height. */
   groundAhdM: Ground;
   /** Height of the thing casting, so the arrow can be as long as its shadow. */
@@ -77,7 +76,7 @@ export function SunArrow({ sun, anchorEN, groundAhdM, heightM }: SunArrowProps) 
     /*
      * Turned to the shadow's bearing (inside <WorldFrame> the shape's own plane is already horizontal),
      * put at the anchor, then laid on the ground along its whole length (drape.ts): flat at the anchor's
-     * height, it buried its head going uphill and floated going down (Codex review, 2026-10-18).
+     * height, it buried its head going uphill and floated going down (review, 2026-10-18).
      */
     const flat = new ShapeGeometry(shape);
     flat.rotateZ(groundArrowRotation(sun.azimuthDeg));

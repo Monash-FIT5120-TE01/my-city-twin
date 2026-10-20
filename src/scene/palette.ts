@@ -65,7 +65,7 @@ export interface BuildingTone {
 export const EXISTING = '#ffeedd';
 /** A building standing today under the mouse pointer: lit, so it stands out by day and by night. */
 export const HOVER_LIT = '#fff6e6';
-/** How strongly it glows: a little, so its faces keep their shading and its shape still reads, as in ver-4. */
+/** How strongly it glows: a little, so its faces keep their shading and its shape still reads, as in the redesigned interface. */
 export const HOVER_GLOW = 0.15;
 /** Rows whose height columns disagree — muted, but still standing. */
 export const UNRESOLVED = '#ddd3c6';

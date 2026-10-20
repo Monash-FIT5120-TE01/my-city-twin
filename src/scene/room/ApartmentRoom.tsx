@@ -50,7 +50,8 @@ const REFLECTION: Record<string, number> = {
  * After dark, the light the lamps throw back off the walls, the ceiling and the floor: the same soft
  * environment on every surface of the flat, at this strength once it is night. Four point lights alone
  * left the corners and everything they did not face nearly black (2026-10-18). Only the flat's own
- * materials take it, so the city outside the window stays as dark as the night.
+ * materials take it, so the city outside the window stays as dark as the night. Now 0: the night light
+ * maps (below) carry the light off the walls instead.
  */
 const NIGHT_FILL = 0;
 
@@ -129,7 +130,7 @@ function Model({ night, onReady }: { night: number; onReady?: () => void }) {
         /*
          * The uniform objects are made once and kept: the shader, compiled once and cached, holds on to
          * the ones it first saw. Making new ones on the next visit left the night light at the last
-         * visit's strength (Codex review, 2026-10-18).
+         * visit's strength (review, 2026-10-18).
          */
         mat.userData.night ??= { value: 0 };
         mat.userData.nightMap ??= { value: night };
@@ -208,7 +209,7 @@ const LAMP_REACH_M = 12;
 /*
  * A file that will not load (a dropped connection, a missing image) throws out of the model's Suspense.
  * Caught here, it is reported to App, which takes the reader back out through the fade; uncaught, the
- * screen stayed dark on "Loading the flat" (Codex review, 2026-10-18).
+ * screen stayed dark on "Loading the flat" (review, 2026-10-18).
  */
 class LoadBoundary extends Component<{ onFailed?: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };

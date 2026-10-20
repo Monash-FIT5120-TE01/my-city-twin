@@ -23,7 +23,7 @@
  *
  * WHY THE STICKS ARE READ HERE RATHER THAN BY useXRControllerLocomotion
  *   The library ships a locomotion hook and this used to use it. Two things
- *   it cannot do, both of which were asked for:
+ *   it cannot do, both of which are needed here:
  *
  *     Speed by deflection. It multiplies the raw axes by a single `speed`, so
  *     the fastest the stick can go is the only speed there is. A run at the
@@ -76,7 +76,7 @@ const RIDER_EYE_M = 1.7;
 /**
  * How fast the view turns at full deflection, degrees per second.
  *
- * Smooth turning, at the reader's request, replacing a 30° snap. It is worth
+ * Smooth turning, replacing a 30° snap. It is worth
  * being plain about the trade, because it is the one comfort decision in this
  * file that is not free: a continuously rotating view is the strongest known
  * trigger for simulator sickness — stronger than sliding — because there is
@@ -218,7 +218,7 @@ interface VrWalkProps {
   /**
    * Hold the HEAD to the walls too, not only the stick's steps: a real step across the room that would
    * put the head through a wall moves the floor back by as much. For the flat, whose walls are a stride
-   * apart and whose outside is the building cut open (Codex review, 2026-10-19). Not in the street, where
+   * apart and whose outside is the building cut open (review, 2026-10-19). Not in the street, where
    * a step into a building's corner is harmless and the tram ride moves the floor on its own.
    */
   holdHead?: boolean;
@@ -616,8 +616,8 @@ export function VrWalk({
      * Proportional: a nudge turns slowly, a shove turns quickly. Only the
      * horizontal axis turns — pitching the view is the neck's job, and doing
      * it in software is both unnecessary and a good way to make somebody ill.
-     * The vertical axis of this stick turns the panel's pages instead (see
-     * A PAGE OF THE LIST above).
+     * The vertical axis of this stick scrolls the panel's list instead (see
+     * THE BUTTONS above; VrPanel reads it itself).
      */
     if (turnBy !== 0) {
       const radians = turnBy;   // worked out above, before the tram (the same stick turns a rider)

@@ -35,7 +35,7 @@ export const PANEL_RENDER_ORDER = 5_000;
 /** The laser and its cursor: over the panel. */
 export const POINTER_RENDER_ORDER = 6_000;
 
-/** The cursor's size across, metres — at the panel's 85 cm, about 2°. */
+/** The cursor's size across, metres — at the menu's distance of a metre, about 1.7°. */
 export const CURSOR_SIZE_M = 0.03;
 
 /** The cursor's colour: the panel's ink, 17.9:1 on its white. */

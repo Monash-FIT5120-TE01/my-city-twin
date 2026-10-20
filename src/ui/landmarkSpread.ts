@@ -6,7 +6,7 @@
  * Fifty-one names do not fit on the whole CBD. So the map shows a few,
  * spread evenly, and more the nearer it is — the major places first.
  *
- * HOW (2026-10-15, agreed with the reader)
+ * HOW (decided 2026-10-15)
  *   1. An order: the major places (MAJOR) as listed, by importance; then
  *      the theatres, the big shops and the large public buildings (SECOND),
  *      then the rest — each of those two farthest-first, every next pick

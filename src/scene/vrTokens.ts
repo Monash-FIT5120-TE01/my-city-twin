@@ -34,7 +34,7 @@ export const PIXEL_M = 0.001;
 export const PANEL_ORDER = 10;
 export const CONTROL_ORDER = 11;
 
-/** The smallest thing pressed with the laser, mm: 4 degrees at 85 cm. */
+/** The smallest thing pressed with the laser, mm: about 3.4 degrees at the menu's distance of a metre. */
 export const TARGET_MM = 60;
 
 /** Characters the font has, standing in for the ones it does not. */

@@ -4,7 +4,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * WHAT THIS FILE IS
- *   A written-down copy of the staging API's response shapes. Nothing more.
+ *   A written-down copy of the backend API's response shapes. Nothing more.
  *   No conversion, no cleaning, no opinions — just what arrives.
  *
  * WHO USES IT
@@ -176,7 +176,8 @@ export interface ApiActivityHour {
 }
 
 /**
- * One counter's next twenty-four hours.
+ * One counter's forecast hours: the next twenty-four, or a week of them when
+ * asked for with hours=168 (see useStreetActivity).
  *
  * The thresholds are the counter's own: quiet up to quiet_max, busy from
  * busy_min, moderate between. Every forecast hour on 2026-10-14 obeyed that

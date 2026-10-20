@@ -51,8 +51,7 @@ interface HighlightedBuildingProps {
   buildings: BuildingMassing[];
   /** Which building to pick out, or null for none. */
   buildingId: string | null;
-  /** The floor height the city was built on, so the copy lands on the original. */
-  /** The ground (terrain.ts), or one flat height. */
+  /** The ground (terrain.ts), or one flat height, so the copy lands on the original. */
   groundAhdM: Ground;
   /**
    * A flat placed inside it (room/ApartmentRoom): the block the flat takes is

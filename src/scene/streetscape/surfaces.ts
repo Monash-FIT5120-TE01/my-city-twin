@@ -11,7 +11,7 @@
  *         strips (see WALLED), so the kerb face is there at street level.
  *         No bottom faces: nothing ever sees them.
  *   far   one mesh per material for the whole CBD: top faces only, no kerbs or channels (see NOT_FAR),
- *         pieces under 1 m2 left out, laid 5 mm lower and one step back in depth order. Always drawn, so there is
+ *         pieces under 1 m2 left out, laid 4 cm lower and two steps back in depth order. Always drawn, so there is
  *         never a seam where the near cells stop; the near cells win every depth tie over it. As precise as
  *         the near tops, so where there are no ground textures (phones, headsets) the near cells are needed
  *         only for their walls.

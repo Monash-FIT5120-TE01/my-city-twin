@@ -45,7 +45,7 @@ interface Obstacle {
   /**
    * A part that starts above the ground (not the lowest of its building), on real ground: met only where
    * the walking height there reaches it — not along its whole outline, which on a slope put an invisible
-   * wall under it on the downhill side (Codex review, 2026-10-18).
+   * wall under it on the downhill side (review, 2026-10-18).
    */
   raised?: { baseAhdM: number; topAhdM: number };
   /** Outer ring first, then any courtyards. */
@@ -103,13 +103,14 @@ export function indexObstacles(parts: readonly Part[], heightAhdM: number | Terr
      */
     const lowAt = typeof heightAhdM === 'number' ? heightAhdM : lowestUnder(heightAhdM, part.footprint) + aboveGroundM;
     // a part that starts above the ground: met if the walking height anywhere under it reaches it, from
-    // the downhill side to the uphill one (Codex review: the lowest alone let walkers through uphill)
+    // the downhill side to the uphill one (the lowest alone let walkers through uphill)
     const highAt = typeof heightAhdM === 'number' ? heightAhdM : highestUnder(heightAhdM, part.footprint) + aboveGroundM;
     /*
      * Standing height has to be inside the part's vertical span — EXCEPT for
      * the lowest part of a building, which the renderer sinks to the ground
-     * whatever its recorded base says. 7.2% of buildings record a base above
-     * the ground plane; they are drawn standing on it, and a walker has to
+     * whatever its recorded base says. Some buildings record a base above the
+     * ground under them (7.2% against the earlier flat ground plane); they are
+     * drawn standing on it, and a walker has to
      * meet the building that is actually there rather than the one the
      * column of numbers describes.
      */

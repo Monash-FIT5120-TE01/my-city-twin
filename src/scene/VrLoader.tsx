@@ -164,7 +164,7 @@ export function VrLoader({
     if (state.current.job !== job) state.current = fresh(job, now);
     const s = state.current;
 
-    // In the floor's space: the head, and where it looks along the ground.
+    // In world space: the head, and where it looks along the ground (brought into the floor's space below).
     frame.camera.getWorldPosition(head.current);
     frame.camera.getWorldDirection(ahead.current);
     const eyes = head.current;

@@ -106,9 +106,11 @@ export function MapAttribution() {
  *
  * TWO LOOKS
  *   The plain bar, with the layer button, on the explore, project and
- *   building screens. The front page's look — the page's cream, the links
- *   "Future plans", "Explore the city" and "How it works", and no layer
- *   button — on the front page and the sunlight screen (`front`, `nav`).
+ *   building screens. The front page's look — the page's cream and the links
+ *   "Future plans", "Street activity", "Explore the city" and "How it works"
+ *   — on the front page, the sunlight, solar and street activity screens,
+ *   the comparison and the full pages (`front`, `nav`). The front page and
+ *   the full pages also drop the layer button (`hideLayers`).
  *
  * WHY THE SEARCH HAS A KEY
  *   It is the one control here somebody uses repeatedly, and reaching for a
@@ -156,14 +158,14 @@ export function Header({
   /** The field here has the keyboard, so the results belong under it. */
   onSearchFocus?: () => void;
   /**
-   * The front page's look, used on the front page and the sunlight screen:
-   * the bar takes the page's cream.
+   * The front page's look, used on the front page, the sunlight screen and
+   * the others App lists: the bar takes the page's cream.
    */
   front?: boolean;
   /**
-   * No layer button — on the front page only, where there is nothing for a
-   * layer to change that the reader has asked about yet. The sunlight
-   * screen keeps it: it is the only place shadows are switched on and off,
+   * No layer button — on the front page, where there is nothing for a
+   * layer to change that the reader has asked about yet, and on the full
+   * pages, which cover the map. The sunlight screen keeps it: it is the only place shadows are switched on and off,
    * and its mark the only thing that says they were.
    */
   hideLayers?: boolean;
