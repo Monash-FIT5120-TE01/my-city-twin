@@ -125,6 +125,7 @@ export function ActivityGlow({
       ctx.arc(x, y, radiusOf(chosen.t) / M_PER_PX, 0, Math.PI * 2);
       ctx.stroke();
     }
+    // oxlint-disable-next-line react/immutability -- three's texture, repainted here; React holds no copy of it
     texture.needsUpdate = true;
   }, [glows, selectedId, box, texture]);
 
