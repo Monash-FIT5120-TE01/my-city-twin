@@ -227,6 +227,8 @@ export function MapCard({
   const look = useRef(new Vector3());
   /** The view last drawn: where a press on the picture lands. */
   const drawnView = useRef<{ centreEN: [number, number]; metresPerPx: number } | null>(null);
+  /** Where on the map the trigger went down, as a fraction across and up. */
+  const pressedUv = useRef<{ x: number; y: number } | null>(null);
 
   useFrame((state) => {
     // Built while hidden too, so the map is ready when the card first shows.
@@ -301,14 +303,24 @@ export function MapCard({
           zIndex={1}
           cursor="crosshair"
           pointerEventsOrder={CONTROL_ORDER}
+          /*
+           * Where the trigger went DOWN, not where it came up: a hand moves a little while the trigger is
+           * pulled through, and the spot followed it off the place aimed at.
+           */
+          onPointerDown={(event) => {
+            const uv = (event as unknown as { uv?: { x: number; y: number } }).uv;
+            pressedUv.current = uv ? { x: uv.x, y: uv.y } : null;
+          }}
           onClick={(event) => {
             event.stopPropagation();
-            const uv = (event as unknown as { uv?: { x: number; y: number } }).uv;
+            const uv = pressedUv.current ?? (event as unknown as { uv?: { x: number; y: number } }).uv;
+            pressedUv.current = null;
             const view = drawnView.current;
             if (!uv || !view) return;
-            // across from the left, down from the top; north is up the picture
+            // x across from the left, y UP from the bottom (as three gives uv); north is up the picture. Read
+            // as down from the top, a press on the north of the map chose a spot as far to the south.
             const dx = (uv.x - 0.5) * FRAME_W * DENSITY * view.metresPerPx;
-            const dy = (0.5 - uv.y) * FRAME_H * DENSITY * view.metresPerPx;
+            const dy = (uv.y - 0.5) * FRAME_H * DENSITY * view.metresPerPx;
             onSpot([view.centreEN[0] + dx, view.centreEN[1] + dy]);
           }}
         />}
