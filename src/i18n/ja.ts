@@ -287,7 +287,7 @@ const words: Messages = {
   "model.failed": "街を読み込めませんでした",
   "model.failedWithReason": "街を読み込めませんでした：{reason}",
 
-  "landing.hero.title": "メルボルンCBDの3Dツイン。ここに住む人、働く人、部屋を借りる人が、新しい建物でなじみの通りがどう変わるかを確かめられます。",
+  "landing.hero.title": "メルボルンCBDを3Dで。ここに住み、働く人のために。",
   "landing.hero.clearChosen": "{place}を解除",
   "landing.hero.tryStreet": "通りを選んで試す",
   "landing.hero.enterVr": "VR で入る",

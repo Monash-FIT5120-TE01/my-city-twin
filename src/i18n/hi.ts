@@ -269,7 +269,7 @@ const words: Messages = {
   "model.ready": "तैयार",
   "model.failed": "शहर लोड नहीं हो सका",
   "model.failedWithReason": "शहर लोड नहीं हो सका: {reason}",
-  "landing.hero.title": "मेलबर्न CBD का 3D डिजिटल ट्विन — यहाँ रहने, काम करने या किराए पर रहने वालों के लिए, ताकि वे देख सकें कि नई इमारतें उनकी जानी-पहचानी सड़कों को कैसे बदलती हैं।",
+  "landing.hero.title": "3D में मेलबर्न CBD — यहाँ रहने और काम करने वालों के लिए।",
   "landing.hero.clearChosen": "{place} हटाएँ",
   "landing.hero.tryStreet": "कोई सड़क आज़माएँ",
   "landing.hero.enterVr": "VR में जाएँ",

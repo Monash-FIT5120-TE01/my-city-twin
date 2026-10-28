@@ -286,7 +286,7 @@ const words: Messages = {
   "model.failed": "Không tải được thành phố",
   "model.failedWithReason": "Không tải được thành phố: {reason}",
 
-  "landing.hero.title": "Bản sao 3D của khu trung tâm Melbourne (CBD), giúp những người sống, làm việc hoặc thuê nhà ở đây thấy các tòa nhà mới thay đổi những con phố quen thuộc ra sao.",
+  "landing.hero.title": "Khu trung tâm Melbourne (CBD) dạng 3D, dành cho những người sống và làm việc ở đây.",
   "landing.hero.clearChosen": "Bỏ chọn {place}",
   "landing.hero.tryStreet": "Thử một con phố",
   "landing.hero.enterVr": "Vào bằng VR",

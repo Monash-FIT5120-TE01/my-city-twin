@@ -287,7 +287,7 @@ const words: Messages = {
   "model.failed": "Bandar tidak dapat dimuatkan",
   "model.failedWithReason": "Bandar tidak dapat dimuatkan: {reason}",
 
-  "landing.hero.title": "Kembar 3D CBD Melbourne, untuk mereka yang tinggal, bekerja atau menyewa di sini melihat bagaimana bangunan baharu mengubah jalan yang mereka kenali.",
+  "landing.hero.title": "CBD Melbourne dalam 3D, untuk mereka yang tinggal dan bekerja di sini.",
   "landing.hero.clearChosen": "Kosongkan {place}",
   "landing.hero.tryStreet": "Cuba satu jalan",
   "landing.hero.enterVr": "Masuk dalam VR",

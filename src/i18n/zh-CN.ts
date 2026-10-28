@@ -287,7 +287,7 @@ const words: Messages = {
   "model.failed": "无法加载城市",
   "model.failedWithReason": "无法加载城市：{reason}",
 
-  "landing.hero.title": "墨尔本 CBD 的 3D 数字孪生，帮助在这里居住、工作或租房的人看到新建筑会如何改变他们熟悉的街道。",
+  "landing.hero.title": "3D 呈现的墨尔本 CBD，为在这里生活和工作的人而设。",
   "landing.hero.clearChosen": "清除 {place}",
   "landing.hero.tryStreet": "试试这些街道",
   "landing.hero.enterVr": "用 VR 进入",

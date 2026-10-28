@@ -286,7 +286,7 @@ const words: Messages = {
   "model.failed": "सहर लोड गर्न सकिएन",
   "model.failedWithReason": "सहर लोड गर्न सकिएन: {reason}",
 
-  "landing.hero.title": "मेलबर्न CBD को 3D डिजिटल ट्विन — यहाँ बस्ने, काम गर्ने वा भाडामा बस्नेहरूका लागि, नयाँ भवनले चिनेका सडक कसरी बदल्छन् भनेर हेर्न।",
+  "landing.hero.title": "3D मा मेलबर्न CBD — यहाँ बस्ने र काम गर्नेहरूका लागि।",
   "landing.hero.clearChosen": "{place} हटाउनुहोस्",
   "landing.hero.tryStreet": "कुनै सडक हेर्नुहोस्",
   "landing.hero.enterVr": "VR मा जानुहोस्",

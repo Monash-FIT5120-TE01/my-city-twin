@@ -2,7 +2,7 @@
 export const landing = {
   // ── The front page's first screen
   // The page's heading: one sentence, what this is and who it is for
-  "landing.hero.title": "A 3D twin of Melbourne's CBD, for people who live, work or rent here to see how new buildings change the streets they know.",
+  "landing.hero.title": "Melbourne's CBD in 3D, for the people who live and work here.",
   // The button beside the chosen place that clears it. {place} is the place's name.
   "landing.hero.clearChosen": "Clear {place}",
   // Above three street names offered as places to start from

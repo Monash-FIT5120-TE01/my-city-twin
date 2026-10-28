@@ -287,7 +287,7 @@ const words: Messages = {
   "model.failed": "නගරය පූරණය කළ නොහැකි විය",
   "model.failedWithReason": "නගරය පූරණය කළ නොහැකි විය: {reason}",
 
-  "landing.hero.title": "මෙල්බර්න් CBD හි 3D ඩිජිටල් නිවුන් ආකෘතිය — මෙහි ජීවත් වන, වැඩ කරන හෝ කුලියට සිටින අයට, නව ගොඩනැගිලි තමන් දන්නා වීදි වෙනස් කරන ආකාරය බැලීමට.",
+  "landing.hero.title": "3D ලෙස මෙල්බර්න් CBD — මෙහි ජීවත් වන සහ වැඩ කරන අය සඳහා.",
   "landing.hero.clearChosen": "{place} ඉවත් කරන්න",
   "landing.hero.tryStreet": "වීදියක් උත්සාහ කරන්න",
   "landing.hero.enterVr": "VR හි පිවිසෙන්න",

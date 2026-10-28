@@ -286,7 +286,7 @@ const words: Messages = {
   "model.failed": "Hindi na-load ang lungsod",
   "model.failedWithReason": "Hindi na-load ang lungsod: {reason}",
 
-  "landing.hero.title": "Isang 3D na kambal ng CBD ng Melbourne, para sa mga nakatira, nagtatrabaho o umuupa rito, upang makita kung paano binabago ng mga bagong gusali ang mga kalyeng kilala nila.",
+  "landing.hero.title": "Ang CBD ng Melbourne sa 3D, para sa mga nakatira at nagtatrabaho rito.",
   "landing.hero.clearChosen": "Alisin ang {place}",
   "landing.hero.tryStreet": "Subukan ang isang kalye",
   "landing.hero.enterVr": "Pumasok sa VR",
