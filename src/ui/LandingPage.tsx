@@ -12,7 +12,7 @@
  *
  * WHAT IS ON IT
  *   - The film: the skyline drawn once, above the heading.
- *   - The heading, small, and the four things the city shows under it.
+ *   - The heading: one sentence saying what this is and who it is for.
  *   - The search: the field, its matches (rendered by App), and the row
  *     that holds the chosen place with a way to clear it.
  *   - Three streets to start from.
@@ -65,9 +65,6 @@ import { LandingMore } from './LandingMore';
 import '../styles/landing.css';
 import { formatNumber, useT } from '../i18n/i18n';
 import type { MessageKey } from '../i18n/en';
-
-/** The four things the city shows, under the heading. */
-const TOPICS = ['landing.hero.topicVr', 'landing.hero.topicSunlight', 'landing.hero.topicSolar', 'landing.hero.topicActivity'] as const;
 
 /**
  * The five ways in along the foot of the first screen, in the order App's
@@ -235,16 +232,14 @@ export function LandingPage({
         <div className="landing__hero">
           <SkylineFilm reducedMotion={reducedMotion} />
 
-          {/* Focusable from script: "Back to top" (LandingMore) gives it the keyboard. */}
-          <h1 className="landing__eyebrow landing__simple-title" id="landing-title" tabIndex={-1}>
+          {/*
+            One sentence: what this is and who it is for (2026-10-29), in
+            place of a slogan and a row of topics. Focusable from script:
+            "Back to top" (LandingMore) gives it the keyboard.
+          */}
+          <h1 className="landing__statement" id="landing-title" tabIndex={-1}>
             {t('landing.hero.title')}
           </h1>
-
-          <ul className="landing__topics" aria-label={t('landing.hero.topicsLabel')}>
-            {TOPICS.map((topic) => (
-              <li key={topic}>{t(topic)}</li>
-            ))}
-          </ul>
 
           {/*
             The search (kit/SearchField, large: the page's main way in), with

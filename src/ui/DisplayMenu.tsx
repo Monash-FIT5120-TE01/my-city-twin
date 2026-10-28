@@ -37,17 +37,21 @@ export function DisplayMenu() {
       <button
         ref={chip}
         type="button"
-        className="chip chip--icon"
+        /*
+          The mark alone, named for screen readers and on hover: a setting,
+          not a page, so it does not stand in the bar as one (2026-10-29).
+        */
+        className="chip chip--icon chip--setting"
         aria-expanded={open}
         aria-controls={`${id}-card`}
+        aria-label={t('settings.display')}
+        title={t('settings.display')}
         onClick={() => {
           setTop((chip.current?.getBoundingClientRect().bottom ?? 0) + 6);
           setOpen((now) => !now);
         }}
       >
         <Icon name="tune" size={20} />
-        {t('settings.display')}
-        <Icon name={open ? 'expand_less' : 'expand_more'} size={18} className="menu-chevron" />
       </button>
       {open && (
         <div

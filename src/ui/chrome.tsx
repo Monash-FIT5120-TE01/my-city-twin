@@ -110,8 +110,10 @@ export function MapAttribution() {
  *   "Future plans", "Street activity", "Explore the city" and "How it works"
  *   — on the front page, the sunlight, solar and street activity screens,
  *   the comparison and the full pages (`front`, `nav`). The front page and
- *   the full pages also drop the layer button (`hideLayers`), and the Future
- *   plans page the search as well (`hideSearch`): it finds plans, not places.
+ *   the full pages also drop the layer button (`hideLayers`), and the front
+ *   page and the Future plans page the search as well (`hideSearch`): the
+ *   front page has a search of its own, and Future plans finds plans, not
+ *   places.
  *
  * WHY THE SEARCH HAS A KEY
  *   It is the one control here somebody uses repeatedly, and reaching for a
@@ -139,6 +141,7 @@ export function Header({
   hideLayers = false,
   hideSearch = false,
   nav,
+  lead,
   children,
 }: {
   /** The search text — App's, shared with the front page's own field. */
@@ -178,6 +181,11 @@ export function Header({
   hideSearch?: boolean;
   /** The links set before the buttons on the right, where `front` is set. */
   nav?: React.ReactNode;
+  /**
+   * The bar's one filled button, after the settings: into the 3D twin, which
+   * the bar leads with. Absent where the twin is already on screen.
+   */
+  lead?: React.ReactNode;
   /** The search results, rendered by the caller under the field. */
   children?: React.ReactNode;
 }) {
@@ -279,6 +287,7 @@ export function Header({
         {nav}
         <DisplayMenu />
         <LanguagePicker />
+        {lead}
         {onEnterVr && (
           /*
            * The handler must BE the call — see xrStore.ts. Nothing may be

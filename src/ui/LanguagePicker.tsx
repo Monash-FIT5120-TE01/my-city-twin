@@ -59,11 +59,13 @@ export function LanguagePicker() {
       <button
         ref={chip}
         type="button"
-        className="chip chip--icon language-picker__chip"
+        // The globe and the language's code ("EN"), a setting rather than a page (2026-10-29); the name is in the label.
+        className="chip chip--icon chip--setting language-picker__chip"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={`${id}-list`}
         aria-label={`${t('header.language')}: ${current.name}`}
+        title={`${t('header.language')}: ${current.name}`}
         onClick={() => (open ? close(false) : openList())}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -73,8 +75,7 @@ export function LanguagePicker() {
         }}
       >
         <Icon name="language" size={20} />
-        <span lang={current.intl}>{current.name}</span>
-        <Icon name={open ? 'expand_less' : 'expand_more'} size={18} className="menu-chevron" />
+        <span aria-hidden="true">{current.code.split('-')[0].toUpperCase()}</span>
       </button>
       {open && (
         <ul

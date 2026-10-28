@@ -1,21 +1,14 @@
 /* The landing words in English (en.ts gathers every section). */
 export const landing = {
   // ── The front page's first screen
-  // The page's heading, drawn small in capitals above the search
-  "landing.hero.title": "Melbourne CBD. A new perspective.",
-  // Read by screen readers before the four topics under the heading
-  "landing.hero.topicsLabel": "What you can explore",
-  // Four short topics under the heading, separated by dots
-  "landing.hero.topicVr": "VR-friendly",
-  "landing.hero.topicSunlight": "Sunlight",
-  "landing.hero.topicSolar": "Rooftop solar",
-  "landing.hero.topicActivity": "Street activity",
+  // The page's heading: one sentence, what this is and who it is for
+  "landing.hero.title": "A 3D twin of Melbourne's CBD, for people who live, work or rent here to see how new buildings change the streets they know.",
   // The button beside the chosen place that clears it. {place} is the place's name.
   "landing.hero.clearChosen": "Clear {place}",
   // Above three street names offered as places to start from
   "landing.hero.tryStreet": "Try a street",
-  // The main button with no place chosen: into the 3D city
-  "landing.hero.exploreCbd": "Explore Melbourne CBD",
+  // The main button with no place chosen: into the 3D city (the same words as nav.explore)
+  "landing.hero.exploreCbd": "Explore the 3D twin",
   // The main button once a place is chosen from the search
   "landing.hero.exploreBuilding": "Explore Building",
   "landing.hero.enterVr": "Enter in VR",

@@ -110,6 +110,8 @@ import './styles/sunlight.css';
 import type { ScreenInset } from './scene/ViewInset';
 import { useReducedMotion } from './ui/useReducedMotion';
 import { Header, MapAttribution, developmentSummary } from './ui/chrome';
+import { NavMore } from './ui/NavMore';
+import { Button } from './ui/kit/Button';
 import {
   SearchResults,
   ViewControls,
@@ -1650,26 +1652,24 @@ export default function App() {
   };
 
   /** The links the header carries on the front page, the sunlight screen and the others like them (see the header below). */
+  /*
+   * The bar leads with the twin: one filled button into it (frontLead),
+   * and the other pages behind "More" rather than four links of the same
+   * weight beside it (decided 2026-10-29).
+   */
   const frontNav = (
-    <>
-      <button type="button" className="header__link" onClick={showFuturePlans}>
-        {t('nav.futurePlans')}
-      </button>
-      <button
-        type="button"
-        className="header__link"
-        aria-current={view === 'activity' ? 'page' : undefined}
-        onClick={showStreetActivity}
-      >
-        {t('nav.streetActivity')}
-      </button>
-      <button type="button" className="header__link" onClick={() => setView('explore')}>
-        {t('nav.explore')}
-      </button>
-      <button type="button" className="header__link" onClick={showHowItWorks}>
-        {t('nav.howItWorks')}
-      </button>
-    </>
+    <NavMore
+      pages={[
+        { label: t('nav.streetActivity'), icon: 'directions_walk', onOpen: showStreetActivity, current: view === 'activity' },
+        { label: t('nav.futurePlans'), icon: 'description', onOpen: showFuturePlans, current: view === 'future' },
+        { label: t('nav.howItWorks'), icon: 'question_mark', onOpen: showHowItWorks },
+      ]}
+    />
+  );
+  const frontLead = (
+    <Button arrow className="header__lead" onClick={() => setView('explore')}>
+      {t('nav.explore')}
+    </Button>
   );
 
   /** What the front page is given in both branches below. */
@@ -1730,7 +1730,9 @@ export default function App() {
             onHome={() => undefined}
             front
             hideLayers
+            hideSearch
             nav={frontNav}
+            lead={frontLead}
           />
         ) : (
           <LoadingScreen progress={progress} error={error} />
@@ -1816,6 +1818,8 @@ export default function App() {
 
   /** The front page is up — and with it the window the city is framed in. */
   const frontShown = !chromeHidden && view === 'landing';
+  /** The screens whose bar takes the front page's look, "More" and the way into the twin. */
+  const frontLook = frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown;
 
   /*
    * What the shadow is doing, in words — the time bar's caption.
@@ -2520,17 +2524,20 @@ export default function App() {
           onSearchFocus={() => setSearchAt('header')}
           /*
             The front page, the sunlight, solar and street activity screens,
-            the comparison and the full pages share the page's look and its
-            four links (Future plans, Street activity, Explore the city, How
-            it works).
+            the comparison and the full pages share the page's look, "More"
+            (Street activity, Future plans, How it works) and the filled way
+            into the twin.
             The front page and the full pages (How it works, Future plans)
             drop the layer button: there is no map on screen to layer.
             See hideLayers.
+            The front page has its own search, so the bar's would be a
+            second one; the Future plans page finds plans, not places.
           */
-          front={frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown}
+          front={frontLook}
           hideLayers={frontShown || pageShown}
-          hideSearch={futureShown}
-          nav={frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown ? frontNav : undefined}
+          hideSearch={frontShown || futureShown}
+          nav={frontLook ? frontNav : undefined}
+          lead={frontLook ? frontLead : undefined}
           layersOpen={layersOpen}
           /*
             How many layers are switched off. A city drawn without shadows,

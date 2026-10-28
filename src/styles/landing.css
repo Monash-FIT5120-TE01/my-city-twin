@@ -417,29 +417,74 @@
   border-bottom-color: var(--cream-edge);
 }
 
-.header__link {
+/*
+ * The bar leads with the twin (2026-10-29): "More", the two settings as
+ * marks, and one filled button into the twin, last, where the eye ends.
+ */
+.header__actions {
+  align-items: center;
+}
+
+.header__lead {
+  min-height: 40px;
+  padding-inline: var(--space-4);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* A setting, as a mark (and the language's code): square, with room to press. */
+.chip--setting {
+  min-width: 40px;
+  min-height: 40px;
+  justify-content: center;
+  padding-inline: var(--space-2);
+}
+
+.nav-more {
+  position: relative;
+}
+
+/* "More" is where the page on screen is, when it is one of its pages. */
+.nav-more__chip--current {
+  color: var(--green-700);
+}
+
+.nav-more__list {
+  width: max-content;
+  min-width: 13rem;
+  list-style: none;
+}
+
+.nav-more__page {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
   min-height: 44px;
-  padding: 0 var(--space-3);
+  padding: 6px 10px;
   border: 0;
   border-radius: var(--radius-control);
   background: none;
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   font-weight: var(--weight-label);
   color: var(--ink);
+  text-align: left;
   cursor: pointer;
-  /*
-   * Two lines rather than one long one, where a language's words for it are long (Filipino, Sinhala):
-   * on one line they pushed the search field down to a few letters.
-   */
-  max-width: 7.5rem;
-  line-height: 1.15;
-  text-align: center;
-  text-wrap: balance;
 }
 
-.header__link:hover {
+.nav-more__page:hover,
+.nav-more__page:focus-visible {
   background: var(--green-050);
+}
+
+.nav-more__page[aria-current='page'] {
+  color: var(--green-700);
+}
+
+.nav-more__tick {
+  margin-left: auto;
+  color: var(--green-700);
 }
 
 /*
@@ -448,7 +493,8 @@
  * the one kept; the bar stays one row, the height the page is laid out for.
  */
 @media (max-width: 900px) {
-  .header__link {
+  /* The front page's own button into the twin is on screen, under its sentence. */
+  .app:has(.landing) .header__lead {
     display: none;
   }
 
@@ -501,43 +547,6 @@
   z-index: 4;
   gap: 20px;
   padding: clamp(24px,3.8vw,60px);
-}
-
-.landing__eyebrow {
-  text-transform: uppercase;
-  letter-spacing: .18em;
-  color: #48654c;
-  margin: 0 0 4px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.landing__topics {
-  font-family: var(--font-display);
-  letter-spacing: -.01em;
-  color: #5d7867;
-  flex-wrap: wrap;
-  align-items: center;
-  row-gap: 4px;
-  margin: 0;
-  padding: 0;
-  font-size: clamp(12px,1vw,15px);
-  font-weight: 600;
-  line-height: 1.5;
-  list-style: none;
-  display: flex;
-}
-
-.landing__topics li {
-  white-space: nowrap;
-}
-
-.landing__topics li+li:before {
-  content: "·";
-  opacity: .65;
-  margin-inline: .55em;
-  font-weight: 400;
-  display: inline-block;
 }
 
 .landing__hero>.landing__skyline {
@@ -1043,12 +1052,6 @@
   }
 }
 
-@media (width<=900px),(height<=640px) {
-  .landing__topics {
-    font-size: 14px;
-  }
-}
-
 @media (width>=901px) and (height>=641px) and (height<=760px) {
   .landing__hero {
     gap: 8px;
@@ -1063,27 +1066,32 @@
   }
 }
 
-.landing__hero>.landing__simple-title {
-  letter-spacing: .055em;
-  margin: 20px 0 36px;
-  font-size: clamp(18px,1.48vw,24px);
-  font-weight: 700;
-  line-height: 1.55;
+/* The sentence that says what this is and who it is for: the page's heading, in sentence case. */
+.landing__hero>.landing__statement {
+  max-width: 30ch;
+  margin: 20px 0 28px;
+  font-family: var(--font-display);
+  font-size: clamp(22px,1.9vw,30px);
+  font-weight: var(--weight-title);
+  line-height: 1.3;
+  letter-spacing: -.01em;
+  color: var(--ink-green-900);
+  text-wrap: pretty;
 }
 
 @media (width<=900px),(height<=640px) {
-  .landing__hero>.landing__simple-title {
-    margin: 14px 0 24px;
-    font-size: 20px;
+  .landing__hero>.landing__statement {
+    margin: 14px 0 20px;
+    font-size: 21px;
   }
 }
 
 /* The heading takes the keyboard after "Back to top": a ring for a keyboard user only. */
-.landing__simple-title:focus {
+.landing__statement:focus {
   outline: none;
 }
 
-.landing__simple-title:focus-visible {
+.landing__statement:focus-visible {
   outline: 2px solid var(--green-700);
   outline-offset: 4px;
   border-radius: 4px;
