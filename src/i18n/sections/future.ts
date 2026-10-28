@@ -47,6 +47,20 @@ export const future = {
   // A tag on a plan outside the CBD, out in the suburbs.
   "future.card.wider": "Wider Melbourne",
 
+  // A plan on the 3D map (PlanMapSheet), and the button into it on the plan's page. {place} is a place name, the same in every language.
+  "future.map.show": "See it on the 3D map",
+  "future.map.back": "Back to the plan",
+  "future.map.onMap": "On the 3D map",
+  "future.map.highlighted": "Highlighted: {place}",
+  "future.map.grid": "Drawn on the model's own street grid.",
+  "future.map.traced": "Traced along the gap between the model's own buildings.",
+  "future.map.approx": "Placed by hand from the plan's own description, so the position is approximate.",
+  "future.map.beyond": "Past the 3D buildings, so it is shown on the base map only.",
+  "future.map.noShape": "The data has no 3D shape for this plan, so there is no today and once-built view to switch between yet.",
+  "future.map.noneCitywide": "Not on the 3D map: it covers many streets across the city.",
+  "future.map.noneWider": "Not on the 3D map: it is outside the area the twin covers.",
+  "future.map.noneUnknown": "Not on the 3D map yet: its sources do not say exactly where it is.",
+
   // One plan's page: questions and saved answers shown like a chat.
   "future.talk.eyebrow": "A little city conversation",
   "future.talk.back": "Choose another plan",

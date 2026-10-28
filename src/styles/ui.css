@@ -2066,6 +2066,10 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
+  /* A long name (a future plan's) stops short of the screen's edges rather than running off them. */
+  max-width: min(80vw, 34rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
   user-select: none;
 }
 

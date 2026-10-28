@@ -37,6 +37,7 @@ import { Button } from './kit/Button';
 import { Icon } from './kit/Icon';
 import { ChevronLeft } from './kit/icons';
 import { PageHead } from './kit/PageHead';
+import { planPlaceFor } from './planPlaces';
 import { Pill } from './kit/Pill';
 import { TextButton } from './kit/TextButton';
 import { useReducedMotion } from './useReducedMotion';
@@ -78,10 +79,25 @@ export function relatedPlans(plan: FuturePlan, all: FuturePlan[]): FuturePlan[] 
 export function FuturePlansPage({
   openId,
   onOpen,
+  onShowOnMap,
+  onOpenPlan,
+  hidden = false,
 }: {
   /** The plan whose conversation is open; null for the list. App keeps it, for the address bar. */
   openId: number | null;
   onOpen: (id: number | null) => void;
+  /** "See it on the 3D map": App flies the city to the open plan's place (PlanMapSheet). */
+  onShowOnMap: () => void;
+  /**
+   * The open plan, once the list has it, or null: App places it by its name,
+   * and a link with &map=1 cannot until the list has loaded.
+   */
+  onOpenPlan: (plan: FuturePlan | null) => void;
+  /**
+   * The map is up instead. Hidden rather than taken down, so the questions
+   * asked and the list's filters are still there on the way back.
+   */
+  hidden?: boolean;
 }) {
   const t = useT();
   const plans = useFuturePlans();
@@ -91,6 +107,9 @@ export function FuturePlansPage({
   const setOpenId = onOpen;
 
   const open = plans.status === 'ready' ? (plans.data.find((p) => p.id === openId) ?? null) : null;
+  useEffect(() => {
+    onOpenPlan(open);
+  }, [open, onOpenPlan]);
 
   // A new state starts at the top of the page.
   useEffect(() => {
@@ -98,7 +117,7 @@ export function FuturePlansPage({
   }, [openId]);
 
   return (
-    <section className="page future" aria-labelledby="future-page-title" ref={page}>
+    <section className="page future" aria-labelledby="future-page-title" ref={page} hidden={hidden}>
       <div className="future__inner">
         {open && plans.status === 'ready' ? (
           <Conversation
@@ -107,6 +126,7 @@ export function FuturePlansPage({
             related={relatedPlans(open, plans.data)}
             onBack={() => setOpenId(null)}
             onOpen={setOpenId}
+            onShowOnMap={onShowOnMap}
           />
         ) : (
           <div className="future__state">
@@ -161,13 +181,17 @@ function Conversation({
   related,
   onBack,
   onOpen,
+  onShowOnMap,
 }: {
   plan: FuturePlan;
   related: FuturePlan[];
   onBack: () => void;
   onOpen: (id: number) => void;
+  onShowOnMap: () => void;
 }) {
   const t = useT();
+  /** Where the plan is on the twin, or why it is not on it (planPlaces). */
+  const place = planPlaceFor(plan);
   const questions = useFuturePlanQuestions(plan.id);
   const reducedMotion = useReducedMotion();
   /** The questions asked, in the order they were asked. */
@@ -252,6 +276,20 @@ function Conversation({
           <Pill size="xs" className="future__plan-wider">
             {t('future.card.wider')}
           </Pill>
+        )}
+        {/*
+          Where the plan is, on the twin: the one way from this page into
+          the city. A plan with no place says why instead (planPlaces).
+        */}
+        {place.onMap ? (
+          <Button className="future__map" icon={<Icon name="location_on" size={20} />} onClick={onShowOnMap}>
+            {t('future.map.show')}
+          </Button>
+        ) : (
+          <p className="future__map-none">
+            <Icon name="info" size={18} />
+            {t(place.why === 'citywide' ? 'future.map.noneCitywide' : place.why === 'wider' ? 'future.map.noneWider' : 'future.map.noneUnknown')}
+          </p>
         )}
         <Button variant="ghost" className="future__choose" icon={<ChevronLeft />} onClick={onBack}>
           {t('future.talk.back')}

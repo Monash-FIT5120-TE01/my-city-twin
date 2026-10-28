@@ -88,6 +88,8 @@ import { StreetLabels } from './StreetLabels';
 import { LandmarkTags } from './LandmarkTags';
 import type { Landmark } from '../data/landmarks';
 import { SiteMarker, type SiteMarkerSubject } from './SiteMarker';
+import { PlanHighlight } from './PlanHighlight';
+import type { PlanShape } from '../ui/planPlaces';
 import { SunArrow } from './SunArrow';
 import { CameraRig } from './CameraRig';
 import { VrWalk } from './VrWalk';
@@ -221,6 +223,8 @@ interface SceneCanvasProps {
   marker: SiteMarkerSubject | null;
   /** The place card, drawn beside the marked building instead of its pin. */
   markerCard?: ReactNode;
+  /** A future plan's street or area, lit on the ground (PlanHighlight). Null otherwise. */
+  planShapes?: readonly PlanShape[] | null;
   /** The named places, tagged on their buildings. Empty when the layer is off. See LandmarkTags. */
   landmarks?: readonly Landmark[];
   /**
@@ -247,7 +251,14 @@ interface SceneCanvasProps {
    * Where to point the camera, if not at the focused development — used when
    * a search result is an existing building rather than a proposal.
    */
-  lookAt: { east: number; north: number; heightM: number } | null;
+  /**
+   * distanceM: how far back to stand, when the caller has fitted it to what
+   * must be in view (a plan's whole street), rather than from heightM.
+   * elevationDeg: how steeply to look down, when not the usual 38°. A future
+   * plan's street is lit on the ground between towers, and at 38° the towers
+   * in front of it hide it (PlanHighlight).
+   */
+  lookAt: { east: number; north: number; heightM: number; elevationDeg?: number; distanceM?: number } | null;
   /**
    * True for the city's first moment on the front page — hold the camera
    * back, high and far.
@@ -349,6 +360,7 @@ export function SceneCanvas({
   refit,
   inset,
   insetOn = false,
+  planShapes = null,
   noHeadset = false,
   link = null,
   timeLabel,
@@ -363,6 +375,14 @@ export function SceneCanvas({
   // the ground at its real heights (terrain.ts); `ground` is one reference height for what has not moved onto it
   const terrain = useMemo(() => terrainOf(model), [model]);
   const groundOf = useMemo(() => (e: number, n: number) => heightAt(terrain, e, n), [terrain]);
+  /** Every footprint, standing and approved, for a future plan's band to keep off (PlanHighlight). */
+  const planFootprints = useMemo(
+    () => [
+      ...model.buildings.flatMap((building) => building.footprint),
+      ...model.developments.flatMap((development) => development.parts.flatMap((part) => part.footprint)),
+    ],
+    [model],
+  );
 
   /*
    * Frame on whatever was last asked for: a searched building if there is
@@ -408,7 +428,7 @@ export function SceneCanvas({
   );
   const settled = wholeCity
     ? citySpan * 1.2
-    : Math.max(430, subjectHeight * 3.1);
+    : (lookAt?.distanceM ?? Math.max(430, subjectHeight * 3.1));
 
   /*
    * ── THE DESCENT ─────────────────────────────────────────────────────────
@@ -440,7 +460,7 @@ export function SceneCanvas({
   const APPROACH_ELEVATION_DEG = 52;
 
   const eye = approach ? settled * APPROACH_BACK : settled;
-  const ELEVATION = (approach ? APPROACH_ELEVATION_DEG : 38) * (Math.PI / 180);
+  const ELEVATION = (approach ? APPROACH_ELEVATION_DEG : (lookAt?.elevationDeg ?? 38)) * (Math.PI / 180);
   const BEARING = 150 * (Math.PI / 180);
   const horizontal = Math.cos(ELEVATION);
   // Both the camera and what it looks at are measured from the same height,
@@ -886,6 +906,9 @@ export function SceneCanvas({
               groundAhdM={terrain}
               heightM={subjectHeight}
             />
+          )}
+          {planShapes && planShapes.length > 0 && (
+            <PlanHighlight shapes={planShapes as PlanShape[]} footprints={planFootprints} groundAhdM={terrain} />
           )}
         </WorldFrame>
 

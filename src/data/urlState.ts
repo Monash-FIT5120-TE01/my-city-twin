@@ -68,6 +68,8 @@ export interface UrlState {
   receptor: [number, number] | null;
   /** The future plan whose conversation is open (?view=future&plan=3). */
   planId: number | null;
+  /** That plan shown on the 3D map rather than its page (&map=1). */
+  planMap?: boolean;
   /**
    * The street activity's hour, as the instant it starts
    * (?view=activity&hour=2026-10-14T07:00:00.000Z). Not `at`, which is the
@@ -162,6 +164,7 @@ export function readUrlState(now: Date = new Date()): UrlState {
     nowNote: statedTime ? null : outsideWindowNote(moment),
     receptor: readReceptor(params.get('at')),
     planId: resolved === 'future' ? readPlanId(params.get('plan')) : null,
+    planMap: resolved === 'future' && params.get('plan') !== null && params.get('map') === '1',
     activityHour: resolved === 'activity' ? readHour(params.get('hour')) : null,
     // The same digits-only rule as a plan's id.
     sensorId: resolved === 'activity' ? readPlanId(params.get('sensor')) : null,
@@ -217,7 +220,10 @@ export function writeUrlState(state: Omit<UrlState, 'nowNote'>): void {
     }
   }
 
-  if (state.view === 'future' && state.planId !== null) params.set('plan', String(state.planId));
+  if (state.view === 'future' && state.planId !== null) {
+    params.set('plan', String(state.planId));
+    if (state.planMap) params.set('map', '1');
+  }
   if (state.view === 'activity') {
     if (state.activityHour != null) params.set('hour', new Date(state.activityHour).toISOString());
     if (state.sensorId != null) params.set('sensor', String(state.sensorId));

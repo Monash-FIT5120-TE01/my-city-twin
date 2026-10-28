@@ -93,6 +93,9 @@ import { DemoNote } from './ui/kit/DemoNote';
 import { Pill } from './ui/kit/Pill';
 import { ComparePage, type FrameRect } from './ui/ComparePage';
 import { FuturePlansPage } from './ui/FuturePlansPage';
+import { PlanMapSheet } from './ui/PlanMapSheet';
+import { planPlaceFor } from './ui/planPlaces';
+import type { FuturePlan } from './data/useFuturePlans';
 import { TramHint } from './ui/TramHint';
 import { TramAim } from './ui/TramAim';
 import { WalkPaceHint } from './ui/WalkPaceHint';
@@ -176,6 +179,31 @@ function nowNoteFor(moment: PresentMoment): NowNote | null {
   return moment.clamped ? (say) => outsideWindowNote(moment, say) ?? '' : null;
 }
 
+/** How steeply the camera looks down on a future plan's place (SceneCanvas lookAt). */
+const PLAN_ELEVATION_DEG = 68;
+
+/**
+ * How far back to stand for a future plan's place to fit on screen: its
+ * length across the width left beside the panel, or down the height left
+ * above it on a phone, whichever needs more, with a margin. The lens is
+ * SceneCanvas's 30° vertical field of view; looking down at 68°, the ground
+ * seen top to bottom is stretched by 1 / sin 68°. A span divided by a
+ * constant, as before, cut long streets off at both ends (review,
+ * 2026-10-29).
+ */
+function planCameraDistance(spanM: number): number {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const halfV = (15 * Math.PI) / 180;
+  const halfH = Math.atan(Math.tan(halfV) * (width / height));
+  // the side panel takes about 400 px on a wide screen; on a phone it is a sheet over the lower part
+  const shareW = width > 900 ? Math.max(0.4, (width - 400) / width) : 0.95;
+  const shareH = width > 900 ? 0.9 : 0.45;
+  const acrossM = 2 * Math.tan(halfH) * shareW;
+  const downM = ((2 * Math.tan(halfV)) / Math.sin((PLAN_ELEVATION_DEG * Math.PI) / 180)) * shareH;
+  return Math.max(430, (spanM * 1.15) / Math.min(acrossM, downM));
+}
+
 export default function App() {
   // the interface's words in the language chosen (i18n/); App is drawn again when it changes
   const t = useT();
@@ -211,6 +239,10 @@ export default function App() {
   const [receptor, setReceptor] = useState<[number, number] | null>(initial.receptor);
   /** The future plan whose conversation is open, on the Future plans page. */
   const [planId, setPlanId] = useState<number | null>(initial.planId);
+  /** That plan, as the plans page has it once the list has loaded (its name is what places it). */
+  const [openPlan, setOpenPlan] = useState<FuturePlan | null>(null);
+  /** Its place shown on the 3D map rather than its page (PlanMapSheet); &map=1 in the link. */
+  const [planMapOn, setPlanMapOn] = useState(initial.planMap ?? false);
 
   /*
    * ── STREET ACTIVITY ─────────────────────────────────────────────────────
@@ -825,11 +857,12 @@ export default function App() {
       minutes,
       receptor,
       planId,
+      planMap: planMapOn,
       // Written once there is an hour to write; until then the link's own stays.
       activityHour: activityAt ?? activityHour,
       sensorId,
     });
-  }, [view, focus, foundBuilding, hasChosen, date, minutes, receptor, planId, activityAt, activityHour, sensorId]);
+  }, [view, focus, foundBuilding, hasChosen, date, minutes, receptor, planId, planMapOn, activityAt, activityHour, sensorId]);
 
   // Only requested once a project is actually open, so the landing screen
   // never waits on a sleeping API.
@@ -1591,6 +1624,7 @@ export default function App() {
   const showFuturePlans = () => {
     setLayersOpen(false);
     setPlanId(null);
+    setPlanMapOn(false);
     setView('future');
   };
 
@@ -1815,13 +1849,29 @@ export default function App() {
    */
   const futureShown = !chromeHidden && !inVr && view === 'future';
 
+  /**
+   * A plan's place on the 3D map, in place of its page: the city flown to it
+   * and the place lit (planPlaces, PlanHighlight). Only for the plan whose
+   * page it was opened from, and only one the map can show.
+   */
+  const planOnMap = (() => {
+    /*
+     * On the Future plans view whether or not the chrome is up: focus mode
+     * hides the panel, not the place, and must not take down the plans page
+     * underneath (with the questions asked in it) either.
+     */
+    if (view !== 'future' || inVr || !planMapOn || !openPlan || openPlan.id !== planId) return null;
+    const placed = planPlaceFor(openPlan);
+    return placed.onMap ? { plan: openPlan, place: placed } : null;
+  })();
+
   /** A full cream page covers the city: no map controls, no map credit. */
-  const pageShown = futureShown;
+  const pageShown = futureShown && !planOnMap;
 
   /** The front page is up — and with it the window the city is framed in. */
   const frontShown = !chromeHidden && view === 'landing';
   /** The screens whose bar takes the front page's look, "More" and the way into the twin. */
-  const frontLook = frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || pageShown;
+  const frontLook = frontShown || view === 'sunlight' || view === 'solar' || view === 'activity' || compareShown || futureShown;
 
   /*
    * What the shadow is doing, in words — the time bar's caption.
@@ -2120,7 +2170,8 @@ export default function App() {
       >
         <SceneCanvas
           model={model}
-          focus={focus}
+          // a plan on the map is about a place, not the proposal chosen before
+          focus={planOnMap ? null : focus}
           sun={sun}
           /*
            * Held back for the city's first moment on the front page, then
@@ -2195,7 +2246,8 @@ export default function App() {
                 }
               : undefined
           }
-          highlightedBuildingId={foundBuilding?.buildingId ?? null}
+          // not a building searched before: with a plan's place up it would read as part of the plan
+          highlightedBuildingId={planOnMap ? null : (foundBuilding?.buildingId ?? null)}
           showHighlighted
           solar={solarScene}
           /*
@@ -2203,7 +2255,14 @@ export default function App() {
             is.
           */
           marker={
-            place
+            planOnMap
+              ? {
+                  anchorEN: planOnMap.place.pin,
+                  topAhdM: (terrain ? heightAt(terrain, ...planOnMap.place.pin) : groundAhdM) + 6,
+                  label: planOnMap.plan.name,
+                  kind: 'building',
+                }
+              : place
               ? {
                   anchorEN: place.anchorEN,
                   topAhdM: place.topAhdM,
@@ -2212,7 +2271,8 @@ export default function App() {
                 }
               : null
           }
-          markerCard={placeCard('anchored')}
+          markerCard={planOnMap ? undefined : placeCard('anchored')}
+          planShapes={planOnMap?.place.shapes ?? null}
           landmarks={layers.landmarks ? landmarks : []}
           // The street activity screen covers the city with its own flat map in 2D; the city sleeps under it.
           // In 3D the city is the map, with the glows on its ground.
@@ -2228,7 +2288,20 @@ export default function App() {
             const building = buildingEntry(model, buildingId);
             if (building) openBuilding(building);
           }}
-          lookAt={lookAt}
+          lookAt={
+            planOnMap
+              ? {
+                  east: planOnMap.place.pin[0],
+                  north: planOnMap.place.pin[1],
+                  // aimed a little above the street (40 m × 0.35), not up a tower
+                  heightM: 40,
+                  // steeply down, so the street between the towers is in view
+                  elevationDeg: PLAN_ELEVATION_DEG,
+                  // stood back far enough to take the whole street or area in
+                  distanceM: planCameraDistance(planOnMap.place.spanM),
+                }
+              : lookAt
+          }
           // Focus mode is for looking. Leaving the meshes clickable meant an
           // invisible click could change the subject with nothing on screen
           // to show that it had. The comparison screen is for looking too.
@@ -2656,7 +2729,34 @@ export default function App() {
       )}
 
       {/* ── FUTURE PLANS: the plans and their guided questions ──────────── */}
-      {futureShown && <FuturePlansPage openId={planId} onOpen={setPlanId} />}
+      {/*
+        Mounted for the whole Future plans view, and hidden rather than taken
+        down while focus mode or the map is up: the questions asked live in
+        it, and coming back has to find them.
+      */}
+      {view === 'future' && !inVr && (
+        <FuturePlansPage
+          openId={planId}
+          onOpen={(id) => {
+            setPlanMapOn(false);
+            setPlanId(id);
+          }}
+          onOpenPlan={setOpenPlan}
+          onShowOnMap={() => setPlanMapOn(true)}
+          hidden={!futureShown || planOnMap !== null}
+        />
+      )}
+      {planOnMap && !chromeHidden && (
+        <PlanMapSheet
+          plan={planOnMap.plan}
+          place={planOnMap.place}
+          onBack={() => {
+            setPlanMapOn(false);
+            // back to the button that opened the map, as the page shows again
+            window.requestAnimationFrame(() => document.querySelector<HTMLElement>('.future__map')?.focus());
+          }}
+        />
+      )}
 
       {!chromeHidden && view === 'solar' && foundBuilding && (
         <SolarSheet

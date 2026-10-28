@@ -1248,3 +1248,65 @@
     padding: var(--space-3) var(--space-4);
   }
 }
+
+/* ── a plan on the 3D map (PlanMapSheet) ───────────────────── */
+
+/* On the plan's page: the way into the city, under its name. */
+.future__map {
+  justify-self: start;
+}
+
+/* Or why it is not on the map: a line in the page's grey, with the info mark. */
+.future__map-none {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: 60ch;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.future__map-none svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/*
+ * The panel's title takes the keyboard when the map opens (PlanMapSheet), so
+ * a screen reader starts there. It is not a control, so no ring is drawn.
+ */
+.plan-map__title:focus {
+  outline: none;
+}
+
+/* What is lit, and how good its position is: the panel's one card. */
+.plan-map__card {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--green-050);
+  color: var(--ink-green-900);
+}
+
+.plan-map__where {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: var(--weight-label);
+  line-height: 1.4;
+}
+
+.plan-map__where .swatch {
+  flex: none;
+  margin-top: 4px;
+}
+
+.plan-map__note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
