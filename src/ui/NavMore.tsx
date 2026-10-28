@@ -3,7 +3,9 @@
  * Future plans, How it works), behind one chip, so the bar leads with the
  * twin rather than listing them all with the same weight beside it
  * (decided 2026-10-29). The card is the header's own (.menu-card), as the
- * display and language menus beside it are.
+ * display and language menus beside it are. On a phone the way into the
+ * twin is listed first as well, since the bar has no room for its button
+ * there (narrowOnly, landing.css).
  *
  * Each page is a plain button in a list: Tab moves through them, Escape
  * closes the card and gives the keyboard back to the chip, and a click
@@ -19,6 +21,8 @@ export interface NavPage {
   icon: IconName;
   onOpen: () => void;
   current?: boolean;
+  /** Listed only on a phone, where the bar has no room for it as a button of its own (landing.css). */
+  narrowOnly?: boolean;
 }
 
 export function NavMore({ pages }: { pages: NavPage[] }) {
@@ -33,7 +37,8 @@ export function NavMore({ pages }: { pages: NavPage[] }) {
 
   useEffect(() => {
     if (!open) return;
-    card.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    // the first one shown: on a wide screen the first is the phone-only way into the twin
+    [...(card.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((b) => b.offsetParent !== null)?.focus();
     const away = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -73,7 +78,7 @@ export function NavMore({ pages }: { pages: NavPage[] }) {
           }}
         >
           {pages.map((page) => (
-            <li key={page.label}>
+            <li key={page.label} className={page.narrowOnly ? 'nav-more__narrow' : undefined}>
               <button
                 type="button"
                 className="nav-more__page"

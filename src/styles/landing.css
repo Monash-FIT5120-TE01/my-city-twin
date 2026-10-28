@@ -488,10 +488,30 @@
 }
 
 /*
+ * The way into the twin in the bar (.header__lead): on a phone the bar has
+ * no room for it. Beside "More" and the two settings it pushed the bar onto
+ * a second row, over the map (seen at 390 px, 2026-10-29). There it is the
+ * first page in "More" instead (NavMore, narrowOnly).
+ */
+@media (max-width: 600px) {
+  .header__lead {
+    display: none;
+  }
+}
+
+/* That page in "More" only where the bar's own button is hidden. */
+@media (min-width: 601px) {
+  .nav-more__narrow {
+    display: none;
+  }
+}
+
+/*
  * On a phone the bar's field would be the second of two identical fields on
  * one screen, and it would put the bar on two rows. The page's own field is
  * the one kept; the bar stays one row, the height the page is laid out for.
  */
+
 @media (max-width: 900px) {
   /* The front page's own button into the twin is on screen, under its sentence. */
   .app:has(.landing) .header__lead {

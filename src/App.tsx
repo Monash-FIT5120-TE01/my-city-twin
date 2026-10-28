@@ -1660,6 +1660,8 @@ export default function App() {
   const frontNav = (
     <NavMore
       pages={[
+        // on a phone, where frontLead does not fit in the bar
+        { label: t('nav.explore'), icon: 'apartment', onOpen: () => setView('explore'), narrowOnly: true },
         { label: t('nav.streetActivity'), icon: 'directions_walk', onOpen: showStreetActivity, current: view === 'activity' },
         { label: t('nav.futurePlans'), icon: 'description', onOpen: showFuturePlans, current: view === 'future' },
         { label: t('nav.howItWorks'), icon: 'question_mark', onOpen: showHowItWorks },
