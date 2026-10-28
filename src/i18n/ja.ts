@@ -223,7 +223,7 @@ const words: Messages = {
   "loading.progressLabel": "街のモデルを読み込み中",
   "loading.credits": "Building Footprints 2023 および Development Activity Monitor © City of Melbourne。Draft Open Space Data © Victorian Planning Authority。いずれも CC BY 4.0 で提供。",
 
-  "kit.demoNote": "説明用のモデル · デモデータ",
+  "kit.demoNote": "説明用のモデル · City of Melbourne building footprints",
   "kit.analysisNav": "この建物で調べること",
   "kit.sunlight": "日当たり",
   "kit.solarPanels": "ソーラーパネル",
@@ -366,7 +366,7 @@ const words: Messages = {
   "solar.plans.switchNote": "完成し、建て替え対象の建物は取り壊された状態",
   "solar.plans.replaced": "承認済みの開発計画で、この建物は建て替えられます。",
   "solar.plans.noneNearby": "この屋上から見て仰角が 2° 以上になる計画はないため、日陰の計算には含めていません。",
-  "solar.plans.measuring": "完成後の状態で屋上を計測中… {pct}%",
+  "solar.plans.measuring": "完成後の状態で屋上を計算中… {pct}%",
   "solar.plans.noChange": "パネルの枚数にも発電量にも変化はありません。",
   "solar.plans.tinyChange": "パネルの枚数は同じで、発電量の変化は 0.5% 未満です。",
   "solar.plans.newRoom": "現在は 1 枚も置けない屋上に、<b>新たに</b>パネルの設置場所ができます",
@@ -379,10 +379,10 @@ const words: Messages = {
   "solar.plans.hatched": "屋上の斜線部分：現在は十分に光が当たりますが、計画の完成後は当たりません。",
 
   "solar.status.finding": "屋上を探しています…",
-  "solar.status.measured": "計測済み",
-  "solar.status.measuringPct": "日陰を計測中… {pct}%",
-  "solar.status.measuring": "日陰を計測中",
-  "solar.status.measuringLabel": "計測中",
+  "solar.status.measured": "モデルによる推定値",
+  "solar.status.measuringPct": "日陰を計算中… {pct}%",
+  "solar.status.measuring": "日陰を計算中",
+  "solar.status.measuringLabel": "計算中",
   "solar.status.measuringNote": "屋上のあらゆる地点から見た1年間の太陽を、モデル内のすべての建物と照らし合わせています。",
 
   "solar.sheet.back": "街を探索",
@@ -442,6 +442,7 @@ const words: Messages = {
   "activity.sheet.explore": "街を探索",
   "activity.sheet.eyebrow": "メルボルン CBD",
   "activity.sheet.title": "通りの人出",
+  "activity.sheet.seasonal": "季節パターンによる推定",
   "activity.sheet.failed": "通りの人出のデータに接続できませんでした。少したってからもう一度お試しください。",
   "activity.sheet.loading": "通りの人出を読み込み中…",
   "activity.sheet.checking": "新しい計測値を確認中…",
@@ -598,6 +599,7 @@ const words: Messages = {
   "future.group.programmes": "市全体の取り組み",
   "future.group.programmesNote": "多くの通りにまたがって続く取り組みや、引き続き動向を見守っている計画です。単独の事業ではありません。",
   "future.card.open": "質問してみる",
+  "future.card.wider": "メルボルン広域",
 
   "future.talk.eyebrow": "街についてのちょっとした会話",
   "future.talk.back": "別の計画を選ぶ",
@@ -642,7 +644,7 @@ const words: Messages = {
   "words.spot.againstBuilding": "この建物がなければ {duration}",
   "words.spot.againstProject": "この計画がなければ {duration}",
   "words.spot.shadowWindow": "{from} – {to} ごろに影",
-  "words.notAnAssessment": "説明用の影の形 · デモデータ。都市計画上の評価ではありません。",
+  "words.notAnAssessment": "説明用の影の形 · City of Melbourne building footprints。都市計画上の評価ではありません。",
 
   "narrative.stamp": "{time} 時点",
   "narrative.provenance": "デモモデル · {date}",

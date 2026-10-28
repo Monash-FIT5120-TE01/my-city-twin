@@ -18,7 +18,7 @@ export const sentences = {
   "words.spot.againstProject": "{duration} without this project",
   // {from} and {to} are 24-hour times, e.g. "14:10" and "16:40"
   "words.spot.shadowWindow": "In shadow around {from} – {to}",
-  "words.notAnAssessment": "Illustrative shadow shapes · Demo data. Not a planning assessment.",
+  "words.notAnAssessment": "Illustrative shadow shapes · City of Melbourne building footprints. Not a planning assessment.",
 
   // ── scene/narrative.ts: what the shadow is doing, under the time bar ──
   // {time} e.g. "15:00"

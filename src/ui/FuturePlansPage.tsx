@@ -32,7 +32,7 @@ import {
   type FuturePlan,
   type FuturePlanQuestion,
 } from '../data/useFuturePlans';
-import { NO_FILTERS, nth, PlanFinder, ThemeMark, type PlanFilters } from './FuturePlanList';
+import { isWiderMelbourne, NO_FILTERS, nth, PlanFinder, ThemeMark, type PlanFilters } from './FuturePlanList';
 import { Button } from './kit/Button';
 import { Icon } from './kit/Icon';
 import { ChevronLeft } from './kit/icons';
@@ -248,6 +248,11 @@ function Conversation({
       <div className="future__head">
         <p className="future__eyebrow">{t('future.talk.eyebrow')}</p>
         <PageHead id="future-page-title" title={plan.name} lede={plan.topic} />
+        {isWiderMelbourne(plan) && (
+          <Pill size="xs" className="future__plan-wider">
+            {t('future.card.wider')}
+          </Pill>
+        )}
         <Button variant="ghost" className="future__choose" icon={<ChevronLeft />} onClick={onBack}>
           {t('future.talk.back')}
         </Button>

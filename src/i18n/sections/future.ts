@@ -44,6 +44,8 @@ export const future = {
   "future.group.programmesNote": "Ongoing work across many streets, and plans still being watched — not single projects.",
   // On each plan card: opens the plan's guided questions.
   "future.card.open": "Open a conversation",
+  // A tag on a plan outside the CBD, out in the suburbs.
+  "future.card.wider": "Wider Melbourne",
 
   // One plan's page: questions and saved answers shown like a chat.
   "future.talk.eyebrow": "A little city conversation",

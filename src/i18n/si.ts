@@ -223,7 +223,7 @@ const words: Messages = {
   "loading.progressLabel": "නගර ආකෘතිය පූරණය වෙමින්",
   "loading.credits": "Building Footprints 2023 සහ Development Activity Monitor © City of Melbourne. Draft Open Space Data © Victorian Planning Authority. දෙකම CC BY 4.0 බලපත්‍රය යටතේ.",
 
-  "kit.demoNote": "නිදර්ශන ආකෘතිය · නියැදි දත්ත",
+  "kit.demoNote": "නිදර්ශන ආකෘතිය · City of Melbourne building footprints",
   "kit.analysisNav": "මෙම ගොඩනැගිල්ල ගැන සොයා බැලිය යුතු දේ",
   "kit.sunlight": "හිරු එළිය",
   "kit.solarPanels": "සූර්ය පැනල",
@@ -366,7 +366,7 @@ const words: Messages = {
   "solar.plans.switchNote": "ඒවා ඉදි වූ බවත් ඒ වෙනුවට ඇති ගොඩනැගිලි ඉවත් කළ බවත් උපකල්පනය කර",
   "solar.plans.replaced": "අනුමත ව්‍යාපෘතියක් මෙම ගොඩනැගිල්ල වෙනුවට එයි.",
   "solar.plans.noneNearby": "කිසිවක් මෙම වහලයට වඩා 2° හෝ ඊට වැඩියෙන් ඉහළට නොනඟින නිසා, කිසිවක් එයට සෙවණ දෙන ලෙස ගණන් කර නැත.",
-  "solar.plans.measuring": "ඒවා ඉදි කළ විට වහලය මනිමින්… {pct}%",
+  "solar.plans.measuring": "ඒවා ඉදි කළ විට වහලය ගණනය කරමින්… {pct}%",
   "solar.plans.noChange": "පැනලවල හෝ ඒවායේ විදුලි නිෂ්පාදනයේ වෙනසක් නැත.",
   "solar.plans.tinyChange": "එම පැනලම; විදුලි නිෂ්පාදනයේ වෙනස 0.5% ට අඩුයි.",
   "solar.plans.newRoom": "අද කිසිවක් නැති තැන පැනල සඳහා <b>නව</b> ඉඩ",
@@ -379,10 +379,10 @@ const words: Messages = {
   "solar.plans.hatched": "වහලයේ ඉරි ගැසූ කොටස: අද ප්‍රමාණවත් ආලෝකය ඇත, ඒවා ඉදි වූ පසු නැත.",
 
   "solar.status.finding": "වහලය සොයමින්…",
-  "solar.status.measured": "මනින ලදී",
-  "solar.status.measuringPct": "සෙවණ මනිමින්… {pct}%",
-  "solar.status.measuring": "සෙවණ මනිමින්",
-  "solar.status.measuringLabel": "මනිමින්",
+  "solar.status.measured": "ආකෘතිගත ඇස්තමේන්තුව",
+  "solar.status.measuringPct": "සෙවණ ගණනය කරමින්… {pct}%",
+  "solar.status.measuring": "සෙවණ ගණනය කරමින්",
+  "solar.status.measuringLabel": "ගණනය කරමින්",
   "solar.status.measuringNote": "වසර පුරා වහලයේ සෑම ලක්ෂ්‍යයකටම හිරු ලැබෙන ආකාරය, ආකෘතියේ සියලු ගොඩනැගිලි සලකා.",
 
   "solar.sheet.back": "නගරය ගවේෂණය",
@@ -442,6 +442,7 @@ const words: Messages = {
   "activity.sheet.explore": "නගරය ගවේෂණය",
   "activity.sheet.eyebrow": "Melbourne CBD",
   "activity.sheet.title": "වීදිවල ජන ගැවසීම",
+  "activity.sheet.seasonal": "සෘතුමය ඇස්තමේන්තුව",
   "activity.sheet.failed": "වීදිවල ජන ගැවසීමේ දත්ත ලබාගත නොහැකි විය. මොහොතකින් නැවත උත්සාහ කරන්න.",
   "activity.sheet.loading": "වීදිවල ජන ගැවසීම පූරණය වෙමින්…",
   "activity.sheet.checking": "නව ගණන් පරීක්ෂා කරමින්…",
@@ -598,6 +599,7 @@ const words: Messages = {
   "future.group.programmes": "නගරය පුරා වැඩසටහන්",
   "future.group.programmesNote": "බොහෝ වීදි පුරා කෙරෙන අඛණ්ඩ වැඩ, සහ තවමත් නිරීක්ෂණය වන සැලසුම් — තනි ව්‍යාපෘති නොවේ.",
   "future.card.open": "සංවාදයක් අරඹන්න",
+  "future.card.wider": "මහා මෙල්බර්න් ප්‍රදේශය",
 
   "future.talk.eyebrow": "කුඩා නගර සංවාදයක්",
   "future.talk.back": "වෙනත් සැලැස්මක් තෝරන්න",
@@ -642,7 +644,7 @@ const words: Messages = {
   "words.spot.againstBuilding": "මෙම ගොඩනැගිල්ල නැතිනම් {duration}",
   "words.spot.againstProject": "මෙම ව්‍යාපෘතිය නැතිනම් {duration}",
   "words.spot.shadowWindow": "ආසන්න වශයෙන් {from} – {to} සෙවණැල්ලේ",
-  "words.notAnAssessment": "නිදර්ශන සෙවණැලි හැඩ · නියැදි දත්ත. සැලසුම් තක්සේරුවක් නොවේ.",
+  "words.notAnAssessment": "නිදර්ශන සෙවණැලි හැඩ · City of Melbourne building footprints. සැලසුම් තක්සේරුවක් නොවේ.",
 
   "narrative.stamp": "{time} ට",
   "narrative.provenance": "නිදර්ශන ආකෘතිය · {date}",

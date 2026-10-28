@@ -29,12 +29,31 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { FuturePlan } from '../data/useFuturePlans';
 import { Icon, type IconName } from './kit/Icon';
+import { Pill } from './kit/Pill';
 import { richText } from './KeyHints';
 import { formatNumber, t, useLocale } from '../i18n/i18n';
 import type { MessageKey } from '../i18n/en';
 
 /** The position in a list, for the CSS stagger. */
 export const nth = (i: number) => ({ '--i': i }) as CSSProperties;
+
+/**
+ * Out in the suburbs rather than in the CBD. The API has no place for a
+ * plan, so it is told by its whole name, as the API gives it: a new plan
+ * that only shares a word with these is not taken in.
+ */
+const WIDER_MELBOURNE = new Set(
+  [
+    'Sunshine Superhub',
+    'Melton Line Upgrade',
+    'North East Link, Eastern Freeway and M80 upgrades',
+    'Eastern Busway',
+    'Suburban Rail Loop East',
+  ].map((name) => name.toLowerCase()),
+);
+
+export const isWiderMelbourne = (plan: FuturePlan) =>
+  WIDER_MELBOURNE.has(plan.name.trim().replace(/\s+/g, ' ').toLowerCase());
 
 /** A city-wide programme or a planning watch, rather than one project. */
 export const isProgramme = (plan: FuturePlan) => /programmes|watchlist/i.test(plan.topic);
@@ -262,6 +281,11 @@ function PlanCard({ plan, onOpen }: { plan: FuturePlan; onOpen: (id: number) => 
           <ThemeMark topic={plan.topic} />
         </span>
         <span className="future__plan-topic">{plan.topic}</span>
+        {isWiderMelbourne(plan) && (
+          <Pill size="xs" className="future__plan-wider">
+            {t('future.card.wider')}
+          </Pill>
+        )}
       </span>
       <span className="future__plan-name">{plan.name}</span>
       <span className="future__plan-go">

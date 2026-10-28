@@ -98,7 +98,7 @@ describe('MapKey', () => {
 describe('DemoNote, Card and Pill', () => {
   it('says the same words with the sources link', () => {
     const html = renderToStaticMarkup(<DemoNote />);
-    expect(html).toContain('Illustrative model · Demo data');
+    expect(html).toContain('Illustrative model · City of Melbourne building footprints');
     expect(html).toContain('Sources &amp; limitations');
     expect(html).toContain('class="demo-note__sep" aria-hidden="true"');
   });

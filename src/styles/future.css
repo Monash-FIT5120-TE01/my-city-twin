@@ -454,6 +454,7 @@
 
 .future__plan-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -622,6 +623,24 @@
   justify-content: space-between;
   gap: var(--space-3);
   min-height: 2.25rem;
+}
+
+/*
+ * "Wider Melbourne": at the far end of the card's top row — on a line of its
+ * own when a narrow card or a long translation leaves no room — or under the
+ * plan's name.
+ */
+.future__plan-wider {
+  flex: none;
+  margin-left: auto;
+  box-shadow: none;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.future__head .future__plan-wider {
+  justify-self: start;
+  margin-left: 0;
 }
 
 .future__talk-kind {

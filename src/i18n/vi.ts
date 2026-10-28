@@ -222,7 +222,7 @@ const words: Messages = {
   "loading.progressLabel": "Đang tải mô hình thành phố",
   "loading.credits": "Building Footprints 2023 và Development Activity Monitor © City of Melbourne. Draft Open Space Data © Victorian Planning Authority. Cả hai được cấp phép CC BY 4.0.",
 
-  "kit.demoNote": "Mô hình minh họa · Dữ liệu demo",
+  "kit.demoNote": "Mô hình minh họa · City of Melbourne building footprints",
   "kit.analysisNav": "Tìm hiểu gì về tòa nhà này",
   "kit.sunlight": "Ánh nắng",
   "kit.solarPanels": "Tấm pin mặt trời",
@@ -365,7 +365,7 @@ const words: Messages = {
   "solar.plans.switchNote": "Khi đã xây xong, và các tòa nhà bị thay thế đã được dỡ bỏ",
   "solar.plans.replaced": "Một dự án đã được phê duyệt sẽ thay thế tòa nhà này.",
   "solar.plans.noneNearby": "Nhìn từ mái này, không dự án nào đạt góc cao từ 2° trở lên, nên không dự án nào được tính là che bóng mái.",
-  "solar.plans.measuring": "Đang đo mái khi các dự án đã xây xong… {pct}%",
+  "solar.plans.measuring": "Đang tính mái khi các dự án đã xây xong… {pct}%",
   "solar.plans.noChange": "Không thay đổi số tấm pin hay sản lượng điện.",
   "solar.plans.tinyChange": "Số tấm pin như cũ, và sản lượng điện thay đổi dưới 0,5%.",
   "solar.plans.newRoom": "Có chỗ <b>mới</b> để lắp pin, nơi hiện nay không có",
@@ -378,10 +378,10 @@ const words: Messages = {
   "solar.plans.hatched": "Phần gạch chéo trên mái: hôm nay đủ ánh sáng, nhưng sẽ không đủ khi các dự án xây xong.",
 
   "solar.status.finding": "Đang tìm mái…",
-  "solar.status.measured": "Đã đo",
-  "solar.status.measuringPct": "Đang đo bóng râm… {pct}%",
-  "solar.status.measuring": "Đang đo bóng râm",
-  "solar.status.measuringLabel": "Đang đo",
+  "solar.status.measured": "Ước tính theo mô hình",
+  "solar.status.measuringPct": "Đang tính bóng râm… {pct}%",
+  "solar.status.measuring": "Đang tính bóng râm",
+  "solar.status.measuringLabel": "Đang tính",
   "solar.status.measuringNote": "Mặt trời nhìn từ mọi điểm trên mái trong suốt một năm, so với mọi tòa nhà trong mô hình.",
 
   "solar.sheet.back": "Khám phá thành phố",
@@ -441,6 +441,7 @@ const words: Messages = {
   "activity.sheet.explore": "Khám phá thành phố",
   "activity.sheet.eyebrow": "Melbourne CBD",
   "activity.sheet.title": "Lưu lượng người đi bộ",
+  "activity.sheet.seasonal": "Ước tính theo mùa",
   "activity.sheet.failed": "Không kết nối được dữ liệu người đi bộ. Hãy thử lại sau giây lát.",
   "activity.sheet.loading": "Đang tải dữ liệu người đi bộ…",
   "activity.sheet.checking": "Đang kiểm tra số liệu mới…",
@@ -597,6 +598,7 @@ const words: Messages = {
   "future.group.programmes": "Chương trình toàn thành phố",
   "future.group.programmesNote": "Công việc đang diễn ra trên nhiều con phố, và các kế hoạch vẫn đang được theo dõi — không phải dự án đơn lẻ.",
   "future.card.open": "Bắt đầu trò chuyện",
+  "future.card.wider": "Vùng Melbourne rộng hơn",
 
   "future.talk.eyebrow": "Trò chuyện đôi chút về thành phố",
   "future.talk.back": "Chọn kế hoạch khác",
@@ -641,7 +643,7 @@ const words: Messages = {
   "words.spot.againstBuilding": "{duration} nếu không có tòa nhà này",
   "words.spot.againstProject": "{duration} nếu không có dự án này",
   "words.spot.shadowWindow": "Trong bóng râm khoảng {from} – {to}",
-  "words.notAnAssessment": "Hình bóng râm minh họa · Dữ liệu demo. Không phải đánh giá quy hoạch.",
+  "words.notAnAssessment": "Hình bóng râm minh họa · City of Melbourne building footprints. Không phải đánh giá quy hoạch.",
 
   "narrative.stamp": "Lúc {time}",
   "narrative.provenance": "Mô hình demo · {date}",

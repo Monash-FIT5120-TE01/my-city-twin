@@ -18,6 +18,8 @@ export const activity = {
   "activity.sheet.explore": "Explore the city",
   "activity.sheet.eyebrow": "Melbourne CBD",
   "activity.sheet.title": "Street activity",
+  // A tag beside the title: the counts ahead are estimated from the usual pattern, not counted.
+  "activity.sheet.seasonal": "Seasonal estimate",
   "activity.sheet.failed": "The street activity could not be reached. Try again in a moment.",
   "activity.sheet.loading": "Loading the street activity…",
   "activity.sheet.checking": "Checking for new counts…",

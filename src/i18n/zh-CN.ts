@@ -223,7 +223,7 @@ const words: Messages = {
   "loading.progressLabel": "正在加载城市模型",
   "loading.credits": "Building Footprints 2023 和 Development Activity Monitor © City of Melbourne。Draft Open Space Data © Victorian Planning Authority。均采用 CC BY 4.0 许可。",
 
-  "kit.demoNote": "示意模型 · 演示数据",
+  "kit.demoNote": "示意模型 · City of Melbourne building footprints",
   "kit.analysisNav": "这栋建筑可以分析什么",
   "kit.sunlight": "日照",
   "kit.solarPanels": "太阳能板",
@@ -366,7 +366,7 @@ const words: Messages = {
   "solar.plans.switchNote": "按建成计算，并拆除被取代的建筑",
   "solar.plans.replaced": "已批准的项目会取代这栋建筑。",
   "solar.plans.noneNearby": "从屋顶看，没有任何项目达到 2° 或以上的仰角，因此不计入遮挡。",
-  "solar.plans.measuring": "正在按项目建成后测量屋顶… {pct}%",
+  "solar.plans.measuring": "正在按项目建成后计算屋顶… {pct}%",
   "solar.plans.noChange": "太阳能板及其发电量没有变化。",
   "solar.plans.tinyChange": "太阳能板相同，发电量变化不到 0.5%。",
   "solar.plans.newRoom": "<b>新增</b>可装太阳能板的空间，现在这里没有",
@@ -379,10 +379,10 @@ const words: Messages = {
   "solar.plans.hatched": "屋顶上的斜线区域：现在光照充足，项目建成后则不足。",
 
   "solar.status.finding": "正在查找屋顶…",
-  "solar.status.measured": "已测量",
-  "solar.status.measuringPct": "正在测量遮挡… {pct}%",
-  "solar.status.measuring": "正在测量遮挡",
-  "solar.status.measuringLabel": "测量中",
+  "solar.status.measured": "模型估算",
+  "solar.status.measuringPct": "正在计算遮挡… {pct}%",
+  "solar.status.measuring": "正在计算遮挡",
+  "solar.status.measuringLabel": "计算中",
   "solar.status.measuringNote": "计算一年中太阳从屋顶每一点看去的位置，并与模型中的每栋建筑比对。",
 
   "solar.sheet.back": "探索城市",
@@ -442,6 +442,7 @@ const words: Messages = {
   "activity.sheet.explore": "探索城市",
   "activity.sheet.eyebrow": "Melbourne CBD",
   "activity.sheet.title": "街道人流",
+  "activity.sheet.seasonal": "季节性估算",
   "activity.sheet.failed": "无法获取街道人流数据，请稍后再试。",
   "activity.sheet.loading": "正在加载街道人流…",
   "activity.sheet.checking": "正在检查新的计数…",
@@ -598,6 +599,7 @@ const words: Messages = {
   "future.group.programmes": "全市计划",
   "future.group.programmesNote": "涉及许多街道的持续性工作，以及仍在关注中的规划——不是单个项目。",
   "future.card.open": "开始对话",
+  "future.card.wider": "大墨尔本地区",
 
   "future.talk.eyebrow": "关于城市的小对话",
   "future.talk.back": "选择其他规划",
@@ -642,7 +644,7 @@ const words: Messages = {
   "words.spot.againstBuilding": "没有这栋建筑时为 {duration}",
   "words.spot.againstProject": "没有这个项目时为 {duration}",
   "words.spot.shadowWindow": "大约 {from} – {to} 处于阴影中",
-  "words.notAnAssessment": "示意阴影形状 · 演示数据。不是规划评估。",
+  "words.notAnAssessment": "示意阴影形状 · City of Melbourne building footprints。不是规划评估。",
 
   "narrative.stamp": "{time}",
   "narrative.provenance": "演示模型 · {date}",

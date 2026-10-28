@@ -1,5 +1,5 @@
 /*
- * The line that says what this is — "Illustrative model · Demo data" — and
+ * The line that says what this is — "Illustrative model · City of Melbourne building footprints" — and
  * the way to its sources and limits. The same words, separator and link on
  * every screen; they had drifted into four versions ("scenarios" on one
  * page, no separator on another, no link on the card). `children` goes

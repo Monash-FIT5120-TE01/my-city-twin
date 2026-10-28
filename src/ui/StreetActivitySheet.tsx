@@ -677,9 +677,15 @@ export function StreetActivitySheet({
       <BackLink onClick={onExplore}>{t('activity.sheet.explore')}</BackLink>
       <div>
         <p className="panel__eyebrow">{t('activity.sheet.eyebrow')}</p>
-        <h2 className="activity-sheet__lede" id="activity-title" tabIndex={-1}>
-          {t('activity.sheet.title')}
-        </h2>
+        <div className="activity-sheet__title-row">
+          <h2 className="activity-sheet__lede" id="activity-title" tabIndex={-1}>
+            {t('activity.sheet.title')}
+          </h2>
+          {/* Only over forecast hours: recorded hours are counts, not estimates. */}
+          {activity && at !== null && modeAt(activity, at) === 'forecast' && (
+            <span className="activity-tag">{t('activity.sheet.seasonal')}</span>
+          )}
+        </div>
       </div>
 
       {!activity && (

@@ -17,7 +17,7 @@ export const solar = {
   "solar.plans.replaced": "An approved development replaces this building.",
   "solar.plans.noneNearby": "None rises 2° or more above this roof, so none is counted as shading it.",
   // {pct} is a whole number: the progress, out of 100
-  "solar.plans.measuring": "Measuring the roof with them built… {pct}%",
+  "solar.plans.measuring": "Calculating the roof with them built… {pct}%",
   "solar.plans.noChange": "No change to the panels or their generation.",
   "solar.plans.tinyChange": "The same panels, and less than 0.5% change in their generation.",
   // where today the roof takes no panels, the developments would make room for some; <b> is shown bold
@@ -36,10 +36,10 @@ export const solar = {
 
   // Progress, read out to screen readers and shown while the check runs.
   "solar.status.finding": "Finding the roof…",
-  "solar.status.measured": "Measured",
-  "solar.status.measuringPct": "Measuring the shade… {pct}%",
-  "solar.status.measuring": "Measuring the shade",
-  "solar.status.measuringLabel": "Measuring",
+  "solar.status.measured": "Modelled estimate",
+  "solar.status.measuringPct": "Calculating the shade… {pct}%",
+  "solar.status.measuring": "Calculating the shade",
+  "solar.status.measuringLabel": "Calculating",
   "solar.status.measuringNote": "The sun from every point of the roof through a year, against every building in the model.",
 
   "solar.sheet.back": "Explore the city",

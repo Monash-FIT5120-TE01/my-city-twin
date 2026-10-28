@@ -140,7 +140,7 @@ export const parts = {
   "loading.credits": "Building Footprints 2023 and Development Activity Monitor © City of Melbourne. Draft Open Space Data © Victorian Planning Authority. Both licensed CC BY 4.0.",
 
   // Other small parts
-  "kit.demoNote": "Illustrative model · Demo data",
+  "kit.demoNote": "Illustrative model · City of Melbourne building footprints",
   "kit.analysisNav": "What to work out for this building",
   "kit.sunlight": "Sunlight",
   "kit.solarPanels": "Solar panels",
