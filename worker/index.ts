@@ -25,14 +25,15 @@
  * when one begins: scripts/build-release.mjs builds the version after it, so
  * bumping it is what freezing means.
  */
-const LATEST = 'ver-2';
+const LATEST = 'ver-3';
 
 /**
- * Where the bare domain leads: the version being worked on, ahead of LATEST
- * (decided 2026-10-20), so mycitytwin.com opens on Iteration 3 while ver-3 can
- * still be rebuilt. It must be a version that is built (worker/deployment.test.ts).
+ * Where the bare domain leads: the version being worked on, ahead of LATEST,
+ * so mycitytwin.com opens on the newest work while the submitted versions stay
+ * as they were (ver-3 frozen 2026-10-29, after Iteration 3 was submitted). It
+ * must be a version that is built (worker/deployment.test.ts).
  */
-const HOME = 'ver-3';
+const HOME = 'ver-4';
 
 /** The later of the two: freezing a version past HOME without moving HOME still sends the domain to it. */
 const number = (version: string) => Number(version.slice('ver-'.length));

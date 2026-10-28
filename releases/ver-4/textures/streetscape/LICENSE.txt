@@ -1,0 +1,12 @@
+Textures in this folder are from ambientCG (https://ambientcg.com/), licensed CC0 1.0 Universal
+(https://docs.ambientcg.com/license/). Attribution is not required; the sources are credited anyway.
+
+  asphalt.jpg        Asphalt023S       https://ambientcg.com/view?id=Asphalt023S
+  formation.jpg      Concrete034, with a dark joint added so one tile is one 3.6 m panel
+                                       https://ambientcg.com/view?id=Concrete034
+  pavers.jpg         PavingStones126A  https://ambientcg.com/view?id=PavingStones126A
+  bark.jpg           Bark011 (resized to 512 px)  https://ambientcg.com/view?id=Bark011
+  leaf-cluster.png   leaf cut-outs from LeafSet010 arranged into one cluster card
+                                       https://ambientcg.com/view?id=LeafSet010
+
+Chosen against street photos of Swanston St x Collins St (mean colour and contrast compared), 2026-10-05.
